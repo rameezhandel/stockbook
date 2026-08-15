@@ -62,6 +62,18 @@ full-screen overlay, so there is no `NavigationStack`.
 SwiftData. The cart, search strings, sheet drafts and payment mode are `Cart` and
 `@State` — a half-typed bill is not history and must not survive a relaunch.
 
+**Setup is a draft, not a partial shop.** Nothing entered during the three
+steps touches the database until "Open the shop" — a half-finished setup should
+leave nothing behind to reconcile. `RootView` shows the flow whenever
+`ShopSettings.setupCompleted` is false, which is also what "Start over" clears,
+so there is no separate route back into it.
+
+**Setup's price fields sit on `--color-bg`, not `--color-surface`.** The
+prototype leaves them the same colour as the card they sit on, distinguished
+only by the border. This uses the inset treatment instead, so the stock / cost /
+price trio looks identical here and in the product editor — the same three
+fields, asked for at two different moments.
+
 **Share is a real share sheet, not a fake state.** The prototype turned its
 Share button accent with a "Sending" label, because it could not open anything.
 `ShareLink` hands the OS a real file, and the sheet that appears *is* the
@@ -175,20 +187,23 @@ both it and setup step 3.
 - **Settings** — owner name and counts, real export to Files, Share via the OS
   share sheet, and a validated import gated behind a warning that names what
   will be lost. Plus Start over.
+- **First-run setup** — all three steps: name, product names with the four
+  suggestion capsules, then the stock-and-prices grid with its completeness gate.
 - **Product editor** and **Add stock** sheets, both complete.
 - 40-odd tests over the domain layer.
 
 ## What is not built yet
 
-Each of these has a placeholder screen in `Features/Placeholder/` that lists its
-requirements and names the store methods already waiting for it. Delete the
-placeholder as the screen lands.
+Every screen in the handoff is built. What remains is verification rather than
+construction:
 
-| Screen | Handoff § | Notes |
-| --- | --- | --- |
-| First-run setup | 0, 1, 2 | Currently a one-field bypass so the app is runnable. **Remove that bypass** when the real flow lands. |
-
-Only first-run setup is left.
+- **No screen has been run.** CI proves the app compiles and that the domain
+  rules pass; nothing asserts what any view renders. The layout deviations noted
+  above are reasoned, not seen.
+- **No view-level tests.** Settings can erase the whole database, and while
+  `replaceEverything` and `BackupService.decode` are covered, the screen's own
+  gating — Cancel leaves the database alone, a corrupt file never reaches the
+  replace — has no assertion behind it.
 
 **Not built, and not to be built without asking:** low-stock alerts, a customer
 ledger, returns, bill editing beyond void, printable receipts, barcode scanning,
