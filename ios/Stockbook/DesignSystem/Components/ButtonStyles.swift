@@ -56,12 +56,14 @@ struct GhostButtonStyle: ButtonStyle {
 
     var fontSize: CGFloat = 12
     var tint: Color = Nocturne.accent
+    /// Zero when the action has to line up flush with the text above it.
+    var horizontalPadding: CGFloat = 4
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(NocturneType.inter(fontSize, .medium))
             .foregroundStyle(tint)
-            .padding(.horizontal, 4)
+            .padding(.horizontal, horizontalPadding)
             .padding(.vertical, 4)
             .background(
                 configuration.isPressed ? Nocturne.ghostPressed : Color.clear,

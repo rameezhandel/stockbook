@@ -4,25 +4,6 @@ import SwiftUI
 // names what the handoff asks for and what it can already call. See
 // `ios/README.md` → "What is not built yet".
 
-/// Handoff §8 — the bill history, and the only correction path there is.
-struct BillsScreen: View {
-    var body: some View {
-        ScaffoldScreen(
-            title: "Bills",
-            subtitle: "history and void",
-            requirements: [
-                "Rows reusing BillRow with showsVoidAction — joined line names, meta, right-aligned total.",
-                "Void & put stock back on every live bill; voided bills go muted and lose the action.",
-                "Empty state: receipt icon, “Nothing sold yet. Every bill you save shows up here.” + Start a bill."
-            ],
-            readyPieces: [
-                "BillRow already renders both the live and voided treatments.",
-                "StockbookStore.void restores each line's quantity to product stock and marks the bill voided — bills are never deleted."
-            ]
-        )
-    }
-}
-
 /// Handoff §11 — the settings screen, and the export/import handoff that is the
 /// app's only route onto a new phone.
 struct SettingsScreen: View {

@@ -164,6 +164,8 @@ both it and setup step 3.
   editable price with its override treatment and Reset, the required customer
   field with an upward suggestion dropdown, full/part payment, and save.
 - **Receipt** — the full-screen confirmation, including the faded rule.
+- **Bills** — full history newest-first, with void-and-restore on every live
+  bill and the muted treatment on voided ones.
 - **Product editor** and **Add stock** sheets, both complete.
 - 40-odd tests over the domain layer.
 
@@ -175,11 +177,10 @@ placeholder as the screen lands.
 
 | Screen | Handoff § | Notes |
 | --- | --- | --- |
-| Bills | 8 | `BillRow` already renders both live and voided treatments. |
 | Settings | 11 | `BackupService` and `replaceEverything` are done; this is UI. |
 | First-run setup | 0, 1, 2 | Currently a one-field bypass so the app is runnable. **Remove that bypass** when the real flow lands. |
 
-Suggested order, following the handoff: Bills → Settings → setup.
+Suggested order, following the handoff: Settings → setup.
 
 **Not built, and not to be built without asking:** low-stock alerts, a customer
 ledger, returns, bill editing beyond void, printable receipts, barcode scanning,
