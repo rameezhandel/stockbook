@@ -22,7 +22,14 @@ import sys
 
 
 def safe(name: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-") or "screenshot"
+    """`01-setup-name_0_8A36673E-...-1EE549F00892.png` -> `01-setup-name`.
+
+    xcresulttool appends an attachment index and a UUID to the name the test
+    gave, and keeps the extension. Left alone that produced `....png.png`.
+    """
+    stem = pathlib.PurePath(name).stem
+    stem = re.sub(r"_\d+_[0-9A-Fa-f-]{36}$", "", stem)
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", stem).strip("-") or "screenshot"
 
 
 def find_pairs(node, found):

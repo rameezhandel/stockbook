@@ -31,9 +31,9 @@ final class ScreenshotTests: XCTestCase {
         tap(app.buttons["Continue"])
 
         capture("03-setup-products")
-        for capsule in ["+ Padlock", "+ Deadbolt", "+ Cisa lock"] {
-            tap(app.buttons[capsule], required: false)
-        }
+        // One from the capsules and one typed, so both add paths are exercised —
+        // and only two, so every step-3 card stays on screen and reachable.
+        tap(app.buttons["+ Padlock"], required: false)
         type("4 inch hinge\n", into: field("setup.productName"))
         capture("04-setup-products-added")
         tap(app.buttons["Next — stock & prices"])
@@ -105,26 +105,36 @@ final class ScreenshotTests: XCTestCase {
         return match.exists ? match : app.textFields.firstMatch
     }
 
+    /// Taps, then waits for the keyboard to actually come up before typing.
+    ///
+    /// Tapping a SwiftUI `TextField` does not focus it synchronously, and typing
+    /// into an unfocused field throws "Neither element nor any descendant has
+    /// keyboard focus" — which is what stopped the first run at the price grid.
     private func type(_ text: String, into element: XCUIElement) {
         guard element.waitForExistence(timeout: 8) else { return }
-        element.tap()
-        element.typeText(text)
+        for _ in 0..<3 {
+            element.tap()
+            if app.keyboards.firstMatch.waitForExistence(timeout: 3) {
+                element.typeText(text)
+                return
+            }
+        }
+        XCTContext.runActivity(named: "never gained focus: \(element)") { _ in }
     }
 
     /// The three numeric fields per product card share identifiers, so they are
     /// filled by position rather than by name.
     private func fillPriceGrid() {
-        let values = ["stock": "40", "cost": "12", "price": "25"]
+        let values = [("stock", "40"), ("cost", "12"), ("price", "25")]
         for (key, value) in values {
             let fields = app.textFields.matching(identifier: "setup.\(key)")
             for index in 0..<fields.count {
                 let element = fields.element(boundBy: index)
                 guard element.exists, element.isHittable else { continue }
-                element.tap()
-                element.typeText(value)
+                type(value, into: element)
+                dismissKeyboard()
             }
         }
-        dismissKeyboard()
     }
 
     private func dismissKeyboard() {
