@@ -1,0 +1,73 @@
+name: iOS
+
+# Builds and tests the app on every push and pull request.
+#
+# This exists because the app is often written from a phone, where nothing can be
+# compiled. CI is the first thing that actually runs the code, so a failure here
+# is the feedback loop — not a formality.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+
+concurrency:
+  # A newer push makes an in-flight run pointless. On a private repo macOS
+  # minutes bill at 10x, so cancelling matters.
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & test
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runner ships several Xcodes. Take the newest 16.x rather than a
+      # hard-coded path, which breaks whenever the runner image rotates.
+      - name: Select Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -switch "$XCODE"; fi
+          xcodebuild -version
+          swift --version
+
+      # Preinstalled on the current runner images, but installing it is cheaper
+      # than a green build reported as a failure by a broken pipe.
+      - name: Ensure xcbeautify
+        run: command -v xcbeautify || brew install xcbeautify
+
+      - name: Show available simulators
+        run: xcrun simctl list devices available | grep -i iphone || true
+
+      - name: Build and test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project ios/Stockbook.xcodeproj \
+            -scheme Stockbook \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcbeautify --renderer github-actions
+
+      # Keeps the failure readable from a phone: the result bundle has the full
+      # diagnostics without needing the Mac.
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: TestResults.xcresult
+          retention-days: 7
+          if-no-files-found: ignore
