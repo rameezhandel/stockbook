@@ -94,7 +94,10 @@ final class StockbookStore {
 
     /// Whether a product editor's draft is complete enough to save: a name, a
     /// stock figure, a cost figure, and a selling price above zero.
-    static func isProductDraftComplete(name: String, stock: String, cost: String, price: String) -> Bool {
+    ///
+    /// `nonisolated` because it touches no state — it is a pure rule about four
+    /// strings, and setup's draft struct needs it from outside the main actor.
+    nonisolated static func isProductDraftComplete(name: String, stock: String, cost: String, price: String) -> Bool {
         !name.isBlank
             && !stock.isBlank
             && !cost.isBlank
