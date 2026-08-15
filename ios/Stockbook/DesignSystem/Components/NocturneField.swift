@@ -29,6 +29,9 @@ struct NocturneField: View {
     /// Rendered inside the field, before the value — the `SAR` on a price box.
     var prefix: String?
     var fontSize: CGFloat = 14
+    /// Accessibility identifier, so UI tests can find a field whose visible
+    /// label is drawn as a separate view rather than set on the control.
+    var identifier: String?
     var onSubmit: (() -> Void)?
 
     @FocusState private var focused: Bool
@@ -62,6 +65,17 @@ struct NocturneField: View {
                         .tint(Nocturne.accent)          // caret-color
                         .submitLabel(onSubmit == nil ? .return : .done)
                         .onSubmit { onSubmit?() }
+                        .accessibilityIdentifier(identifier ?? "")
+                        .toolbar {
+                            if focused, isNumeric {
+                                ToolbarItemGroup(placement: .keyboard) {
+                                    Spacer()
+                                    Button("Done") { focused = false }
+                                        .font(NocturneType.inter(15, .medium))
+                                        .foregroundStyle(Nocturne.accent)
+                                }
+                            }
+                        }
                 }
             }
             .padding(.horizontal, 10)
@@ -70,6 +84,11 @@ struct NocturneField: View {
             .hairline(borderColor, radius: Metrics.controlRadius)
             .animation(Metrics.quick, value: borderColor)
         }
+    }
+
+    /// Keypads that offer no return key of their own.
+    private var isNumeric: Bool {
+        keyboard == .decimalPad || keyboard == .numberPad
     }
 
     private var borderColor: Color {
@@ -101,7 +120,8 @@ extension NocturneField {
         emphasis: Emphasis = .none,
         alignment: TextAlignment = .leading,
         prefix: String? = nil,
-        fontSize: CGFloat = 14
+        fontSize: CGFloat = 14,
+        identifier: String? = nil
     ) -> NocturneField {
         NocturneField(
             label: label,
@@ -113,7 +133,8 @@ extension NocturneField {
             emphasis: emphasis,
             alignment: alignment,
             prefix: prefix,
-            fontSize: fontSize
+            fontSize: fontSize,
+            identifier: identifier
         )
     }
 }

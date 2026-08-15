@@ -96,6 +96,7 @@ struct SetupFlowView: View {
                     height: Metrics.tallInputHeight,
                     isRequiredAndEmpty: ownerName.isBlank,
                     fontSize: 15,
+                    identifier: "setup.ownerName",
                     onSubmit: { advance(to: .products) }
                 )
 
@@ -137,6 +138,7 @@ struct SetupFlowView: View {
                         text: $draftName,
                         height: Metrics.tallInputHeight,
                         fontSize: 15,
+                        identifier: "setup.productName",
                         onSubmit: { addDraft(draftName) }
                     )
                     Button { addDraft(draftName) } label: {
@@ -232,18 +234,21 @@ struct SetupFlowView: View {
                                     NocturneField.number(
                                         label: "In stock",
                                         text: $draft.stock,
-                                        isRequiredAndEmpty: draft.stock.isBlank
+                                        isRequiredAndEmpty: draft.stock.isBlank,
+                                        identifier: "setup.stock"
                                     )
                                     NocturneField.number(
                                         label: "You pay",
                                         text: $draft.cost,
-                                        isRequiredAndEmpty: draft.cost.isBlank
+                                        isRequiredAndEmpty: draft.cost.isBlank,
+                                        identifier: "setup.cost"
                                     )
                                     NocturneField.number(
                                         label: "You sell",
                                         text: $draft.price,
                                         isRequiredAndEmpty: (Money.parse(draft.price) ?? 0) <= 0,
-                                        emphasis: .sellingPrice
+                                        emphasis: .sellingPrice,
+                                        identifier: "setup.price"
                                     )
                                 }
                             }

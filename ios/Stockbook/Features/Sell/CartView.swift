@@ -276,6 +276,7 @@ private struct CustomerField: View {
             }
             TextField("", text: $name)
                 .font(NocturneType.inter(14))
+                .accessibilityIdentifier("cart.customer")
                 .focused($focused)
                 .tint(Nocturne.accent)
                 .submitLabel(.done)

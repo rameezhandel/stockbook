@@ -38,6 +38,16 @@
                ReferencedContainer = "container:Stockbook.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5B000000000000000000001D"
+               BuildableName = "StockbookUITests.xctest"
+               BlueprintName = "StockbookUITests"
+               ReferencedContainer = "container:Stockbook.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

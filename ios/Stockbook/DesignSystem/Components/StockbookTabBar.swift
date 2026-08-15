@@ -23,6 +23,7 @@ struct StockbookTabBar: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("tab.\(tab.rawValue)")
                 .accessibilityAddTraits(selection == tab ? [.isSelected, .isButton] : .isButton)
             }
         }

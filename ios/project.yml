@@ -54,6 +54,19 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.stockbook.app.tests
         GENERATE_INFOPLIST_FILE: YES
 
+  StockbookUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: StockbookUITests
+    dependencies:
+      - target: Stockbook
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.stockbook.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Stockbook
+
 schemes:
   Stockbook:
     build:
@@ -65,3 +78,4 @@ schemes:
       config: Debug
       targets:
         - StockbookTests
+        - StockbookUITests

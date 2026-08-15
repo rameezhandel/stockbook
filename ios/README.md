@@ -197,9 +197,10 @@ both it and setup step 3.
 Every screen in the handoff is built. What remains is verification rather than
 construction:
 
-- **No screen has been run.** CI proves the app compiles and that the domain
-  rules pass; nothing asserts what any view renders. The layout deviations noted
-  above are reasoned, not seen.
+- **Nothing asserts what a view renders.** The `Screenshots` workflow now walks
+  the app in a simulator and publishes a picture of every screen to the
+  `screenshots` branch on each push to `main`, so the views are at least *seen*.
+  It is a camera, not a test — it cannot tell you a screen looks right.
 - **No view-level tests.** Settings can erase the whole database, and while
   `replaceEverything` and `BackupService.decode` are covered, the screen's own
   gating — Cancel leaves the database alone, a corrupt file never reaches the
@@ -212,13 +213,18 @@ were considered and deliberately cut.
 
 ## Tests
 
+Two suites, deliberately separated. `StockbookTests` is correctness and gates
+every push. `StockbookUITests` only takes screenshots, runs in its own workflow,
+and is allowed to fail — a stumbling walkthrough should cost you pictures, not a
+red tick on working code.
+
 `⌘U`, or:
 
 ```sh
 xcodebuild test -scheme Stockbook -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
-They cover the rules where a plausible-looking wrong implementation is easy to
+The unit suite covers the rules where a plausible-looking wrong implementation is easy to
 write: stock flooring at zero, part payments clamping to the total, history
 surviving a product edit, voiding being idempotent, the owed banner counting
 people rather than bills, suggestion ranking, cost being latest-paid, and the
