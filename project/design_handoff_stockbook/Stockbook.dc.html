@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-9b280adf-d229-4321-a995-75539776fe39/styles.css">
+<script src="_ds/nocturne-9b280adf-d229-4321-a995-75539776fe39/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:Inter,system-ui,sans-serif}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+.sb-scroll::-webkit-scrollbar{width:0;height:0}
+a{color:var(--color-accent)}a:hover{color:var(--color-accent-400)}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(120% 80% at 10% -12%, color-mix(in srgb, var(--color-accent-900) 60%, var(--color-bg)) 0%, var(--color-bg) 58%);padding:40px 44px 64px">
+  <div style="display:flex;gap:44px;align-items:flex-start;flex-wrap:wrap-reverse;flex-direction:row-reverse;justify-content:flex-end;max-width:1340px">
+
+    <div style="flex:1 1 340px;min-width:290px;max-width:480px">
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:8px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:9px;border:1px solid var(--color-accent);color:var(--color-accent);font-size:20px"><i class="ph ph-shapes"></i></span>
+        <h1 style="font-size:40px;margin:0;letter-spacing:-0.025em">Stockbook</h1>
+      </div>
+      <p style="font-size:15px;color:var(--color-neutral-400);margin:0 0 8px;max-width:42ch;text-wrap:pretty">Plain and functional, like you asked — the book where stock and prices live. No account, no signal, nothing leaves the phone.</p>
+      <p style="font-size:12px;color:var(--color-neutral-500);margin:0 0 30px">Runners-up: <span style="color:var(--color-neutral-500)">Shopdesk</span> · <span style="color:var(--color-neutral-500)">Counter</span> · <span style="color:var(--color-neutral-500)">Partsbook</span></p>
+
+      <h6 style="color:var(--color-accent);margin:0 0 10px">Built from your answers</h6>
+      <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:28px">
+        <div style="display:flex;gap:10px"><span style="color:var(--color-accent-700);font-size:14px;margin-top:1px"><i class="ph ph-package"></i></span><p style="margin:0;font-size:13px;color:var(--color-neutral-400);line-height:1.55"><strong style="color:var(--color-text)">Everything sells by the piece.</strong> One product, one stock count, one selling price — no pack or box variants to keep in step.</p></div>
+        <div style="display:flex;gap:10px"><span style="color:var(--color-accent-700);font-size:14px;margin-top:1px"><i class="ph ph-hand-coins"></i></span><p style="margin:0;font-size:13px;color:var(--color-neutral-400);line-height:1.55"><strong style="color:var(--color-text)">Customer name on every bill.</strong> Required — and it suggests names you've billed before, the ones who owe you money first.</p></div>
+        <div style="display:flex;gap:10px"><span style="color:var(--color-accent-700);font-size:14px;margin-top:1px"><i class="ph ph-stack-plus"></i></span><p style="margin:0;font-size:13px;color:var(--color-neutral-400);line-height:1.55"><strong style="color:var(--color-text)">Two ways to restock.</strong> Quick add when you just top up a bin; a purchase entry when a supplier delivers — that one updates the buying price.</p></div>
+        <div style="display:flex;gap:10px"><span style="color:var(--color-accent-700);font-size:14px;margin-top:1px"><i class="ph ph-floppy-disk"></i></span><p style="margin:0;font-size:13px;color:var(--color-neutral-400);line-height:1.55"><strong style="color:var(--color-text)">Export and import.</strong> Settings writes one file with the whole shop in it — the only way onto a new phone, and the only backup you get when nothing syncs.</p></div>
+      </div>
+
+      <h6 style="color:var(--color-accent);margin:0 0 10px">Left out on purpose</h6>
+      <p style="font-size:13px;color:var(--color-neutral-500);margin:0 0 8px;line-height:1.6;max-width:42ch">You skipped low-stock alerts, customer ledger, returns, receipts and barcodes, so none of them are here. Two I'd still argue for:</p>
+      <ul style="margin:0 0 30px;padding-left:16px;font-size:13px;line-height:1.7;color:var(--color-neutral-500);max-width:42ch">
+        <li><strong style="color:var(--color-neutral-400)">Voiding a bill.</strong> Without it, one mistyped bill puts stock permanently out of step with the shelf. I've left a quiet <em>Void</em> on the Bills screen — say the word and I'll pull it.</li>
+        <li><strong style="color:var(--color-neutral-400)">A low-stock line.</strong> With 300 hardware SKUs you won't notice the plugs are gone until someone asks.</li>
+      </ul>
+
+      <h6 style="color:var(--color-accent);margin:0 0 10px">Walk through it</h6>
+      <ol style="margin:0 0 30px;padding-left:17px;font-size:13.5px;line-height:1.85;color:var(--color-neutral-400)">
+        <li>The phone opens on <strong style="color:var(--color-text)">first-run setup</strong> — your name, then a few items, then stock and prices.</li>
+        <li>Tap <strong style="color:var(--color-text)">Sell</strong>, add an item, then tap the price and change it — for that bill only.</li>
+        <li>Take a part payment and save. Check <strong style="color:var(--color-text)">Items</strong> — stock has dropped.</li>
+        <li>Open any item to edit the selling price, or add stock.</li>
+      </ol>
+
+      <h6 style="color:var(--color-accent);margin:0 0 10px">Next</h6>
+      <p style="font-size:13px;color:var(--color-neutral-500);margin:0;max-width:42ch">Tell me which screen to push on and I'll take it further — or add the balance-due list, a month summary, or barcode scan.</p>
+    </div>
+
+    <div style="flex:none">
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+
+        <div style="height:100%;display:flex;flex-direction:column;background:var(--color-bg);font-family:Inter,system-ui,sans-serif;color:var(--color-text);position:relative;overflow:hidden">
+
+          <sc-if value="{{ inSetup }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;padding:60px 20px 0;min-height:0">
+              <div style="display:flex;gap:6px;margin-bottom:18px">
+                <div style="flex:1;height:3px;border-radius:2px;background:var(--color-accent)"></div>
+                <div style="flex:1;height:3px;border-radius:2px;background:{{ bar2 }}"></div>
+                <div style="flex:1;height:3px;border-radius:2px;background:{{ bar3 }}"></div>
+              </div>
+
+              <sc-if value="{{ atStep0 }}" hint-placeholder-val="{{ true }}">
+                <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;border:1px solid var(--color-accent);color:var(--color-accent);font-size:20px;margin-bottom:14px"><i class="ph ph-shapes"></i></span>
+                  <h2 style="font-size:26px;margin:0 0 5px">Welcome to Stockbook</h2>
+                  <p style="font-size:13px;color:var(--color-neutral-500);margin:0 0 18px;line-height:1.5">Everything stays on this phone — no account, no signal needed. First, what should we call you?</p>
+                  <div class="field"><label>Your name</label><input class="input" placeholder="Business owner name" value="{{ ownerName }}" onChange="{{ onOwnerName }}" onKeyDown="{{ onOwnerKey }}" style="min-height:46px;font-size:15px;border-color:{{ ownerBorder }}"></div>
+                </div>
+                <div style="padding:10px 0 40px">
+                  <button class="btn btn-primary btn-block" onClick="{{ toStep1 }}" style="min-height:48px;font-size:15px" disabled="{{ noOwner }}">Continue</button>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ atStep1 }}" hint-placeholder-val="{{ true }}">
+                <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+                  <div style="font-size:11px;letter-spacing:0.09em;text-transform:uppercase;color:var(--color-accent);margin-bottom:6px">{{ step1Kicker }}</div>
+                  <h2 style="font-size:26px;margin:0 0 5px">What do you stock?</h2>
+                  <p style="font-size:13px;color:var(--color-neutral-500);margin:0 0 16px;line-height:1.5">Names only for now. Prices and counts come next, and you can add or remove items any time after.</p>
+                  <div style="display:flex;gap:8px;margin-bottom:16px">
+                    <input class="input" placeholder="e.g. 4 inch hinge" value="{{ draftName }}" onChange="{{ onDraftName }}" onKeyDown="{{ onDraftKey }}" style="flex:1;min-height:46px;font-size:15px">
+                    <button class="btn btn-primary" onClick="{{ addDraft }}" style="min-height:46px;padding-inline:15px"><i class="ph ph-plus" style="font-size:18px"></i></button>
+                  </div>
+                  <div style="font-size:10.5px;letter-spacing:0.09em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:8px">Common hardware lines</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px">
+                    <sc-for list="{{ suggestions }}" as="s" hint-placeholder-count="8">
+                      <button class="tag tag-outline" onClick="{{ s.add }}" style="cursor:pointer;background:transparent;font-family:inherit;min-height:30px;font-size:11.5px">+ {{ s.name }}</button>
+                    </sc-for>
+                  </div>
+                  <div style="font-size:10.5px;letter-spacing:0.09em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:8px">{{ draftHeading }}</div>
+                  <div class="sb-scroll" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;padding-bottom:10px;min-height:0">
+                    <sc-for list="{{ drafts }}" as="d" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:center;gap:10px;background:var(--color-surface);border-radius:8px;padding:9px 8px 9px 13px">
+                        <span style="flex:1;font-size:14.5px">{{ d.name }}</span>
+                        <button class="btn btn-ghost" onClick="{{ d.remove }}" style="color:var(--color-neutral-500);font-size:16px"><i class="ph ph-x"></i></button>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="padding:10px 0 40px;display:flex;gap:8px">
+                  <button class="btn btn-secondary" onClick="{{ toStep0 }}" style="min-height:48px;padding-inline:17px"><i class="ph ph-arrow-left" style="font-size:17px"></i></button>
+                  <button class="btn btn-primary" onClick="{{ toStep2 }}" style="flex:1;min-height:48px;font-size:15px" disabled="{{ noDrafts }}">Next — stock &amp; prices</button>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ atStep2 }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+                  <h2 style="font-size:26px;margin:0 0 5px">Stock and prices</h2>
+                  <p style="font-size:13px;color:var(--color-neutral-500);margin:0 0 16px;line-height:1.5">All three are needed for every item — the count on the shelf, what you paid, what you charge.</p>
+                  <div class="sb-scroll" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-bottom:10px;min-height:0">
+                    <sc-for list="{{ drafts }}" as="d" hint-placeholder-count="3">
+                      <div style="background:var(--color-surface);border-radius:10px;padding:12px">
+                        <div style="font-size:14.5px;margin-bottom:10px">{{ d.name }}</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                          <div class="field"><label>In stock</label><input class="input" type="number" value="{{ d.stock }}" onChange="{{ d.setStock }}" style="min-height:42px;border-color:{{ d.stockBorder }}"></div>
+                          <div class="field"><label>You pay</label><input class="input" type="number" value="{{ d.cost }}" onChange="{{ d.setCost }}" style="min-height:42px;border-color:{{ d.costBorder }}"></div>
+                          <div class="field"><label>You sell</label><input class="input" type="number" value="{{ d.price }}" onChange="{{ d.setPrice }}" style="min-height:42px;border-color:{{ d.priceBorder }}"></div>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="padding:10px 0 40px">
+                  <div style="font-size:11.5px;color:var(--color-neutral-500);margin-bottom:8px;text-align:center">{{ setupGate }}</div>
+                  <div style="display:flex;gap:8px">
+                    <button class="btn btn-secondary" onClick="{{ toStep1 }}" style="min-height:48px;padding-inline:17px"><i class="ph ph-arrow-left" style="font-size:17px"></i></button>
+                    <button class="btn btn-primary" onClick="{{ finishSetup }}" style="flex:1;min-height:48px;font-size:15px" disabled="{{ setupIncomplete }}">Open the shop</button>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ inApp }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+
+              <sc-if value="{{ onHome }}" hint-placeholder-val="{{ true }}">
+                <div style="padding:58px 20px 12px;display:flex;align-items:flex-end;justify-content:space-between">
+                  <div>
+                    <div style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">{{ todayLabel }}</div>
+                    <h3 style="margin:3px 0 0;font-size:25px">{{ greeting }}</h3>
+                  </div>
+                  <button class="btn btn-secondary btn-icon" onClick="{{ goSettings }}" title="Settings"><i class="ph ph-gear-six" style="font-size:18px"></i></button>
+                </div>
+                <div class="sb-scroll" style="flex:1;overflow:auto;padding:4px 20px 18px;min-height:0">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px">
+                    <div style="background:linear-gradient(155deg,var(--color-accent-900),var(--color-surface));border-radius:12px;padding:14px;box-shadow:0 0 0 1px var(--color-neutral-800)">
+                      <div style="font-size:11px;color:var(--color-neutral-500);margin-bottom:3px">Sold today</div>
+                      <div style="font-size:26px;font-weight:500;letter-spacing:-0.025em">{{ todaySales }}</div>
+                    </div>
+                    <div style="background:var(--color-surface);border-radius:12px;padding:14px;box-shadow:0 0 0 1px var(--color-neutral-800)">
+                      <div style="font-size:11px;color:var(--color-neutral-500);margin-bottom:3px">Bills</div>
+                      <div style="font-size:26px;font-weight:500;letter-spacing:-0.025em">{{ todayCount }}</div>
+                    </div>
+                  </div>
+                  <sc-if value="{{ hasDue }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;align-items:center;gap:10px;background:var(--color-surface);border-left:2px solid var(--color-accent);border-radius:0 10px 10px 0;padding:12px 13px;margin-bottom:18px">
+                      <i class="ph ph-hand-coins" style="font-size:19px;color:var(--color-accent-400)"></i>
+                      <div style="flex:1;font-size:12.5px;color:var(--color-neutral-400);line-height:1.4">{{ dueNote }}</div>
+                      <span style="font-size:16px;color:var(--color-accent-400)">{{ dueTotal }}</span>
+                    </div>
+                  </sc-if>
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+                    <div style="font-size:10.5px;letter-spacing:0.09em;text-transform:uppercase;color:var(--color-neutral-500)">Recent bills</div>
+                    <button class="btn btn-ghost" onClick="{{ goBills }}" style="font-size:12px">All</button>
+                  </div>
+                  <sc-if value="{{ noBills }}" hint-placeholder-val="{{ false }}">
+                    <div style="border:1px dashed var(--color-neutral-800);border-radius:10px;padding:22px 16px;text-align:center">
+                      <div style="font-size:13px;color:var(--color-neutral-500);margin-bottom:10px">No bills yet today.</div>
+                      <button class="btn btn-primary" onClick="{{ goSell }}" style="font-size:13px"><i class="ph ph-plus"></i> Start a bill</button>
+                    </div>
+                  </sc-if>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <sc-for list="{{ recentBills }}" as="b" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:center;gap:12px;background:var(--color-surface);border-radius:9px;padding:12px">
+                        <div style="flex:1;min-width:0">
+                          <div style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.summary }}</div>
+                          <div style="font-size:11.5px;color:var(--color-neutral-500);margin-top:2px">{{ b.meta }}</div>
+                        </div>
+                        <span style="font-size:15px;color:{{ b.color }}">{{ b.totalLabel }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+
+                  <div style="margin-top:18px;display:flex;align-items:center;gap:11px;padding:12px;border:1px dashed var(--color-neutral-800);border-radius:10px">
+                    <i class="{{ backupIcon }}" style="font-size:20px;color:{{ backupColor }}"></i>
+                    <div style="flex:1;font-size:12px;color:var(--color-neutral-500);line-height:1.4">{{ backupNote }}</div>
+                    <button class="btn btn-secondary" onClick="{{ doBackup }}" style="font-size:12px">Save file</button>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ onItems }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:58px 20px 10px;display:flex;align-items:flex-end;justify-content:space-between">
+                  <div>
+                    <h3 style="margin:0;font-size:25px">Items</h3>
+                    <div style="font-size:11.5px;color:var(--color-neutral-500);margin-top:2px">{{ itemsMeta }}</div>
+                  </div>
+                  <button class="btn btn-primary" onClick="{{ newProduct }}" style="font-size:13px"><i class="ph ph-plus"></i> Add</button>
+                </div>
+                <div style="padding:0 20px 10px">
+                  <input class="input" placeholder="Search" value="{{ query }}" onChange="{{ onQuery }}" style="min-height:42px;font-size:14.5px">
+                </div>
+                <div class="sb-scroll" style="flex:1;overflow:auto;padding:0 20px 18px;min-height:0;display:flex;flex-direction:column;gap:6px">
+                  <sc-if value="{{ noItems }}" hint-placeholder-val="{{ false }}">
+                    <div style="border:1px dashed var(--color-neutral-800);border-radius:10px;padding:26px 18px;text-align:center;margin-top:8px">
+                      <i class="ph ph-shapes" style="font-size:26px;color:var(--color-neutral-600)"></i>
+                      <div style="font-size:13px;color:var(--color-neutral-500);margin:9px 0 12px;line-height:1.5">{{ noItemsNote }}</div>
+                      <button class="btn btn-primary" onClick="{{ newProduct }}" style="font-size:13px"><i class="ph ph-plus"></i> Add a product</button>
+                    </div>
+                  </sc-if>
+                  <sc-for list="{{ filtered }}" as="p" hint-placeholder-count="7">
+                    <button onClick="{{ p.open }}" style="display:flex;align-items:center;gap:12px;background:var(--color-surface);border:0;border-radius:9px;padding:12px;cursor:pointer;font-family:inherit;text-align:left;color:var(--color-text)">
+                      <div style="flex:1;min-width:0">
+                        <div style="font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.name }}</div>
+                        <div style="font-size:11.5px;color:var(--color-neutral-500);margin-top:2px">{{ p.sub }}</div>
+                      </div>
+                      <div style="text-align:right">
+                        <div style="font-size:15px">{{ p.priceLabel }}</div>
+                        <div style="font-size:11.5px;color:{{ p.stockColor }};margin-top:2px">{{ p.stockLabel }}</div>
+                      </div>
+                    </button>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ onSell }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:58px 20px 10px;display:flex;align-items:flex-end;justify-content:space-between">
+                  <h3 style="margin:0;font-size:25px">New bill</h3>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">{{ cartMeta }}</span>
+                </div>
+                <sc-if value="{{ showPicker }}" hint-placeholder-val="{{ true }}">
+                  <div style="padding:0 20px 8px;font-size:11.5px;color:var(--color-neutral-500)">{{ pickerHint }}</div>
+                </sc-if>
+                <div style="padding:0 20px 10px">
+                  <input class="input" placeholder="Add a product…" value="{{ sellQuery }}" onChange="{{ onSellQuery }}" style="min-height:42px;font-size:14.5px">
+                </div>
+                <sc-if value="{{ showPicker }}" hint-placeholder-val="{{ true }}">
+                  <div class="sb-scroll" style="flex:1;overflow:auto;padding:0 20px 18px;min-height:0;display:flex;flex-direction:column;gap:5px">
+                    <sc-if value="{{ noMatches }}" hint-placeholder-val="{{ false }}">
+                      <div style="border:1px dashed var(--color-neutral-800);border-radius:10px;padding:26px 18px;text-align:center;margin-top:8px">
+                        <div style="font-size:13px;color:var(--color-neutral-500);margin-bottom:12px;line-height:1.5">{{ noMatchesNote }}</div>
+                        <button class="btn btn-primary" onClick="{{ newProduct }}" style="font-size:13px"><i class="ph ph-plus"></i> Add a product</button>
+                      </div>
+                    </sc-if>
+                    <sc-for list="{{ sellMatches }}" as="p" hint-placeholder-count="6">
+                      <button onClick="{{ p.add }}" style="display:flex;align-items:center;gap:10px;background:var(--color-surface);border:0;border-radius:8px;padding:11px 12px;cursor:pointer;font-family:inherit;text-align:left;color:var(--color-text)">
+                        <span style="flex:1;font-size:14px">{{ p.name }}</span>
+                        <span style="font-size:11.5px;color:var(--color-neutral-500)">{{ p.stockLabel }}</span>
+                        <span style="font-size:14px;color:var(--color-accent-400)">{{ p.priceLabel }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                  <sc-if value="{{ pickerHasCart }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:10px 20px 38px;background:var(--color-surface);box-shadow:0 -1px 0 var(--color-neutral-800);display:flex;align-items:center;gap:12px">
+                      <div style="flex:1">
+                        <div style="font-size:11.5px;color:var(--color-neutral-500)">{{ cartMeta }}</div>
+                        <div style="font-size:19px">{{ cartTotal }}</div>
+                      </div>
+                      <button class="btn btn-primary" onClick="{{ backToCart }}" style="min-height:44px;font-size:14px;padding-inline:18px">Done adding</button>
+                    </div>
+                  </sc-if>
+                </sc-if>
+                <sc-if value="{{ showCart }}" hint-placeholder-val="{{ false }}">
+                  <div class="sb-scroll" style="flex:1;overflow:auto;padding:0 20px 10px;min-height:0;display:flex;flex-direction:column;gap:8px">
+                    <sc-for list="{{ cartLines }}" as="l" hint-placeholder-count="2">
+                      <div style="background:var(--color-surface);border-radius:10px;padding:11px 12px">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                          <span style="flex:1;font-size:14.5px">{{ l.name }}</span>
+                          <span style="font-size:15px">{{ l.lineTotal }}</span>
+                          <button class="btn btn-ghost" onClick="{{ l.remove }}" style="color:var(--color-neutral-500);font-size:15px"><i class="ph ph-trash"></i></button>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                          <div style="display:flex;align-items:center;background:var(--color-bg);border-radius:8px;border:1px solid var(--color-neutral-800)">
+                            <button onClick="{{ l.dec }}" style="width:34px;height:34px;background:none;border:0;color:var(--color-text);font-size:15px;cursor:pointer"><i class="ph ph-minus"></i></button>
+                            <input type="number" value="{{ l.qty }}" onChange="{{ l.setQty }}" style="width:44px;height:34px;background:none;border:0;color:var(--color-text);font:inherit;font-size:14px;text-align:center">
+                            <button onClick="{{ l.inc }}" style="width:34px;height:34px;background:none;border:0;color:var(--color-text);font-size:15px;cursor:pointer"><i class="ph ph-plus"></i></button>
+                          </div>
+                          <span style="font-size:11.5px;color:var(--color-neutral-500)">{{ l.unitWord }}</span>
+                          <div style="flex:1"></div>
+                          <div style="display:flex;align-items:center;gap:4px;background:var(--color-bg);border:1px solid {{ l.priceBorder }};border-radius:8px;padding:0 9px;height:34px">
+                            <span style="font-size:12.5px;color:var(--color-neutral-500)">{{ symbol }}</span>
+                            <input type="number" value="{{ l.price }}" onChange="{{ l.setPrice }}" style="width:56px;background:none;border:0;color:{{ l.priceColor }};font:inherit;font-size:14px;text-align:right">
+                          </div>
+                        </div>
+                        <sc-if value="{{ l.edited }}" hint-placeholder-val="{{ false }}">
+                          <div style="font-size:11px;color:var(--color-accent-400);margin-top:8px;display:flex;align-items:center;gap:5px">
+                            <i class="ph ph-pencil-simple"></i><span>{{ l.editedNote }}</span>
+                            <button class="btn btn-ghost" onClick="{{ l.resetPrice }}" style="font-size:11px;margin-left:auto">Reset</button>
+                          </div>
+                        </sc-if>
+                      </div>
+                    </sc-for>
+                    <button class="btn btn-secondary" onClick="{{ browseAll }}" style="min-height:44px;font-size:13.5px;margin-top:2px"><i class="ph ph-list-magnifying-glass" style="font-size:17px"></i> Add another item</button>
+                  </div>
+                  <div style="padding:12px 20px 38px;background:var(--color-surface);box-shadow:0 -1px 0 var(--color-neutral-800)">
+                    <div style="position:relative;margin-bottom:10px">
+                      <input class="input" placeholder="Customer name" value="{{ customer }}" onChange="{{ onCustomer }}" onFocus="{{ onCustomerFocus }}" onBlur="{{ onCustomerBlur }}" style="min-height:40px;background:var(--color-bg);border-color:{{ customerBorder }}">
+                      <sc-if value="{{ showCustomerHints }}" hint-placeholder-val="{{ false }}">
+                        <div style="position:absolute;left:0;right:0;bottom:44px;z-index:6;background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.55);overflow:hidden">
+                          <sc-for list="{{ customerHints }}" as="c" hint-placeholder-count="3">
+                            <button onMouseDown="{{ c.pick }}" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;border-bottom:1px solid var(--color-neutral-800);padding:10px 12px;cursor:pointer;font-family:inherit;font-size:13.5px;text-align:left;color:var(--color-text)">
+                              <i class="ph ph-user" style="font-size:15px;color:var(--color-neutral-500)"></i>
+                              <span style="flex:1">{{ c.name }}</span>
+                              <span style="font-size:11px;color:var(--color-neutral-500)">{{ c.meta }}</span>
+                            </button>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+                    </div>
+                    <div style="display:flex;gap:6px;margin-bottom:10px">
+                      <button class="btn" onClick="{{ setFull }}" style="flex:1;min-height:38px;font-size:13px;border-color:{{ fullBorder }};color:{{ fullColor }}"><i class="ph ph-money"></i> Paid in full</button>
+                      <button class="btn" onClick="{{ setPart }}" style="flex:1;min-height:38px;font-size:13px;border-color:{{ partBorder }};color:{{ partColor }}"><i class="ph ph-scissors"></i> Part payment</button>
+                    </div>
+                    <sc-if value="{{ isPart }}" hint-placeholder-val="{{ false }}">
+                      <div class="field" style="margin:0 0 10px"><label>Paid now</label><input class="input" type="number" value="{{ paid }}" onChange="{{ onPaid }}" style="min-height:40px;background:var(--color-bg)"></div>
+                    </sc-if>
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">
+                      <span style="font-size:13px;color:var(--color-neutral-500)">Total</span>
+                      <span style="font-size:28px;font-weight:500;letter-spacing:-0.025em">{{ cartTotal }}</span>
+                    </div>
+                    <sc-if value="{{ isPart }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+                        <span style="font-size:12.5px;color:var(--color-neutral-500)">Balance</span>
+                        <span style="font-size:15px;color:var(--color-accent-400)">{{ balanceLabel }}</span>
+                      </div>
+                    </sc-if>
+                    <button class="btn btn-primary btn-block" onClick="{{ saveBill }}" style="min-height:48px;font-size:15px" disabled="{{ cantSave }}">{{ saveLabel }}</button>
+                  </div>
+                </sc-if>
+              </sc-if>
+
+              <sc-if value="{{ onBills }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:58px 20px 12px"><h3 style="margin:0;font-size:25px">Bills</h3></div>
+                <div class="sb-scroll" style="flex:1;overflow:auto;padding:0 20px 18px;min-height:0;display:flex;flex-direction:column;gap:6px">
+                  <sc-if value="{{ noBills }}" hint-placeholder-val="{{ false }}">
+                    <div style="border:1px dashed var(--color-neutral-800);border-radius:10px;padding:26px 18px;text-align:center;margin-top:8px">
+                      <i class="ph ph-receipt" style="font-size:26px;color:var(--color-neutral-600)"></i>
+                      <div style="font-size:13px;color:var(--color-neutral-500);margin:9px 0 12px;line-height:1.5">Nothing sold yet. Every bill you save shows up here.</div>
+                      <button class="btn btn-primary" onClick="{{ goSell }}" style="font-size:13px"><i class="ph ph-plus"></i> Start a bill</button>
+                    </div>
+                  </sc-if>
+                  <sc-for list="{{ allBills }}" as="b" hint-placeholder-count="5">
+                    <div style="background:var(--color-surface);border-radius:9px;padding:12px">
+                      <div style="display:flex;align-items:center;gap:12px">
+                        <div style="flex:1;min-width:0">
+                          <div style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ b.nameColor }}">{{ b.summary }}</div>
+                          <div style="font-size:11.5px;color:var(--color-neutral-500);margin-top:2px">{{ b.meta }}</div>
+                        </div>
+                        <span style="font-size:15px;color:{{ b.color }}">{{ b.totalLabel }}</span>
+                      </div>
+                      <sc-if value="{{ b.live }}" hint-placeholder-val="{{ true }}">
+                        <button class="btn btn-ghost" onClick="{{ b.void }}" style="font-size:11.5px;margin-top:5px;color:var(--color-neutral-500);padding-inline:0">Void &amp; put stock back</button>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ onSettings }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:58px 20px 12px;display:flex;align-items:flex-end;justify-content:space-between">
+                  <h3 style="margin:0;font-size:25px">Settings</h3>
+                  <button class="btn btn-ghost" onClick="{{ goHome }}" style="font-size:12.5px">Done</button>
+                </div>
+                <div class="sb-scroll" style="flex:1;overflow:auto;padding:0 20px 18px;min-height:0">
+                  <div style="font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:8px">This phone</div>
+                  <div style="background:var(--color-surface);border-radius:10px;padding:12px;margin-bottom:20px">
+                    <div class="field" style="margin-bottom:10px"><label>Business owner</label><input class="input" value="{{ ownerName }}" onChange="{{ onOwnerName }}" style="min-height:42px;background:var(--color-bg)"></div>
+                    <div style="display:flex;gap:10px">
+                      <div style="flex:1"><div style="font-size:11px;color:var(--color-neutral-500)">Products</div><div style="font-size:17px">{{ statProducts }}</div></div>
+                      <div style="flex:1"><div style="font-size:11px;color:var(--color-neutral-500)">Bills</div><div style="font-size:17px">{{ statBills }}</div></div>
+                      <div style="flex:1"><div style="font-size:11px;color:var(--color-neutral-500)">Customers</div><div style="font-size:17px">{{ statCustomers }}</div></div>
+                    </div>
+                  </div>
+
+                  <div style="font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:8px">Move to another phone</div>
+                  <p style="font-size:12.5px;color:var(--color-neutral-500);line-height:1.5;margin:0 0 10px">Stockbook never uploads anything, so a new phone gets your shop from a file you carry across. Export here, then import on the other phone.</p>
+
+                  <div style="background:var(--color-surface);border-radius:10px;padding:13px;margin-bottom:10px">
+                    <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
+                      <i class="ph ph-export" style="font-size:17px;color:var(--color-accent)"></i>
+                      <span style="font-size:14.5px;flex:1">Export everything</span>
+                    </div>
+                    <div style="font-size:12px;color:var(--color-neutral-500);line-height:1.5;margin-bottom:11px">{{ exportNote }}</div>
+                    <sc-if value="{{ hasExport }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:10px;background:var(--color-bg);border:1px solid var(--color-neutral-800);border-radius:8px;padding:10px 11px;margin-bottom:10px">
+                        <i class="ph ph-file-text" style="font-size:19px;color:var(--color-accent-400)"></i>
+                        <div style="flex:1;min-width:0">
+                          <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ exportFile }}</div>
+                          <div style="font-size:11px;color:var(--color-neutral-500);margin-top:1px">{{ exportSize }}</div>
+                        </div>
+                      </div>
+                    </sc-if>
+                    <div style="display:flex;gap:8px">
+                      <button class="btn btn-primary" onClick="{{ doExport }}" style="flex:1;min-height:42px;font-size:13.5px">{{ exportAction }}</button>
+                      <sc-if value="{{ hasExport }}" hint-placeholder-val="{{ false }}">
+                        <button class="btn" onClick="{{ doShare }}" style="min-height:42px;font-size:13.5px;padding-inline:14px;border-color:{{ shareBorder }};color:{{ shareColor }}"><i class="{{ shareIcon }}"></i> {{ shareLabel }}</button>
+                      </sc-if>
+                    </div>
+                  </div>
+
+                  <div style="background:var(--color-surface);border-radius:10px;padding:13px;margin-bottom:20px">
+                    <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
+                      <i class="ph ph-tray-arrow-down" style="font-size:17px;color:var(--color-accent)"></i>
+                      <span style="font-size:14.5px;flex:1">Import a backup file</span>
+                    </div>
+                    <div style="font-size:12px;color:var(--color-neutral-500);line-height:1.5;margin-bottom:11px">{{ importNote }}</div>
+                    <sc-if value="{{ importPicked }}" hint-placeholder-val="{{ false }}">
+                      <div style="background:var(--color-bg);border:1px solid var(--color-accent);border-radius:8px;padding:11px;margin-bottom:10px">
+                        <div style="font-size:13px;margin-bottom:7px">{{ importFile }}</div>
+                        <div style="font-size:11.5px;color:var(--color-neutral-500);line-height:1.6">{{ importSummary }}</div>
+                        <div style="font-size:11.5px;color:var(--color-accent-300);line-height:1.5;margin-top:8px">This replaces the {{ importReplaces }} already on this phone. It cannot be undone.</div>
+                      </div>
+                      <div style="display:flex;gap:8px">
+                        <button class="btn btn-secondary" onClick="{{ cancelImport }}" style="flex:1;min-height:42px;font-size:13.5px">Cancel</button>
+                        <button class="btn btn-primary" onClick="{{ confirmImport }}" style="flex:1;min-height:42px;font-size:13.5px">Replace everything</button>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ importIdle }}" hint-placeholder-val="{{ true }}">
+                      <button class="btn btn-secondary btn-block" onClick="{{ pickImport }}" style="min-height:42px;font-size:13.5px;margin:0"><i class="ph ph-folder-open"></i> Choose a file</button>
+                    </sc-if>
+                  </div>
+
+                  <div style="font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:8px">Start again</div>
+                  <p style="font-size:12.5px;color:var(--color-neutral-500);line-height:1.5;margin:0 0 10px">Clears every product, price and bill on this phone and runs setup from the beginning.</p>
+                  <button class="btn btn-secondary btn-block" onClick="{{ replaySetup }}" style="min-height:42px;font-size:13.5px;margin:0">Start over</button>
+                </div>
+              </sc-if>
+
+              <div style="display:flex;padding:6px 8px 24px;background:var(--color-surface);box-shadow:0 -1px 0 var(--color-neutral-800)">
+                <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+                  <button onClick="{{ t.go }}" style="flex:1;background:none;border:0;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0;color:{{ t.color }}">
+                    <i class="{{ t.icon }}" style="font-size:22px"></i>
+                    <span style="font-size:10.5px">{{ t.label }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ editorOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ closeEditor }}" style="position:absolute;inset:0;background:rgba(16,17,28,0.74);z-index:40"></div>
+            <div class="sb-scroll" style="position:absolute;left:0;right:0;bottom:0;z-index:41;background:var(--color-surface);border-radius:18px 18px 0 0;box-shadow:0 -16px 40px rgba(0,0,0,0.65);padding:10px 20px 32px;max-height:84%;overflow:auto">
+              <div style="width:38px;height:4px;border-radius:2px;background:var(--color-neutral-800);margin:0 auto 14px"></div>
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                <h4 style="margin:0;flex:1;font-size:19px">{{ editorTitle }}</h4>
+                <button class="btn btn-ghost" onClick="{{ closeEditor }}" style="color:var(--color-neutral-500);font-size:18px"><i class="ph ph-x"></i></button>
+              </div>
+              <div class="field" style="margin-bottom:10px"><label>Product name</label><input class="input" value="{{ eName }}" onChange="{{ onEName }}" style="min-height:44px;font-size:15px"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <div class="field"><label>In stock</label><input class="input" type="number" value="{{ eStock }}" onChange="{{ onEStock }}" style="min-height:44px"></div>
+                <div class="field"><label>Buying price</label><input class="input" type="number" value="{{ eCost }}" onChange="{{ onECost }}" style="min-height:44px"></div>
+              </div>
+              <div class="field" style="margin-bottom:12px"><label>Selling price</label><input class="input" type="number" value="{{ ePrice }}" onChange="{{ onEPrice }}" style="min-height:44px;border-color:var(--color-accent-700)"></div>
+              <div style="font-size:12px;color:var(--color-neutral-500);margin-bottom:14px">{{ eNote }}</div>
+              <div style="display:flex;gap:8px;margin-bottom:10px">
+                <sc-if value="{{ eExisting }}" hint-placeholder-val="{{ false }}">
+                  <button class="btn btn-secondary" onClick="{{ openRestock }}" style="flex:1;min-height:44px;font-size:14px"><i class="ph ph-stack-plus"></i> Add stock</button>
+                </sc-if>
+                <button class="btn btn-primary" onClick="{{ saveProduct }}" style="flex:1;min-height:44px;font-size:14px" disabled="{{ eIncomplete }}">Save</button>
+              </div>
+              <sc-if value="{{ eExisting }}" hint-placeholder-val="{{ false }}">
+                <button class="btn btn-ghost btn-block" onClick="{{ deleteProduct }}" style="color:var(--color-neutral-500);font-size:12.5px">Remove this product</button>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ restockOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ closeRestock }}" style="position:absolute;inset:0;background:rgba(16,17,28,0.74);z-index:44"></div>
+            <div style="position:absolute;left:0;right:0;bottom:0;z-index:45;background:var(--color-surface);border-radius:18px 18px 0 0;box-shadow:0 -16px 40px rgba(0,0,0,0.65);padding:10px 20px 32px">
+              <div style="width:38px;height:4px;border-radius:2px;background:var(--color-neutral-800);margin:0 auto 14px"></div>
+              <h4 style="margin:0 0 3px;font-size:19px">Add stock</h4>
+              <p style="font-size:12.5px;color:var(--color-neutral-500);margin:0 0 14px">{{ rName }} — {{ rNow }} on the shelf now</p>
+              <div style="display:flex;gap:5px;margin-bottom:14px">
+                <button onClick="{{ rSetQuick }}" style="flex:1;height:34px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12.5px;background:transparent;border:1px solid {{ rQuickBorder }};color:{{ rQuickColor }}">Quick add</button>
+                <button onClick="{{ rSetPurchase }}" style="flex:1;height:34px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12.5px;background:transparent;border:1px solid {{ rPurchaseBorder }};color:{{ rPurchaseColor }}">Purchase entry</button>
+              </div>
+              <sc-if value="{{ rIsPurchase }}" hint-placeholder-val="{{ false }}">
+                <div class="field" style="margin-bottom:10px"><label>Supplier</label><input class="input" value="{{ rSupplier }}" onChange="{{ onRSupplier }}" placeholder="Who delivered it" style="min-height:44px"></div>
+              </sc-if>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+                <div class="field"><label>How many</label><input class="input" type="number" value="{{ rQty }}" onChange="{{ onRQty }}" style="min-height:44px"></div>
+                <sc-if value="{{ rIsPurchase }}" hint-placeholder-val="{{ false }}">
+                  <div class="field"><label>Paid per piece</label><input class="input" type="number" value="{{ rCost }}" onChange="{{ onRCost }}" style="min-height:44px"></div>
+                </sc-if>
+              </div>
+              <div style="font-size:12px;color:var(--color-neutral-500);margin-bottom:14px;line-height:1.5">{{ rNote }}</div>
+              <button class="btn btn-primary btn-block" onClick="{{ confirmRestock }}" style="min-height:46px;font-size:15px">{{ rAction }}</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ receiptOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;inset:0;z-index:50;background:var(--color-bg);display:flex;flex-direction:column;padding:66px 20px 38px">
+              <div style="display:flex;align-items:center;gap:11px;margin-bottom:18px">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:1px solid var(--color-accent);color:var(--color-accent);font-size:18px"><i class="ph ph-check"></i></span>
+                <div>
+                  <div style="font-size:18px">Bill saved</div>
+                  <div style="font-size:11.5px;color:var(--color-neutral-500)">{{ receiptMeta }}</div>
+                </div>
+              </div>
+              <div class="sb-scroll" style="flex:1;overflow:auto;background:var(--color-surface);border-radius:12px;padding:14px 16px">
+                <sc-for list="{{ receiptLines }}" as="r" hint-placeholder-count="2">
+                  <div style="display:flex;align-items:baseline;gap:10px;padding:7px 0">
+                    <span style="flex:1;font-size:14px">{{ r.name }}</span>
+                    <span style="font-size:11.5px;color:var(--color-neutral-500)">{{ r.qtyLabel }}</span>
+                    <span style="font-size:14px">{{ r.total }}</span>
+                  </div>
+                </sc-for>
+                <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-neutral-800) 24px,var(--color-neutral-800) calc(100% - 24px),transparent);margin:9px 0"></div>
+                <div style="display:flex;align-items:baseline;justify-content:space-between">
+                  <span style="font-size:13px;color:var(--color-neutral-500)">Total</span>
+                  <span style="font-size:25px;letter-spacing:-0.02em">{{ receiptTotal }}</span>
+                </div>
+                <div style="font-size:12.5px;color:var(--color-accent-400);margin-top:7px">{{ receiptPay }}</div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:14px">
+                <button class="btn btn-secondary" onClick="{{ receiptToBills }}" style="flex:1;min-height:46px;font-size:14px">See bills</button>
+                <button class="btn btn-primary" onClick="{{ receiptNext }}" style="flex:1;min-height:46px;font-size:14px">Next customer</button>
+              </div>
+            </div>
+          </sc-if>
+
+        </div>
+      </x-import>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;currencySymbol&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;SAR &quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;lowStockAt&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:40,&quot;min&quot;:0,&quot;max&quot;:500,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Behaviour&quot;}}">
+const SUGGEST = ["Lever Handle Lock", "Cisa lock", "Padlock", "Deadbolt"];
+
+const SEED = [];
+const SEED_BILLS = [];
+
+/* A backup file from the owner's older phone, used by Settings → Import. */
+const countWord = (n, w) => n + " " + w + (n === 1 ? "" : "s");
+
+const IMPORT_FILE = {
+  name: "stockbook-2026-07-28.json",
+  owner: "Khalid Al-Amri",
+  saved: "28 July 2026",
+  products: [
+    { name: "Lever Handle Lock", stock: 40, cost: 55, price: 85 },
+    { name: "Cisa lock", stock: 24, cost: 95, price: 145 },
+    { name: "Padlock", stock: 58, cost: 17, price: 32 },
+    { name: "Deadbolt", stock: 30, cost: 62, price: 95 },
+    { name: "Mortise lock body", stock: 18, cost: 78, price: 120 },
+    { name: "Cylinder 60mm", stock: 64, cost: 22, price: 38 },
+    { name: "Door closer 45kg", stock: 12, cost: 135, price: 210 },
+    { name: "Cabinet hinge", stock: 220, cost: 3.5, price: 7 }
+  ],
+  bills: [
+    { items: [{ n: "Padlock", q: 2, p: 32 }, { n: "Cisa lock", q: 1, p: 130 }], t: "09:12", paid: 100, who: "Ahmed Contracting" },
+    { items: [{ n: "Door closer 45kg", q: 1, p: 210 }], t: "11:40", paid: null, who: "Al-Rashid site" },
+    { items: [{ n: "Cabinet hinge", q: 24, p: 7 }, { n: "Cylinder 60mm", q: 3, p: 38 }], t: "13:05", paid: null, who: "Baytul Joinery" },
+    { items: [{ n: "Lever Handle Lock", q: 2, p: 85 }], t: "16:22", paid: 80, who: "Ahmed Contracting" }
+  ]
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    let id = 1;
+    const products = SEED.map(p => Object.assign({ id: id++ }, p));
+    const byName = n => products.find(p => p.name === n);
+    let bid = 1;
+    const bills = SEED_BILLS.map(b => {
+      const lines = b.items.map(it => {
+        const pr = byName(it.n);
+        return { pid: pr ? pr.id : 0, name: it.n, qty: it.q, price: it.p };
+      });
+      const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+      return { id: bid++, lines, total, time: b.t, paid: b.paid, who: b.who, voided: false };
+    });
+    this.state = {
+      screen: "setup0", ownerName: "", drafts: [], draftName: "",
+      products, bills, nextId: id, nextBill: bid,
+      query: "", sellQuery: "", cart: [], browse: false,
+      payMode: "full", paid: "", customer: "", customerFocus: false,
+      editorId: null, edit: null,
+      restockId: null, rMode: "quick", rQty: "", rCost: "", rSupplier: "",
+      receipt: null, backedUp: false, exportAt: null, importStage: null, shared: false
+    };
+  }
+
+  cur(n) {
+    const s = this.props.currencySymbol ?? "SAR ";
+    const v = Math.round((Number(n) || 0) * 100) / 100;
+    return s + (Number.isInteger(v) ? v.toLocaleString("en-US") : v.toFixed(2));
+  }
+  low() { return Number(this.props.lowStockAt ?? 40); }
+  go(screen) { this.setState({ screen }); }
+  set(k, v) { this.setState({ [k]: v }); }
+  ev(k) { return e => this.setState({ [k]: e.target.value }); }
+
+  // ── setup ──
+  addDraftName(name) {
+    const n = (name || "").trim();
+    if (!n) return;
+    if (this.state.drafts.some(d => d.name.toLowerCase() === n.toLowerCase())) return;
+    this.setState(s => ({ drafts: s.drafts.concat({ name: n, stock: "", cost: "", price: "" }), draftName: "" }));
+  }
+  patchDraft(i, k, v) {
+    this.setState(s => ({ drafts: s.drafts.map((d, j) => j === i ? Object.assign({}, d, { [k]: v }) : d) }));
+  }
+  finishSetup() {
+    let id = this.state.nextId;
+    const made = this.state.drafts.map(d => ({
+      id: id++, name: d.name, stock: Number(d.stock) || 0, cost: Number(d.cost) || 0, price: Number(d.price) || 0
+    }));
+    this.setState({ products: this.state.products.concat(made), nextId: id, screen: "home", drafts: [] });
+  }
+
+  // ── cart ──
+  addToCart(p) {
+    const ex = this.state.cart.find(l => l.pid === p.id);
+    if (ex) { this.setQty(p.id, ex.qty + 1); this.setState({ sellQuery: "" }); return; }
+    this.setState(s => ({ cart: s.cart.concat({ pid: p.id, qty: 1, price: p.price, base: p.price }), sellQuery: "" }));
+  }
+  patchLine(pid, patch) {
+    this.setState(s => ({ cart: s.cart.map(l => l.pid === pid ? Object.assign({}, l, patch) : l) }));
+  }
+  setQty(pid, q) { this.patchLine(pid, { qty: Math.max(1, Number(q) || 1) }); }
+  cartTotalNum() {
+    return this.state.cart.reduce((s, l) => s + l.qty * (Number(l.price) || 0), 0);
+  }
+  saveBill() {
+    if (!this.state.cart.length || !this.state.customer.trim()) return;
+    const prods = this.state.products.slice();
+    const lines = this.state.cart.map(l => {
+      const p = Object.assign({}, prods.find(x => x.id === l.pid));
+      p.stock = Math.max(0, p.stock - l.qty);
+      prods[prods.findIndex(x => x.id === l.pid)] = p;
+      return { pid: l.pid, name: p.name, qty: l.qty, price: Number(l.price) || 0 };
+    });
+    const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+    const paid = this.state.payMode === "part" ? Math.min(Number(this.state.paid) || 0, total) : null;
+    const now = new Date();
+    const bill = {
+      id: this.state.nextBill, lines, total, paid, who: this.state.customer.trim(),
+      time: String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0"),
+      voided: false
+    };
+    this.setState({
+      products: prods, bills: [bill].concat(this.state.bills), nextBill: this.state.nextBill + 1,
+      cart: [], payMode: "full", paid: "", customer: "", customerFocus: false, receipt: bill, sellQuery: "", browse: false
+    });
+  }
+  voidBill(b) {
+    const prods = this.state.products.map(p => {
+      const hit = b.lines.filter(l => l.pid === p.id);
+      if (!hit.length) return p;
+      return Object.assign({}, p, { stock: p.stock + hit.reduce((s, l) => s + l.qty, 0) });
+    });
+    this.setState({ products: prods, bills: this.state.bills.map(x => x.id === b.id ? Object.assign({}, x, { voided: true }) : x) });
+  }
+
+  // ── editor ──
+  openEditor(p) {
+    this.setState({
+      editorId: p ? p.id : "new",
+      edit: p ? { name: p.name, stock: String(p.stock), cost: String(p.cost), price: String(p.price) }
+             : { name: "", stock: "", cost: "", price: "" }
+    });
+  }
+  patchEdit(k, v) { this.setState(s => ({ edit: Object.assign({}, s.edit, { [k]: v }) })); }
+  saveProduct() {
+    const e = this.state.edit;
+    if (!e.name.trim() || String(e.stock).trim() === "" || String(e.cost).trim() === "" || !((Number(e.price) || 0) > 0)) return;
+    const rec = { name: e.name.trim(), stock: Number(e.stock) || 0, cost: Number(e.cost) || 0, price: Number(e.price) || 0 };
+    if (this.state.editorId === "new") {
+      this.setState({ products: this.state.products.concat(Object.assign({ id: this.state.nextId }, rec)), nextId: this.state.nextId + 1, editorId: null, edit: null });
+    } else {
+      this.setState({ products: this.state.products.map(p => p.id === this.state.editorId ? Object.assign({}, p, rec) : p), editorId: null, edit: null });
+    }
+  }
+  deleteProduct() {
+    this.setState({ products: this.state.products.filter(p => p.id !== this.state.editorId), cart: this.state.cart.filter(l => l.pid !== this.state.editorId), editorId: null, edit: null });
+  }
+  runImport() {
+    let id = 1;
+    const products = IMPORT_FILE.products.map(p => Object.assign({ id: id++ }, p));
+    const byName = n => products.find(p => p.name === n);
+    let bid = 1;
+    const bills = IMPORT_FILE.bills.slice().reverse().map(b => {
+      const lines = b.items.map(it => {
+        const pr = byName(it.n);
+        return { pid: pr ? pr.id : 0, name: it.n, qty: it.q, price: it.p };
+      });
+      return {
+        id: bid++, lines, total: lines.reduce((s, l) => s + l.qty * l.price, 0),
+        time: b.t, paid: b.paid, who: b.who, voided: false
+      };
+    });
+    this.setState({
+      products, bills, nextId: id, nextBill: bid, ownerName: IMPORT_FILE.owner,
+      importStage: "done", cart: [], query: "", sellQuery: "", editorId: null, edit: null,
+      restockId: null, receipt: null, exportAt: null, backedUp: false, shared: false
+    });
+  }
+  confirmRestock() {
+    const q = Number(this.state.rQty) || 0;
+    if (q <= 0) { this.setState({ restockId: null }); return; }
+    const purchase = this.state.rMode === "purchase";
+    const c = Number(this.state.rCost) || 0;
+    this.setState({
+      products: this.state.products.map(p => p.id === this.state.restockId
+        ? Object.assign({}, p, { stock: p.stock + q, cost: purchase && c > 0 ? c : p.cost }) : p),
+      restockId: null, rQty: "", rCost: "", rSupplier: "", editorId: null, edit: null
+    });
+  }
+
+  renderVals() {
+    const S = this.state, sym = (this.props.currencySymbol ?? "SAR ").trim(), cur = n => this.cur(n), low = this.low();
+    const inSetup = S.screen === "setup0" || S.screen === "setup1" || S.screen === "setup2";
+    const owner = S.ownerName.trim();
+    const firstName = owner.split(/\s+/)[0] || "";
+    const prod = id => S.products.find(p => p.id === id);
+
+    const stockLabel = p => p.stock === 0 ? "out of stock" : p.stock + " pc";
+    const stockColor = p => p.stock === 0 ? "var(--color-accent-400)" : p.stock <= low ? "var(--color-accent-400)" : "var(--color-neutral-500)";
+
+    const live = S.bills.filter(b => !b.voided);
+    const todayTotal = live.reduce((s, b) => s + b.total, 0);
+    const dueBills = live.filter(b => b.paid !== null && b.paid < b.total);
+    const dueSum = dueBills.reduce((s, b) => s + (b.total - b.paid), 0);
+    const dueNames = Array.from(new Set(dueBills.map(b => (b.who || "").trim()).filter(Boolean)));
+
+    const billRow = b => ({
+      summary: b.lines.map(l => l.name).join(", "),
+      meta: (b.voided ? "voided · " : "") + (b.who ? b.who + " · " : "") + b.time + " · " +
+            b.lines.length + (b.lines.length === 1 ? " item" : " items") +
+            (b.paid !== null && !b.voided ? " · owes " + cur(b.total - b.paid) : ""),
+      totalLabel: cur(b.total),
+      color: b.voided ? "var(--color-neutral-500)" : b.paid !== null ? "var(--color-accent-400)" : "var(--color-text)",
+      nameColor: b.voided ? "var(--color-neutral-500)" : "var(--color-text)",
+      live: !b.voided,
+      void: () => this.voidBill(b)
+    });
+
+    const tabDef = [["home", "Today", "ph-house"], ["items", "Items", "ph-shapes"], ["sell", "Sell", "ph-plus-circle"], ["bills", "Bills", "ph-receipt"]];
+
+    const q = S.query.trim().toLowerCase();
+    const sq = S.sellQuery.trim().toLowerCase();
+    const e = S.edit || {};
+    const rp = prod(S.restockId);
+    const rIsPurchase = S.rMode === "purchase";
+
+    const total = this.cartTotalNum();
+    const paidNum = Math.min(Number(S.paid) || 0, total);
+
+    const book = {};
+    S.bills.filter(b => !b.voided && b.who && b.who.trim()).forEach(b => {
+      const k = b.who.trim();
+      if (!book[k]) book[k] = { name: k, n: 0, due: 0 };
+      book[k].n += 1;
+      if (b.paid !== null) book[k].due += b.total - b.paid;
+    });
+    const typed = S.customer.trim().toLowerCase();
+    const customerHints = Object.values(book)
+      .filter(c => c.name.toLowerCase() !== typed && (!typed || c.name.toLowerCase().includes(typed)))
+      .sort((a, b) => b.due - a.due || b.n - a.n)
+      .slice(0, 4);
+
+    const acc = "var(--color-accent)", dim = "var(--color-neutral-800)", mut = "var(--color-neutral-500)";
+    const filled = v => String(v).trim() !== "";
+    const incomplete = S.drafts.filter(d => !filled(d.stock) || !filled(d.cost) || !((Number(d.price) || 0) > 0));
+    const namedCustomer = S.customer.trim().length > 0;
+    const browsing = S.browse || S.cart.length === 0 || sq.length > 0;
+
+    return {
+      symbol: sym,
+      inSetup, inApp: !inSetup,
+      atStep0: S.screen === "setup0", atStep1: S.screen === "setup1", atStep2: S.screen === "setup2",
+      bar2: S.screen === "setup0" ? "var(--color-neutral-800)" : acc,
+      bar3: S.screen === "setup2" ? acc : "var(--color-neutral-800)",
+      ownerName: S.ownerName, onOwnerName: this.ev("ownerName"),
+      onOwnerKey: ev => { if (ev.key === "Enter" && owner) this.go("setup1"); },
+      noOwner: owner.length === 0,
+      ownerBorder: owner.length === 0 ? acc : dim,
+      toStep0: () => this.go("setup0"),
+      step1Kicker: firstName ? "Hello, " + firstName : "Your shelves",
+      draftName: S.draftName,
+      onDraftName: this.ev("draftName"),
+      onDraftKey: ev => { if (ev.key === "Enter") this.addDraftName(S.draftName); },
+      addDraft: () => this.addDraftName(S.draftName),
+      suggestions: SUGGEST.filter(n => !S.drafts.some(d => d.name === n)).slice(0, 8).map(n => ({ name: n, add: () => this.addDraftName(n) })),
+      drafts: S.drafts.map((d, i) => ({
+        name: d.name, stock: d.stock, cost: d.cost, price: d.price,
+        stockBorder: String(d.stock).trim() === "" ? acc : dim,
+        costBorder: String(d.cost).trim() === "" ? acc : dim,
+        priceBorder: (Number(d.price) || 0) > 0 ? "var(--color-accent-700)" : acc,
+        remove: () => this.setState({ drafts: S.drafts.filter((_, j) => j !== i) }),
+        setStock: ev => this.patchDraft(i, "stock", ev.target.value),
+        setCost: ev => this.patchDraft(i, "cost", ev.target.value),
+        setPrice: ev => this.patchDraft(i, "price", ev.target.value)
+      })),
+      draftHeading: S.drafts.length ? "Added · " + S.drafts.length : "Nothing added yet",
+      noDrafts: S.drafts.length === 0,
+      setupIncomplete: incomplete.length > 0,
+      setupGate: incomplete.length === 0
+        ? "All set — stock and both prices filled in."
+        : incomplete.length + (incomplete.length === 1 ? " item still needs" : " items still need") + " stock, buying and selling price.",
+      toStep2: () => this.go("setup2"),
+      toStep1: () => this.go("setup1"),
+      finishSetup: () => { if (incomplete.length === 0) this.finishSetup(); },
+
+      onHome: S.screen === "home", onItems: S.screen === "items", onSell: S.screen === "sell", onBills: S.screen === "bills",
+      todayLabel: "Tuesday, 11 August",
+      greeting: firstName ? "Hello, " + firstName : "Today",
+      todaySales: cur(todayTotal),
+      todayCount: String(live.length),
+      hasDue: dueBills.length > 0,
+      dueNote: dueNames.length === 1 ? (dueNames[0] || "One customer") + " still owes" : countWord(dueNames.length, "customer") + " still owe",
+      dueTotal: cur(dueSum),
+      recentBills: S.bills.slice(0, 3).map(billRow),
+      allBills: S.bills.map(billRow),
+      goBills: () => this.go("bills"),
+      goSell: () => this.go("sell"),
+      goSettings: () => this.go("settings"),
+      goHome: () => this.go("home"),
+      onSettings: S.screen === "settings",
+      onOwnerName: this.ev("ownerName"),
+      statProducts: String(S.products.length),
+      statBills: String(S.bills.filter(b => !b.voided).length),
+      statCustomers: String(Object.keys(book).length),
+      hasExport: S.exportAt !== null,
+      exportFile: S.exportAt ? "stockbook-" + S.exportAt + ".json" : "",
+      exportSize: countWord(S.products.length, "product") + " · " + countWord(S.bills.length, "bill") + " · " + Math.max(1, Math.round((S.products.length * 90 + S.bills.length * 220) / 1024)) + " KB",
+      exportNote: S.shared
+        ? "Ready to send — pick AirDrop, WhatsApp or Files in the share sheet."
+        : S.exportAt
+          ? "Written to Files. Send it to the other phone however you like — AirDrop, WhatsApp, a memory card."
+          : "Writes one file with every product, price, stock count and bill.",
+      exportAction: S.exportAt ? "Write a fresh file" : "Create backup file",
+      doExport: () => this.setState({ exportAt: "2026-08-11", backedUp: true, shared: false }),
+      importIdle: S.importStage === null,
+      importPicked: S.importStage === "picked",
+      importFile: IMPORT_FILE.name,
+      importSummary: IMPORT_FILE.owner + " · " + countWord(IMPORT_FILE.products.length, "product") + " · " + countWord(IMPORT_FILE.bills.length, "bill") + " · saved " + IMPORT_FILE.saved,
+      importReplaces: countWord(S.products.length, "product") + " and " + countWord(S.bills.length, "bill"),
+      importNote: S.importStage === "done"
+        ? "Imported. Everything from that file is now on this phone."
+        : "Pick a file exported from another phone. Its contents take over from what is here now.",
+      pickImport: () => this.set("importStage", "picked"),
+      cancelImport: () => this.set("importStage", null),
+      confirmImport: () => this.runImport(),
+      doShare: () => this.set("shared", true),
+      shareBorder: S.shared ? acc : dim,
+      shareColor: S.shared ? acc : mut,
+      shareIcon: S.shared ? "ph ph-check" : "ph ph-share-network",
+      shareLabel: S.shared ? "Sending" : "Share",
+      noBills: S.bills.length === 0,
+      noItems: S.products.filter(p => !q || p.name.toLowerCase().includes(q)).length === 0,
+      noItemsNote: S.products.length === 0 ? "Nothing on the shelf yet. Add your first product." : "Nothing matches “" + S.query.trim() + "”.",
+      noMatches: S.products.filter(p => !sq || p.name.toLowerCase().includes(sq)).length === 0,
+      noMatchesNote: S.products.length === 0 ? "You haven't added any products yet." : "No product matches “" + S.sellQuery.trim() + "”.",
+      replaySetup: () => this.setState({
+        screen: "setup0", ownerName: "", drafts: [], draftName: "", products: [], bills: [], cart: [],
+        nextId: 1, nextBill: 1, query: "", sellQuery: "", payMode: "full", paid: "",
+        customer: "", receipt: null, backedUp: false, editorId: null, edit: null, restockId: null,
+        exportAt: null, importStage: null, shared: false
+      }),
+      backedUp: S.backedUp,
+      backupIcon: S.backedUp ? "ph-fill ph-shield-check" : "ph ph-shield-warning",
+      backupColor: S.backedUp ? acc : "var(--color-neutral-500)",
+      backupNote: S.backedUp ? "Backup written. Copy it somewhere safe — everything lives on this phone only." : "Nothing backed up yet. Everything lives on this phone only.",
+      doBackup: () => this.setState({ backedUp: true, exportAt: "2026-08-11" }),
+
+      itemsMeta: S.products.length === 0 ? "nothing added yet" : S.products.length + (S.products.length === 1 ? " product · " : " products · ") + S.products.filter(p => p.stock <= low).length + " running low",
+      query: S.query, onQuery: this.ev("query"),
+      filtered: S.products.filter(p => !q || p.name.toLowerCase().includes(q)).map(p => ({
+        name: p.name,
+        sub: "buy " + cur(p.cost) + " · you make " + cur(Math.max(0, p.price - p.cost)),
+        priceLabel: cur(p.price),
+        stockLabel: stockLabel(p), stockColor: stockColor(p),
+        open: () => this.openEditor(p)
+      })),
+      newProduct: () => this.openEditor(null),
+
+      sellQuery: S.sellQuery, onSellQuery: this.ev("sellQuery"),
+      showPicker: browsing,
+      showCart: !browsing,
+      pickerHasCart: browsing && S.cart.length > 0,
+      pickerHint: S.products.length === 0 ? "" : sq ? "Matching “" + S.sellQuery.trim() + "”" : "All " + S.products.length + " products — tap to add",
+      browseAll: () => this.setState({ browse: true, sellQuery: "" }),
+      backToCart: () => this.setState({ browse: false, sellQuery: "" }),
+      cantSave: !namedCustomer,
+      saveLabel: namedCustomer ? "Save bill" : "Enter a customer name",
+      customerBorder: namedCustomer ? dim : acc,
+      cartMeta: S.cart.length ? S.cart.length + (S.cart.length === 1 ? " line" : " lines") : "empty",
+      sellMatches: S.products.filter(p => !sq || p.name.toLowerCase().includes(sq)).slice(0, 40).map(p => ({
+        name: p.name, stockLabel: stockLabel(p), priceLabel: cur(p.price), add: () => this.addToCart(p)
+      })),
+      cartLines: S.cart.map(l => {
+        const p = prod(l.pid) || { name: "?", price: 0, stock: 0 };
+        const edited = Number(l.price) !== Number(l.base);
+        return {
+          name: p.name, qty: l.qty, price: l.price,
+          lineTotal: cur(l.qty * (Number(l.price) || 0)),
+          unitWord: l.qty > p.stock ? "only " + p.stock + " in stock" : "pieces · " + p.stock + " in stock",
+          priceBorder: edited ? acc : dim,
+          priceColor: edited ? "var(--color-accent-300)" : "var(--color-text)",
+          edited,
+          editedNote: "Usual price " + cur(l.base) + " — changed for this bill only",
+          inc: () => this.setQty(l.pid, l.qty + 1),
+          dec: () => this.setQty(l.pid, l.qty - 1),
+          setQty: ev => this.setQty(l.pid, ev.target.value),
+          setPrice: ev => this.patchLine(l.pid, { price: ev.target.value }),
+          resetPrice: () => this.patchLine(l.pid, { price: l.base }),
+          remove: () => this.setState({ cart: S.cart.filter(x => x.pid !== l.pid) })
+        };
+      }),
+      cartTotal: cur(total),
+      isPart: S.payMode === "part",
+      fullBorder: S.payMode === "full" ? acc : dim, fullColor: S.payMode === "full" ? acc : mut,
+      partBorder: S.payMode === "part" ? acc : dim, partColor: S.payMode === "part" ? acc : mut,
+      setFull: () => this.set("payMode", "full"), setPart: () => this.set("payMode", "part"),
+      paid: S.paid, onPaid: this.ev("paid"),
+      customer: S.customer, onCustomer: this.ev("customer"),
+      onCustomerFocus: () => this.set("customerFocus", true),
+      onCustomerBlur: () => this.set("customerFocus", false),
+      showCustomerHints: S.customerFocus && customerHints.length > 0,
+      customerHints: customerHints.map(c => ({
+        name: c.name,
+        meta: c.due > 0 ? "owes " + cur(c.due) : c.n + (c.n === 1 ? " bill" : " bills"),
+        pick: ev => { ev.preventDefault(); this.setState({ customer: c.name, customerFocus: false }); }
+      })),
+      balanceLabel: cur(Math.max(0, total - paidNum)),
+      saveBill: () => this.saveBill(),
+
+      tabs: tabDef.map(([k, label, icon]) => ({
+        label, icon: (S.screen === k ? "ph-fill " : "ph ") + icon,
+        color: S.screen === k ? acc : "var(--color-neutral-500)", go: () => this.go(k)
+      })),
+
+      editorOpen: S.editorId !== null,
+      editorTitle: S.editorId === "new" ? "New product" : "Edit product",
+      eExisting: S.editorId !== null && S.editorId !== "new",
+      eName: e.name, onEName: ev => this.patchEdit("name", ev.target.value),
+      eStock: e.stock, onEStock: ev => this.patchEdit("stock", ev.target.value),
+      eCost: e.cost, onECost: ev => this.patchEdit("cost", ev.target.value),
+      ePrice: e.price, onEPrice: ev => this.patchEdit("price", ev.target.value),
+      eIncomplete: !(e.name || "").trim() || !filled(e.stock) || !filled(e.cost) || !((Number(e.price) || 0) > 0),
+      eNote: (Number(e.price) || 0) > (Number(e.cost) || 0)
+        ? "You make " + cur((Number(e.price) || 0) - (Number(e.cost) || 0)) + " a piece."
+        : "Set a selling price above the buying price.",
+      closeEditor: () => this.setState({ editorId: null, edit: null }),
+      saveProduct: () => this.saveProduct(),
+      deleteProduct: () => this.deleteProduct(),
+      openRestock: () => this.setState({ restockId: S.editorId, rMode: "quick", rQty: "", rCost: String(prod(S.editorId) ? prod(S.editorId).cost : ""), rSupplier: "" }),
+
+      restockOpen: S.restockId !== null,
+      rName: rp ? rp.name : "",
+      rNow: rp ? rp.stock + " pieces" : "",
+      rIsPurchase,
+      rQuickBorder: rIsPurchase ? dim : acc, rQuickColor: rIsPurchase ? mut : acc,
+      rPurchaseBorder: rIsPurchase ? acc : dim, rPurchaseColor: rIsPurchase ? acc : mut,
+      rSetQuick: () => this.set("rMode", "quick"), rSetPurchase: () => this.set("rMode", "purchase"),
+      rQty: S.rQty, onRQty: this.ev("rQty"),
+      rCost: S.rCost, onRCost: this.ev("rCost"),
+      rSupplier: S.rSupplier, onRSupplier: this.ev("rSupplier"),
+      rNote: rIsPurchase
+        ? "Bill total " + cur((Number(S.rQty) || 0) * (Number(S.rCost) || 0)) + ". This becomes the buying price used from now on."
+        : "Topping up the bin. Buying price stays at " + (rp ? cur(rp.cost) : "—") + ".",
+      rAction: rIsPurchase ? "Record purchase" : "Add " + ((Number(S.rQty) || 0) || "") + " to stock",
+      closeRestock: () => this.setState({ restockId: null }),
+      confirmRestock: () => this.confirmRestock(),
+
+      receiptOpen: S.receipt !== null,
+      receiptMeta: S.receipt ? "Bill #" + S.receipt.id + " · " + S.receipt.time + (S.receipt.who ? " · " + S.receipt.who : "") : "",
+      receiptLines: S.receipt ? S.receipt.lines.map(l => ({
+        name: l.name,
+        qtyLabel: l.qty + " × " + cur(l.price),
+        total: cur(l.qty * l.price)
+      })) : [],
+      receiptTotal: S.receipt ? cur(S.receipt.total) : "",
+      receiptPay: S.receipt ? (S.receipt.paid === null ? "Paid in full, cash." : "Paid " + cur(S.receipt.paid) + " · " + (S.receipt.who || "customer") + " owes " + cur(S.receipt.total - S.receipt.paid)) : "",
+      receiptNext: () => this.setState({ receipt: null, screen: "sell" }),
+      receiptToBills: () => this.setState({ receipt: null, screen: "bills" })
+    };
+  }
+}
+
+</script>
+</body>
+</html>
