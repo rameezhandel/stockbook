@@ -62,6 +62,11 @@ full-screen overlay, so there is no `NavigationStack`.
 SwiftData. The cart, search strings, sheet drafts and payment mode are `Cart` and
 `@State` — a half-typed bill is not history and must not survive a relaunch.
 
+**Sell has no mode flag.** Which of the picker and the cart is showing is
+derived — the picker appears when the cart is empty, when the search box has
+text, or when "Add another item" was tapped. There is no state the owner can get
+stranded in, and the search field is shared by both.
+
 **Setup is persisted state, not a route.** `ShopSettings.setupCompleted` decides
 whether `RootView` shows setup or the app, so "Start over" is a data operation
 rather than a navigation one.
@@ -155,6 +160,10 @@ both it and setup step 3.
 - **Today** — stats, the owed banner (counting distinct people, not bills),
   recent bills, and a backup nudge that writes a real file.
 - **Items** — search, rows with margin and stock colouring, empty states.
+- **Sell** — product picker and cart: per-line stepper with live stock, the
+  editable price with its override treatment and Reset, the required customer
+  field with an upward suggestion dropdown, full/part payment, and save.
+- **Receipt** — the full-screen confirmation, including the faded rule.
 - **Product editor** and **Add stock** sheets, both complete.
 - 40-odd tests over the domain layer.
 
@@ -166,14 +175,11 @@ placeholder as the screen lands.
 
 | Screen | Handoff § | Notes |
 | --- | --- | --- |
-| Sell — picker and cart | 5, 6 | The most important screen. `Cart` and `saveBill` are done; this is UI. |
-| Receipt | 7 | `FadedRule` is built and waiting for it. |
 | Bills | 8 | `BillRow` already renders both live and voided treatments. |
 | Settings | 11 | `BackupService` and `replaceEverything` are done; this is UI. |
 | First-run setup | 0, 1, 2 | Currently a one-field bypass so the app is runnable. **Remove that bypass** when the real flow lands. |
 
-Suggested order, following the handoff: Sell → Receipt → Bills → Settings →
-setup.
+Suggested order, following the handoff: Bills → Settings → setup.
 
 **Not built, and not to be built without asking:** low-stock alerts, a customer
 ledger, returns, bill editing beyond void, printable receipts, barcode scanning,

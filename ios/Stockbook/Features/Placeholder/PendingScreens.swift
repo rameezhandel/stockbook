@@ -4,29 +4,6 @@ import SwiftUI
 // names what the handoff asks for and what it can already call. See
 // `ios/README.md` → "What is not built yet".
 
-/// Handoff §5 and §6 — the product picker and the cart. The most important
-/// screen in the app.
-struct SellScreen: View {
-    var body: some View {
-        ScaffoldScreen(
-            title: "New bill",
-            subtitle: "the core flow — next up",
-            requirements: [
-                "Product picker: search or browse all, tap to add one piece at the product's current price, tap again to increment.",
-                "Cart line card: stepper, live “pieces · N in stock” (“only N in stock” when the quantity exceeds it), and an editable price box.",
-                "Price override: accent border and accent-300 value when changed, plus “✎ Usual price SAR 145 — changed for this bill only” and a Reset. The product's own price is never touched.",
-                "Sticky footer: required customer field with a suggestion dropdown opening upwards, Paid in full / Part payment, total, and a save button labelled “Enter a customer name” until there is one.",
-                "Saving shows the receipt (§7)."
-            ],
-            readyPieces: [
-                "Cart holds lines, override state, payment mode and the customer name — including canSave, total, balance and paidForStorage.",
-                "StockbookStore.saveBill snapshots each line, decrements stock (floored at 0), clamps a part payment and allocates the bill number.",
-                "StockbookStore.customerSuggestions ranks by balance owed, then bill count, capped at four."
-            ]
-        )
-    }
-}
-
 /// Handoff §8 — the bill history, and the only correction path there is.
 struct BillsScreen: View {
     var body: some View {
@@ -71,34 +48,6 @@ struct SettingsScreen: View {
 
             Button("Done") { router.showingSettings = false }
                 .buttonStyle(.secondaryBlock)
-                .padding(.horizontal, Metrics.screenPadding)
-                .padding(.bottom, 24)
-        }
-        .background(Nocturne.bg.ignoresSafeArea())
-    }
-}
-
-/// Handoff §7 — the confirmation the owner shows the customer.
-struct ReceiptOverlay: View {
-    let bill: Bill
-
-    @Environment(AppRouter.self) private var router
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ScaffoldScreen(
-                title: "Bill saved",
-                subtitle: "Bill #\(bill.number) · \(bill.timeLabel) · \(bill.who)",
-                requirements: [
-                    "Circled accent check that pops in (scale overshoot ~1.25, then settles).",
-                    "Card of lines: name · “2 × SAR 32” · line total, then the faded rule (FadedRule is built).",
-                    "Total at 25px, then “Paid in full, cash.” or “Paid SAR 100 · Ahmed Contracting owes SAR 94” in accent-400.",
-                    "Secondary “See bills” and primary “Next customer”."
-                ]
-            )
-
-            Button("Close") { router.receipt = nil }
-                .buttonStyle(.primaryBlock)
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.bottom, 24)
         }

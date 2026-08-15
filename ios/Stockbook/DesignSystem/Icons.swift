@@ -34,6 +34,7 @@ enum Icon {
     static let customer = "person"                    // phosphor: user
     static let owed = "banknote"                      // phosphor: hand-coins
     static let money = "dollarsign.circle"            // phosphor: money
+    static let partPayment = "scissors"               // phosphor: scissors
 
     // Files & backup
     static let export = "square.and.arrow.up"         // phosphor: export

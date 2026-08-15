@@ -43,5 +43,8 @@ final class Product {
     /// `price − cost`, floored at zero. The only profit figure the app shows.
     var marginPerPiece: Double { max(0, price - cost) }
 
+    /// `out of stock` / `12 pc` — the shelf count wherever it is shown.
+    var stockLabel: String { stock == 0 ? "out of stock" : "\(stock) pc" }
+
     func isLow(threshold: Int) -> Bool { stock <= threshold }
 }

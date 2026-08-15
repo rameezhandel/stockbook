@@ -101,7 +101,7 @@ private struct ProductRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(Money.text(product.price, symbol: symbol))
                     .font(NocturneType.inter(15))
-                Text(stockLabel)
+                Text(product.stockLabel)
                     .nocturneText(.meta)
                     .foregroundStyle(stockColor)
             }
@@ -110,10 +110,6 @@ private struct ProductRow: View {
         .frame(maxWidth: .infinity)
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous))
         .contentShape(Rectangle())
-    }
-
-    private var stockLabel: String {
-        product.stock == 0 ? "out of stock" : "\(product.stock) pc"
     }
 
     /// Out of stock and running low share a colour — both are "look at me",
