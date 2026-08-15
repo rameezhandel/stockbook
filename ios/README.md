@@ -62,6 +62,12 @@ full-screen overlay, so there is no `NavigationStack`.
 SwiftData. The cart, search strings, sheet drafts and payment mode are `Cart` and
 `@State` — a half-typed bill is not history and must not survive a relaunch.
 
+**Share is a real share sheet, not a fake state.** The prototype turned its
+Share button accent with a "Sending" label, because it could not open anything.
+`ShareLink` hands the OS a real file, and the sheet that appears *is* the
+feedback — so that state is deliberately not reproduced. Announcing "Sending"
+for something we cannot observe would be the screen's one dishonest moment.
+
 **Sell has no mode flag.** Which of the picker and the cart is showing is
 derived — the picker appears when the cart is empty, when the search box has
 text, or when "Add another item" was tapped. There is no state the owner can get
@@ -166,6 +172,9 @@ both it and setup step 3.
 - **Receipt** — the full-screen confirmation, including the faded rule.
 - **Bills** — full history newest-first, with void-and-restore on every live
   bill and the muted treatment on voided ones.
+- **Settings** — owner name and counts, real export to Files, Share via the OS
+  share sheet, and a validated import gated behind a warning that names what
+  will be lost. Plus Start over.
 - **Product editor** and **Add stock** sheets, both complete.
 - 40-odd tests over the domain layer.
 
@@ -177,10 +186,9 @@ placeholder as the screen lands.
 
 | Screen | Handoff § | Notes |
 | --- | --- | --- |
-| Settings | 11 | `BackupService` and `replaceEverything` are done; this is UI. |
 | First-run setup | 0, 1, 2 | Currently a one-field bypass so the app is runnable. **Remove that bypass** when the real flow lands. |
 
-Suggested order, following the handoff: Settings → setup.
+Only first-run setup is left.
 
 **Not built, and not to be built without asking:** low-stock alerts, a customer
 ledger, returns, bill editing beyond void, printable receipts, barcode scanning,

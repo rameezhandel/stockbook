@@ -4,38 +4,6 @@ import SwiftUI
 // names what the handoff asks for and what it can already call. See
 // `ios/README.md` → "What is not built yet".
 
-/// Handoff §11 — the settings screen, and the export/import handoff that is the
-/// app's only route onto a new phone.
-struct SettingsScreen: View {
-    @Environment(AppRouter.self) private var router
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ScaffoldScreen(
-                title: "Settings",
-                subtitle: "export, import, start again",
-                requirements: [
-                    "THIS PHONE: editable owner name, plus Products / Bills / Customers counts.",
-                    "Export card: Create backup file → file chip with name, counts and size, a Share action, and the note switching to “Written to Files…”.",
-                    "Import card: Choose a file → accent-bordered summary box and the accent-300 warning naming exactly what will be replaced, then Cancel / Replace everything.",
-                    "START AGAIN: Start over wipes everything and returns to setup step 1."
-                ],
-                readyPieces: [
-                    "BackupDocument is the real versioned file format; BackupService encodes, writes a dated file, and validates version before shape on the way back in.",
-                    "BackupFile (FileDocument) drives .fileExporter — the Today “Save file” button already writes a real backup.",
-                    "StockbookStore.replaceEverything performs the destructive swap; startOver wipes and re-runs setup."
-                ]
-            )
-
-            Button("Done") { router.showingSettings = false }
-                .buttonStyle(.secondaryBlock)
-                .padding(.horizontal, Metrics.screenPadding)
-                .padding(.bottom, 24)
-        }
-        .background(Nocturne.bg.ignoresSafeArea())
-    }
-}
-
 /// Handoff §0–§2 — first-run setup.
 ///
 /// Until the three steps are built this offers a way past them, so the rest of
