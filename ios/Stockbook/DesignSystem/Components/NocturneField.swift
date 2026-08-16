@@ -81,16 +81,6 @@ struct NocturneField: View {
                         .submitLabel(onSubmit == nil ? .return : .done)
                         .onSubmit { onSubmit?() }
                         .accessibilityIdentifier(identifier ?? "")
-                        .toolbar {
-                            if focused, isNumeric {
-                                ToolbarItemGroup(placement: .keyboard) {
-                                    Spacer()
-                                    Button("Done") { focused = false }
-                                        .font(NocturneType.inter(15, .medium))
-                                        .foregroundStyle(Nocturne.accent)
-                                }
-                            }
-                        }
                 }
             }
             .padding(.horizontal, 10)
@@ -102,11 +92,6 @@ struct NocturneField: View {
         .onChange(of: focused) { _, isFocused in
             if isFocused { hasBeenFocused = true }
         }
-    }
-
-    /// Keypads that offer no return key of their own.
-    private var isNumeric: Bool {
-        keyboard == .decimalPad || keyboard == .numberPad
     }
 
     private var borderColor: Color {

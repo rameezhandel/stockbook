@@ -61,6 +61,7 @@ struct AddStockSheet: View {
                 .buttonStyle(.primaryBlock)
                 .padding(.top, 6)
         }
+        .keyboardDoneButton()
     }
 
     private var modePills: some View {

@@ -91,6 +91,7 @@ struct ProductEditorSheet: View {
             }
         }
         .onAppear(perform: loadDraft)
+        .keyboardDoneButton()
     }
 
     /// `You make SAR 30 a piece.` — or a nudge when the sums do not work.

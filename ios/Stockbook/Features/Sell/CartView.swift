@@ -40,6 +40,7 @@ struct CartView: View {
 
             footer
         }
+        .keyboardDoneButton()
     }
 
     // MARK: Sticky footer

@@ -58,6 +58,7 @@ struct SetupFlowView: View {
         .padding(.top, max(0, 60 - topInset))
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Nocturne.bg.ignoresSafeArea())
+        .keyboardDoneButton()
     }
 
     private var progressBar: some View {
@@ -262,6 +263,7 @@ struct SetupFlowView: View {
                     }
                     .padding(.bottom, 10)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .frame(maxHeight: .infinity, alignment: .top)
 
