@@ -59,6 +59,8 @@ struct Strings {
     var share: String { pick("Share", "ಹಂಚಿಕೊಳ್ಳಿ") }
     var back: String { pick("Back", "ಹಿಂದೆ") }
     var continueAction: String { pick("Continue", "ಮುಂದೆ") }
+    /// The keyboard toolbar, when there is another box after this one.
+    var next: String { pick("Next", "ಮುಂದಿನದು") }
     var startABill: String { pick("Start a bill", "ಬಿಲ್ ಶುರು ಮಾಡಿ") }
     var addAProduct: String { pick("Add a product", "ಸಾಮಾನು ಸೇರಿಸಿ") }
 

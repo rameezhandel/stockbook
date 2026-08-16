@@ -17,6 +17,10 @@ struct SetupFlowView: View {
     @State private var draftName = ""
     @State private var drafts: [ProductDraft] = []
 
+    /// Step 3's twelve-or-so boxes, focused from here rather than each one
+    /// managing itself, so the keyboard toolbar knows what comes next.
+    @FocusState private var priceFocus: String?
+
     @Environment(\.topSafeInset) private var topInset
     @Environment(\.bottomSafeInset) private var bottomInset
 
@@ -62,7 +66,53 @@ struct SetupFlowView: View {
         // The keyboard overlays the screen; it does not shove it upwards. The
         // footer buttons stay where they are.
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        .keyboardDoneButton()
+        // One toolbar, declared unconditionally, whose *label* changes. An
+        // earlier version gave every field its own conditional toolbar and the
+        // screen hung as focus moved between them — three fields per product
+        // meant a dozen toolbars appearing and disappearing at once.
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button(keyboardButtonTitle) { keyboardButtonTapped() }
+                    .font(NocturneType.inter(15, .medium))
+                    .foregroundStyle(Nocturne.accent)
+            }
+        }
+    }
+
+    // MARK: The keyboard's one button
+
+    /// Every box on step 3, in the order a thumb works through them: across each
+    /// product, then down to the next.
+    private var priceFieldTags: [String] {
+        drafts.indices.flatMap { ["stock-\($0)", "cost-\($0)", "price-\($0)"] }
+    }
+
+    /// The next box after the focused one, or `nil` at the end of the last
+    /// product — which is the one place the button should say "Done".
+    private var nextPriceField: String? {
+        guard let current = priceFocus,
+              let index = priceFieldTags.firstIndex(of: current),
+              index + 1 < priceFieldTags.count
+        else { return nil }
+        return priceFieldTags[index + 1]
+    }
+
+    private var keyboardButtonTitle: String {
+        nextPriceField == nil ? Loc.done : Loc.next
+    }
+
+    private func keyboardButtonTapped() {
+        if let next = nextPriceField {
+            priceFocus = next
+        } else {
+            // Clearing the screen's focus dismisses the keyboard *and* tells
+            // every field it no longer has focus. Resigning through the
+            // responder chain does only the first, which is what used to leave
+            // a box lit after the keyboard had gone.
+            priceFocus = nil
+            dismissKeyboard()
+        }
     }
 
     private var progressBar: some View {
@@ -247,8 +297,11 @@ struct SetupFlowView: View {
                     // A plain stack: a handful of products, and a lazy one
                     // renders nothing when the keyboard squeezes its container.
                     VStack(spacing: 10) {
-                        ForEach($drafts) { $draft in
-                            priceCard(draft: $draft)
+                        // Indexed rather than bound directly, because each
+                        // card needs to know where it sits to tag its three
+                        // boxes for the toolbar's Next.
+                        ForEach(drafts.indices, id: \.self) { index in
+                            priceCard(index: index, draft: $drafts[index])
                         }
                     }
                 }
@@ -278,7 +331,7 @@ struct SetupFlowView: View {
         }
     }
 
-    private func priceCard(draft: Binding<ProductDraft>) -> some View {
+    private func priceCard(index: Int, draft: Binding<ProductDraft>) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(draft.wrappedValue.name)
                 .nocturneText(.rowPrimary)
@@ -290,14 +343,18 @@ struct SetupFlowView: View {
                     text: draft.stock,
                     isRequiredAndEmpty: draft.wrappedValue.stock.isBlank,
                     requiredMarking: .afterTouch,
-                    identifier: "setup.stock"
+                    identifier: "setup.stock",
+                    focusTag: "stock-\(index)",
+                    focus: $priceFocus
                 )
                 NocturneField.number(
                     label: Loc.youPay,
                     text: draft.cost,
                     isRequiredAndEmpty: draft.wrappedValue.cost.isBlank,
                     requiredMarking: .afterTouch,
-                    identifier: "setup.cost"
+                    identifier: "setup.cost",
+                    focusTag: "cost-\(index)",
+                    focus: $priceFocus
                 )
                 NocturneField.number(
                     label: Loc.youSell,
@@ -305,7 +362,9 @@ struct SetupFlowView: View {
                     isRequiredAndEmpty: (Money.parse(draft.wrappedValue.price) ?? 0) <= 0,
                     requiredMarking: .afterTouch,
                     emphasis: .sellingPrice,
-                    identifier: "setup.price"
+                    identifier: "setup.price",
+                    focusTag: "price-\(index)",
+                    focus: $priceFocus
                 )
             }
         }

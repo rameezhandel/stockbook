@@ -278,6 +278,26 @@ of the spec, both about physical screens rather than the design canvas:
   indicator, which is exactly what the device's bottom safe inset does; the bar
   defers to it and falls back to 24 where there is none.
 
+### Focus, and the toolbar above the keyboard
+
+A numeric keypad has no return key, so every screen with one carries a single
+toolbar button. It is declared **once per screen and unconditionally** — an
+early version gave each field its own conditional toolbar and setup step 3, with
+three boxes per product, hung as focus moved between them.
+
+On setup step 3 that button says **Next** until the last box, then **Done**. A
+field cannot know what comes after it, so the screen holds one `FocusState` for
+all of them and hands each field its tag through `NocturneField.focusTag`.
+Fields that need nothing of the sort keep their own focus and pass neither.
+
+That also fixes what the accent border was saying. Dismissing the keyboard
+through the responder chain — which is what a toolbar button does — tells
+SwiftUI's `FocusState` nothing, so a field went on claiming focus it no longer
+had and its border stayed lit after the keyboard was gone. Clearing the screen's
+focus does both jobs at once; for the screens that still dismiss through the
+responder chain, `NocturneField` watches `keyboardDidHideNotification` and stands
+itself down.
+
 ### The keyboard never moves the layout
 
 `AppShell` declares `.ignoresSafeArea([.container, .keyboard], edges: .bottom)`,
