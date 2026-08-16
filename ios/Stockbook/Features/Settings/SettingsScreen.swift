@@ -41,6 +41,7 @@ struct SettingsScreen: View {
                 VStack(alignment: .leading, spacing: 0) {
                     thisPhone
                     languageSection
+                    currencySection
                     moveToAnotherPhone
                     #if DEBUG
                     startAgain
@@ -151,6 +152,26 @@ struct SettingsScreen: View {
             .padding(.bottom, 8)
 
             Text(Loc.languageNote)
+                .font(NocturneType.inter(12))
+                .foregroundStyle(Nocturne.neutral500)
+                .lineSpacing(3)
+                .padding(.bottom, 20)
+        }
+    }
+
+    // MARK: Currency
+
+    private var currencySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Kicker(Loc.currencySection).padding(.bottom, 8)
+
+            CurrencyField(currency: Binding(
+                get: { settings.currency },
+                set: { store.setCurrency($0) }
+            ))
+            .padding(.bottom, 8)
+
+            Text(Loc.currencyNote)
                 .font(NocturneType.inter(12))
                 .foregroundStyle(Nocturne.neutral500)
                 .lineSpacing(3)

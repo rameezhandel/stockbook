@@ -118,7 +118,7 @@ private struct ProductPicker: View {
     let onDoneAdding: () -> Void
 
     @Environment(Cart.self) private var cart
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
     @Environment(\.bottomSafeInset) private var bottomInset
 
     var body: some View {
@@ -160,7 +160,7 @@ private struct ProductPicker: View {
                                 Text(Loc.stockLabel(product.stock))
                                     .nocturneText(.meta)
                                     .lineLimit(1)
-                                Text(Money.text(product.price, symbol: symbol))
+                                Text(Money.text(product.price, in: currency))
                                     .font(NocturneType.inter(14))
                                     .foregroundStyle(Nocturne.accent400)
                             }
@@ -192,7 +192,7 @@ private struct ProductPicker: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(Loc.lines(cart.lines.count))
                             .nocturneText(.meta)
-                        Text(Money.text(cart.total, symbol: symbol))
+                        Text(Money.text(cart.total, in: currency))
                             .font(NocturneType.inter(19, .medium))
                     }
                     Spacer(minLength: 12)

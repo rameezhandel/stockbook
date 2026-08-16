@@ -11,7 +11,7 @@ struct AddStockSheet: View {
 
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
 
     @State private var mode: RestockMode = .quickAdd
     @State private var quantity = ""
@@ -90,9 +90,9 @@ struct AddStockSheet: View {
         if isPurchase {
             let cost = Money.parse(unitCost) ?? 0
             let billTotal = Double(max(0, quantityValue)) * cost
-            return Loc.purchaseNote(billTotal: Money.text(billTotal, symbol: symbol))
+            return Loc.purchaseNote(billTotal: Money.text(billTotal, in: currency))
         }
-        return Loc.quickAddNote(cost: Money.text(product.cost, symbol: symbol))
+        return Loc.quickAddNote(cost: Money.text(product.cost, in: currency))
     }
 
     private var actionLabel: String {

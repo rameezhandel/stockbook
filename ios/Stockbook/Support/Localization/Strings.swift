@@ -368,6 +368,32 @@ struct Strings {
     var productsStat: String { pick("Products", "ಸಾಮಾನುಗಳು") }
     var customersStat: String { pick("Customers", "ಗ್ರಾಹಕರು") }
     var languageSection: String { pick("Language", "ಭಾಷೆ") }
+    var currencySection: String { pick("Currency", "ಹಣದ ಬಗೆ") }
+
+    /// `Saudi Riyal` — from the system, so it arrives already in the language
+    /// in force rather than being another column to keep translated.
+    func currencyName(_ currency: Currency) -> String {
+        language.locale.localizedString(forCurrencyCode: currency.code) ?? currency.code
+    }
+
+    /// `SAR · Saudi Riyal` — the menu row.
+    func currencyRow(_ currency: Currency) -> String {
+        "\(currency.code) · \(currencyName(currency))"
+    }
+
+    var currencyNote: String {
+        pick(
+            "Every price and total is shown in this. Nothing is converted — amounts already saved keep the numbers you entered, and only the symbol in front of them changes.",
+            "ಎಲ್ಲಾ ಬೆಲೆ ಮತ್ತು ಒಟ್ಟು ಮೊತ್ತ ಇದರಲ್ಲೇ ಕಾಣಿಸುತ್ತದೆ. ಯಾವುದೂ ಪರಿವರ್ತನೆ ಆಗುವುದಿಲ್ಲ — ಈಗಾಗಲೇ ಉಳಿಸಿದ ಮೊತ್ತಗಳ ಸಂಖ್ಯೆ ಹಾಗೆಯೇ ಇರುತ್ತದೆ, ಮುಂದಿನ ಚಿಹ್ನೆ ಮಾತ್ರ ಬದಲಾಗುತ್ತದೆ."
+        )
+    }
+
+    var setupCurrencyNote: String {
+        pick(
+            "What you bill in. You can change it later in Settings.",
+            "ನೀವು ಯಾವ ಹಣದಲ್ಲಿ ಬಿಲ್ ಮಾಡುತ್ತೀರಿ. ಆಮೇಲೆ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಬದಲಿಸಬಹುದು."
+        )
+    }
 
     var languageNote: String {
         pick(

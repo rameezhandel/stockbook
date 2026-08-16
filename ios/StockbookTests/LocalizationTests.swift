@@ -37,11 +37,12 @@ struct LocalizationTests {
         \.commonHardwareLines, \.nothingAddedYetKicker, \.nextStockAndPrices, \.stockAndPrices,
         \.stockAndPricesBody, \.youPay, \.youSell, \.openTheShop,
         \.allSet, \.thisPhone, \.businessOwner, \.productsStat,
-        \.customersStat, \.languageSection, \.languageNote, \.moveToAnotherPhone,
-        \.moveToAnotherPhoneNote, \.exportEverything, \.exportNoteFirstTime, \.exportNoteAfterBackup,
-        \.writeAFreshFile, \.createBackupFile, \.importABackupFile, \.chooseAFile,
-        \.replaceEverything, \.importNoteIdle, \.importNoteDone, \.startAgain,
-        \.startOver, \.startAgainNote,
+        \.customersStat, \.languageSection, \.currencySection, \.currencyNote,
+        \.setupCurrencyNote, \.languageNote, \.moveToAnotherPhone, \.moveToAnotherPhoneNote,
+        \.exportEverything, \.exportNoteFirstTime, \.exportNoteAfterBackup, \.writeAFreshFile,
+        \.createBackupFile, \.importABackupFile, \.chooseAFile, \.replaceEverything,
+        \.importNoteIdle, \.importNoteDone, \.startAgain, \.startOver,
+        \.startAgainNote,
     ]
 
     @Test("Every string is written in both languages")
@@ -165,6 +166,8 @@ struct LanguageSettingTests {
         #expect(settings.language == .english)
         #expect(settings.ownerName == "Khalid")
         #expect(settings.nextBillNumber == 3)
+        // The currency was stored as a bare symbol back then.
+        #expect(settings.currencyCode == "SAR")
     }
 
     @Test("Choosing a language persists it and takes effect immediately")

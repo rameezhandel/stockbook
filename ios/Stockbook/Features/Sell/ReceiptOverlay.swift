@@ -6,7 +6,7 @@ struct ReceiptOverlay: View {
     let bill: Bill
 
     @Environment(AppRouter.self) private var router
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
     @Environment(\.topSafeInset) private var topInset
     @Environment(\.bottomSafeInset) private var bottomInset
 
@@ -57,9 +57,9 @@ struct ReceiptOverlay: View {
                         Text(line.name)
                             .font(NocturneType.inter(14))
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        Text("\(line.qty) × \(Money.text(line.price, symbol: symbol))")
+                        Text("\(line.qty) × \(Money.text(line.price, in: currency))")
                             .nocturneText(.meta)
-                        Text(Money.text(line.lineTotal, symbol: symbol))
+                        Text(Money.text(line.lineTotal, in: currency))
                             .font(NocturneType.inter(14))
                     }
                     .padding(.vertical, 7)
@@ -73,7 +73,7 @@ struct ReceiptOverlay: View {
                         .font(NocturneType.inter(13))
                         .foregroundStyle(Nocturne.neutral500)
                     Spacer()
-                    Text(Money.text(bill.total, symbol: symbol))
+                    Text(Money.text(bill.total, in: currency))
                         .font(NocturneType.inter(25, .medium))
                         .tracking(25 * -0.02)
                 }
@@ -120,9 +120,9 @@ struct ReceiptOverlay: View {
     private var paymentNote: String {
         guard let paid = bill.paid else { return Loc.paidInFullCash }
         return Loc.partPaidNote(
-            paid: Money.text(paid, symbol: symbol),
+            paid: Money.text(paid, in: currency),
             who: bill.who,
-            balance: Money.text(bill.balance, symbol: symbol)
+            balance: Money.text(bill.balance, in: currency)
         )
     }
 }

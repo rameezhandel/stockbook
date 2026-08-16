@@ -8,7 +8,7 @@ struct CartView: View {
 
     @Environment(Cart.self) private var cart
     @Environment(StockbookStore.self) private var store
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
     @Environment(\.bottomSafeInset) private var bottomInset
 
     var body: some View {
@@ -76,7 +76,7 @@ struct CartView: View {
                         .font(NocturneType.inter(13))
                         .foregroundStyle(Nocturne.neutral500)
                     Spacer()
-                    Text(Money.text(cart.total, symbol: symbol))
+                    Text(Money.text(cart.total, in: currency))
                         .nocturneText(.bigNumber(28))
                 }
 
@@ -86,7 +86,7 @@ struct CartView: View {
                             .font(NocturneType.inter(12.5))
                             .foregroundStyle(Nocturne.neutral500)
                         Spacer()
-                        Text(Money.text(cart.balance, symbol: symbol))
+                        Text(Money.text(cart.balance, in: currency))
                             .font(NocturneType.inter(15))
                             .foregroundStyle(Nocturne.accent400)
                     }
@@ -122,7 +122,7 @@ private struct CartLineCard: View {
     let onResetPrice: () -> Void
     let onRemove: () -> Void
 
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
 
     // Both numbers are edited as text so a half-typed value ("1." or "") is
     // representable. They are re-seeded from the model only when it has moved
@@ -138,7 +138,7 @@ private struct CartLineCard: View {
                     .nocturneText(.rowPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .lineLimit(1)
-                Text(Money.text(line.lineTotal, symbol: symbol))
+                Text(Money.text(line.lineTotal, in: currency))
                     .font(NocturneType.inter(15))
                 Button(action: onRemove) {
                     Glyph(Icon.delete, size: 15)
@@ -166,12 +166,12 @@ private struct CartLineCard: View {
             if line.isPriceOverridden {
                 HStack(spacing: 5) {
                     Glyph(Icon.edit, size: 11)
-                    Text(Loc.usualPriceNote(Money.text(line.basePrice, symbol: symbol)))
+                    Text(Loc.usualPriceNote(Money.text(line.basePrice, in: currency)))
                         .font(NocturneType.inter(11))
                     Spacer(minLength: 6)
                     Button(Loc.reset) {
                         onResetPrice()
-                        priceText = Money.amount(line.basePrice)
+                        priceText = Money.amount(line.basePrice, in: currency)
                     }
                     .buttonStyle(GhostButtonStyle(fontSize: 11))
                 }
@@ -185,13 +185,13 @@ private struct CartLineCard: View {
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
         .onAppear {
             qtyText = String(line.qty)
-            priceText = Money.amount(line.price)
+            priceText = Money.amount(line.price, in: currency)
         }
         .onChange(of: line.qty) { _, new in
             if Int(qtyText.trimmed) != new { qtyText = String(new) }
         }
         .onChange(of: line.price) { _, new in
-            if Money.parse(priceText) != new { priceText = Money.amount(new) }
+            if Money.parse(priceText) != new { priceText = Money.amount(new, in: currency) }
         }
     }
 
@@ -234,7 +234,7 @@ private struct CartLineCard: View {
 
     private var priceBox: some View {
         HStack(spacing: 5) {
-            Text(symbol.trimmed)
+            Text(currency.symbol.trimmed)
                 .font(NocturneType.inter(12.5))
                 .foregroundStyle(Nocturne.neutral500)
                 .lineLimit(1)
@@ -275,7 +275,7 @@ private struct CustomerField: View {
     @Binding var name: String
 
     @Environment(StockbookStore.self) private var store
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
     @FocusState private var focused: Bool
 
     private var suggestions: [CustomerSuggestion] {
@@ -336,7 +336,7 @@ private struct CustomerField: View {
                             .font(NocturneType.inter(13.5))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .lineLimit(1)
-                        Text(suggestion.meta(symbol: symbol, strings: Loc))
+                        Text(suggestion.meta(in: currency, strings: Loc))
                             .font(NocturneType.inter(11))
                             .foregroundStyle(Nocturne.neutral500)
                     }

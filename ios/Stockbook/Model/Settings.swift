@@ -7,8 +7,11 @@ struct Settings: Codable, Equatable {
     /// "Hello, <first name>" on the dashboard.
     var ownerName: String = ""
 
-    /// `"SAR "` by default, including the trailing space.
-    var currencySymbol: String = Money.defaultSymbol
+    /// ISO 4217 code of the one currency the shop bills in, chosen during setup
+    /// and changeable in Settings. Stored as the code rather than the symbol so
+    /// a wrong symbol is a one-line fix here instead of a migration out of
+    /// everyone's saved settings.
+    var currencyCode: String = Currency.default.code
 
     /// Stock at or below this count reads as "running low".
     var lowStockAt: Int = 40
@@ -33,6 +36,8 @@ struct Settings: Codable, Equatable {
     /// Next value for `Bill.number`.
     var nextBillNumber: Int = 1
 
+    var currency: Currency { Currency.named(currencyCode) }
+
     var hasBackup: Bool { lastExportAt != nil }
 
     init() {}
@@ -43,18 +48,40 @@ struct Settings: Codable, Equatable {
     /// A default value on a property does **not** make the synthesised decoder
     /// tolerate a missing key — it throws. Every field added after v1 shipped is
     /// therefore a field that would refuse to read an existing shop, so all of
-    /// them are decoded as "if present, else the default". `language` is the
-    /// first; the rest are here so the next one is a one-line change.
+    /// them are decoded as "if present, else the default", and a field whose
+    /// *shape* changed — `currencySymbol` became `currencyCode` — reads the old
+    /// key when the new one is absent.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let fallback = Settings()
         ownerName = try container.decodeIfPresent(String.self, forKey: .ownerName) ?? fallback.ownerName
-        currencySymbol = try container.decodeIfPresent(String.self, forKey: .currencySymbol) ?? fallback.currencySymbol
         lowStockAt = try container.decodeIfPresent(Int.self, forKey: .lowStockAt) ?? fallback.lowStockAt
+        currencyCode = try Self.decodeCurrencyCode(from: decoder, container: container) ?? fallback.currencyCode
         language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? fallback.language
         lastExportAt = try container.decodeIfPresent(Date.self, forKey: .lastExportAt)
         setupCompleted = try container.decodeIfPresent(Bool.self, forKey: .setupCompleted) ?? fallback.setupCompleted
         nextBillNumber = try container.decodeIfPresent(Int.self, forKey: .nextBillNumber) ?? fallback.nextBillNumber
+    }
+
+    /// Settings written before the code was stored carry `currencySymbol`
+    /// instead. Read through a container of its own so the current shape stays
+    /// synthesised — the legacy key is not a property and must not become one.
+    private enum LegacyKeys: String, CodingKey {
+        case currencySymbol
+    }
+
+    private static func decodeCurrencyCode(
+        from decoder: Decoder,
+        container: KeyedDecodingContainer<CodingKeys>
+    ) throws -> String? {
+        if let code = try container.decodeIfPresent(String.self, forKey: .currencyCode) {
+            return code
+        }
+        let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+        guard let symbol = try legacy.decodeIfPresent(String.self, forKey: .currencySymbol) else {
+            return nil
+        }
+        return Currency.matching(symbol: symbol)?.code
     }
 }
 

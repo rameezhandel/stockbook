@@ -6,7 +6,7 @@ struct BillRow: View {
     var showsVoidAction = false
     var onVoid: (() -> Void)?
 
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -21,7 +21,7 @@ struct BillRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text(Money.text(bill.total, symbol: symbol))
+                Text(Money.text(bill.total, in: currency))
                     .font(NocturneType.inter(15))
                     .foregroundStyle(totalColor)
             }
@@ -44,7 +44,7 @@ struct BillRow: View {
         parts.append(Loc.time(bill.createdAt))
         parts.append(Loc.items(bill.lines.count))
         if bill.isPartPaid, bill.balance > 0 {
-            parts.append(Loc.owes(Money.text(bill.balance, symbol: symbol)))
+            parts.append(Loc.owes(Money.text(bill.balance, in: currency)))
         }
         return parts.joined(separator: " · ")
     }

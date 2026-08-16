@@ -13,6 +13,7 @@ struct SetupFlowView: View {
 
     @State private var step: Step = .name
     @State private var ownerName = ""
+    @State private var currency = Currency.default
     @State private var draftName = ""
     @State private var drafts: [ProductDraft] = []
 
@@ -103,6 +104,16 @@ struct SetupFlowView: View {
                     identifier: "setup.ownerName",
                     onSubmit: { advance(to: .products) }
                 )
+                .padding(.bottom, 14)
+
+                // Asked here rather than beside the prices, because by step 3
+                // the owner is typing numbers and should already know which
+                // ones they are.
+                CurrencyField(label: Loc.currencySection, currency: $currency)
+
+                Text(Loc.setupCurrencyNote)
+                    .nocturneText(.meta)
+                    .padding(.top, 6)
 
                 Spacer(minLength: 0)
             }
@@ -367,6 +378,7 @@ struct SetupFlowView: View {
     private func finish() {
         guard isComplete else { return }
         store.setOwnerName(ownerName)
+        store.setCurrency(currency)
         for draft in drafts {
             store.addProduct(
                 name: draft.name,

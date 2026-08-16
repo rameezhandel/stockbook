@@ -72,7 +72,7 @@ private struct ProductRow: View {
     let product: Product
     let lowStockAt: Int
 
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
 
     var body: some View {
         HStack(spacing: 12) {
@@ -82,15 +82,15 @@ private struct ProductRow: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Text(Loc.buyAndMargin(
-                    cost: Money.text(product.cost, symbol: symbol),
-                    margin: Money.text(product.marginPerPiece, symbol: symbol)
+                    cost: Money.text(product.cost, in: currency),
+                    margin: Money.text(product.marginPerPiece, in: currency)
                 ))
                     .nocturneText(.meta)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text(Money.text(product.price, symbol: symbol))
+                Text(Money.text(product.price, in: currency))
                     .font(NocturneType.inter(15))
                 Text(Loc.stockLabel(product.stock))
                     .nocturneText(.meta)

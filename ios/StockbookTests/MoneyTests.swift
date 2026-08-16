@@ -36,7 +36,7 @@ struct MoneyTests {
 
     @Test("The symbol is configurable")
     func symbol() {
-        #expect(Money.text(12, symbol: "₹") == "₹12")
+        #expect(Money.text(12, in: .inr) == "₹12")
     }
 
     @Test("Parsing tells empty from zero")
