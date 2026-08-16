@@ -69,20 +69,37 @@ phone, allow installing from that source once, and tap it.
 
 ## What is built
 
-- The whole domain, with 66 tests: products, bills, voiding, restock, customers
-  and their case-insensitive identity, money in fourteen currencies, English and
-  Kannada, the storage seam with two implementations run against one contract
-  suite, and the backup format including its compatibility with iOS.
-- The Gradle build, both modules, and CI.
-- The colour palette.
+Everything the iOS app does.
+
+- **The whole domain**, with 66 tests: products, bills, voiding, restock,
+  customers and their case-insensitive identity, money in fourteen currencies,
+  English and Kannada, the storage seam with two implementations run against one
+  contract suite, and the backup format including its compatibility with iOS.
+- **All four tabs** — Today, Items, Sell and Bills — plus first-run setup, the
+  product editor and add-stock sheets, the receipt, the bill document, the
+  customer filter, Settings and the backup handoff.
+- The design system: palette, named type roles, metrics, motion, and the
+  Phosphor-to-Material icon map.
+- CI that runs the domain tests and ships an installable APK.
+
+## Where Android answers better than iOS
+
+Three problems the iOS build solved the hard way are one line here, and the
+difference is worth recording rather than quietly enjoying:
+
+| | iOS | Android |
+| --- | --- | --- |
+| Keyboard must not move the layout | four screen-level declarations, found one bug at a time | `windowSoftInputMode="adjustNothing"`, once, in the manifest |
+| Next/Done between fields | a screen-level focus router and a hand-built toolbar, because a numeric keypad has no return key | `ImeAction.Next` on the field |
+| Getting it on the phone | developer account, API key, signing, TestFlight, ~20 minutes | download the CI artifact and tap it |
+
+The bottom sheet is hand-drawn on both, for the same reason: the design
+specifies a scrim, top-corner-only rounding, a 38×4 handle and an 84% maximum
+height, and neither platform's stock sheet exposes those.
 
 ## What is not built yet
 
-**The screens.** `MainActivity` renders a stub over a finished domain.
-
-That is on purpose. Google's Maven is unreachable from the environment this was
-written in, so Compose code cannot be compiled here at all — only in CI. Writing
-several thousand lines of unverifiable UI in one go and hoping CI catches it is
-exactly how the iOS build lost an afternoon to a keyboard toolbar. The domain
-went first because it could be proven; the screens follow against a toolchain
-already known to compile.
+- **Nothing asserts what a screen renders.** The domain is covered; the Compose
+  layer is checked by compiling and by looking at it. Same position as iOS.
+- **The launcher icon is a placeholder** — a mark, not the iOS icon redrawn for
+  Android's adaptive shapes.
