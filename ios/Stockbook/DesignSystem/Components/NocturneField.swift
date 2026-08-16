@@ -48,8 +48,24 @@ struct NocturneField: View {
     var identifier: String?
     var onSubmit: (() -> Void)?
 
+    /// Focus driven by the **screen** rather than by the field.
+    ///
+    /// A field left to itself cannot know what comes after it, so a keyboard
+    /// toolbar cannot offer "Next". Where a screen wants that — setup step 3,
+    /// with three boxes per product — it holds one `FocusState` for all of them
+    /// and hands each field its tag. Fields that need nothing of the sort keep
+    /// their own focus and pass neither.
+    var focusTag: String?
+    var focus: FocusState<String?>.Binding?
+
     @FocusState private var focused: Bool
     @State private var hasBeenFocused = false
+
+    /// True when *this* field holds focus, whichever of the two owns it.
+    private var isFocused: Bool {
+        if let focus, let focusTag { return focus.wrappedValue == focusTag }
+        return focused
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -76,7 +92,7 @@ struct NocturneField: View {
                         .foregroundStyle(valueColor)
                         .keyboardType(keyboard)
                         .multilineTextAlignment(alignment)
-                        .focused($focused)
+                        .modifier(FocusRouting(external: focus, tag: focusTag, own: $focused))
                         .tint(Nocturne.accent)          // caret-color
                         .submitLabel(onSubmit == nil ? .return : .done)
                         .onSubmit { onSubmit?() }
@@ -89,8 +105,16 @@ struct NocturneField: View {
             .hairline(borderColor, radius: Metrics.controlRadius)
             .animation(Metrics.quick, value: borderColor)
         }
-        .onChange(of: focused) { _, isFocused in
-            if isFocused { hasBeenFocused = true }
+        .onChange(of: isFocused) { _, nowFocused in
+            if nowFocused { hasBeenFocused = true }
+        }
+        // The accent border says "you are typing here". Dismissing the keyboard
+        // through the responder chain — which is what a toolbar button does —
+        // does not tell SwiftUI's `FocusState` anything, so without this the
+        // field went on claiming focus it no longer had, and the border stayed
+        // lit after the keyboard was gone.
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
+            focused = false
         }
     }
 
@@ -101,7 +125,7 @@ struct NocturneField: View {
         switch emphasis {
         case .changed: return Nocturne.accent
         case .sellingPrice: return Nocturne.accent700
-        case .none: return focused ? Nocturne.accent : Nocturne.neutral800
+        case .none: return isFocused ? Nocturne.accent : Nocturne.neutral800
         }
     }
 
@@ -127,7 +151,9 @@ extension NocturneField {
         alignment: TextAlignment = .leading,
         prefix: String? = nil,
         fontSize: CGFloat = 14,
-        identifier: String? = nil
+        identifier: String? = nil,
+        focusTag: String? = nil,
+        focus: FocusState<String?>.Binding? = nil
     ) -> NocturneField {
         NocturneField(
             label: label,
@@ -141,7 +167,28 @@ extension NocturneField {
             alignment: alignment,
             prefix: prefix,
             fontSize: fontSize,
-            identifier: identifier
+            identifier: identifier,
+            focusTag: focusTag,
+            focus: focus
         )
+    }
+}
+
+/// Sends the field's focus either to the screen's `FocusState` or to its own.
+///
+/// A `ViewModifier` rather than a branch in `body`, because `.focused` has two
+/// different shapes for the two cases and they cannot be unified inline.
+private struct FocusRouting: ViewModifier {
+    let external: FocusState<String?>.Binding?
+    let tag: String?
+    let own: FocusState<Bool>.Binding
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let external, let tag {
+            content.focused(external, equals: tag)
+        } else {
+            content.focused(own)
+        }
     }
 }
