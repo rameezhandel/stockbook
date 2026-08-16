@@ -118,6 +118,29 @@ stranded in, and the search field is shared by both.
 whether `RootView` shows setup or the app, so "Start over" is a data operation
 rather than a navigation one.
 
+### Customers
+
+There is no customer record. A bill carries a name, and `Customer` is assembled
+from history whenever it is asked for — which at this size is free, and means a
+customer can never go stale or be orphaned from their bills.
+
+**Identity is `Customer.key`: trimmed and lowercased.** `"ahmed "` and `"Ahmed"`
+are one person, which is the only workable rule for a name typed fresh at a
+counter for every bill. Everything that groups, matches or filters customers
+goes through that one function — the debtors banner, the cart's suggestions, and
+the Bills filter.
+
+The **display** name is the spelling from the customer's most recent bill, so
+correcting the capitalisation on a new bill corrects it everywhere it is shown,
+without rewriting what older bills record. Bills keep what was actually typed on
+them; history does not move.
+
+When there is more to know about a customer than a name — a phone number, an
+address, a credit limit — the shape that fits is a stored record keyed by `key`
+and merged onto `Customer` in `StockbookStore.customers()`. The derived figures
+stay derived; only the typed-in facts get stored. That is why callers are handed
+a `Customer` today rather than a bare name string.
+
 ### Data model notes
 
 The handoff's deliberate modelling decisions, and where they are enforced:
@@ -285,7 +308,10 @@ both it and setup step 3.
   field with an upward suggestion dropdown, full/part payment, and save.
 - **Receipt** — the full-screen confirmation, including the faded rule.
 - **Bills** — full history newest-first, with the muted treatment on voided
-  ones. Tapping any bill on Bills or Today opens it as a document.
+  ones, and a customer filter. Tapping any bill on Bills or Today opens it as a
+  document.
+- **Customers** — derived from bills, never stored. Filtering Bills to one
+  shows what they have bought and what they still owe.
 - **The bill itself** — `BillTemplate`: letterhead, number, date, customer,
   every line with its arithmetic, total and what is owed. One view, used both
   by the confirmation after saving and by the sheet that opens from history, so
