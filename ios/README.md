@@ -370,6 +370,61 @@ surviving a product edit, voiding being idempotent, the owed banner counting
 people rather than bills, suggestion ranking, cost being latest-paid, and the
 backup round trip and its rejections.
 
+## Getting it onto the phone
+
+There is no Xcode for iOS, so the app cannot be built on the phone it runs on.
+It does not have to be: `.github/workflows/testflight.yml` builds a signed
+release on a rented Mac and uploads it to App Store Connect, and TestFlight
+installs it. The loop from a phone with no Mac anywhere near it is **push →
+wait → tap install**.
+
+That workflow **never runs on a push to a branch** — macOS minutes bill at 10x
+on a private repo and the `iOS` workflow already covers every push. Release by
+pushing a `v*` tag, or by pressing *Run workflow*.
+
+### One-time setup
+
+All four steps are web pages, and all four work in mobile Safari.
+
+1. **Register the bundle ID** at [developer.apple.com](https://developer.apple.com/account/resources/identifiers/list)
+   → Identifiers → App IDs. The project declares `com.stockbook.app`; register
+   that, or pick another and change `PRODUCT_BUNDLE_IDENTIFIER` in **both**
+   `Stockbook.xcodeproj/project.pbxproj` and `project.yml`.
+2. **Create the app record** in [App Store Connect](https://appstoreconnect.apple.com)
+   → Apps → +. Nothing is published; TestFlight needs the record to exist.
+3. **Create an API key**: App Store Connect → Users and Access → Integrations →
+   App Store Connect API → +. Give it **App Manager** access. You get an Issuer
+   ID and a Key ID on screen, and a `.p8` file that **can only be downloaded
+   once** — download it before leaving the page.
+4. **Add four repository secrets** (GitHub → Settings → Secrets and variables →
+   Actions):
+
+   | Secret | Where it comes from |
+   | --- | --- |
+   | `APPSTORE_ISSUER_ID` | the Issuer ID above the key list |
+   | `APPSTORE_KEY_ID` | the key's own ID |
+   | `APPSTORE_PRIVATE_KEY` | the whole `.p8` file's contents, `-----BEGIN` and `-----END` lines included |
+   | `APPLE_TEAM_ID` | developer.apple.com → Membership details |
+
+No certificates and no provisioning profiles go into secrets. `xcodebuild
+-allowProvisioningUpdates`, handed the same API key, creates and fetches what it
+needs on the runner and throws it away with the runner.
+
+### After that
+
+Every upload gets its **build number from the GitHub run number**, so it always
+rises and never repeats — App Store Connect rejects a build number it has seen
+before, and it means a build in TestFlight can be traced back to the run that
+made it. Pass a marketing version to the workflow to change the `1.0` part.
+
+Add yourself as an **internal tester** in App Store Connect. Internal builds skip
+Beta App Review and are installable about 5–15 minutes after upload; external
+testers wait on a review each time the version changes.
+
+`ITSAppUsesNonExemptEncryption` is already `NO` in the project, so no build stops
+to ask the export-compliance question. It is true: the app makes no network
+calls at all.
+
 ## If the project file ever breaks
 
 `Stockbook.xcodeproj` is hand-written. If it goes stale or conflicts badly:

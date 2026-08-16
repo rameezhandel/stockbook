@@ -1,0 +1,187 @@
+name: TestFlight
+
+# Builds a signed release and uploads it to App Store Connect.
+#
+# The whole point: the shop's phone is the only Mac-free device in this project,
+# and this is what lets a commit written on it end up installable on it. Nothing
+# here needs a Mac of your own — the runner is the Mac.
+#
+# **Never runs on a push to a branch.** macOS minutes bill at 10x on a private
+# repo, and the `iOS` workflow already covers every push with a build and the
+# test suite. This one is deliberate: tag a release, or press the button.
+#
+# One-time setup before the first run — see ios/README.md → "Getting it onto the
+# phone". Four repository secrets, and an app record in App Store Connect.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Marketing version (e.g. 1.0.1). Blank keeps the project's."
+        required: false
+        default: ""
+      notes:
+        description: "What testers should know about this build."
+        required: false
+        default: ""
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Build & upload
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    env:
+      ARCHIVE_PATH: ${{ github.workspace }}/build/Stockbook.xcarchive
+      EXPORT_PATH: ${{ github.workspace }}/build/export
+      KEY_PATH: ${{ github.workspace }}/private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check the secrets are all present
+        # Failing here costs seconds. Failing at the upload step costs a full
+        # build first, and the error Apple returns for a missing key is not
+        # obviously about a missing key.
+        #
+        # Read through `env` rather than interpolated into the script: the
+        # private key is several lines long, and a multi-line value pasted
+        # straight into a shell test is a syntax error, not a check.
+        env:
+          ISSUER: ${{ secrets.APPSTORE_ISSUER_ID }}
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=""
+          [ -n "$ISSUER" ] || missing="$missing APPSTORE_ISSUER_ID"
+          [ -n "$KEY_ID" ] || missing="$missing APPSTORE_KEY_ID"
+          [ -n "$PRIVATE_KEY" ] || missing="$missing APPSTORE_PRIVATE_KEY"
+          [ -n "$TEAM_ID" ] || missing="$missing APPLE_TEAM_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            echo "See ios/README.md → Getting it onto the phone."
+            exit 1
+          fi
+
+      - name: Select Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -switch "$XCODE"; fi
+          xcodebuild -version
+
+      - name: Write the App Store Connect key
+        # altool looks for AuthKey_<KEY_ID>.p8 in ./private_keys among other
+        # places, so the filename is not cosmetic.
+        env:
+          PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        run: |
+          mkdir -p "$(dirname "$KEY_PATH")"
+          printf '%s\n' "$PRIVATE_KEY" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          # Say whether it looks like a key without printing any of it.
+          head -1 "$KEY_PATH" | grep -q "BEGIN PRIVATE KEY" \
+            || { echo "::error::APPSTORE_PRIVATE_KEY does not start with -----BEGIN PRIVATE KEY-----. Paste the .p8 file's contents whole, including both -----BEGIN/END----- lines."; exit 1; }
+
+      - name: Archive
+        # The build number is the run number, so it rises on every upload and
+        # never repeats — App Store Connect rejects a build number it has seen.
+        # It also means a build in TestFlight can be traced back to the run that
+        # made it.
+        run: |
+          set -o pipefail
+          VERSION_ARG=""
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION_ARG="MARKETING_VERSION=${{ inputs.version }}"
+          fi
+          xcodebuild archive \
+            -project ios/Stockbook.xcodeproj \
+            -scheme Stockbook \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$ARCHIVE_PATH" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "${{ secrets.APPSTORE_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.APPSTORE_ISSUER_ID }}" \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            $VERSION_ARG
+
+      - name: Export the .ipa
+        run: |
+          set -o pipefail
+          cat > "${{ github.workspace }}/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>destination</key><string>export</string>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist "${{ github.workspace }}/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "${{ secrets.APPSTORE_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.APPSTORE_ISSUER_ID }}"
+
+      - name: Upload to App Store Connect
+        # Exporting and uploading are separate on purpose: a failure here leaves
+        # a real .ipa in the artifacts, which is the difference between "the
+        # build is broken" and "the upload is misconfigured".
+        run: |
+          IPA=$(find "$EXPORT_PATH" -name '*.ipa' -maxdepth 1 | head -1)
+          if [ -z "$IPA" ]; then
+            echo "::error::No .ipa was exported."
+            exit 1
+          fi
+          echo "Uploading $(basename "$IPA")"
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA" \
+            --apiKey "${{ secrets.APPSTORE_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_ISSUER_ID }}"
+
+      - name: Keep the .ipa
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: Stockbook-ipa
+          path: ${{ env.EXPORT_PATH }}/*.ipa
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Say what landed
+        if: success()
+        run: |
+          {
+            echo "### Uploaded to TestFlight"
+            echo ""
+            echo "- Build **${{ github.run_number }}**"
+            echo "- From \`${{ github.sha }}\`"
+            if [ -n "${{ inputs.notes }}" ]; then
+              echo "- Notes: ${{ inputs.notes }}"
+            fi
+            echo ""
+            echo "Apple processes the build for roughly 5–15 minutes before it"
+            echo "appears in TestFlight. Internal testers get it without review."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up the key
+        if: always()
+        run: rm -f "$KEY_PATH"
