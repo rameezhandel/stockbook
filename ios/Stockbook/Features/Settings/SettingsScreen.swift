@@ -42,7 +42,9 @@ struct SettingsScreen: View {
                     thisPhone
                     languageSection
                     moveToAnotherPhone
+                    #if DEBUG
                     startAgain
+                    #endif
                 }
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.bottom, 18)
@@ -290,6 +292,17 @@ struct SettingsScreen: View {
 
     // MARK: Start again
 
+    /// Debug builds only.
+    ///
+    /// One tap, no confirmation step, and it clears every product, price and
+    /// bill on the phone. That is the right shape for a developer resetting to
+    /// first-run for the tenth time, and the wrong thing to leave sitting under
+    /// Settings on a counter where the only copy of the shop lives. Release
+    /// builds get here by deleting the app, which at least asks.
+    ///
+    /// `StockbookStore.startOver` itself is not conditional — the rule stays
+    /// tested in both configurations, it just has no button.
+    #if DEBUG
     private var startAgain: some View {
         VStack(alignment: .leading, spacing: 0) {
             Kicker(Loc.startAgain).padding(.bottom, 8)
@@ -309,6 +322,7 @@ struct SettingsScreen: View {
             .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
         }
     }
+    #endif
 
     private func cardHeading(icon: String, title: String) -> some View {
         HStack(spacing: 9) {

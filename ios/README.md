@@ -254,9 +254,14 @@ both it and setup step 3.
 - **Receipt** — the full-screen confirmation, including the faded rule.
 - **Bills** — full history newest-first, with void-and-restore on every live
   bill and the muted treatment on voided ones.
-- **Settings** — owner name and counts, real export to Files, Share via the OS
-  share sheet, and a validated import gated behind a warning that names what
-  will be lost. Plus Start over.
+- **Settings** — owner name and counts, the language switcher, real export to
+  Files, Share via the OS share sheet, and a validated import gated behind a
+  warning that names what will be lost. **Start over is `#if DEBUG` only**: one
+  tap with no confirmation clears every product, price and bill, which is right
+  for resetting to first-run during development and wrong to leave under
+  Settings on the phone holding the only copy of the shop. The store's
+  `startOver` rule is not conditional and stays tested in both configurations —
+  it just has no button in a release build.
 - **First-run setup** — all three steps: name, product names with the four
   suggestion capsules, then the stock-and-prices grid with its completeness gate.
 - **English and Kannada**, with the switcher in Settings.
