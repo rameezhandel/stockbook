@@ -196,6 +196,7 @@ private struct ProductPicker: View {
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.bottom, 18)
             }
+            .scrollDismissesKeyboard(.interactively)
 
             // With a cart in progress the tab bar is hidden, so this footer is
             // the only way back to it.
