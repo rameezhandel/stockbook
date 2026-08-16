@@ -85,17 +85,17 @@ struct SetupFlowView: View {
                     .hairline(Nocturne.accent, radius: 10)
                     .padding(.bottom, 14)
 
-                Text("Welcome to Stockbook")
+                Text(Loc.welcomeToStockbook)
                     .nocturneText(.setupTitle)
                     .padding(.bottom, 5)
 
-                Text("Everything stays on this phone — no account, no signal needed. First, what should we call you?")
+                Text(Loc.welcomeBody)
                     .nocturneText(.body)
                     .padding(.bottom, 18)
 
                 NocturneField(
-                    label: "Your name",
-                    placeholder: "Business owner name",
+                    label: Loc.yourName,
+                    placeholder: Loc.businessOwnerName,
                     text: $ownerName,
                     height: Metrics.tallInputHeight,
                     isRequiredAndEmpty: ownerName.isBlank,
@@ -109,7 +109,7 @@ struct SetupFlowView: View {
             .frame(maxHeight: .infinity, alignment: .top)
 
             footer {
-                Button("Continue") { advance(to: .products) }
+                Button(Loc.continueAction) { advance(to: .products) }
                     .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                     .disabled(ownerName.isBlank)
             }
@@ -122,24 +122,24 @@ struct SetupFlowView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(ownerName.firstName.isEmpty ? "Your shelves" : "Hello, \(ownerName.firstName)")
+                    Text(ownerName.firstName.isEmpty ? Loc.yourShelves : Loc.greeting(ownerName.firstName))
                         .font(NocturneType.inter(11))
                         .tracking(11 * 0.09)
                         .textCase(.uppercase)
                         .foregroundStyle(Nocturne.accent)
                         .padding(.bottom, 6)
 
-                    Text("What do you stock?")
+                    Text(Loc.whatDoYouStock)
                         .nocturneText(.setupTitle)
                         .padding(.bottom, 5)
 
-                    Text("Names only for now. Prices and counts come next, and you can add or remove items any time after.")
+                    Text(Loc.stockNamesBody)
                         .nocturneText(.body)
                         .padding(.bottom, 16)
 
                     HStack(spacing: 8) {
                         NocturneField(
-                            placeholder: "e.g. 4 inch hinge",
+                            placeholder: Loc.productNameExample,
                             text: $draftName,
                             height: Metrics.tallInputHeight,
                             fontSize: 15,
@@ -154,7 +154,7 @@ struct SetupFlowView: View {
                     .padding(.bottom, 16)
 
                     if !availableSuggestions.isEmpty {
-                        Kicker("Common hardware lines").padding(.bottom, 8)
+                        Kicker(Loc.commonHardwareLines).padding(.bottom, 8)
                         FlowLayout(spacing: 6) {
                             ForEach(availableSuggestions, id: \.self) { name in
                                 Button { addDraft(name) } label: {
@@ -173,7 +173,7 @@ struct SetupFlowView: View {
                         .padding(.bottom, 20)
                     }
 
-                    Kicker(drafts.isEmpty ? "Nothing added yet" : "Added · \(drafts.count)")
+                    Kicker(drafts.isEmpty ? Loc.nothingAddedYetKicker : Loc.addedCount(drafts.count))
                         .padding(.bottom, 8)
 
                     VStack(spacing: Metrics.rowGap) {
@@ -189,7 +189,7 @@ struct SetupFlowView: View {
                                         .minimumTouchTarget()
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel("Remove \(draft.name)")
+                                .accessibilityLabel(Loc.remove(draft.name))
                             }
                             .padding(.leading, 13)
                             .padding(.trailing, 8)
@@ -206,7 +206,7 @@ struct SetupFlowView: View {
             footer {
                 HStack(spacing: 8) {
                     backButton(to: .name)
-                    Button("Next — stock & prices") { advance(to: .prices) }
+                    Button(Loc.nextStockAndPrices) { advance(to: .prices) }
                         .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                         .disabled(drafts.isEmpty)
                 }
@@ -225,11 +225,11 @@ struct SetupFlowView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Stock and prices")
+                    Text(Loc.stockAndPrices)
                         .nocturneText(.setupTitle)
                         .padding(.bottom, 5)
 
-                    Text("All three are needed for every item — the count on the shelf, what you paid, what you charge.")
+                    Text(Loc.stockAndPricesBody)
                         .nocturneText(.body)
                         .padding(.bottom, 16)
 
@@ -258,7 +258,7 @@ struct SetupFlowView: View {
 
                     HStack(spacing: 8) {
                         backButton(to: .products)
-                        Button("Open the shop", action: finish)
+                        Button(Loc.openTheShop, action: finish)
                             .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                             .disabled(!isComplete)
                     }
@@ -275,21 +275,21 @@ struct SetupFlowView: View {
 
             HStack(alignment: .top, spacing: 8) {
                 NocturneField.number(
-                    label: "In stock",
+                    label: Loc.inStock,
                     text: draft.stock,
                     isRequiredAndEmpty: draft.wrappedValue.stock.isBlank,
                     requiredMarking: .afterTouch,
                     identifier: "setup.stock"
                 )
                 NocturneField.number(
-                    label: "You pay",
+                    label: Loc.youPay,
                     text: draft.cost,
                     isRequiredAndEmpty: draft.wrappedValue.cost.isBlank,
                     requiredMarking: .afterTouch,
                     identifier: "setup.cost"
                 )
                 NocturneField.number(
-                    label: "You sell",
+                    label: Loc.youSell,
                     text: draft.price,
                     isRequiredAndEmpty: (Money.parse(draft.wrappedValue.price) ?? 0) <= 0,
                     requiredMarking: .afterTouch,
@@ -319,7 +319,7 @@ struct SetupFlowView: View {
         }
         .buttonStyle(SecondaryButtonStyle(height: 48))
         .frame(width: 56)
-        .accessibilityLabel("Back")
+        .accessibilityLabel(Loc.back)
     }
 
     private var availableSuggestions: [String] {
@@ -337,9 +337,8 @@ struct SetupFlowView: View {
     }
 
     private var gateLine: String {
-        guard incompleteCount > 0 else { return "All set — stock and both prices filled in." }
-        let verb = incompleteCount == 1 ? "item still needs" : "items still need"
-        return "\(incompleteCount) \(verb) stock, buying and selling price."
+        guard incompleteCount > 0 else { return Loc.allSet }
+        return Loc.stillNeedPrices(incompleteCount)
     }
 
     // MARK: Actions

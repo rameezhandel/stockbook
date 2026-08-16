@@ -18,7 +18,7 @@ struct TodayScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             ScreenHeader(
-                kicker: Copy.headerDate(),
+                kicker: Loc.headerDate(.now),
                 title: greeting
             ) {
                 Button {
@@ -27,7 +27,7 @@ struct TodayScreen: View {
                     Glyph(Icon.settings, size: 18)
                 }
                 .buttonStyle(.iconOnly)
-                .accessibilityLabel("Settings")
+                .accessibilityLabel(Loc.settings)
             }
 
             ScrollView {
@@ -58,7 +58,7 @@ struct TodayScreen: View {
 
     private var greeting: String {
         let first = settings.ownerName.firstName
-        return first.isEmpty ? "Today" : "Hello, \(first)"
+        return first.isEmpty ? Loc.today : Loc.greeting(first)
     }
 
     // MARK: Stats
@@ -66,11 +66,11 @@ struct TodayScreen: View {
     private var statCards: some View {
         HStack(spacing: Metrics.cardGap) {
             StatCard(
-                label: "Sold today",
+                label: Loc.soldToday,
                 value: Money.text(liveBills.reduce(0) { $0 + $1.total }, symbol: symbol),
                 gradient: true
             )
-            StatCard(label: "Bills", value: String(liveBills.count))
+            StatCard(label: Loc.billsStat, value: String(liveBills.count))
         }
         .padding(.bottom, Metrics.cardGap)
     }
@@ -108,8 +108,8 @@ struct TodayScreen: View {
     /// One name reads as a name; several read as a count of **people**, not bills.
     private func owedNote(names: [String]) -> String {
         names.count == 1
-            ? "\(names[0]) still owes"
-            : "\(Copy.count(names.count, "customer")) still owe"
+            ? Loc.stillOwes(oneName: names[0])
+            : Loc.stillOwe(customerCount: names.count)
     }
 
     // MARK: Recent bills
@@ -117,17 +117,17 @@ struct TodayScreen: View {
     private var recentBills: some View {
         VStack(spacing: 0) {
             HStack {
-                Kicker("Recent bills")
+                Kicker(Loc.recentBills)
                 Spacer()
-                Button("All") { router.tab = .bills }
+                Button(Loc.all) { router.tab = .bills }
                     .buttonStyle(.ghost)
             }
             .padding(.bottom, 9)
 
             if bills.isEmpty {
                 EmptyStateBox(
-                    message: "No bills yet today.",
-                    actionTitle: "Start a bill",
+                    message: Loc.noBillsToday,
+                    actionTitle: Loc.startABill,
                     action: { router.startBill() }
                 )
             } else {
@@ -147,17 +147,13 @@ struct TodayScreen: View {
             HStack(spacing: 11) {
                 Glyph(settings.hasBackup ? Icon.backupDone : Icon.backupMissing, size: 20)
                     .foregroundStyle(settings.hasBackup ? Nocturne.accent : Nocturne.neutral500)
-                Text(
-                    settings.hasBackup
-                        ? "Backup written. Copy it somewhere safe — everything lives on this phone only."
-                        : "Nothing backed up yet. Everything lives on this phone only."
-                )
-                .font(NocturneType.inter(12))
-                .foregroundStyle(Nocturne.neutral500)
-                .lineSpacing(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(settings.hasBackup ? Loc.backupWrittenNote : Loc.backupMissingNote)
+                    .font(NocturneType.inter(12))
+                    .foregroundStyle(Nocturne.neutral500)
+                    .lineSpacing(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                Button("Save file") {
+                Button(Loc.saveFile) {
                     exportDocument = BackupFile(document: store.makeBackupDocument())
                     isExporting = true
                 }

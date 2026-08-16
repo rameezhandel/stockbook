@@ -52,7 +52,14 @@ private struct AppRoot: View {
             }
         }
         .environment(\.currencySymbol, store.settings.currencySymbol)
+        .environment(\.locale, store.settings.language.locale)
         .tint(Nocturne.accent)
+        // Every string in the app is read from `L10n` at render time, and
+        // `L10n` is not observable, so nothing would redraw on its own when the
+        // language changes. Keying the whole tree on the language rebuilds it
+        // instead — heavy-handed, and exactly right for something that happens
+        // once and must leave nothing behind in the old language.
+        .id(store.settings.language)
     }
 }
 

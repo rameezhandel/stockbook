@@ -16,7 +16,7 @@ struct StockbookTabBar: View {
                 } label: {
                     VStack(spacing: 3) {
                         Glyph(selection == tab ? tab.activeIcon : tab.icon, size: 22)
-                        Text(tab.title).nocturneText(.tabLabel)
+                        Text(Loc.tab(tab)).nocturneText(.tabLabel)
                     }
                     .foregroundStyle(selection == tab ? Nocturne.accent : Nocturne.neutral500)
                     .frame(maxWidth: .infinity)
@@ -45,15 +45,6 @@ enum AppTab: String, CaseIterable, Identifiable {
     case today, items, sell, bills
 
     var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .today: "Today"
-        case .items: "Items"
-        case .sell: "Sell"
-        case .bills: "Bills"
-        }
-    }
 
     var icon: String {
         switch self {

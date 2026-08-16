@@ -30,8 +30,8 @@ struct AddStockSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.fieldGap) {
             SheetHeader(
-                title: "Add stock",
-                subtitle: "\(product.name) — \(Copy.count(product.stock, "piece")) on the shelf now"
+                title: Loc.addStock,
+                subtitle: Loc.onShelfNow(product: product.name, stock: product.stock)
             ) {
                 router.addStock = nil
             }
@@ -40,16 +40,16 @@ struct AddStockSheet: View {
 
             if isPurchase {
                 NocturneField(
-                    label: "Supplier",
-                    placeholder: "Who delivered it",
+                    label: Loc.supplier,
+                    placeholder: Loc.whoDeliveredIt,
                     text: $supplier
                 )
             }
 
             HStack(spacing: 8) {
-                NocturneField.number(label: "How many", text: $quantity)
+                NocturneField.number(label: Loc.howMany, text: $quantity)
                 if isPurchase {
-                    NocturneField.number(label: "Paid per piece", text: $unitCost)
+                    NocturneField.number(label: Loc.paidPerPiece, text: $unitCost)
                 }
             }
 
@@ -66,8 +66,8 @@ struct AddStockSheet: View {
 
     private var modePills: some View {
         HStack(spacing: 8) {
-            pill("Quick add", active: !isPurchase) { mode = .quickAdd }
-            pill("Purchase entry", active: isPurchase) { mode = .purchase }
+            pill(Loc.quickAdd, active: !isPurchase) { mode = .quickAdd }
+            pill(Loc.purchaseEntry, active: isPurchase) { mode = .purchase }
         }
     }
 
@@ -90,13 +90,13 @@ struct AddStockSheet: View {
         if isPurchase {
             let cost = Money.parse(unitCost) ?? 0
             let billTotal = Double(max(0, quantityValue)) * cost
-            return "Bill total \(Money.text(billTotal, symbol: symbol)). This becomes the buying price used from now on."
+            return Loc.purchaseNote(billTotal: Money.text(billTotal, symbol: symbol))
         }
-        return "Topping up the bin. Buying price stays at \(Money.text(product.cost, symbol: symbol))."
+        return Loc.quickAddNote(cost: Money.text(product.cost, symbol: symbol))
     }
 
     private var actionLabel: String {
-        isPurchase ? "Record purchase" : "Add \(max(0, quantityValue)) to stock"
+        isPurchase ? Loc.recordPurchase : Loc.addToStock(max(0, quantityValue))
     }
 
     /// Zero or empty quantity just closes the sheet — the owner opened it, then

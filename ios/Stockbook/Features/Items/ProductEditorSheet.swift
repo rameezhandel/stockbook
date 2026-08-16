@@ -28,13 +28,13 @@ struct ProductEditorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.fieldGap) {
-            SheetHeader(title: isNew ? "New product" : "Edit product") {
+            SheetHeader(title: isNew ? Loc.newProduct : Loc.editProduct) {
                 router.productEditor = nil
             }
 
             NocturneField(
-                label: "Product name",
-                placeholder: "e.g. 4 inch hinge",
+                label: Loc.productName,
+                placeholder: Loc.productNameExample,
                 text: $name,
                 height: Metrics.tallInputHeight,
                 isRequiredAndEmpty: name.isBlank,
@@ -43,19 +43,19 @@ struct ProductEditorSheet: View {
 
             HStack(spacing: 8) {
                 NocturneField.number(
-                    label: "In stock",
+                    label: Loc.inStock,
                     text: $stock,
                     isRequiredAndEmpty: stock.isBlank
                 )
                 NocturneField.number(
-                    label: "Buying price",
+                    label: Loc.buyingPrice,
                     text: $cost,
                     isRequiredAndEmpty: cost.isBlank
                 )
             }
 
             NocturneField.number(
-                label: "Selling price",
+                label: Loc.sellingPrice,
                 text: $price,
                 isRequiredAndEmpty: (Money.parse(price) ?? 0) <= 0,
                 emphasis: .sellingPrice
@@ -67,20 +67,20 @@ struct ProductEditorSheet: View {
 
             HStack(spacing: 8) {
                 if let product {
-                    Button("Add stock") {
+                    Button(Loc.addStock) {
                         router.openAddStock(for: product)
                     }
                     .buttonStyle(.secondary)
                 }
 
-                Button("Save", action: save)
+                Button(Loc.save, action: save)
                     .buttonStyle(.primaryBlock)
                     .disabled(!canSave)
             }
             .padding(.top, 6)
 
             if let product {
-                Button("Remove this product") {
+                Button(Loc.removeThisProduct) {
                     cart.dropLine(for: product)
                     store.delete(product)
                     router.productEditor = nil
@@ -98,8 +98,8 @@ struct ProductEditorSheet: View {
     private var marginNote: String {
         let sell = Money.parse(price) ?? 0
         let buy = Money.parse(cost) ?? 0
-        guard sell > buy else { return "Set a selling price above the buying price." }
-        return "You make \(Money.text(sell - buy, symbol: symbol)) a piece."
+        guard sell > buy else { return Loc.setPriceAboveCost }
+        return Loc.youMakeAPiece(Money.text(sell - buy, symbol: symbol))
     }
 
     private func loadDraft() {

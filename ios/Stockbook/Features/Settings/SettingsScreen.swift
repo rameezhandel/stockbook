@@ -32,14 +32,15 @@ struct SettingsScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: "Settings") {
-                Button("Done") { router.showingSettings = false }
+            ScreenHeader(title: Loc.settings) {
+                Button(Loc.done) { router.showingSettings = false }
                     .buttonStyle(GhostButtonStyle(fontSize: 12.5))
             }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     thisPhone
+                    languageSection
                     moveToAnotherPhone
                     startAgain
                 }
@@ -75,12 +76,12 @@ struct SettingsScreen: View {
 
     private var thisPhone: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Kicker("This phone").padding(.bottom, 8)
+            Kicker(Loc.thisPhone).padding(.bottom, 8)
 
             VStack(alignment: .leading, spacing: 10) {
                 NocturneField(
-                    label: "Business owner",
-                    placeholder: "Business owner name",
+                    label: Loc.businessOwner,
+                    placeholder: Loc.businessOwnerName,
                     text: $ownerName
                 )
                 .onChange(of: ownerName) { _, new in
@@ -88,9 +89,9 @@ struct SettingsScreen: View {
                 }
 
                 HStack(spacing: 10) {
-                    stat("Products", products.count)
-                    stat("Bills", liveBills.count)
-                    stat("Customers", store.customers().count)
+                    stat(Loc.productsStat, products.count)
+                    stat(Loc.billsStat, liveBills.count)
+                    stat(Loc.customersStat, store.customers().count)
                 }
             }
             .padding(12)
@@ -109,13 +110,59 @@ struct SettingsScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    // MARK: Language
+
+    /// Two languages, both spelled in themselves, both on screen at once.
+    ///
+    /// Not a menu and not a system-settings deep link: someone who has landed in
+    /// the wrong language has to be able to get out of it without reading the
+    /// language they are stuck in, and a row of two words they can recognise by
+    /// shape is the shortest way back.
+    private var languageSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Kicker(Loc.languageSection).padding(.bottom, 8)
+
+            HStack(spacing: 8) {
+                ForEach(AppLanguage.allCases) { language in
+                    Button {
+                        store.setLanguage(language)
+                    } label: {
+                        HStack(spacing: 7) {
+                            Glyph(Icon.confirm, size: 13)
+                                .opacity(settings.language == language ? 1 : 0)
+                            Text(language.endonym)
+                                .font(NocturneType.inter(14, .medium))
+                        }
+                        .foregroundStyle(settings.language == language ? Nocturne.accent : Nocturne.neutral500)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .hairline(
+                            settings.language == language ? Nocturne.accent : Nocturne.neutral800,
+                            radius: Metrics.controlRadius
+                        )
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(settings.language == language ? [.isSelected, .isButton] : .isButton)
+                }
+            }
+            .padding(.bottom, 8)
+
+            Text(Loc.languageNote)
+                .font(NocturneType.inter(12))
+                .foregroundStyle(Nocturne.neutral500)
+                .lineSpacing(3)
+                .padding(.bottom, 20)
+        }
+    }
+
     // MARK: Move to another phone
 
     private var moveToAnotherPhone: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Kicker("Move to another phone").padding(.bottom, 8)
+            Kicker(Loc.moveToAnotherPhone).padding(.bottom, 8)
 
-            Text("Stockbook never uploads anything, so a new phone gets your shop from a file you carry across. Export here, then import on the other phone.")
+            Text(Loc.moveToAnotherPhoneNote)
                 .font(NocturneType.inter(12.5))
                 .foregroundStyle(Nocturne.neutral500)
                 .lineSpacing(3)
@@ -128,7 +175,7 @@ struct SettingsScreen: View {
 
     private var exportCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            cardHeading(icon: Icon.export, title: "Export everything")
+            cardHeading(icon: Icon.export, title: Loc.exportEverything)
 
             Text(exportNote)
                 .font(NocturneType.inter(12))
@@ -159,7 +206,7 @@ struct SettingsScreen: View {
             }
 
             HStack(spacing: 8) {
-                Button(settings.hasBackup ? "Write a fresh file" : "Create backup file") {
+                Button(settings.hasBackup ? Loc.writeAFreshFile : Loc.createBackupFile) {
                     exportDocument = BackupFile(document: store.makeBackupDocument())
                     isExporting = true
                 }
@@ -167,7 +214,7 @@ struct SettingsScreen: View {
 
                 if let shareURL {
                     ShareLink(item: shareURL) {
-                        Label("Share", systemImage: Icon.share)
+                        Label(Loc.share, systemImage: Icon.share)
                     }
                     .buttonStyle(SecondaryButtonStyle(height: 42, fontSize: 13.5))
                 }
@@ -180,7 +227,7 @@ struct SettingsScreen: View {
 
     private var importCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            cardHeading(icon: Icon.importFile, title: "Import a backup file")
+            cardHeading(icon: Icon.importFile, title: Loc.importABackupFile)
 
             Text(importNote)
                 .font(NocturneType.inter(12))
@@ -196,7 +243,7 @@ struct SettingsScreen: View {
                         .truncationMode(.middle)
                         .padding(.bottom, 7)
 
-                    Text(document.summaryLine)
+                    Text(document.summaryLine(Loc))
                         .font(NocturneType.inter(11.5))
                         .foregroundStyle(Nocturne.neutral500)
                         .lineSpacing(4)
@@ -204,7 +251,7 @@ struct SettingsScreen: View {
                     // Naming what is about to be lost, in the owner's own
                     // numbers. This is the last thing standing between a tap and
                     // an unrecoverable swap.
-                    Text("This replaces the \(replacementSummary) already on this phone. It cannot be undone.")
+                    Text(Loc.replaceWarning(productCount: products.count, billCount: bills.count))
                         .font(NocturneType.inter(11.5))
                         .foregroundStyle(Nocturne.accent300)
                         .lineSpacing(3)
@@ -217,9 +264,9 @@ struct SettingsScreen: View {
                 .padding(.bottom, 10)
 
                 HStack(spacing: 8) {
-                    Button("Cancel") { importFlow.cancel() }
+                    Button(Loc.cancel) { importFlow.cancel() }
                         .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
-                    Button("Replace everything") {
+                    Button(Loc.replaceEverything) {
                         // Only ever acts on what confirm() hands back.
                         guard let confirmed = importFlow.confirm() else { return }
                         store.replaceEverything(with: confirmed)
@@ -231,7 +278,7 @@ struct SettingsScreen: View {
                 }
             } else {
                 Button { isImporting = true } label: {
-                    Label("Choose a file", systemImage: Icon.folder)
+                    Label(Loc.chooseAFile, systemImage: Icon.folder)
                 }
                 .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
             }
@@ -245,15 +292,15 @@ struct SettingsScreen: View {
 
     private var startAgain: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Kicker("Start again").padding(.bottom, 8)
+            Kicker(Loc.startAgain).padding(.bottom, 8)
 
-            Text("Clears every product, price and bill on this phone and runs setup from the beginning.")
+            Text(Loc.startAgainNote)
                 .font(NocturneType.inter(12.5))
                 .foregroundStyle(Nocturne.neutral500)
                 .lineSpacing(3)
                 .padding(.bottom, 10)
 
-            Button("Start over") {
+            Button(Loc.startOver) {
                 store.startOver()
                 router.closeOverlays()
                 router.showingSettings = false
@@ -275,25 +322,15 @@ struct SettingsScreen: View {
     // MARK: Copy
 
     private var exportNote: String {
-        settings.hasBackup
-            ? "Written to Files. Send it to the other phone however you like — AirDrop, WhatsApp, a memory card."
-            : "Writes one file with every product, price, stock count and bill."
+        settings.hasBackup ? Loc.exportNoteAfterBackup : Loc.exportNoteFirstTime
     }
 
     private var importNote: String {
         switch importFlow.stage {
-        case .imported:
-            "Imported. Everything from that file is now on this phone."
-        case .failed(let message):
-            message
-        default:
-            "Pick a file exported from another phone. Its contents take over from what is here now."
+        case .imported: Loc.importNoteDone
+        case .failed(let error): Loc.backupError(error)
+        default: Loc.importNoteIdle
         }
-    }
-
-    /// `1 product and 0 bills`
-    private var replacementSummary: String {
-        "\(Copy.count(products.count, "product")) and \(Copy.count(bills.count, "bill"))"
     }
 
     // MARK: Actions
@@ -316,7 +353,11 @@ struct SettingsScreen: View {
         let document = store.makeBackupDocument(at: exportedAt)
         exportChip = (
             name: document.suggestedFilename,
-            detail: "\(Copy.count(document.products.count, "product")) · \(Copy.count(document.bills.count, "bill")) · \(BackupService.sizeLabel(for: document))"
+            detail: [
+                Loc.products(document.products.count),
+                Loc.bills(document.bills.count),
+                Loc.fileSize(kilobytes: BackupService.sizeInKilobytes(of: document))
+            ].joined(separator: " · ")
         )
         // Share hands the OS a real file, so one has to exist on disk.
         shareURL = try? BackupService.writeToTemporaryFile(document)

@@ -20,7 +20,7 @@ struct KeyboardDoneButton: ViewModifier {
         content.toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") { dismissKeyboard() }
+                Button(Loc.done) { dismissKeyboard() }
                     .font(NocturneType.inter(15, .medium))
                     .foregroundStyle(Nocturne.accent)
             }
