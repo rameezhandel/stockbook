@@ -1,5 +1,7 @@
 package com.stockbook.app.design
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 /**
@@ -36,6 +38,13 @@ object Nocturne {
     val primaryPressed = accent.copy(alpha = 0.22f)
     val secondaryPressed = text.copy(alpha = 0.14f)
     val ghostPressed = accent.copy(alpha = 0.18f)
+
+    /** The one gradient in the app: the "Sold today" card. */
+    val soldTodayGradient = Brush.linearGradient(
+        colors = listOf(accent900, surface),
+        start = Offset(0f, 0f),
+        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+    )
 
     const val DISABLED_OPACITY = 0.45f
 }

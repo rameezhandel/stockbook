@@ -4,22 +4,36 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.stockbook.app.design.Motion
 import com.stockbook.app.design.Nocturne
-import com.stockbook.core.money.Money
+import com.stockbook.app.design.StockbookTabBar
+import com.stockbook.app.design.BottomSheet
+import com.stockbook.app.feature.bills.BillSheet
+import com.stockbook.app.feature.bills.BillsScreen
+import com.stockbook.app.feature.items.AddStockSheet
+import com.stockbook.app.feature.items.ItemsScreen
+import com.stockbook.app.feature.items.ProductEditorSheet
+import com.stockbook.app.feature.sell.Cart
+import com.stockbook.app.feature.sell.ReceiptOverlay
+import com.stockbook.app.feature.sell.SellScreen
+import com.stockbook.app.feature.settings.BackupScreen
+import com.stockbook.app.feature.settings.SettingsScreen
+import com.stockbook.app.feature.setup.SetupFlow
+import com.stockbook.app.feature.today.TodayScreen
 import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
+import com.stockbook.core.text.AppTab
 import com.stockbook.core.text.Strings
 import java.io.File
 
@@ -27,8 +41,12 @@ import java.io.File
  * The one activity.
  *
  * The store is built here, over a file in the app's own directory, and handed
- * down. Nothing above this line knows what a repository is and nothing below it
+ * down. Nothing above this line knows what a repository is, and nothing below it
  * knows what an Activity is.
+ *
+ * The keyboard never moves the layout: `windowSoftInputMode="adjustNothing"` in
+ * the manifest says so once, for the whole app. The iOS build arrived at the
+ * same rule the long way round, one screen at a time.
  */
 class MainActivity : ComponentActivity() {
 
@@ -47,47 +65,154 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/**
- * The tab shell and the four screens go here.
- *
- * Deliberately a stub: the domain underneath it is finished and covered by 66
- * tests that run without an emulator, and the screens are being built against a
- * toolchain proven to compile rather than written blind and hoped over.
- */
 @Composable
 private fun Shell(store: StockbookStore) {
     val state by store.state.collectAsStateWithLifecycle()
-    val strings = Strings(state.settings.language)
+    val router = remember { AppRouter() }
+    val cart = remember { Cart() }
+    val strings = remember(state.settings.language) { Strings(state.settings.language) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Nocturne.bg)
-            .systemBarsPadding()
-            .padding(20.dp)
-    ) {
-        Text(
-            text = strings.today,
-            color = Nocturne.text,
-            fontSize = 28.sp
-        )
-        Text(
-            text = strings.itemsSubtitle(
-                total = state.products.size,
-                low = state.products.count { it.isLow(state.settings.lowStockAt) }
-            ),
-            color = Nocturne.neutral500,
-            fontSize = 13.sp,
-            modifier = Modifier.padding(top = 6.dp)
-        )
-        Text(
-            text = Money.text(
-                state.bills.filterNot { it.voided }.sumOf { it.total },
-                state.settings.currency
-            ),
-            color = Nocturne.accent400,
-            fontSize = 22.sp,
-            modifier = Modifier.padding(top = 14.dp)
-        )
+    // Setup is persisted state, not a route: `setupCompleted` decides which of
+    // the two this is, which is also why "Start over" is a data operation.
+    if (!state.settings.setupCompleted) {
+        SetupFlow(store = store, strings = strings)
+        return
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Nocturne.bg)) {
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+            Crossfade(
+                targetState = router.tab,
+                animationSpec = Motion.screenSpec,
+                label = "tab",
+                modifier = Modifier.weight(1f)
+            ) { tab ->
+                when (tab) {
+                    AppTab.TODAY -> TodayScreen(
+                        state = state,
+                        store = store,
+                        router = router,
+                        strings = strings,
+                        onExport = { router.showingBackup = true }
+                    )
+                    AppTab.ITEMS -> ItemsScreen(
+                        state = state,
+                        store = store,
+                        router = router,
+                        strings = strings
+                    )
+                    AppTab.SELL -> SellScreen(
+                        state = state,
+                        store = store,
+                        router = router,
+                        cart = cart,
+                        strings = strings
+                    )
+                    AppTab.BILLS -> BillsScreen(
+                        state = state,
+                        store = store,
+                        router = router,
+                        strings = strings
+                    )
+                }
+            }
+
+            if (router.tab != AppTab.SELL || cart.isEmpty) {
+                StockbookTabBar(
+                    selected = router.tab,
+                    onSelect = { router.tab = it },
+                    strings = strings
+                )
+            }
+        }
+
+        if (router.showingSettings) {
+            SettingsScreen(
+                state = state,
+                store = store,
+                strings = strings,
+                onClose = { router.showingSettings = false },
+                onOpenBackup = { router.showingBackup = true },
+                onStartOver = {
+                    store.startOver()
+                    cart.clear()
+                    router.closeOverlays()
+                    router.showingSettings = false
+                    router.tab = AppTab.TODAY
+                }
+            )
+        }
+
+        if (router.showingBackup) {
+            BackupScreen(
+                state = state,
+                store = store,
+                strings = strings,
+                onClose = { router.showingBackup = false }
+            )
+        }
+
+        router.receipt?.let { bill ->
+            ReceiptOverlay(
+                bill = bill,
+                state = state,
+                strings = strings,
+                onSeeBills = {
+                    router.receipt = null
+                    router.tab = AppTab.BILLS
+                },
+                onNextCustomer = {
+                    router.receipt = null
+                    router.tab = AppTab.SELL
+                }
+            )
+        }
+
+        // Overlays sit above every screen, which is the whole of this app's
+        // navigation — there is no drill-down and no back stack anywhere.
+        BottomSheet(
+            visible = router.creatingProduct || router.productEditor != null,
+            onDismiss = { router.creatingProduct = false; router.productEditor = null }
+        ) {
+            ProductEditorSheet(
+                product = router.productEditor,
+                store = store,
+                currency = state.settings.currency,
+                strings = strings,
+                onClose = { router.creatingProduct = false; router.productEditor = null },
+                onAddStock = { router.openAddStock(it) },
+                onDeleted = { }
+            )
+        }
+
+        BottomSheet(
+            visible = router.addStock != null,
+            onDismiss = { router.addStock = null }
+        ) {
+            router.addStock?.let { product ->
+                AddStockSheet(
+                    product = product,
+                    store = store,
+                    currency = state.settings.currency,
+                    strings = strings,
+                    onClose = { router.addStock = null }
+                )
+            }
+        }
+
+        BottomSheet(
+            visible = router.billDetail != null,
+            onDismiss = { router.billDetail = null }
+        ) {
+            router.billDetail?.let { bill ->
+                BillSheet(
+                    bill = bill,
+                    state = state,
+                    store = store,
+                    strings = strings,
+                    onClose = { router.billDetail = null }
+                )
+            }
+        }
     }
 }

@@ -39,6 +39,9 @@ android {
 
     buildFeatures {
         compose = true
+        // Off by default in AGP 8. Settings reads BuildConfig.DEBUG to keep
+        // "Start over" out of a release build, so it has to be generated.
+        buildConfig = true
     }
 }
 
