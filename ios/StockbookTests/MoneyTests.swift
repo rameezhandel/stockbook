@@ -52,14 +52,6 @@ struct MoneyTests {
 @Suite("Copy helpers")
 struct CopyTests {
 
-    @Test("Counts inflect")
-    func plurals() {
-        #expect(Copy.count(1, "product") == "1 product")
-        #expect(Copy.count(0, "product") == "0 products")
-        #expect(Copy.count(4, "bill") == "4 bills")
-        #expect(Copy.count(1, "piece") == "1 piece")
-    }
-
     @Test("First name is the first whitespace-separated word")
     func firstName() {
         #expect("Ahmed Al-Amri".firstName == "Ahmed")

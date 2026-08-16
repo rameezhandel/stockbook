@@ -41,7 +41,7 @@ struct ReceiptOverlay: View {
                 .scaleEffect(checkScale)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Bill saved").font(NocturneType.inter(18, .medium))
+                Text(Loc.billSaved).font(NocturneType.inter(18, .medium))
                 Text(meta).nocturneText(.meta)
             }
             Spacer(minLength: 0)
@@ -69,7 +69,7 @@ struct ReceiptOverlay: View {
                     .padding(.vertical, 9)
 
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Total")
+                    Text(Loc.total)
                         .font(NocturneType.inter(13))
                         .foregroundStyle(Nocturne.neutral500)
                     Spacer()
@@ -94,7 +94,7 @@ struct ReceiptOverlay: View {
 
     private var actions: some View {
         HStack(spacing: 8) {
-            Button("See bills") {
+            Button(Loc.seeBills) {
                 router.receipt = nil
                 router.tab = .bills
             }
@@ -102,7 +102,7 @@ struct ReceiptOverlay: View {
 
             // The cart was already cleared on save, so this lands on an empty
             // new bill — the next customer is usually already waiting.
-            Button("Next customer") {
+            Button(Loc.nextCustomer) {
                 router.receipt = nil
                 router.tab = .sell
             }
@@ -113,12 +113,16 @@ struct ReceiptOverlay: View {
 
     /// `Bill #1 · 09:41 · Ahmed Contracting`
     private var meta: String {
-        "Bill #\(bill.number) · \(bill.timeLabel) · \(bill.who)"
+        Loc.receiptMeta(number: bill.number, time: Loc.time(bill.createdAt), who: bill.who)
     }
 
     /// `Paid in full, cash.` or `Paid SAR 100 · Ahmed Contracting owes SAR 94`
     private var paymentNote: String {
-        guard let paid = bill.paid else { return "Paid in full, cash." }
-        return "Paid \(Money.text(paid, symbol: symbol)) · \(bill.who) owes \(Money.text(bill.balance, symbol: symbol))"
+        guard let paid = bill.paid else { return Loc.paidInFullCash }
+        return Loc.partPaidNote(
+            paid: Money.text(paid, symbol: symbol),
+            who: bill.who,
+            balance: Money.text(bill.balance, symbol: symbol)
+        )
     }
 }

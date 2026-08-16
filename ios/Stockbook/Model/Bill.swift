@@ -58,9 +58,6 @@ struct Bill: Identifiable, Codable, Equatable {
 
     var isPartPaid: Bool { !voided && paid != nil }
 
-    /// `09:41`
-    var timeLabel: String { Copy.time(createdAt) }
-
     /// The row's first line: the names on the bill, joined.
     var summary: String { lines.map(\.name).joined(separator: ", ") }
 }

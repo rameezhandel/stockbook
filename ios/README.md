@@ -1,6 +1,6 @@
 # Stockbook — native iOS
 
-SwiftUI + SwiftData implementation of the design in
+SwiftUI implementation of the design in
 [`../project/design_handoff_stockbook/README.md`](../project/design_handoff_stockbook/README.md).
 That file is the spec; this one describes how the code is arranged.
 
@@ -37,7 +37,7 @@ ios/
 │   ├── Store/                 StockbookStore (all rules) + the storage seam + cart
 │   ├── Transfer/              the backup file format and its I/O
 │   ├── Features/              one folder per screen
-│   └── Support/               money, copy and date helpers
+│   └── Support/               money, dates, and the two-language string table
 └── StockbookTests/            Swift Testing suites over the domain layer
 ```
 
@@ -73,9 +73,10 @@ overlays that can sit above any screen, and `AppRouter` is exactly that. There i
 no drill-down anywhere in this app: every detail view is a bottom sheet or a
 full-screen overlay, so there is no `NavigationStack`.
 
-**Persisted vs transient is a real boundary.** Products, bills and settings are
-SwiftData. The cart, search strings, sheet drafts and payment mode are `Cart` and
-`@State` — a half-typed bill is not history and must not survive a relaunch.
+**Persisted vs transient is a real boundary.** Products, bills and settings go
+through the repository. The cart, search strings, sheet drafts and payment mode
+are `Cart` and `@State` — a half-typed bill is not history and must not survive
+a relaunch.
 
 **Required-empty marking has two modes.** A handful of fields marked at once
 reads as a checklist; twelve do not. The product editor marks immediately, as
@@ -129,10 +130,10 @@ The handoff's deliberate modelling decisions, and where they are enforced:
 | Stock changes in exactly five places, and nowhere else | setup · product editor · save bill (floor 0) · void (restore) · restock |
 | Bills are voided, never deleted | `StockbookStore.void` |
 
-Products carry a `uid: UUID` alongside SwiftData's own identifier. That is not
-redundancy: `persistentModelID` is local to one store, and a bill line has to
-still point at its product after the database has been carried to another phone
-in a file.
+Products carry a `uid: UUID` and nothing else identifies them. A row id or an
+object reference would be local to one store, and a bill line has to still point
+at its product after the database has been carried to another phone in a file —
+or after the storage engine underneath has been swapped.
 
 ### The backup file
 
@@ -151,6 +152,47 @@ checks the **version before the shape** — a file from a future build may decod
 cleanly into today's structs while meaning something different, and the result of
 getting that wrong is a destructive whole-database replace. Import is a swap, not
 a merge, and the UI gates it behind a warning naming what is about to be lost.
+
+## Two languages
+
+English and Kannada, switched in Settings and applied to every screen at once.
+
+**There is no `.strings` file.** `Support/Localization/Strings.swift` is one
+struct holding both languages of every sentence, side by side:
+
+```swift
+var saveBill: String { pick("Save bill", "ಬಿಲ್ ಉಳಿಸಿ") }
+```
+
+A key-based catalogue would let an untranslated line ship silently as an English
+word on a Kannada screen. Here a new string cannot compile until both languages
+are written, and a reviewer reads the pair on one line without holding a key in
+their head. `LocalizationTests` walks every entry and fails on any two columns
+that are identical or any Kannada column with no Kannada letters in it.
+
+**Nothing is assembled from fragments.** Word order differs between the two
+languages, so a phrase with a number or a name in it is a single function taking
+that number or name — `Loc.onlyInStock(3)`, not `Loc.only + n + Loc.inStock`.
+Counts are written out per language rather than pluralised by rule, because
+Kannada does not form a plural by adding an "s".
+
+**The language is the shop's, not the phone's.** It is stored in `Settings`, so
+it survives a relaunch and a Start over — being handed setup in a language you
+cannot read is not a decision the owner made. Import does *not* take the
+language from the file: a backup carried over from an English shop must not
+switch this one. `Settings` decodes every field as "if present, else the
+default", so a shop saved by the build before languages existed still opens.
+
+**What is never translated:** product names, customer names and bill contents —
+they are the owner's data, typed once. Money keeps `en_US` grouping in both
+languages, so a shop billing in SAR does not start grouping in lakhs, and the
+time on a bill stays 24-hour. Dates do follow the language: weekday and month
+names come from the system. The backup filename stays ASCII and unlocalised so
+it sorts and parses the same on every phone.
+
+Changing the language rebuilds the whole view tree (`RootView` keys on it) —
+heavy-handed, and exactly right for something that happens once and must leave
+nothing behind in the old language.
 
 ## The design system
 
@@ -198,7 +240,7 @@ both it and setup step 3.
 
 - Xcode project, both targets, shared scheme.
 - Full design-token layer and component set.
-- `Product` / `Bill` / `BillLine` / `ShopSettings`, the SwiftData container, and
+- `Product` / `Bill` / `BillLine` / `Settings`, the repository seam, and
   `StockbookStore` with every rule the handoff specifies.
 - `Cart` — line management, price override, payment mode, the save gate.
 - The backup format, its validation, file export via `.fileExporter`, and the
@@ -217,8 +259,9 @@ both it and setup step 3.
   will be lost. Plus Start over.
 - **First-run setup** — all three steps: name, product names with the four
   suggestion capsules, then the stock-and-prices grid with its completeness gate.
+- **English and Kannada**, with the switcher in Settings.
 - **Product editor** and **Add stock** sheets, both complete.
-- 40-odd tests over the domain layer.
+- 60-odd tests over the domain layer.
 
 ## What is not built yet
 

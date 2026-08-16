@@ -27,7 +27,7 @@ struct BillRow: View {
             }
 
             if showsVoidAction, !bill.voided, let onVoid {
-                Button("Void & put stock back", action: onVoid)
+                Button(Loc.voidAndRestock, action: onVoid)
                     .buttonStyle(GhostButtonStyle(fontSize: 11.5, tint: Nocturne.neutral500, horizontalPadding: 0))
                     .padding(.top, 5)
             }
@@ -39,12 +39,12 @@ struct BillRow: View {
     /// `voided · Ahmed Contracting · 09:41 · 2 items · owes SAR 94`
     private var meta: String {
         var parts: [String] = []
-        if bill.voided { parts.append("voided") }
+        if bill.voided { parts.append(Loc.voided) }
         if !bill.who.isBlank { parts.append(bill.who) }
-        parts.append(bill.timeLabel)
-        parts.append(Copy.count(bill.lines.count, "item"))
+        parts.append(Loc.time(bill.createdAt))
+        parts.append(Loc.items(bill.lines.count))
         if bill.isPartPaid, bill.balance > 0 {
-            parts.append("owes " + Money.text(bill.balance, symbol: symbol))
+            parts.append(Loc.owes(Money.text(bill.balance, symbol: symbol)))
         }
         return parts.joined(separator: " · ")
     }

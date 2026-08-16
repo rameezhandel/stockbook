@@ -19,7 +19,7 @@ final class ImportFlow {
         case idle
         /// Decoded and validated. The owner has not agreed to anything yet.
         case picked(BackupDocument, filename: String)
-        case failed(String)
+        case failed(BackupError)
         case imported
 
         var isFailure: Bool {
@@ -40,15 +40,15 @@ final class ImportFlow {
     func pick(_ result: Result<URL, Error>) {
         switch result {
         case .failure:
-            stage = .failed(BackupError.unreadable.localizedDescription)
+            stage = .failed(.unreadable)
         case .success(let url):
             do {
                 let document = try BackupService.read(from: url)
                 stage = .picked(document, filename: url.lastPathComponent)
             } catch let error as BackupError {
-                stage = .failed(error.localizedDescription)
+                stage = .failed(error)
             } catch {
-                stage = .failed(BackupError.unreadable.localizedDescription)
+                stage = .failed(.unreadable)
             }
         }
     }

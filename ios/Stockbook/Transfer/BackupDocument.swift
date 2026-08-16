@@ -54,12 +54,12 @@ struct BackupDocument: Codable, Equatable {
     // MARK: Summaries shown in the UI
 
     /// `Khalid Al-Amri · 8 products · 4 bills · saved 28 July 2026`
-    var summaryLine: String {
+    func summaryLine(_ strings: Strings) -> String {
         [
             ownerName,
-            Copy.count(products.count, "product"),
-            Copy.count(bills.count, "bill"),
-            "saved " + Copy.longDate(exportedAt)
+            strings.products(products.count),
+            strings.bills(bills.count),
+            strings.savedOn(strings.longDate(exportedAt))
         ].joined(separator: " · ")
     }
 
@@ -71,20 +71,11 @@ struct BackupDocument: Codable, Equatable {
 
 /// Everything that can go wrong reading a file the owner picked. Each case
 /// carries enough to say something true to the owner — "that is not a Stockbook
-/// file" reads very differently from "that file is from a newer version".
-enum BackupError: LocalizedError, Equatable {
+/// file" reads very differently from "that file is from a newer version". The
+/// sentences themselves live in `Strings.backupError`, so they can be said in
+/// either language.
+enum BackupError: Error, Equatable {
     case unreadable
     case notStockbookData
     case newerVersion(found: Int)
-
-    var errorDescription: String? {
-        switch self {
-        case .unreadable:
-            "That file could not be opened."
-        case .notStockbookData:
-            "That is not a Stockbook backup file."
-        case .newerVersion(let found):
-            "That backup was written by a newer version of Stockbook (format \(found)). Update this phone first."
-        }
-    }
 }

@@ -15,15 +15,15 @@ struct BillsScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: "Bills")
+            ScreenHeader(title: Loc.billsTitle)
 
             ScrollView {
                 LazyVStack(spacing: Metrics.rowGap) {
                     if bills.isEmpty {
                         EmptyStateBox(
                             icon: Icon.bills,
-                            message: "Nothing sold yet. Every bill you save shows up here.",
-                            actionTitle: "Start a bill",
+                            message: Loc.noBillsEver,
+                            actionTitle: Loc.startABill,
                             action: { router.startBill() }
                         )
                         .padding(.top, 8)

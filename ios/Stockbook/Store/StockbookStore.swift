@@ -36,6 +36,7 @@ final class StockbookStore {
             products = state.products.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
             bills = state.bills.sorted { $0.createdAt > $1.createdAt }
             settings = state.settings
+            L10n.use(settings.language)
         } catch {
             lastError = error.localizedDescription
         }
@@ -55,6 +56,16 @@ final class StockbookStore {
 
     func setOwnerName(_ name: String) {
         settings.ownerName = name.trimmed
+        attempt { try repository.save(settings) }
+    }
+
+    /// The interface language. Applied to `L10n` in the same breath, because the
+    /// two must never disagree — `RootView` rebuilds off `settings.language`
+    /// while every string is read from `L10n`.
+    func setLanguage(_ language: AppLanguage) {
+        guard settings.language != language else { return }
+        settings.language = language
+        L10n.use(language)
         attempt { try repository.save(settings) }
     }
 
@@ -255,8 +266,13 @@ final class StockbookStore {
     func startOver() {
         products = []
         bills = []
-        settings = Settings()
-        attempt { try repository.replaceAll(with: .empty) }
+        // Everything goes except the language. Wiping the shop is a data
+        // decision; being handed setup in a language you cannot read is not one
+        // the owner asked for.
+        var fresh = Settings()
+        fresh.language = settings.language
+        settings = fresh
+        attempt { try repository.replaceAll(with: ShopState(settings: fresh)) }
     }
 
     /// Replaces the entire database with the contents of a backup.
@@ -265,6 +281,10 @@ final class StockbookStore {
     /// behind a warning naming what is about to be lost.
     func replaceEverything(with document: BackupDocument) {
         var restored = Settings()
+        // The language belongs to the person holding this phone, not to the
+        // file — a backup carried over from a shop that reads English must not
+        // switch this one.
+        restored.language = settings.language
         restored.ownerName = document.ownerName
         restored.currencySymbol = document.currencySymbol
         restored.nextBillNumber = (document.bills.map(\.number).max() ?? 0) + 1
@@ -342,8 +362,8 @@ struct CustomerSuggestion: Identifiable, Equatable {
     var id: String { name }
 
     /// `owes SAR 40` when they owe, otherwise `3 bills`.
-    func meta(symbol: String) -> String {
-        owed > 0 ? "owes " + Money.text(owed, symbol: symbol) : Copy.count(billCount, "bill")
+    func meta(symbol: String, strings: Strings) -> String {
+        owed > 0 ? strings.owes(Money.text(owed, symbol: symbol)) : strings.bills(billCount)
     }
 }
 

@@ -162,6 +162,9 @@ struct BackupTests {
             bills: []
         )
 
-        #expect(document.summaryLine == "Khalid Al-Amri · 8 products · 0 bills · saved 28 July 2026")
+        #expect(
+            document.summaryLine(Strings(language: .english))
+                == "Khalid Al-Amri · 8 products · 0 bills · saved 28 July 2026"
+        )
     }
 }

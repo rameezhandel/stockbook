@@ -29,7 +29,7 @@ struct CartView: View {
                     }
 
                     Button(action: onBrowse) {
-                        Label("Add another item", systemImage: Icon.browseAll)
+                        Label(Loc.addAnotherItem, systemImage: Icon.browseAll)
                     }
                     .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
                     .padding(.top, 2)
@@ -54,25 +54,25 @@ struct CartView: View {
 
             HStack(spacing: 6) {
                 PaymentPill(
-                    title: "Paid in full",
+                    title: Loc.paidInFull,
                     icon: Icon.money,
                     selected: cart.payMode == .full
                 ) { cart.payMode = .full }
 
                 PaymentPill(
-                    title: "Part payment",
+                    title: Loc.partPayment,
                     icon: Icon.partPayment,
                     selected: cart.payMode == .part
                 ) { cart.payMode = .part }
             }
 
             if cart.payMode == .part {
-                NocturneField.number(label: "Paid now", text: $cart.paidText, height: 40)
+                NocturneField.number(label: Loc.paidNow, text: $cart.paidText, height: 40)
             }
 
             VStack(spacing: 4) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Total")
+                    Text(Loc.total)
                         .font(NocturneType.inter(13))
                         .foregroundStyle(Nocturne.neutral500)
                     Spacer()
@@ -82,7 +82,7 @@ struct CartView: View {
 
                 if cart.payMode == .part {
                     HStack(alignment: .firstTextBaseline) {
-                        Text("Balance")
+                        Text(Loc.balance)
                             .font(NocturneType.inter(12.5))
                             .foregroundStyle(Nocturne.neutral500)
                         Spacer()
@@ -95,7 +95,7 @@ struct CartView: View {
 
             // Validation is the button's label, never a toast: it says what is
             // missing and stays disabled until it isn't.
-            Button(cart.canSave ? "Save bill" : "Enter a customer name", action: onSave)
+            Button(cart.canSave ? Loc.saveBill : Loc.enterCustomerName, action: onSave)
                 .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                 .disabled(!cart.canSave)
         }
@@ -146,28 +146,30 @@ private struct CartLineCard: View {
                         .minimumTouchTarget()
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Remove \(line.name)")
+                .accessibilityLabel(Loc.remove(line.name))
             }
             .padding(.bottom, 10)
 
             HStack(spacing: 8) {
                 stepper
+                // Wraps rather than truncates: "only 3 in stock" is the warning
+                // that stops a wrong bill, so it is never worth eliding to fit
+                // beside a stepper and a price box on a narrow phone.
                 Text(stockNote)
                     .nocturneText(.meta)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .layoutPriority(-1)
-                Spacer(minLength: 4)
                 priceBox
             }
 
             if line.isPriceOverridden {
                 HStack(spacing: 5) {
                     Glyph(Icon.edit, size: 11)
-                    Text("Usual price \(Money.text(line.basePrice, symbol: symbol)) — changed for this bill only")
+                    Text(Loc.usualPriceNote(Money.text(line.basePrice, symbol: symbol)))
                         .font(NocturneType.inter(11))
                     Spacer(minLength: 6)
-                    Button("Reset") {
+                    Button(Loc.reset) {
                         onResetPrice()
                         priceText = Money.amount(line.basePrice)
                     }
@@ -203,7 +205,7 @@ private struct CartLineCard: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("One fewer")
+            .accessibilityLabel(Loc.oneFewer)
 
             TextField("", text: $qtyText)
                 .font(NocturneType.inter(14))
@@ -223,7 +225,7 @@ private struct CartLineCard: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("One more")
+            .accessibilityLabel(Loc.oneMore)
         }
         .foregroundStyle(Nocturne.text)
         .background(Nocturne.bg, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
@@ -259,7 +261,7 @@ private struct CartLineCard: View {
     /// The shelf, honestly. Overselling is allowed — the customer is standing
     /// there and the count may simply be wrong — but it is never silent.
     private var stockNote: String {
-        qty > stock ? "only \(stock) in stock" : "pieces · \(stock) in stock"
+        qty > stock ? Loc.onlyInStock(stock) : Loc.piecesInStock(stock)
     }
 
     private var qty: Int { line.qty }
@@ -281,9 +283,28 @@ private struct CustomerField: View {
     }
 
     var body: some View {
+        // The list sits **above** the field as an ordinary sibling, not as an
+        // overlay. Two attempts to float it — an overlay with an alignment
+        // guide, then the same with `fixedSize` — both landed back on top of
+        // the field, because an overlay is proposed its parent's 40pt height
+        // and no amount of guide arithmetic reliably undoes that. A sibling in
+        // the stack cannot overlap by construction: the footer simply grows
+        // upwards to make room, which is what a popover looks like here anyway.
+        VStack(spacing: 6) {
+            if focused, !suggestions.isEmpty {
+                suggestionCard
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+            field
+        }
+        .animation(.easeOut(duration: 0.14), value: focused)
+        .animation(.easeOut(duration: 0.14), value: suggestions.count)
+    }
+
+    private var field: some View {
         ZStack(alignment: .leading) {
             if name.isEmpty {
-                Text("Customer name")
+                Text(Loc.customerName)
                     .font(NocturneType.inter(14))
                     .foregroundStyle(Nocturne.neutral500)
                     .allowsHitTesting(false)
@@ -299,20 +320,6 @@ private struct CustomerField: View {
         .frame(height: 40)
         .background(Nocturne.bg, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
         .hairline(name.isBlank ? Nocturne.accent : Nocturne.neutral800, radius: Metrics.controlRadius)
-        // The dropdown opens upwards: the footer is already at the bottom of the
-        // screen and the keyboard is about to take what is left.
-        .overlay(alignment: .top) {
-            if focused, !suggestions.isEmpty {
-                suggestionCard
-                    // An overlay is proposed its parent's size — 40pt here — so
-                    // without this the card is squeezed to the height of the
-                    // field, the guide shifts it up by almost nothing, and it
-                    // lands on top of the very field it is meant to sit above.
-                    .fixedSize(horizontal: false, vertical: true)
-                    .alignmentGuide(.top) { $0[.bottom] + 6 }
-                    .zIndex(1)
-            }
-        }
     }
 
     private var suggestionCard: some View {
@@ -329,7 +336,7 @@ private struct CustomerField: View {
                             .font(NocturneType.inter(13.5))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .lineLimit(1)
-                        Text(suggestion.meta(symbol: symbol))
+                        Text(suggestion.meta(symbol: symbol, strings: Loc))
                             .font(NocturneType.inter(11))
                             .foregroundStyle(Nocturne.neutral500)
                     }

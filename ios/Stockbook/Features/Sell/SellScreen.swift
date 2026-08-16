@@ -27,7 +27,7 @@ struct SellScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: "New bill", bottomPadding: 10) {
+            ScreenHeader(title: Loc.newBill, bottomPadding: 10) {
                 Text(cartCountLabel)
                     .font(NocturneType.inter(12))
                     .foregroundStyle(Nocturne.neutral500)
@@ -43,7 +43,7 @@ struct SellScreen: View {
 
             // Shared between both states: in the cart it sits empty, and typing
             // into it is what re-opens the picker.
-            NocturneField(placeholder: "Add a product…", text: $query, fontSize: 14.5)
+            NocturneField(placeholder: Loc.addAProductPlaceholder, text: $query, fontSize: 14.5)
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.bottom, 10)
 
@@ -66,13 +66,13 @@ struct SellScreen: View {
     }
 
     private var cartCountLabel: String {
-        cart.isEmpty ? "empty" : Copy.count(cart.lines.count, "line")
+        cart.isEmpty ? Loc.cartEmpty : Loc.lines(cart.lines.count)
     }
 
     private var pickerHint: String {
         guard !products.isEmpty else { return "" }
-        if !query.isBlank { return "Matching “\(query.trimmed)”" }
-        return "All \(products.count) products — tap to add"
+        if !query.isBlank { return Loc.matchingQuery(query.trimmed) }
+        return Loc.allProductsHint(products.count)
     }
 
     // MARK: Actions
@@ -128,7 +128,7 @@ private struct ProductPicker: View {
                     if products.isEmpty {
                         EmptyStateBox(
                             message: emptyMessage,
-                            actionTitle: "Add a product",
+                            actionTitle: Loc.addAProduct,
                             action: onAddProduct
                         )
                         .padding(.top, 8)
@@ -157,7 +157,7 @@ private struct ProductPicker: View {
                                     .foregroundStyle(Nocturne.accent)
                                 }
 
-                                Text(product.stockLabel)
+                                Text(Loc.stockLabel(product.stock))
                                     .nocturneText(.meta)
                                     .lineLimit(1)
                                 Text(Money.text(product.price, symbol: symbol))
@@ -173,7 +173,10 @@ private struct ProductPicker: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel(
                             cart.quantity(forProduct: product.uid) > 0
-                                ? "\(product.name), \(Copy.count(cart.quantity(forProduct: product.uid), "on the bill"))"
+                                ? Loc.onBillAccessibility(
+                                    name: product.name,
+                                    quantity: cart.quantity(forProduct: product.uid)
+                                  )
                                 : product.name
                         )
                     }
@@ -187,13 +190,13 @@ private struct ProductPicker: View {
             if !cart.isEmpty {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(Copy.count(cart.lines.count, "line"))
+                        Text(Loc.lines(cart.lines.count))
                             .nocturneText(.meta)
                         Text(Money.text(cart.total, symbol: symbol))
                             .font(NocturneType.inter(19, .medium))
                     }
                     Spacer(minLength: 12)
-                    Button("Done adding", action: onDoneAdding)
+                    Button(Loc.doneAdding, action: onDoneAdding)
                         .buttonStyle(PrimaryButtonStyle(height: 44))
                 }
                 .padding(.horizontal, Metrics.screenPadding)
@@ -208,8 +211,6 @@ private struct ProductPicker: View {
     }
 
     private var emptyMessage: String {
-        hasAnyProducts
-            ? "No product matches “\(query)”."
-            : "You haven't added any products yet."
+        hasAnyProducts ? Loc.noProductMatches(query) : Loc.noProductsYet
     }
 }

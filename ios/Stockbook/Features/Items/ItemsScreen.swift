@@ -13,17 +13,17 @@ struct ItemsScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: "Items", subtitle: subtitle, bottomPadding: 10) {
+            ScreenHeader(title: Loc.itemsTitle, subtitle: subtitle, bottomPadding: 10) {
                 Button {
                     router.openNewProduct()
                 } label: {
-                    Label("Add", systemImage: Icon.add)
+                    Label(Loc.add, systemImage: Icon.add)
                 }
                 .buttonStyle(.primaryCompact)
             }
 
             NocturneField(
-                placeholder: "Search",
+                placeholder: Loc.search,
                 text: $query,
                 fontSize: 14.5
             )
@@ -36,7 +36,7 @@ struct ItemsScreen: View {
                         EmptyStateBox(
                             icon: Icon.items,
                             message: emptyMessage,
-                            actionTitle: "Add a product",
+                            actionTitle: Loc.addAProduct,
                             action: { router.openNewProduct() }
                         )
                         .padding(.top, 8)
@@ -58,15 +58,13 @@ struct ItemsScreen: View {
     }
 
     private var subtitle: String {
-        guard !products.isEmpty else { return "nothing added yet" }
+        guard !products.isEmpty else { return Loc.nothingAddedYet }
         let low = products.filter { $0.isLow(threshold: lowStockAt) }.count
-        return "\(Copy.count(products.count, "product")) · \(low) running low"
+        return Loc.itemsSubtitle(total: products.count, low: low)
     }
 
     private var emptyMessage: String {
-        products.isEmpty
-            ? "Nothing on the shelf yet. Add your first product."
-            : "Nothing matches “\(query.trimmed)”."
+        products.isEmpty ? Loc.shelfEmpty : Loc.nothingMatches(query.trimmed)
     }
 }
 
@@ -83,7 +81,10 @@ private struct ProductRow: View {
                     .nocturneText(.rowPrimary)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                Text("buy \(Money.text(product.cost, symbol: symbol)) · you make \(Money.text(product.marginPerPiece, symbol: symbol))")
+                Text(Loc.buyAndMargin(
+                    cost: Money.text(product.cost, symbol: symbol),
+                    margin: Money.text(product.marginPerPiece, symbol: symbol)
+                ))
                     .nocturneText(.meta)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -91,7 +92,7 @@ private struct ProductRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(Money.text(product.price, symbol: symbol))
                     .font(NocturneType.inter(15))
-                Text(product.stockLabel)
+                Text(Loc.stockLabel(product.stock))
                     .nocturneText(.meta)
                     .foregroundStyle(stockColor)
             }

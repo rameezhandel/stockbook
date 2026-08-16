@@ -75,9 +75,10 @@ enum BackupService {
     }
 
     /// A rough on-disk size for the file chip in Settings ("8 products · 4 bills · 2 KB").
-    static func sizeLabel(for document: BackupDocument) -> String {
+    /// Returns the number; the unit is `Strings`' business.
+    static func sizeInKilobytes(of document: BackupDocument) -> Int {
         let bytes = (try? encode(document).count) ?? 0
-        return "\(max(1, Int((Double(bytes) / 1024).rounded()))) KB"
+        return max(1, Int((Double(bytes) / 1024).rounded()))
     }
 }
 
