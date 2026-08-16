@@ -82,6 +82,8 @@ private struct AppShell: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity)
+                .motion(Motion.screen, value: router.tab)
 
                 // The picker screen hides the tab bar behind its own sticky
                 // footer once the cart has something in it; every other screen

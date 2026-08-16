@@ -91,6 +91,7 @@ struct TodayScreen: View {
                 Text(Money.text(owed.total, in: currency))
                     .font(NocturneType.inter(16))
                     .foregroundStyle(Nocturne.accent400)
+                    .rollingNumber(owed.total)
             }
             .padding(.horizontal, 13)
             .padding(.vertical, 12)
@@ -132,7 +133,7 @@ struct TodayScreen: View {
                 )
             } else {
                 VStack(spacing: Metrics.rowGap) {
-                    ForEach(bills.prefix(3)) { bill in
+                    ForEach(Array(bills.prefix(3))) { bill in
                         Button {
                             router.openBill(bill)
                         } label: {

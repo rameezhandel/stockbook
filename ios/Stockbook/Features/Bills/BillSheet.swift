@@ -33,12 +33,16 @@ struct BillSheet: View {
 
             BillTemplate(bill: live, shopName: store.settings.ownerName)
 
+            // Voiding redraws the document under the owner's thumb: the mark
+            // appears, the note changes, the button goes. Worth a beat.
             if !live.voided {
                 Button(Loc.voidAndRestock) {
                     store.void(live)
                 }
                 .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
+                .transition(.opacity)
             }
         }
+        .motion(Motion.list, value: live.voided)
     }
 }

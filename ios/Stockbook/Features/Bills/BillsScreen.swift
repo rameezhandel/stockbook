@@ -41,6 +41,7 @@ struct BillsScreen: View {
                     if let selected {
                         summary(for: selected)
                             .padding(.bottom, 4)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
 
                     if bills.isEmpty {
@@ -64,6 +65,10 @@ struct BillsScreen: View {
                 }
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.bottom, 18)
+                // Changing the filter is the one thing on this screen that
+                // rewrites the whole list, so it is worth showing rather than
+                // cutting to the answer.
+                .motion(Motion.list, value: customerKey)
             }
         }
     }
@@ -137,6 +142,7 @@ struct BillsScreen: View {
                 .foregroundStyle(tint)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
+                .rollingNumber(value)
             if let detail {
                 Text(detail).nocturneText(.meta)
             }

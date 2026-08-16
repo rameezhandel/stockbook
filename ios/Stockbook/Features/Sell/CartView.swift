@@ -26,6 +26,7 @@ struct CartView: View {
                             onResetPrice: { cart.resetPrice(for: line.id) },
                             onRemove: { cart.remove(line.id) }
                         )
+                        .transition(.opacity)
                     }
 
                     Button(action: onBrowse) {
@@ -36,6 +37,7 @@ struct CartView: View {
                 }
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.bottom, 10)
+                .motion(Motion.list, value: cart.lines.count)
             }
 
             footer
@@ -76,8 +78,12 @@ struct CartView: View {
                         .font(NocturneType.inter(13))
                         .foregroundStyle(Nocturne.neutral500)
                     Spacer()
+                    // The one number the customer is also looking at. It rolls
+                    // rather than swapping, so a quantity tapped while the eye
+                    // is on the stepper still reads as the total moving.
                     Text(Money.text(cart.total, in: currency))
                         .nocturneText(.bigNumber(28))
+                        .rollingNumber(cart.total)
                 }
 
                 if cart.payMode == .part {
@@ -89,6 +95,7 @@ struct CartView: View {
                         Text(Money.text(cart.balance, in: currency))
                             .font(NocturneType.inter(15))
                             .foregroundStyle(Nocturne.accent400)
+                            .rollingNumber(cart.balance)
                     }
                 }
             }
@@ -140,6 +147,7 @@ private struct CartLineCard: View {
                     .lineLimit(1)
                 Text(Money.text(line.lineTotal, in: currency))
                     .font(NocturneType.inter(15))
+                    .rollingNumber(line.lineTotal)
                 Button(action: onRemove) {
                     Glyph(Icon.delete, size: 15)
                         .foregroundStyle(Nocturne.neutral500)

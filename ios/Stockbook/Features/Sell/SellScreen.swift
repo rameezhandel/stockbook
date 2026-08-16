@@ -47,21 +47,27 @@ struct SellScreen: View {
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.bottom, 10)
 
-            if showsPicker {
-                ProductPicker(
-                    products: matches,
-                    hasAnyProducts: !products.isEmpty,
-                    query: query.trimmed,
-                    onPick: add(_:),
-                    onAddProduct: { router.openNewProduct() },
-                    onDoneAdding: closePicker
-                )
-            } else {
-                CartView(
-                    onBrowse: openPicker,
-                    onSave: save
-                )
+            // Which of the two is showing is derived, so the swap is the only
+            // signal that a tap changed anything. It fades rather than cuts.
+            Group {
+                if showsPicker {
+                    ProductPicker(
+                        products: matches,
+                        hasAnyProducts: !products.isEmpty,
+                        query: query.trimmed,
+                        onPick: add(_:),
+                        onAddProduct: { router.openNewProduct() },
+                        onDoneAdding: closePicker
+                    )
+                } else {
+                    CartView(
+                        onBrowse: openPicker,
+                        onSave: save
+                    )
+                }
             }
+            .transition(.opacity)
+            .motion(Motion.screen, value: showsPicker)
         }
     }
 
@@ -153,8 +159,13 @@ private struct ProductPicker: View {
                                         Glyph(Icon.confirm, size: 11)
                                         Text("\(onBill)")
                                             .font(NocturneType.inter(11.5))
+                                            .contentTransition(.numericText())
                                     }
                                     .foregroundStyle(Nocturne.accent)
+                                    // The list does not move when a row is
+                                    // tapped, so this mark is the whole of the
+                                    // feedback. It arrives with a pop.
+                                    .transition(.scale(scale: 0.4).combined(with: .opacity))
                                 }
 
                                 Text(Loc.stockLabel(product.stock))
@@ -171,6 +182,7 @@ private struct ProductPicker: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .motion(Motion.pop, value: cart.quantity(forProduct: product.uid))
                         .accessibilityLabel(
                             cart.quantity(forProduct: product.uid) > 0
                                 ? Loc.onBillAccessibility(
@@ -194,6 +206,7 @@ private struct ProductPicker: View {
                             .nocturneText(.meta)
                         Text(Money.text(cart.total, in: currency))
                             .font(NocturneType.inter(19, .medium))
+                            .rollingNumber(cart.total)
                     }
                     Spacer(minLength: 12)
                     Button(Loc.doneAdding, action: onDoneAdding)
