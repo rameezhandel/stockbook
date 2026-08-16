@@ -292,9 +292,11 @@ both it and setup step 3.
   the two cannot drift apart. Void lives inside the opened bill rather than on
   the list row — the app's one destructive action on history now costs a
   deliberate tap to reach, and the row goes back to being a row.
-- **Settings** — owner name and counts, the language switcher, real export to
-  Files, Share via the OS share sheet, and a validated import gated behind a
-  warning that names what will be lost. **Start over is `#if DEBUG` only**: one
+- **Settings** — owner name and counts, language and currency as two dropdowns
+  in one card, and a single row through to the backup handoff whose subtitle
+  carries the backup state. Export and import live one level in, on
+  `BackupScreen`: real export to Files, Share via the OS share sheet, and a
+  validated import gated behind a warning that names what will be lost. **Start over is `#if DEBUG` only**: one
   tap with no confirmation clears every product, price and bill, which is right
   for resetting to first-run during development and wrong to leave under
   Settings on the phone holding the only copy of the shop. The store's

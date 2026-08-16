@@ -19,6 +19,11 @@ final class AppRouter {
     /// Settings is reached from the Today gear, not from the tab bar.
     var showingSettings = false
 
+    /// The export/import handoff, one level in from Settings. Kept here rather
+    /// than as `@State` on the settings screen so "Start over" and a database
+    /// replace can close everything from one place.
+    var showingBackup = false
+
     // MARK: Overlays
 
     /// The product editor sheet — `nil` closed, otherwise create or edit.
@@ -65,6 +70,7 @@ final class AppRouter {
         addStock = nil
         receipt = nil
         billDetail = nil
+        showingBackup = false
     }
 }
 

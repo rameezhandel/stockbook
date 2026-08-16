@@ -38,11 +38,11 @@ struct LocalizationTests {
         \.nextStockAndPrices, \.stockAndPrices, \.stockAndPricesBody, \.youPay,
         \.youSell, \.openTheShop, \.allSet, \.thisPhone,
         \.businessOwner, \.productsStat, \.customersStat, \.languageSection,
-        \.currencySection, \.currencyNote, \.setupCurrencyNote, \.languageNote,
-        \.moveToAnotherPhone, \.moveToAnotherPhoneNote, \.exportEverything, \.exportNoteFirstTime,
-        \.exportNoteAfterBackup, \.writeAFreshFile, \.createBackupFile, \.importABackupFile,
-        \.chooseAFile, \.replaceEverything, \.importNoteIdle, \.importNoteDone,
-        \.startAgain, \.startOver, \.startAgainNote,
+        \.languageAndCurrency, \.notBackedUpYet, \.currencySection, \.currencyNote,
+        \.setupCurrencyNote, \.moveToAnotherPhone, \.moveToAnotherPhoneNote, \.exportEverything,
+        \.exportNoteFirstTime, \.exportNoteAfterBackup, \.writeAFreshFile, \.createBackupFile,
+        \.importABackupFile, \.chooseAFile, \.replaceEverything, \.importNoteIdle,
+        \.importNoteDone, \.startAgain, \.startOver,
     ]
 
     @Test("Every string is written in both languages")
