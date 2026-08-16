@@ -59,7 +59,24 @@ jobs:
         run: ./gradlew :core:test
 
       - name: Build the app
-        run: ./gradlew :app:assembleDebug
+        id: build
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug 2>&1 | tee ../build.log
+
+      # Compiler errors live in the raw job log, which needs a signed-in browser
+      # to read. Lifting them into the run summary puts the one thing anybody
+      # actually needs on the page they land on.
+      - name: Report the errors where they can be read
+        if: failure()
+        run: |
+          {
+            echo "### Build failed"
+            echo ""
+            echo '```'
+            grep -E "^e: |^w: .*error|FAILURE:|Caused by:" ../build.log | head -60 || echo "no compiler errors found in the log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # The whole point on Android: an APK the owner can install from a phone,
       # with no developer account, no signing ceremony and no TestFlight.

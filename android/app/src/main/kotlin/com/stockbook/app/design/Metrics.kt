@@ -49,9 +49,12 @@ object Motion {
     /** Moving between screens and tabs. */
     val screen = tween<Float>(durationMillis = 180)
 
-    /** Crossfade between tabs. */
-    val screenSpec = tween<Float>(durationMillis = QUICK_MILLIS)
-
     const val QUICK_MILLIS = 180
     const val SHEET_MILLIS = 270
+
+    /**
+     * Crossfade between tabs. Declared after the constants it reads: a property
+     * initialiser cannot reach forward to one below it.
+     */
+    val screenSpec = tween<Float>(durationMillis = QUICK_MILLIS)
 }
