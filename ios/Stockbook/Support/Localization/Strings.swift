@@ -227,11 +227,32 @@ struct Strings {
     // MARK: - Receipt
 
     var billSaved: String { pick("Bill saved", "ಬಿಲ್ ಉಳಿಸಲಾಗಿದೆ") }
+    var billDetailTitle: String { pick("Bill details", "ಬಿಲ್ ವಿವರ") }
     var seeBills: String { pick("See bills", "ಬಿಲ್‌ಗಳನ್ನು ನೋಡಿ") }
     var nextCustomer: String { pick("Next customer", "ಮುಂದಿನ ಗ್ರಾಹಕರು") }
 
-    func receiptMeta(number: Int, time: String, who: String) -> String {
-        pick("Bill #\(number) · \(time) · \(who)", "ಬಿಲ್ #\(number) · \(time) · \(who)")
+    func billNumber(_ number: Int) -> String {
+        pick("Bill #\(number)", "ಬಿಲ್ #\(number)")
+    }
+
+    func billWhen(date: String, time: String) -> String {
+        pick("\(date) · \(time)", "\(date) · \(time)")
+    }
+
+    func billedTo(_ name: String) -> String {
+        pick("Billed to \(name)", "\(name) ಅವರಿಗೆ")
+    }
+
+    /// `2 × SAR 95` — the arithmetic behind a line, kept visible.
+    func quantityAtPrice(quantity: Int, price: String) -> String {
+        pick("\(quantity) × \(price)", "\(quantity) × \(price)")
+    }
+
+    var voidedNote: String {
+        pick(
+            "This bill was voided. The stock went back on the shelf and nothing is owed on it.",
+            "ಈ ಬಿಲ್ ರದ್ದಾಗಿದೆ. ದಾಸ್ತಾನು ವಾಪಸ್ ಹೋಗಿದೆ, ಇದರ ಮೇಲೆ ಯಾವ ಬಾಕಿಯೂ ಇಲ್ಲ."
+        )
     }
 
     var paidInFullCash: String { pick("Paid in full, cash.", "ಪೂರ್ತಿ ಪಾವತಿ, ನಗದು.") }

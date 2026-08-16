@@ -27,22 +27,22 @@ struct LocalizationTests {
         \.oneFewer, \.oneMore, \.noProductsYet, \.reset,
         \.customerName, \.paidInFull, \.partPayment, \.paidNow,
         \.total, \.balance, \.saveBill, \.enterCustomerName,
-        \.billSaved, \.seeBills, \.nextCustomer, \.paidInFullCash,
-        \.newProduct, \.editProduct, \.productName, \.productNameExample,
-        \.inStock, \.buyingPrice, \.sellingPrice, \.addStock,
-        \.removeThisProduct, \.setPriceAboveCost, \.quickAdd, \.purchaseEntry,
-        \.supplier, \.whoDeliveredIt, \.howMany, \.paidPerPiece,
-        \.recordPurchase, \.welcomeToStockbook, \.welcomeBody, \.yourName,
-        \.businessOwnerName, \.yourShelves, \.whatDoYouStock, \.stockNamesBody,
-        \.commonHardwareLines, \.nothingAddedYetKicker, \.nextStockAndPrices, \.stockAndPrices,
-        \.stockAndPricesBody, \.youPay, \.youSell, \.openTheShop,
-        \.allSet, \.thisPhone, \.businessOwner, \.productsStat,
-        \.customersStat, \.languageSection, \.currencySection, \.currencyNote,
-        \.setupCurrencyNote, \.languageNote, \.moveToAnotherPhone, \.moveToAnotherPhoneNote,
-        \.exportEverything, \.exportNoteFirstTime, \.exportNoteAfterBackup, \.writeAFreshFile,
-        \.createBackupFile, \.importABackupFile, \.chooseAFile, \.replaceEverything,
-        \.importNoteIdle, \.importNoteDone, \.startAgain, \.startOver,
-        \.startAgainNote,
+        \.billSaved, \.billDetailTitle, \.seeBills, \.nextCustomer,
+        \.voidedNote, \.paidInFullCash, \.newProduct, \.editProduct,
+        \.productName, \.productNameExample, \.inStock, \.buyingPrice,
+        \.sellingPrice, \.addStock, \.removeThisProduct, \.setPriceAboveCost,
+        \.quickAdd, \.purchaseEntry, \.supplier, \.whoDeliveredIt,
+        \.howMany, \.paidPerPiece, \.recordPurchase, \.welcomeToStockbook,
+        \.welcomeBody, \.yourName, \.businessOwnerName, \.yourShelves,
+        \.whatDoYouStock, \.stockNamesBody, \.commonHardwareLines, \.nothingAddedYetKicker,
+        \.nextStockAndPrices, \.stockAndPrices, \.stockAndPricesBody, \.youPay,
+        \.youSell, \.openTheShop, \.allSet, \.thisPhone,
+        \.businessOwner, \.productsStat, \.customersStat, \.languageSection,
+        \.currencySection, \.currencyNote, \.setupCurrencyNote, \.languageNote,
+        \.moveToAnotherPhone, \.moveToAnotherPhoneNote, \.exportEverything, \.exportNoteFirstTime,
+        \.exportNoteAfterBackup, \.writeAFreshFile, \.createBackupFile, \.importABackupFile,
+        \.chooseAFile, \.replaceEverything, \.importNoteIdle, \.importNoteDone,
+        \.startAgain, \.startOver, \.startAgainNote,
     ]
 
     @Test("Every string is written in both languages")
@@ -98,7 +98,10 @@ struct LocalizationTests {
             #expect(strings.usualPriceNote("SAR 20").contains("SAR 20"))
             #expect(strings.youMakeAPiece("SAR 30").contains("SAR 30"))
             #expect(strings.addToStock(12).contains("12"))
-            #expect(strings.receiptMeta(number: 7, time: "09:41", who: "Ahmed").contains("09:41"))
+            #expect(strings.billNumber(7).contains("7"))
+            #expect(strings.billWhen(date: "28 July 2026", time: "09:41").contains("09:41"))
+            #expect(strings.billedTo("Ahmed").contains("Ahmed"))
+            #expect(strings.quantityAtPrice(quantity: 2, price: "SAR 95").contains("SAR 95"))
             let replace = strings.replaceWarning(productCount: 8, billCount: 4)
             #expect(replace.contains("8"))
             #expect(replace.contains("4"))

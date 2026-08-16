@@ -30,11 +30,12 @@ struct BillsScreen: View {
                     }
 
                     ForEach(bills) { bill in
-                        BillRow(
-                            bill: bill,
-                            showsVoidAction: true,
-                            onVoid: { store.void(bill) }
-                        )
+                        Button {
+                            router.openBill(bill)
+                        } label: {
+                            BillRow(bill: bill)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, Metrics.screenPadding)

@@ -112,6 +112,9 @@ private struct AppShell: View {
         .nocturneSheet(item: $router.addStock) { target in
             AddStockSheet(product: target.product)
         }
+        .nocturneSheet(item: $router.billDetail) { bill in
+            BillSheet(bill: bill)
+        }
     }
 
     private var showsTabBar: Bool {

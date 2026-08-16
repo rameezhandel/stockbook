@@ -133,7 +133,12 @@ struct TodayScreen: View {
             } else {
                 VStack(spacing: Metrics.rowGap) {
                     ForEach(bills.prefix(3)) { bill in
-                        BillRow(bill: bill)
+                        Button {
+                            router.openBill(bill)
+                        } label: {
+                            BillRow(bill: bill)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }

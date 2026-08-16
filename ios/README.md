@@ -284,8 +284,14 @@ both it and setup step 3.
   editable price with its override treatment and Reset, the required customer
   field with an upward suggestion dropdown, full/part payment, and save.
 - **Receipt** — the full-screen confirmation, including the faded rule.
-- **Bills** — full history newest-first, with void-and-restore on every live
-  bill and the muted treatment on voided ones.
+- **Bills** — full history newest-first, with the muted treatment on voided
+  ones. Tapping any bill on Bills or Today opens it as a document.
+- **The bill itself** — `BillTemplate`: letterhead, number, date, customer,
+  every line with its arithmetic, total and what is owed. One view, used both
+  by the confirmation after saving and by the sheet that opens from history, so
+  the two cannot drift apart. Void lives inside the opened bill rather than on
+  the list row — the app's one destructive action on history now costs a
+  deliberate tap to reach, and the row goes back to being a row.
 - **Settings** — owner name and counts, the language switcher, real export to
   Files, Share via the OS share sheet, and a validated import gated behind a
   warning that names what will be lost. **Start over is `#if DEBUG` only**: one

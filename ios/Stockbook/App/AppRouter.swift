@@ -30,6 +30,11 @@ final class AppRouter {
     /// The receipt, shown full-screen after a bill is saved.
     var receipt: Bill?
 
+    /// A bill opened from history. Distinct from `receipt`: that one is a
+    /// confirmation of something that just happened, this one is a document
+    /// being looked up.
+    var billDetail: Bill?
+
     // MARK: Intents
     //
     // Named for what the owner is doing, so call sites read as the design does.
@@ -47,6 +52,10 @@ final class AppRouter {
         addStock = AddStockTarget(product: product)
     }
 
+    func openBill(_ bill: Bill) {
+        billDetail = bill
+    }
+
     func startBill() {
         tab = .sell
     }
@@ -55,6 +64,7 @@ final class AppRouter {
         productEditor = nil
         addStock = nil
         receipt = nil
+        billDetail = nil
     }
 }
 
