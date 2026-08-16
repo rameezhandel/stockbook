@@ -152,12 +152,14 @@ private struct CartLineCard: View {
 
             HStack(spacing: 8) {
                 stepper
+                // Wraps rather than truncates: "only 3 in stock" is the warning
+                // that stops a wrong bill, so it is never worth eliding to fit
+                // beside a stepper and a price box on a narrow phone.
                 Text(stockNote)
                     .nocturneText(.meta)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .layoutPriority(-1)
-                Spacer(minLength: 4)
                 priceBox
             }
 
@@ -281,6 +283,25 @@ private struct CustomerField: View {
     }
 
     var body: some View {
+        // The list sits **above** the field as an ordinary sibling, not as an
+        // overlay. Two attempts to float it — an overlay with an alignment
+        // guide, then the same with `fixedSize` — both landed back on top of
+        // the field, because an overlay is proposed its parent's 40pt height
+        // and no amount of guide arithmetic reliably undoes that. A sibling in
+        // the stack cannot overlap by construction: the footer simply grows
+        // upwards to make room, which is what a popover looks like here anyway.
+        VStack(spacing: 6) {
+            if focused, !suggestions.isEmpty {
+                suggestionCard
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+            field
+        }
+        .animation(.easeOut(duration: 0.14), value: focused)
+        .animation(.easeOut(duration: 0.14), value: suggestions.count)
+    }
+
+    private var field: some View {
         ZStack(alignment: .leading) {
             if name.isEmpty {
                 Text("Customer name")
@@ -299,20 +320,6 @@ private struct CustomerField: View {
         .frame(height: 40)
         .background(Nocturne.bg, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
         .hairline(name.isBlank ? Nocturne.accent : Nocturne.neutral800, radius: Metrics.controlRadius)
-        // The dropdown opens upwards: the footer is already at the bottom of the
-        // screen and the keyboard is about to take what is left.
-        .overlay(alignment: .top) {
-            if focused, !suggestions.isEmpty {
-                suggestionCard
-                    // An overlay is proposed its parent's size — 40pt here — so
-                    // without this the card is squeezed to the height of the
-                    // field, the guide shifts it up by almost nothing, and it
-                    // lands on top of the very field it is meant to sit above.
-                    .fixedSize(horizontal: false, vertical: true)
-                    .alignmentGuide(.top) { $0[.bottom] + 6 }
-                    .zIndex(1)
-            }
-        }
     }
 
     private var suggestionCard: some View {
