@@ -82,6 +82,7 @@ struct StatCard: View {
                 .nocturneText(.bigNumber(26))
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
+                .rollingNumber(value)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)

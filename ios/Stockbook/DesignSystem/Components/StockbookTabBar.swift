@@ -15,10 +15,14 @@ struct StockbookTabBar: View {
                     selection = tab
                 } label: {
                     VStack(spacing: 3) {
+                        // Outline to filled is the same glyph in two weights, so
+                        // it dissolves between them rather than cutting.
                         Glyph(selection == tab ? tab.activeIcon : tab.icon, size: 22)
+                            .contentTransition(.symbolEffect(.replace))
                         Text(Loc.tab(tab)).nocturneText(.tabLabel)
                     }
                     .foregroundStyle(selection == tab ? Nocturne.accent : Nocturne.neutral500)
+                    .motion(Motion.screen, value: selection)
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
                 }

@@ -49,10 +49,14 @@ struct ItemsScreen: View {
                             ProductRow(product: product, lowStockAt: lowStockAt)
                         }
                         .buttonStyle(.plain)
+                        .transition(.opacity)
                     }
                 }
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.bottom, 18)
+                // Searching rewrites the list under the thumb; a product added
+                // from the sheet arrives into it. Both read better moving.
+                .motion(Motion.list, value: filtered.count)
             }
         }
     }
@@ -95,6 +99,7 @@ private struct ProductRow: View {
                 Text(Loc.stockLabel(product.stock))
                     .nocturneText(.meta)
                     .foregroundStyle(stockColor)
+                    .rollingNumber(product.stock)
             }
         }
         .padding(12)

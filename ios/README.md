@@ -278,6 +278,33 @@ of the spec, both about physical screens rather than the design canvas:
   indicator, which is exactly what the device's bottom safe inset does; the bar
   defers to it and falls back to 24 where there is none.
 
+### Motion
+
+`DesignSystem/Motion.swift` holds one rule: **motion carries information or it
+does not happen.** A number that rolls says it changed while you were looking
+somewhere else. A row that slides in says it was added rather than always having
+been there. A screen that fades says which way you went. Anything that only
+decorates is a delay between the owner and the next customer.
+
+What moves, and why:
+
+| Motion | Says |
+| --- | --- |
+| Cart total, balance and line totals roll | the number moved while your eye was on the stepper |
+| The ✓ mark on an already-added product pops | the tap landed — the list itself does not move |
+| Cart rows and product rows fade in and out | added or removed, not always there |
+| The picker/cart swap and tab changes cross-fade | which way you went |
+| The Bills list restacks on a filter change | the whole list was rewritten, not just scrolled |
+| A tab icon dissolves outline → filled | same glyph, new state |
+| The opened bill redraws on void | the tap changed the document under your thumb |
+
+Everything goes through `.motion(_:value:)` rather than `.animation(_:value:)`,
+which checks **Reduce Motion** in one place — the call site that forgets is the
+one on the phone belonging to somebody who asked it not to move.
+
+Numbers roll only where they change *while being read*. A saved bill's total is
+drawn once and has nothing to say by moving.
+
 Bottom sheets are drawn by the app rather than by `.sheet`, because the design
 specifies things the system sheet does not expose: an `rgba(16,17,28,0.74)`
 scrim, 18px rounding on the top corners only, a specific upward shadow, a 38×4
