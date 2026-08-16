@@ -210,10 +210,11 @@ both it and setup step 3.
 Every screen in the handoff is built. What remains is verification rather than
 construction:
 
-- **Nothing asserts what a view renders.** The `Screenshots` workflow now walks
-  the app in a simulator and publishes a picture of every screen to the
-  `screenshots` branch on each push to `main`, so the views are at least *seen*.
-  It is a camera, not a test — it cannot tell you a screen looks right.
+- **Nothing asserts what a view renders**, and nothing renders them in CI. An
+  automated screenshot walkthrough was built and then removed: it kept stalling
+  in setup and, worse, saved the stalled screen under the name of the screen it
+  never reached, which made a broken run look like a complete one. Visual checks
+  are done by running the app on a Mac.
 - **View bodies remain untested.** The import gating is now covered by
   `ImportFlowTests` after being lifted out of the view, but nothing asserts what
   any SwiftUI body renders — the screenshots are for looking at, not for failing
@@ -226,18 +227,13 @@ were considered and deliberately cut.
 
 ## Tests
 
-Two suites, deliberately separated. `StockbookTests` is correctness and gates
-every push. `StockbookUITests` only takes screenshots, runs in its own workflow,
-and is allowed to fail — a stumbling walkthrough should cost you pictures, not a
-red tick on working code.
-
 `⌘U`, or:
 
 ```sh
 xcodebuild test -scheme Stockbook -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
-The unit suite covers the rules where a plausible-looking wrong implementation is easy to
+They cover the rules where a plausible-looking wrong implementation is easy to
 write: stock flooring at zero, part payments clamping to the total, history
 surviving a product edit, voiding being idempotent, the owed banner counting
 people rather than bills, suggestion ranking, cost being latest-paid, and the
