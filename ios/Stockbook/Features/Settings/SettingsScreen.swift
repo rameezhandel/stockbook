@@ -1,13 +1,12 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
-/// Settings, and the export/import handoff that is the app's only route onto a
-/// new phone.
+/// Settings: the shop's name, the two things it reads and bills in, and a way
+/// through to the backup handoff.
 ///
-/// The prototype faked the file layer. This does not: export writes a real dated
-/// JSON file through the document exporter, Share hands the same file to the OS
-/// share sheet, and import reads a file the owner picked, **validates it before
-/// asking anything**, and only then offers to replace the database.
+/// It used to hold that handoff too, and ran to one long scroll where the two
+/// controls an owner touches occasionally sat above two cards they use once a
+/// year. Export and import now live behind a single row in `BackupScreen`, and
+/// what is left fits without scrolling on most phones.
 struct SettingsScreen: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
@@ -15,19 +14,8 @@ struct SettingsScreen: View {
     @State private var ownerName = ""
     @State private var seeded = false
 
-    // Export
-    @State private var exportDocument: BackupFile?
-    @State private var isExporting = false
-    @State private var exportChip: (name: String, detail: String)?
-    @State private var shareURL: URL?
-
-    // Import
-    @State private var isImporting = false
-    @State private var importFlow = ImportFlow()
-
     private var settings: Settings { store.settings }
     private var products: [Product] { store.products }
-    private var bills: [Bill] { store.bills }
     private var liveBills: [Bill] { store.liveBills }
 
     var body: some View {
@@ -40,9 +28,8 @@ struct SettingsScreen: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     thisPhone
-                    languageSection
-                    currencySection
-                    moveToAnotherPhone
+                    languageAndCurrency
+                    backupRow
                     #if DEBUG
                     startAgain
                     #endif
@@ -54,25 +41,6 @@ struct SettingsScreen: View {
         .background(Nocturne.bg.ignoresSafeArea())
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear(perform: seed)
-        .fileExporter(
-            isPresented: $isExporting,
-            document: exportDocument,
-            contentType: .json,
-            defaultFilename: exportDocument?.document.suggestedFilename
-        ) { result in
-            // Only a real write counts. A cancelled save sheet must not claim a
-            // backup exists — that is the one lie this screen must never tell.
-            if case .success = result {
-                store.markExported()
-                refreshExportChip()
-            }
-        }
-        .fileImporter(
-            isPresented: $isImporting,
-            allowedContentTypes: [.json]
-        ) { result in
-            importFlow.pick(result)
-        }
     }
 
     // MARK: This phone
@@ -113,64 +81,38 @@ struct SettingsScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: Language
+    // MARK: What it reads and bills in
 
-    /// Two languages, both spelled in themselves, both on screen at once.
-    ///
-    /// Not a menu and not a system-settings deep link: someone who has landed in
-    /// the wrong language has to be able to get out of it without reading the
-    /// language they are stuck in, and a row of two words they can recognise by
-    /// shape is the shortest way back.
-    private var languageSection: some View {
+    /// One card, two dropdowns. They are the same kind of decision — pick one
+    /// from a short list, applies everywhere at once — so they read better as a
+    /// pair than as two sections with a paragraph each.
+    private var languageAndCurrency: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Kicker(Loc.languageSection).padding(.bottom, 8)
+            Kicker(Loc.languageAndCurrency).padding(.bottom, 8)
 
-            HStack(spacing: 8) {
-                ForEach(AppLanguage.allCases) { language in
-                    Button {
-                        store.setLanguage(language)
-                    } label: {
-                        HStack(spacing: 7) {
-                            Glyph(Icon.confirm, size: 13)
-                                .opacity(settings.language == language ? 1 : 0)
-                            Text(language.endonym)
-                                .font(NocturneType.inter(14, .medium))
-                        }
-                        .foregroundStyle(settings.language == language ? Nocturne.accent : Nocturne.neutral500)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .hairline(
-                            settings.language == language ? Nocturne.accent : Nocturne.neutral800,
-                            radius: Metrics.controlRadius
-                        )
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(settings.language == language ? [.isSelected, .isButton] : .isButton)
-                }
+            VStack(alignment: .leading, spacing: 10) {
+                LanguageField(
+                    label: Loc.languageSection,
+                    language: Binding(
+                        get: { settings.language },
+                        set: { store.setLanguage($0) }
+                    )
+                )
+
+                CurrencyField(
+                    label: Loc.currencySection,
+                    currency: Binding(
+                        get: { settings.currency },
+                        set: { store.setCurrency($0) }
+                    )
+                )
             }
+            .padding(12)
+            .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
             .padding(.bottom, 8)
 
-            Text(Loc.languageNote)
-                .font(NocturneType.inter(12))
-                .foregroundStyle(Nocturne.neutral500)
-                .lineSpacing(3)
-                .padding(.bottom, 20)
-        }
-    }
-
-    // MARK: Currency
-
-    private var currencySection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Kicker(Loc.currencySection).padding(.bottom, 8)
-
-            CurrencyField(currency: Binding(
-                get: { settings.currency },
-                set: { store.setCurrency($0) }
-            ))
-            .padding(.bottom, 8)
-
+            // The one caveat that cannot be discovered by trying it: the numbers
+            // do not move when the symbol does.
             Text(Loc.currencyNote)
                 .font(NocturneType.inter(12))
                 .foregroundStyle(Nocturne.neutral500)
@@ -181,134 +123,38 @@ struct SettingsScreen: View {
 
     // MARK: Move to another phone
 
-    private var moveToAnotherPhone: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Kicker(Loc.moveToAnotherPhone).padding(.bottom, 8)
+    /// A row, not a section. The subtitle carries the backup state, because the
+    /// standing reminder that nothing is backed up has to survive being folded
+    /// away behind a tap.
+    private var backupRow: some View {
+        Button {
+            router.showingBackup = true
+        } label: {
+            HStack(spacing: 11) {
+                Glyph(settings.hasBackup ? Icon.backupDone : Icon.backupMissing, size: 20)
+                    .foregroundStyle(settings.hasBackup ? Nocturne.accent : Nocturne.accent400)
 
-            Text(Loc.moveToAnotherPhoneNote)
-                .font(NocturneType.inter(12.5))
-                .foregroundStyle(Nocturne.neutral500)
-                .lineSpacing(3)
-                .padding(.bottom, 10)
-
-            exportCard.padding(.bottom, 10)
-            importCard.padding(.bottom, 20)
-        }
-    }
-
-    private var exportCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            cardHeading(icon: Icon.export, title: Loc.exportEverything)
-
-            Text(exportNote)
-                .font(NocturneType.inter(12))
-                .foregroundStyle(Nocturne.neutral500)
-                .lineSpacing(3)
-                .padding(.bottom, 11)
-
-            if let chip = exportChip {
-                HStack(spacing: 10) {
-                    Glyph(Icon.file, size: 19)
-                        .foregroundStyle(Nocturne.accent400)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(chip.name)
-                            .font(NocturneType.inter(13))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Text(chip.detail)
-                            .font(NocturneType.inter(11))
-                            .foregroundStyle(Nocturne.neutral500)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 11)
-                .padding(.vertical, 10)
-                .background(Nocturne.bg, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
-                .hairline(radius: Metrics.controlRadius)
-                .padding(.bottom, 10)
-            }
-
-            HStack(spacing: 8) {
-                Button(settings.hasBackup ? Loc.writeAFreshFile : Loc.createBackupFile) {
-                    exportDocument = BackupFile(document: store.makeBackupDocument())
-                    isExporting = true
-                }
-                .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
-
-                if let shareURL {
-                    ShareLink(item: shareURL) {
-                        Label(Loc.share, systemImage: Icon.share)
-                    }
-                    .buttonStyle(SecondaryButtonStyle(height: 42, fontSize: 13.5))
-                }
-            }
-        }
-        .padding(13)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-    }
-
-    private var importCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            cardHeading(icon: Icon.importFile, title: Loc.importABackupFile)
-
-            Text(importNote)
-                .font(NocturneType.inter(12))
-                .foregroundStyle(importFlow.stage.isFailure ? Nocturne.accent300 : Nocturne.neutral500)
-                .lineSpacing(3)
-                .padding(.bottom, 11)
-
-            if case .picked(let document, let filename) = importFlow.stage {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(filename)
-                        .font(NocturneType.inter(13))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .padding(.bottom, 7)
-
-                    Text(document.summaryLine(Loc))
-                        .font(NocturneType.inter(11.5))
-                        .foregroundStyle(Nocturne.neutral500)
-                        .lineSpacing(4)
-
-                    // Naming what is about to be lost, in the owner's own
-                    // numbers. This is the last thing standing between a tap and
-                    // an unrecoverable swap.
-                    Text(Loc.replaceWarning(productCount: products.count, billCount: bills.count))
-                        .font(NocturneType.inter(11.5))
-                        .foregroundStyle(Nocturne.accent300)
-                        .lineSpacing(3)
-                        .padding(.top, 8)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Loc.moveToAnotherPhone).nocturneText(.rowPrimary)
+                    Text(backupState).nocturneText(.meta)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(11)
-                .background(Nocturne.bg, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
-                .hairline(Nocturne.accent, radius: Metrics.controlRadius)
-                .padding(.bottom, 10)
 
-                HStack(spacing: 8) {
-                    Button(Loc.cancel) { importFlow.cancel() }
-                        .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
-                    Button(Loc.replaceEverything) {
-                        // Only ever acts on what confirm() hands back.
-                        guard let confirmed = importFlow.confirm() else { return }
-                        store.replaceEverything(with: confirmed)
-                        seeded = false
-                        seed()
-                        refreshExportChip()
-                    }
-                    .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
-                }
-            } else {
-                Button { isImporting = true } label: {
-                    Label(Loc.chooseAFile, systemImage: Icon.folder)
-                }
-                .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
+                Glyph(Icon.openRow, size: 12)
+                    .foregroundStyle(Nocturne.neutral600)
             }
+            .padding(13)
+            .frame(maxWidth: .infinity)
+            .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+            .contentShape(Rectangle())
         }
-        .padding(13)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        .buttonStyle(.plain)
+        .padding(.bottom, 20)
+    }
+
+    private var backupState: String {
+        guard let exportedAt = settings.lastExportAt else { return Loc.notBackedUpYet }
+        return Loc.backedUpOn(Loc.longDate(exportedAt))
     }
 
     // MARK: Start again
@@ -328,12 +174,6 @@ struct SettingsScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             Kicker(Loc.startAgain).padding(.bottom, 8)
 
-            Text(Loc.startAgainNote)
-                .font(NocturneType.inter(12.5))
-                .foregroundStyle(Nocturne.neutral500)
-                .lineSpacing(3)
-                .padding(.bottom, 10)
-
             Button(Loc.startOver) {
                 store.startOver()
                 router.closeOverlays()
@@ -345,57 +185,11 @@ struct SettingsScreen: View {
     }
     #endif
 
-    private func cardHeading(icon: String, title: String) -> some View {
-        HStack(spacing: 9) {
-            Glyph(icon, size: 17).foregroundStyle(Nocturne.accent)
-            Text(title).nocturneText(.rowPrimary)
-            Spacer(minLength: 0)
-        }
-        .padding(.bottom, 4)
-    }
-
-    // MARK: Copy
-
-    private var exportNote: String {
-        settings.hasBackup ? Loc.exportNoteAfterBackup : Loc.exportNoteFirstTime
-    }
-
-    private var importNote: String {
-        switch importFlow.stage {
-        case .imported: Loc.importNoteDone
-        case .failed(let error): Loc.backupError(error)
-        default: Loc.importNoteIdle
-        }
-    }
-
     // MARK: Actions
 
     private func seed() {
         guard !seeded else { return }
         seeded = true
         ownerName = settings.ownerName
-        refreshExportChip()
     }
-
-    /// Encoding the whole database is cheap at this size but not free, so the
-    /// chip is computed on demand rather than in `body`.
-    private func refreshExportChip() {
-        guard let exportedAt = settings.lastExportAt else {
-            exportChip = nil
-            shareURL = nil
-            return
-        }
-        let document = store.makeBackupDocument(at: exportedAt)
-        exportChip = (
-            name: document.suggestedFilename,
-            detail: [
-                Loc.products(document.products.count),
-                Loc.bills(document.bills.count),
-                Loc.fileSize(kilobytes: BackupService.sizeInKilobytes(of: document))
-            ].joined(separator: " · ")
-        )
-        // Share hands the OS a real file, so one has to exist on disk.
-        shareURL = try? BackupService.writeToTemporaryFile(document)
-    }
-
 }

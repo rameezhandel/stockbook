@@ -389,6 +389,12 @@ struct Strings {
     var productsStat: String { pick("Products", "ಸಾಮಾನುಗಳು") }
     var customersStat: String { pick("Customers", "ಗ್ರಾಹಕರು") }
     var languageSection: String { pick("Language", "ಭಾಷೆ") }
+    var languageAndCurrency: String { pick("Language and currency", "ಭಾಷೆ ಮತ್ತು ಹಣ") }
+    var notBackedUpYet: String { pick("Nothing backed up yet", "ಇನ್ನೂ ಬ್ಯಾಕಪ್ ಆಗಿಲ್ಲ") }
+
+    func backedUpOn(_ date: String) -> String {
+        pick("Backed up \(date)", "\(date) ರಂದು ಬ್ಯಾಕಪ್ ಆಗಿದೆ")
+    }
     var currencySection: String { pick("Currency", "ಹಣದ ಬಗೆ") }
 
     /// `Saudi Riyal` — from the system, so it arrives already in the language
@@ -402,10 +408,13 @@ struct Strings {
         "\(currency.code) · \(currencyName(currency))"
     }
 
+    /// Trimmed to the half that cannot be discovered by trying it. Changing the
+    /// language explains itself the moment it happens; changing the currency
+    /// does not say what became of the numbers.
     var currencyNote: String {
         pick(
-            "Every price and total is shown in this. Nothing is converted — amounts already saved keep the numbers you entered, and only the symbol in front of them changes.",
-            "ಎಲ್ಲಾ ಬೆಲೆ ಮತ್ತು ಒಟ್ಟು ಮೊತ್ತ ಇದರಲ್ಲೇ ಕಾಣಿಸುತ್ತದೆ. ಯಾವುದೂ ಪರಿವರ್ತನೆ ಆಗುವುದಿಲ್ಲ — ಈಗಾಗಲೇ ಉಳಿಸಿದ ಮೊತ್ತಗಳ ಸಂಖ್ಯೆ ಹಾಗೆಯೇ ಇರುತ್ತದೆ, ಮುಂದಿನ ಚಿಹ್ನೆ ಮಾತ್ರ ಬದಲಾಗುತ್ತದೆ."
+            "Changing the currency converts nothing — saved amounts keep the numbers you entered, and only the symbol in front of them changes.",
+            "ಹಣದ ಬಗೆ ಬದಲಿಸಿದರೆ ಯಾವುದೂ ಪರಿವರ್ತನೆ ಆಗುವುದಿಲ್ಲ — ಉಳಿಸಿದ ಮೊತ್ತಗಳ ಸಂಖ್ಯೆ ಹಾಗೆಯೇ ಇರುತ್ತದೆ, ಮುಂದಿನ ಚಿಹ್ನೆ ಮಾತ್ರ ಬದಲಾಗುತ್ತದೆ."
         )
     }
 
@@ -416,12 +425,6 @@ struct Strings {
         )
     }
 
-    var languageNote: String {
-        pick(
-            "Changes every screen straight away. Your products, bills and names are never translated — they stay exactly as you typed them.",
-            "ಎಲ್ಲಾ ಪರದೆಗಳೂ ತಕ್ಷಣ ಬದಲಾಗುತ್ತವೆ. ನಿಮ್ಮ ಸಾಮಾನು, ಬಿಲ್ ಮತ್ತು ಹೆಸರುಗಳು ಭಾಷಾಂತರ ಆಗುವುದಿಲ್ಲ — ನೀವು ಬರೆದಂತೆಯೇ ಇರುತ್ತವೆ."
-        )
-    }
 
     var moveToAnotherPhone: String { pick("Move to another phone", "ಇನ್ನೊಂದು ಫೋನಿಗೆ ಸಾಗಿಸಿ") }
 
@@ -479,12 +482,6 @@ struct Strings {
     var startAgain: String { pick("Start again", "ಮತ್ತೆ ಶುರು") }
     var startOver: String { pick("Start over", "ಮತ್ತೆ ಶುರು ಮಾಡಿ") }
 
-    var startAgainNote: String {
-        pick(
-            "Clears every product, price and bill on this phone and runs setup from the beginning.",
-            "ಈ ಫೋನಿನಲ್ಲಿರುವ ಎಲ್ಲಾ ಸಾಮಾನು, ಬೆಲೆ ಮತ್ತು ಬಿಲ್ ಅಳಿಸಿ, ಸಿದ್ಧತೆಯನ್ನು ಮೊದಲಿನಿಂದ ಶುರು ಮಾಡುತ್ತದೆ."
-        )
-    }
 
     // MARK: - Backup file
 

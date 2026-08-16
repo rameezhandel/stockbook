@@ -98,13 +98,20 @@ private struct AppShell: View {
                     .zIndex(1)
             }
 
+            if router.showingBackup {
+                BackupScreen()
+                    .transition(.move(edge: .trailing))
+                    .zIndex(2)
+            }
+
             if let receipt = router.receipt {
                 ReceiptOverlay(bill: receipt)
                     .transition(.opacity)
-                    .zIndex(2)
+                    .zIndex(3)
             }
         }
         .animation(Metrics.quick, value: router.showingSettings)
+        .animation(Metrics.quick, value: router.showingBackup)
         .animation(Metrics.quick, value: router.receipt?.number)
         .nocturneSheet(item: $router.productEditor) { target in
             ProductEditorSheet(product: target.product)
