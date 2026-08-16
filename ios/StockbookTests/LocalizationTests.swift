@@ -62,10 +62,11 @@ struct LocalizationTests {
         let kannadaRange = UnicodeScalar(0x0C80)!...UnicodeScalar(0x0CFF)!
         for keyPath in Self.everyString {
             let text = kannada[keyPath: keyPath]
-            #expect(
-                text.unicodeScalars.contains { kannadaRange.contains($0) },
-                "no Kannada letters in “\(text)”"
-            )
+            // Hoisted out of #expect: the macro rewrites its expression to
+            // capture sub-values, and a `rethrows` call does not survive that
+            // rewrite as non-throwing.
+            let hasKannadaLetters = text.unicodeScalars.contains { kannadaRange.contains($0) }
+            #expect(hasKannadaLetters, "no Kannada letters in “\(text)”")
         }
     }
 
@@ -125,8 +126,9 @@ struct LocalizationTests {
             products: [],
             bills: []
         )
+        let isASCII = document.suggestedFilename.allSatisfy(\.isASCII)
         #expect(document.suggestedFilename == "stockbook-\(Copy.fileDate(date)).json")
-        #expect(document.suggestedFilename.allSatisfy(\.isASCII))
+        #expect(isASCII)
     }
 
     @Test("Dates follow the language")
