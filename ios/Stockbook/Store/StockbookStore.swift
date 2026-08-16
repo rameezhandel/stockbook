@@ -218,43 +218,67 @@ final class StockbookStore {
     /// Distinct customers from non-voided bills, **sorted by outstanding balance
     /// descending, then bill count descending** — the people who owe money come
     /// first because that is who the owner most needs to recognise at the counter.
-    func customers() -> [CustomerSuggestion] {
-        var book: [String: (count: Int, owed: Double)] = [:]
+    ///
+    /// Grouped by `Customer.key`, so case and stray spaces do not split one
+    /// person into two. `bills` is newest-first, so the first spelling seen is
+    /// the most recent one and that is the one shown.
+    func customers() -> [Customer] {
+        var order: [String] = []
+        var book: [String: (name: String, count: Int, total: Double, owed: Double)] = [:]
+
         for bill in bills where !bill.voided && !bill.who.isBlank {
-            let key = bill.who.trimmed
-            var entry = book[key] ?? (0, 0)
-            entry.count += 1
-            entry.owed += bill.balance
-            book[key] = entry
+            let key = Customer.key(for: bill.who)
+            if var entry = book[key] {
+                entry.count += 1
+                entry.total += bill.total
+                entry.owed += bill.balance
+                book[key] = entry
+            } else {
+                order.append(key)
+                book[key] = (bill.who.trimmed, 1, bill.total, bill.balance)
+            }
         }
-        return book
-            .map { CustomerSuggestion(name: $0.key, billCount: $0.value.count, owed: $0.value.owed) }
+
+        return order
+            .compactMap { key in
+                book[key].map {
+                    Customer(name: $0.name, key: key, billCount: $0.count, total: $0.total, owed: $0.owed)
+                }
+            }
             .sorted { $0.owed != $1.owed ? $0.owed > $1.owed : $0.billCount > $1.billCount }
+    }
+
+    /// Every bill for one customer, voided ones included — history is never
+    /// hidden, only marked.
+    func bills(forCustomer key: String) -> [Bill] {
+        bills.filter { Customer.key(for: $0.who) == key }
     }
 
     /// Suggestions for the customer field: filtered by what has been typed,
     /// excluding an exact match, capped at four.
-    func customerSuggestions(matching typed: String, limit: Int = 4) -> [CustomerSuggestion] {
-        let query = typed.trimmed.lowercased()
+    func customerSuggestions(matching typed: String, limit: Int = 4) -> [Customer] {
+        let query = Customer.key(for: typed)
         return customers()
             .filter { candidate in
-                let name = candidate.name.lowercased()
-                guard name != query else { return false }
-                return query.isEmpty || name.contains(query)
+                guard candidate.key != query else { return false }
+                return query.isEmpty || candidate.key.contains(query)
             }
             .prefix(limit)
             .map { $0 }
     }
 
     /// The Today banner: who still owes, and how much in total. Counts **distinct
-    /// customers, not bills** — two unpaid bills from one person is one person.
+    /// customers, not bills** — two unpaid bills from one person is one person,
+    /// however they capitalised it the second time.
     func outstanding() -> (names: [String], total: Double) {
         var names: [String] = []
+        var seen: Set<String> = []
         var total: Double = 0
         for bill in bills where bill.isPartPaid && bill.balance > 0 {
             total += bill.balance
             let name = bill.who.trimmed
-            if !name.isEmpty, !names.contains(name) { names.append(name) }
+            guard !name.isEmpty else { continue }
+            if seen.insert(Customer.key(for: name)).inserted { names.append(name) }
         }
         return (names, total)
     }
@@ -367,21 +391,6 @@ struct DraftLine {
     /// What is being charged — the product's price unless the owner overrode it
     /// for this bill.
     var price: Double
-}
-
-/// A name the owner has billed before, with the two facts that decide where it
-/// ranks in the suggestion list.
-struct CustomerSuggestion: Identifiable, Equatable {
-    let name: String
-    let billCount: Int
-    let owed: Double
-
-    var id: String { name }
-
-    /// `owes SAR 40` when they owe, otherwise `3 bills`.
-    func meta(in currency: Currency, strings: Strings) -> String {
-        owed > 0 ? strings.owes(Money.text(owed, in: currency)) : strings.bills(billCount)
-    }
 }
 
 enum RestockMode {

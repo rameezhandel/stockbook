@@ -10,8 +10,9 @@ import SwiftUI
 struct DropdownField<MenuContent: View>: View {
     var label: String?
     /// The short recognisable stamp on the left — a currency symbol, a language
-    /// code. Sized so both dropdowns line their titles up.
-    let mark: String
+    /// code. Sized so dropdowns that have one line their titles up; `nil` where
+    /// there is no useful stamp, as with a customer name.
+    let mark: String?
     let title: String
     var accessibilityName: String
     @ViewBuilder var menu: MenuContent
@@ -26,10 +27,12 @@ struct DropdownField<MenuContent: View>: View {
                 menu
             } label: {
                 HStack(spacing: 9) {
-                    Text(mark)
-                        .font(NocturneType.inter(15, .medium))
-                        .foregroundStyle(Nocturne.accent)
-                        .frame(minWidth: 34, alignment: .leading)
+                    if let mark {
+                        Text(mark)
+                            .font(NocturneType.inter(15, .medium))
+                            .foregroundStyle(Nocturne.accent)
+                            .frame(minWidth: 34, alignment: .leading)
+                    }
 
                     Text(title)
                         .font(NocturneType.inter(14))

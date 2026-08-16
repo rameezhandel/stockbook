@@ -167,6 +167,12 @@ struct Strings {
         pick("owes \(amount)", "\(amount) ಬಾಕಿ")
     }
 
+    var allCustomers: String { pick("All customers", "ಎಲ್ಲಾ ಗ್ರಾಹಕರು") }
+    var customerLabel: String { pick("Customer", "ಗ್ರಾಹಕ") }
+    var transactions: String { pick("Bought", "ಖರೀದಿಸಿದ್ದು") }
+    var pendingPayment: String { pick("Pending", "ಬಾಕಿ") }
+    var nothingPending: String { pick("Nothing", "ಏನೂ ಇಲ್ಲ") }
+
     // MARK: - Sell
 
     var newBill: String { pick("New bill", "ಹೊಸ ಬಿಲ್") }

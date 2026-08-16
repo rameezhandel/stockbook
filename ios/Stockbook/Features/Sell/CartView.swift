@@ -278,7 +278,7 @@ private struct CustomerField: View {
     @Environment(\.currency) private var currency
     @FocusState private var focused: Bool
 
-    private var suggestions: [CustomerSuggestion] {
+    private var suggestions: [Customer] {
         store.customerSuggestions(matching: name)
     }
 
