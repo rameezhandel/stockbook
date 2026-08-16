@@ -172,9 +172,11 @@ struct LanguageSettingTests {
 
         store.setLanguage(.kannada)
 
+        let onDisk = try repository.loadAll().settings.language
+
         #expect(store.settings.language == .kannada)
         #expect(L10n.language == .kannada)
-        #expect(try repository.loadAll().settings.language == .kannada)
+        #expect(onDisk == .kannada)
 
         store.setLanguage(.english)
         #expect(L10n.language == .english)
