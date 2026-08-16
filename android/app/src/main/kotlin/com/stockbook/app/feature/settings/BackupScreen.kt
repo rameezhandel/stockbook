@@ -162,7 +162,7 @@ fun BackupScreen(
                             style = NocturneType.inter(13.0),
                             color = Nocturne.text,
                             maxLines = 1,
-                            overflow = TextOverflow.MiddleEllipsis
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             current.document.summaryLine(strings),
