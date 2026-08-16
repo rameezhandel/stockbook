@@ -116,7 +116,7 @@ struct SetupFlowView: View {
     // MARK: Step 2 — what
 
     private var productsStep: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 Text(ownerName.firstName.isEmpty ? "Your shelves" : "Hello, \(ownerName.firstName)")
                     .font(NocturneType.inter(11))
@@ -172,8 +172,7 @@ struct SetupFlowView: View {
                 Kicker(drafts.isEmpty ? "Nothing added yet" : "Added · \(drafts.count)")
                     .padding(.bottom, 8)
 
-                ScrollView {
-                    LazyVStack(spacing: Metrics.rowGap) {
+                VStack(spacing: Metrics.rowGap) {
                         ForEach(drafts) { draft in
                             HStack(spacing: 10) {
                                 Text(draft.name).nocturneText(.rowPrimary)
@@ -193,12 +192,13 @@ struct SetupFlowView: View {
                             .padding(.vertical, 9)
                             .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
                         }
-                    }
-                    .padding(.bottom, 10)
                 }
+                .padding(.bottom, 10)
             }
-            .frame(maxHeight: .infinity, alignment: .top)
-
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .safeAreaInset(edge: .bottom) {
             footer {
                 HStack(spacing: 8) {
                     backButton(to: .name)
@@ -207,13 +207,18 @@ struct SetupFlowView: View {
                         .disabled(drafts.isEmpty)
                 }
             }
+            .background(Nocturne.bg)
         }
     }
 
     // MARK: Step 3 — how much
 
     private var pricesStep: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        // Everything scrolls, and the footer is a safe-area inset. That is the
+        // shape a form with a keyboard wants: the scroll view owns its own
+        // height, insets itself when the keyboard appears, and nothing fights
+        // over the space that is left.
+        ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Stock and prices")
                     .nocturneText(.setupTitle)
@@ -223,50 +228,21 @@ struct SetupFlowView: View {
                     .nocturneText(.body)
                     .padding(.bottom, 16)
 
-                ScrollView {
-                    LazyVStack(spacing: 10) {
-                        ForEach($drafts) { $draft in
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(draft.name)
-                                    .nocturneText(.rowPrimary)
-                                    .padding(.bottom, 10)
-
-                                HStack(alignment: .top, spacing: 8) {
-                                    NocturneField.number(
-                                        label: "In stock",
-                                        text: $draft.stock,
-                                        isRequiredAndEmpty: draft.stock.isBlank,
-                                        requiredMarking: .afterTouch,
-                                        identifier: "setup.stock"
-                                    )
-                                    NocturneField.number(
-                                        label: "You pay",
-                                        text: $draft.cost,
-                                        isRequiredAndEmpty: draft.cost.isBlank,
-                                        requiredMarking: .afterTouch,
-                                        identifier: "setup.cost"
-                                    )
-                                    NocturneField.number(
-                                        label: "You sell",
-                                        text: $draft.price,
-                                        isRequiredAndEmpty: (Money.parse(draft.price) ?? 0) <= 0,
-                                        requiredMarking: .afterTouch,
-                                        emphasis: .sellingPrice,
-                                        identifier: "setup.price"
-                                    )
-                                }
-                            }
-                            .padding(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-                        }
+                // A plain stack. There are a handful of products, so laziness
+                // buys nothing — and a LazyVStack renders only what is visible,
+                // which meant the cards disappeared the moment the keyboard
+                // squeezed the scroll view.
+                VStack(spacing: 10) {
+                    ForEach($drafts) { $draft in
+                        priceCard(draft: $draft)
                     }
-                    .padding(.bottom, 10)
                 }
-                .scrollDismissesKeyboard(.interactively)
             }
-            .frame(maxHeight: .infinity, alignment: .top)
-
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 10)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .safeAreaInset(edge: .bottom) {
             footer {
                 VStack(spacing: 8) {
                     // The gate explains itself rather than leaving a dead button
@@ -285,7 +261,44 @@ struct SetupFlowView: View {
                     }
                 }
             }
+            .background(Nocturne.bg)
         }
+    }
+
+    private func priceCard(draft: Binding<ProductDraft>) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(draft.wrappedValue.name)
+                .nocturneText(.rowPrimary)
+                .padding(.bottom, 10)
+
+            HStack(alignment: .top, spacing: 8) {
+                NocturneField.number(
+                    label: "In stock",
+                    text: draft.stock,
+                    isRequiredAndEmpty: draft.wrappedValue.stock.isBlank,
+                    requiredMarking: .afterTouch,
+                    identifier: "setup.stock"
+                )
+                NocturneField.number(
+                    label: "You pay",
+                    text: draft.cost,
+                    isRequiredAndEmpty: draft.wrappedValue.cost.isBlank,
+                    requiredMarking: .afterTouch,
+                    identifier: "setup.cost"
+                )
+                NocturneField.number(
+                    label: "You sell",
+                    text: draft.price,
+                    isRequiredAndEmpty: (Money.parse(draft.wrappedValue.price) ?? 0) <= 0,
+                    requiredMarking: .afterTouch,
+                    emphasis: .sellingPrice,
+                    identifier: "setup.price"
+                )
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
     }
 
     // MARK: Pieces
