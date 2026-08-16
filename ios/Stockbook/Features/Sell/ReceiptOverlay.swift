@@ -6,7 +6,7 @@ struct ReceiptOverlay: View {
     let bill: Bill
 
     @Environment(AppRouter.self) private var router
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(StockbookStore.self) private var store
     @Environment(\.topSafeInset) private var topInset
     @Environment(\.bottomSafeInset) private var bottomInset
 
@@ -40,56 +40,23 @@ struct ReceiptOverlay: View {
                 .overlay(Circle().strokeBorder(Nocturne.accent, lineWidth: 1))
                 .scaleEffect(checkScale)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(Loc.billSaved).font(NocturneType.inter(18, .medium))
-                Text(meta).nocturneText(.meta)
-            }
+            // No meta line here any more: the template below carries the
+            // number, the time and the customer, and saying them twice on one
+            // screen made the confirmation read like a form.
+            Text(Loc.billSaved).font(NocturneType.inter(18, .medium))
             Spacer(minLength: 0)
         }
         .padding(.bottom, 18)
     }
 
+    /// The same document the Bills tab opens, so the thing confirmed here and
+    /// the thing looked up later can never drift apart.
     private var card: some View {
         ScrollView {
-            VStack(spacing: 0) {
-                ForEach(bill.lines) { line in
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(line.name)
-                            .font(NocturneType.inter(14))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Text("\(line.qty) × \(Money.text(line.price, symbol: symbol))")
-                            .nocturneText(.meta)
-                        Text(Money.text(line.lineTotal, symbol: symbol))
-                            .font(NocturneType.inter(14))
-                    }
-                    .padding(.vertical, 7)
-                }
-
-                FadedRule()
-                    .padding(.vertical, 9)
-
-                HStack(alignment: .firstTextBaseline) {
-                    Text(Loc.total)
-                        .font(NocturneType.inter(13))
-                        .foregroundStyle(Nocturne.neutral500)
-                    Spacer()
-                    Text(Money.text(bill.total, symbol: symbol))
-                        .font(NocturneType.inter(25, .medium))
-                        .tracking(25 * -0.02)
-                }
-
-                Text(paymentNote)
-                    .font(NocturneType.inter(12.5))
-                    .foregroundStyle(Nocturne.accent400)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 7)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            BillTemplate(bill: bill, shopName: store.settings.ownerName)
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.statRadius, style: .continuous))
     }
 
     private var actions: some View {
@@ -111,18 +78,4 @@ struct ReceiptOverlay: View {
         .padding(.top, 14)
     }
 
-    /// `Bill #1 · 09:41 · Ahmed Contracting`
-    private var meta: String {
-        Loc.receiptMeta(number: bill.number, time: Loc.time(bill.createdAt), who: bill.who)
-    }
-
-    /// `Paid in full, cash.` or `Paid SAR 100 · Ahmed Contracting owes SAR 94`
-    private var paymentNote: String {
-        guard let paid = bill.paid else { return Loc.paidInFullCash }
-        return Loc.partPaidNote(
-            paid: Money.text(paid, symbol: symbol),
-            who: bill.who,
-            balance: Money.text(bill.balance, symbol: symbol)
-        )
-    }
 }

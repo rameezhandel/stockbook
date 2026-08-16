@@ -184,15 +184,47 @@ switch this one. `Settings` decodes every field as "if present, else the
 default", so a shop saved by the build before languages existed still opens.
 
 **What is never translated:** product names, customer names and bill contents —
-they are the owner's data, typed once. Money keeps `en_US` grouping in both
-languages, so a shop billing in SAR does not start grouping in lakhs, and the
-time on a bill stays 24-hour. Dates do follow the language: weekday and month
-names come from the system. The backup filename stays ASCII and unlocalised so
-it sorts and parses the same on every phone.
+they are the owner's data, typed once. The time on a bill stays 24-hour in both.
+Dates do follow the language: weekday and month names come from the system. The
+backup filename stays ASCII and unlocalised so it sorts and parses the same on
+every phone.
 
 Changing the language rebuilds the whole view tree (`RootView` keys on it) —
 heavy-handed, and exactly right for something that happens once and must leave
 nothing behind in the old language.
+
+## One currency
+
+The shop bills in exactly one, chosen in setup step 1 and changeable in
+Settings. The app never converts, never holds a rate, and never shows two
+currencies on one screen.
+
+`Currency` is a small table — code, symbol, minor units — and **the ISO code is
+what gets stored**, not the symbol. A wrong symbol is then a one-line fix here
+rather than a migration out of everyone's saved settings.
+
+- **The symbol carries its own spacing.** Alphabetic codes read as `SAR 194`, a
+  glyph reads as `₹194`. That is how each is written, and putting the space in
+  the symbol keeps `Money` free of a rule about which is which.
+- **Minor units follow the currency.** Two almost everywhere; three for KWD, BHD
+  and OMR. Rendering `0.125` as `0.13` in a shop that bills in fils is an error,
+  not a rounding preference. Whole numbers still show no decimal point at all,
+  as the handoff specifies.
+- **Grouping does not follow the currency.** `en_US` for all of them, so the same
+  number reads the same way whatever the shop bills in and whichever language it
+  reads — an INR shop does not start seeing lakh grouping mid-bill.
+- **Nothing is converted when it changes.** Amounts already saved keep their
+  numbers and start being drawn with the new symbol. That is the only honest
+  behaviour for an app holding no rate, and the Settings copy says so before the
+  tap rather than after.
+- **Import takes the file's currency**, unlike the language: those prices were
+  entered in it. Settings written before the code existed carry `currencySymbol`
+  instead, and are resolved back through the table.
+
+The backup format still writes `currencySymbol` alongside the new
+`currencyCode`, so a build from before currencies were selectable reads a
+current file unchanged — no version bump, because nothing an old reader sees has
+changed meaning.
 
 ## The design system
 
@@ -252,14 +284,27 @@ both it and setup step 3.
   editable price with its override treatment and Reset, the required customer
   field with an upward suggestion dropdown, full/part payment, and save.
 - **Receipt** — the full-screen confirmation, including the faded rule.
-- **Bills** — full history newest-first, with void-and-restore on every live
-  bill and the muted treatment on voided ones.
-- **Settings** — owner name and counts, real export to Files, Share via the OS
-  share sheet, and a validated import gated behind a warning that names what
-  will be lost. Plus Start over.
+- **Bills** — full history newest-first, with the muted treatment on voided
+  ones. Tapping any bill on Bills or Today opens it as a document.
+- **The bill itself** — `BillTemplate`: letterhead, number, date, customer,
+  every line with its arithmetic, total and what is owed. One view, used both
+  by the confirmation after saving and by the sheet that opens from history, so
+  the two cannot drift apart. Void lives inside the opened bill rather than on
+  the list row — the app's one destructive action on history now costs a
+  deliberate tap to reach, and the row goes back to being a row.
+- **Settings** — owner name and counts, the language switcher, real export to
+  Files, Share via the OS share sheet, and a validated import gated behind a
+  warning that names what will be lost. **Start over is `#if DEBUG` only**: one
+  tap with no confirmation clears every product, price and bill, which is right
+  for resetting to first-run during development and wrong to leave under
+  Settings on the phone holding the only copy of the shop. The store's
+  `startOver` rule is not conditional and stays tested in both configurations —
+  it just has no button in a release build.
 - **First-run setup** — all three steps: name, product names with the four
   suggestion capsules, then the stock-and-prices grid with its completeness gate.
 - **English and Kannada**, with the switcher in Settings.
+- **Currency selection** — fourteen currencies, picked in setup and changeable
+  in Settings.
 - **Product editor** and **Add stock** sheets, both complete.
 - 60-odd tests over the domain layer.
 

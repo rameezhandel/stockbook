@@ -20,7 +20,12 @@ struct BackupDocument: Codable, Equatable {
     var version: Int = BackupDocument.currentVersion
     var exportedAt: Date
     var ownerName: String
+    /// Kept from format v1 and still written, so a build from before currencies
+    /// were selectable reads a current file unchanged.
     var currencySymbol: String
+    /// The authoritative one. Absent in files written by that older build,
+    /// which is why `currencySymbol` above is still the thing it falls back to.
+    var currencyCode: String? = nil
     var products: [ProductRecord]
     var bills: [BillRecord]
 

@@ -1,39 +1,37 @@
 import SwiftUI
 
-/// A bill as it appears on Today and on Bills.
+/// A bill as it appears on Today and on Bills. Tapping one opens `BillSheet`.
+///
+/// The row used to carry "Void & put stock back" inline. It no longer does: the
+/// app's one destructive action on history now lives inside the opened bill, so
+/// reaching it costs a deliberate tap first, and the list stays a list.
 struct BillRow: View {
     let bill: Bill
-    var showsVoidAction = false
-    var onVoid: (() -> Void)?
 
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(bill.summary)
-                        .nocturneText(.rowValue)
-                        .foregroundStyle(bill.voided ? Nocturne.neutral500 : Nocturne.text)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Text(meta).nocturneText(.meta)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text(Money.text(bill.total, symbol: symbol))
-                    .font(NocturneType.inter(15))
-                    .foregroundStyle(totalColor)
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(bill.summary)
+                    .nocturneText(.rowValue)
+                    .foregroundStyle(bill.voided ? Nocturne.neutral500 : Nocturne.text)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Text(meta).nocturneText(.meta)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            if showsVoidAction, !bill.voided, let onVoid {
-                Button(Loc.voidAndRestock, action: onVoid)
-                    .buttonStyle(GhostButtonStyle(fontSize: 11.5, tint: Nocturne.neutral500, horizontalPadding: 0))
-                    .padding(.top, 5)
-            }
+            Text(Money.text(bill.total, in: currency))
+                .font(NocturneType.inter(15))
+                .foregroundStyle(totalColor)
+
+            Glyph(Icon.openRow, size: 12)
+                .foregroundStyle(Nocturne.neutral600)
         }
         .padding(12)
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.rowRadius, style: .continuous))
+        .contentShape(Rectangle())
     }
 
     /// `voided · Ahmed Contracting · 09:41 · 2 items · owes SAR 94`
@@ -44,7 +42,7 @@ struct BillRow: View {
         parts.append(Loc.time(bill.createdAt))
         parts.append(Loc.items(bill.lines.count))
         if bill.isPartPaid, bill.balance > 0 {
-            parts.append(Loc.owes(Money.text(bill.balance, symbol: symbol)))
+            parts.append(Loc.owes(Money.text(bill.balance, in: currency)))
         }
         return parts.joined(separator: " · ")
     }

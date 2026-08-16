@@ -20,6 +20,12 @@ settings:
   base:
     SWIFT_VERSION: "5.0"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+  configs:
+    # Settings' "Start over" is behind `#if DEBUG`, so this flag is load-bearing
+    # rather than incidental. Stated explicitly instead of relying on the
+    # generator's defaults.
+    Debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG $(inherited)"
 
 targets:
   Stockbook:

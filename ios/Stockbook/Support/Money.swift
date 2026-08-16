@@ -3,19 +3,27 @@ import SwiftUI
 
 /// Currency rendering. One rule, one place.
 ///
-/// From the handoff: `SAR ` prefix with a trailing space, integers rendered
-/// without decimals (`SAR 194`), non-integers to exactly two (`SAR 0.25`),
-/// `en-US` grouping. The symbol is a single configurable constant so a shop in
-/// another country only changes `ShopSettings.currencySymbol`.
+/// From the handoff: the symbol prefixes the amount, whole numbers render
+/// without decimals (`SAR 194`), and anything else renders to exactly the
+/// currency's minor units (`SAR 0.25`, `KWD 0.125`). Which currency that is
+/// comes from `Settings`; see `Currency`.
+///
+/// **Grouping is `en_US` for every currency.** It is the app's own rule rather
+/// than the locale's, so the same number reads the same way whatever the shop
+/// bills in and whichever language it reads — a shop that switches to Kannada
+/// does not start seeing its riyals grouped in lakhs.
 enum Money {
 
-    static let defaultSymbol = "SAR "
-
-    /// Two formatters, each configured once, rather than one mutated per call —
-    /// a shared `NumberFormatter` whose fraction digits change on every use is a
-    /// data race waiting to be found.
-    private static let wholeFormatter = makeFormatter(fractionDigits: 0)
-    private static let decimalFormatter = makeFormatter(fractionDigits: 2)
+    /// One formatter per fraction-digit count, each configured once, rather than
+    /// one mutated per call — a shared `NumberFormatter` whose fraction digits
+    /// change on every use is a data race waiting to be found.
+    private static let formatters: [Int: NumberFormatter] = {
+        var made: [Int: NumberFormatter] = [:]
+        for digits in 0...3 {
+            made[digits] = makeFormatter(fractionDigits: digits)
+        }
+        return made
+    }()
 
     private static func makeFormatter(fractionDigits: Int) -> NumberFormatter {
         let f = NumberFormatter()
@@ -27,18 +35,20 @@ enum Money {
         return f
     }
 
-    /// `SAR 1,240` / `SAR 0.25`.
-    static func text(_ value: Double, symbol: String = defaultSymbol) -> String {
-        symbol + amount(value)
+    /// `SAR 1,240` / `SAR 0.25` / `₹12`.
+    static func text(_ value: Double, in currency: Currency = .default) -> String {
+        currency.symbol + amount(value, in: currency)
     }
 
     /// The number alone, no symbol.
-    static func amount(_ value: Double) -> String {
-        let rounded = (value * 100).rounded() / 100
+    static func amount(_ value: Double, in currency: Currency = .default) -> String {
+        let scale = pow(10.0, Double(currency.fractionDigits))
+        let rounded = (value * scale).rounded() / scale
         // `-0.0` would otherwise print as "-0".
         let normalised = rounded == 0 ? 0 : rounded
 
-        let formatter = normalised.isIntegerValued ? wholeFormatter : decimalFormatter
+        let digits = normalised.isIntegerValued ? 0 : currency.fractionDigits
+        let formatter = formatters[digits] ?? makeFormatter(fractionDigits: digits)
         return formatter.string(from: NSNumber(value: normalised)) ?? String(normalised)
     }
 
@@ -55,15 +65,15 @@ private extension Double {
     var isIntegerValued: Bool { self == rounded() && isFinite }
 }
 
-/// The currency symbol, injected once at the root from `ShopSettings` so no
-/// screen has to reach into the store just to format a number.
-private struct CurrencySymbolKey: EnvironmentKey {
-    static let defaultValue = Money.defaultSymbol
+/// The shop's currency, injected once at the root from `Settings` so no screen
+/// has to reach into the store just to format a number.
+private struct CurrencyKey: EnvironmentKey {
+    static let defaultValue = Currency.default
 }
 
 extension EnvironmentValues {
-    var currencySymbol: String {
-        get { self[CurrencySymbolKey.self] }
-        set { self[CurrencySymbolKey.self] = newValue }
+    var currency: Currency {
+        get { self[CurrencyKey.self] }
+        set { self[CurrencyKey.self] = newValue }
     }
 }

@@ -29,6 +29,8 @@ enum Icon {
     static let confirm = "checkmark"                  // phosphor: check
     static let browseAll = "text.magnifyingglass"     // phosphor: list-magnifying-glass
     static let addStock = "plus.square.on.square"     // phosphor: stack-plus
+    static let chooseFromList = "chevron.up.chevron.down" // phosphor: caret-up-down
+    static let openRow = "chevron.right"              // phosphor: caret-right
 
     // People & money
     static let customer = "person"                    // phosphor: user

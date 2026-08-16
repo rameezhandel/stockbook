@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 struct TodayScreen: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
 
     @State private var exportDocument: BackupFile?
     @State private var isExporting = false
@@ -67,7 +67,7 @@ struct TodayScreen: View {
         HStack(spacing: Metrics.cardGap) {
             StatCard(
                 label: Loc.soldToday,
-                value: Money.text(liveBills.reduce(0) { $0 + $1.total }, symbol: symbol),
+                value: Money.text(liveBills.reduce(0) { $0 + $1.total }, in: currency),
                 gradient: true
             )
             StatCard(label: Loc.billsStat, value: String(liveBills.count))
@@ -88,7 +88,7 @@ struct TodayScreen: View {
                     .font(NocturneType.inter(12.5))
                     .foregroundStyle(Nocturne.neutral400)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text(Money.text(owed.total, symbol: symbol))
+                Text(Money.text(owed.total, in: currency))
                     .font(NocturneType.inter(16))
                     .foregroundStyle(Nocturne.accent400)
             }
@@ -133,7 +133,12 @@ struct TodayScreen: View {
             } else {
                 VStack(spacing: Metrics.rowGap) {
                     ForEach(bills.prefix(3)) { bill in
-                        BillRow(bill: bill)
+                        Button {
+                            router.openBill(bill)
+                        } label: {
+                            BillRow(bill: bill)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }

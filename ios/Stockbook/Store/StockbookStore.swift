@@ -69,6 +69,18 @@ final class StockbookStore {
         attempt { try repository.save(settings) }
     }
 
+    /// The one currency the shop bills in.
+    ///
+    /// Nothing is converted. Amounts already saved keep their numbers and start
+    /// being drawn with the new symbol, which is the honest behaviour for an app
+    /// that holds no exchange rate — and the reason the Settings copy says so
+    /// out loud before the tap.
+    func setCurrency(_ currency: Currency) {
+        guard settings.currencyCode != currency.code else { return }
+        settings.currencyCode = currency.code
+        attempt { try repository.save(settings) }
+    }
+
     func completeSetup() {
         settings.setupCompleted = true
         attempt { try repository.save(settings) }
@@ -286,7 +298,11 @@ final class StockbookStore {
         // switch this one.
         restored.language = settings.language
         restored.ownerName = document.ownerName
-        restored.currencySymbol = document.currencySymbol
+        // Currency, unlike language, is a property of the numbers in the file:
+        // those prices were entered in it.
+        restored.currencyCode = document.currencyCode
+            ?? Currency.matching(symbol: document.currencySymbol)?.code
+            ?? Currency.default.code
         restored.nextBillNumber = (document.bills.map(\.number).max() ?? 0) + 1
         restored.setupCompleted = true
         // The imported file is a copy of *another* phone's backup, not a backup
@@ -322,7 +338,8 @@ final class StockbookStore {
         BackupDocument(
             exportedAt: date,
             ownerName: settings.ownerName,
-            currencySymbol: settings.currencySymbol,
+            currencySymbol: settings.currency.symbol,
+            currencyCode: settings.currencyCode,
             products: products.map {
                 BackupDocument.ProductRecord(uid: $0.uid, name: $0.name, stock: $0.stock, cost: $0.cost, price: $0.price)
             },
@@ -362,8 +379,8 @@ struct CustomerSuggestion: Identifiable, Equatable {
     var id: String { name }
 
     /// `owes SAR 40` when they owe, otherwise `3 bills`.
-    func meta(symbol: String, strings: Strings) -> String {
-        owed > 0 ? strings.owes(Money.text(owed, symbol: symbol)) : strings.bills(billCount)
+    func meta(in currency: Currency, strings: Strings) -> String {
+        owed > 0 ? strings.owes(Money.text(owed, in: currency)) : strings.bills(billCount)
     }
 }
 

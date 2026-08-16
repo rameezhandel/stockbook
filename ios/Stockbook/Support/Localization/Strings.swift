@@ -227,11 +227,32 @@ struct Strings {
     // MARK: - Receipt
 
     var billSaved: String { pick("Bill saved", "ಬಿಲ್ ಉಳಿಸಲಾಗಿದೆ") }
+    var billDetailTitle: String { pick("Bill details", "ಬಿಲ್ ವಿವರ") }
     var seeBills: String { pick("See bills", "ಬಿಲ್‌ಗಳನ್ನು ನೋಡಿ") }
     var nextCustomer: String { pick("Next customer", "ಮುಂದಿನ ಗ್ರಾಹಕರು") }
 
-    func receiptMeta(number: Int, time: String, who: String) -> String {
-        pick("Bill #\(number) · \(time) · \(who)", "ಬಿಲ್ #\(number) · \(time) · \(who)")
+    func billNumber(_ number: Int) -> String {
+        pick("Bill #\(number)", "ಬಿಲ್ #\(number)")
+    }
+
+    func billWhen(date: String, time: String) -> String {
+        pick("\(date) · \(time)", "\(date) · \(time)")
+    }
+
+    func billedTo(_ name: String) -> String {
+        pick("Billed to \(name)", "\(name) ಅವರಿಗೆ")
+    }
+
+    /// `2 × SAR 95` — the arithmetic behind a line, kept visible.
+    func quantityAtPrice(quantity: Int, price: String) -> String {
+        pick("\(quantity) × \(price)", "\(quantity) × \(price)")
+    }
+
+    var voidedNote: String {
+        pick(
+            "This bill was voided. The stock went back on the shelf and nothing is owed on it.",
+            "ಈ ಬಿಲ್ ರದ್ದಾಗಿದೆ. ದಾಸ್ತಾನು ವಾಪಸ್ ಹೋಗಿದೆ, ಇದರ ಮೇಲೆ ಯಾವ ಬಾಕಿಯೂ ಇಲ್ಲ."
+        )
     }
 
     var paidInFullCash: String { pick("Paid in full, cash.", "ಪೂರ್ತಿ ಪಾವತಿ, ನಗದು.") }
@@ -368,6 +389,32 @@ struct Strings {
     var productsStat: String { pick("Products", "ಸಾಮಾನುಗಳು") }
     var customersStat: String { pick("Customers", "ಗ್ರಾಹಕರು") }
     var languageSection: String { pick("Language", "ಭಾಷೆ") }
+    var currencySection: String { pick("Currency", "ಹಣದ ಬಗೆ") }
+
+    /// `Saudi Riyal` — from the system, so it arrives already in the language
+    /// in force rather than being another column to keep translated.
+    func currencyName(_ currency: Currency) -> String {
+        language.locale.localizedString(forCurrencyCode: currency.code) ?? currency.code
+    }
+
+    /// `SAR · Saudi Riyal` — the menu row.
+    func currencyRow(_ currency: Currency) -> String {
+        "\(currency.code) · \(currencyName(currency))"
+    }
+
+    var currencyNote: String {
+        pick(
+            "Every price and total is shown in this. Nothing is converted — amounts already saved keep the numbers you entered, and only the symbol in front of them changes.",
+            "ಎಲ್ಲಾ ಬೆಲೆ ಮತ್ತು ಒಟ್ಟು ಮೊತ್ತ ಇದರಲ್ಲೇ ಕಾಣಿಸುತ್ತದೆ. ಯಾವುದೂ ಪರಿವರ್ತನೆ ಆಗುವುದಿಲ್ಲ — ಈಗಾಗಲೇ ಉಳಿಸಿದ ಮೊತ್ತಗಳ ಸಂಖ್ಯೆ ಹಾಗೆಯೇ ಇರುತ್ತದೆ, ಮುಂದಿನ ಚಿಹ್ನೆ ಮಾತ್ರ ಬದಲಾಗುತ್ತದೆ."
+        )
+    }
+
+    var setupCurrencyNote: String {
+        pick(
+            "What you bill in. You can change it later in Settings.",
+            "ನೀವು ಯಾವ ಹಣದಲ್ಲಿ ಬಿಲ್ ಮಾಡುತ್ತೀರಿ. ಆಮೇಲೆ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಬದಲಿಸಬಹುದು."
+        )
+    }
 
     var languageNote: String {
         pick(

@@ -51,7 +51,7 @@ private struct AppRoot: View {
                 SetupFlowView()
             }
         }
-        .environment(\.currencySymbol, store.settings.currencySymbol)
+        .environment(\.currency, store.settings.currency)
         .environment(\.locale, store.settings.language.locale)
         .tint(Nocturne.accent)
         // Every string in the app is read from `L10n` at render time, and
@@ -111,6 +111,9 @@ private struct AppShell: View {
         }
         .nocturneSheet(item: $router.addStock) { target in
             AddStockSheet(product: target.product)
+        }
+        .nocturneSheet(item: $router.billDetail) { bill in
+            BillSheet(bill: bill)
         }
     }
 

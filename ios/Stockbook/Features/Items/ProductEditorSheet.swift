@@ -12,7 +12,7 @@ struct ProductEditorSheet: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
     @Environment(Cart.self) private var cart
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
 
     @State private var name = ""
     @State private var stock = ""
@@ -99,7 +99,7 @@ struct ProductEditorSheet: View {
         let sell = Money.parse(price) ?? 0
         let buy = Money.parse(cost) ?? 0
         guard sell > buy else { return Loc.setPriceAboveCost }
-        return Loc.youMakeAPiece(Money.text(sell - buy, symbol: symbol))
+        return Loc.youMakeAPiece(Money.text(sell - buy, in: currency))
     }
 
     private func loadDraft() {
@@ -108,8 +108,8 @@ struct ProductEditorSheet: View {
         guard let product else { return }
         name = product.name
         stock = String(product.stock)
-        cost = Money.amount(product.cost)
-        price = Money.amount(product.price)
+        cost = Money.amount(product.cost, in: currency)
+        price = Money.amount(product.price, in: currency)
     }
 
     private func save() {
