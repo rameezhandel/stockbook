@@ -11,7 +11,10 @@ import Observation
 final class Cart {
 
     struct Line: Identifiable {
-        let product: Product
+        let productUID: UUID
+        /// Snapshot of the name at the moment it was added — enough to render
+        /// the row without holding a copy of the product that could go stale.
+        let name: String
         var qty: Int
         /// What is being charged. Prefilled from the product's selling price and
         /// editable — the whole point of the cart screen.
@@ -20,10 +23,9 @@ final class Cart {
         /// offer "Reset". The product's own price is never touched by an override.
         let basePrice: Double
 
-        var id: UUID { product.uid }
+        var id: UUID { productUID }
         var lineTotal: Double { Double(qty) * price }
         var isPriceOverridden: Bool { abs(price - basePrice) > 0.0001 }
-        var exceedsStock: Bool { qty > product.stock }
     }
 
     enum PayMode {
@@ -66,10 +68,10 @@ final class Cart {
     /// Adds one piece at the product's current selling price, or increments the
     /// line if it is already in the cart.
     func add(_ product: Product) {
-        if let index = lines.firstIndex(where: { $0.product.uid == product.uid }) {
+        if let index = lines.firstIndex(where: { $0.productUID == product.uid }) {
             lines[index].qty += 1
         } else {
-            lines.append(Line(product: product, qty: 1, price: product.price, basePrice: product.price))
+            lines.append(Line(productUID: product.uid, name: product.name, qty: 1, price: product.price, basePrice: product.price))
         }
     }
 
@@ -97,6 +99,13 @@ final class Cart {
         remove(product.uid)
     }
 
+    /// True when the cart no longer matches the catalogue — the product behind a
+    /// line was deleted while the bill was open.
+    func prune(against products: [Product]) {
+        let known = Set(products.map(\.uid))
+        lines.removeAll { !known.contains($0.productUID) }
+    }
+
     func clear() {
         lines = []
         customer = ""
@@ -104,8 +113,16 @@ final class Cart {
         paidText = ""
     }
 
+    /// Live shelf count for a line. The cart deliberately does not carry one:
+    /// stock changes elsewhere while a bill is open, and a stale number here is
+    /// exactly the sort of quiet wrongness this app is meant to avoid.
+    @MainActor
+    func stock(for line: Line, in store: StockbookStore) -> Int {
+        store.product(uid: line.productUID)?.stock ?? 0
+    }
+
     /// The cart in the shape `StockbookStore.saveBill` wants.
     var draftLines: [DraftLine] {
-        lines.map { DraftLine(product: $0.product, qty: $0.qty, price: $0.price) }
+        lines.map { DraftLine(productUID: $0.productUID, qty: $0.qty, price: $0.price) }
     }
 }

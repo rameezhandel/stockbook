@@ -7,6 +7,7 @@ struct CartView: View {
     let onSave: () -> Void
 
     @Environment(Cart.self) private var cart
+    @Environment(StockbookStore.self) private var store
     @Environment(\.currencySymbol) private var symbol
     @Environment(\.bottomSafeInset) private var bottomInset
 
@@ -19,6 +20,7 @@ struct CartView: View {
                     ForEach(cart.lines) { line in
                         CartLineCard(
                             line: line,
+                            stock: cart.stock(for: line, in: store),
                             onQuantity: { cart.setQuantity($0, for: line.id) },
                             onPrice: { cart.setPrice($0, for: line.id) },
                             onResetPrice: { cart.resetPrice(for: line.id) },
@@ -110,6 +112,9 @@ struct CartView: View {
 /// One product on the bill: quantity, live stock, and the editable price.
 private struct CartLineCard: View {
     let line: Cart.Line
+    /// Read from the store rather than carried on the line, so adding stock from
+    /// another screen shows here immediately.
+    let stock: Int
     let onQuantity: (Int) -> Void
     let onPrice: (Double) -> Void
     let onResetPrice: () -> Void
@@ -127,7 +132,7 @@ private struct CartLineCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
-                Text(line.product.name)
+                Text(line.name)
                     .nocturneText(.rowPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .lineLimit(1)
@@ -139,7 +144,7 @@ private struct CartLineCard: View {
                         .minimumTouchTarget()
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Remove \(line.product.name)")
+                .accessibilityLabel("Remove \(line.name)")
             }
             .padding(.bottom, 10)
 
@@ -245,10 +250,10 @@ private struct CartLineCard: View {
     /// The shelf, honestly. Overselling is allowed — the customer is standing
     /// there and the count may simply be wrong — but it is never silent.
     private var stockNote: String {
-        line.exceedsStock
-            ? "only \(line.product.stock) in stock"
-            : "pieces · \(line.product.stock) in stock"
+        qty > stock ? "only \(stock) in stock" : "pieces · \(stock) in stock"
     }
+
+    private var qty: Int { line.qty }
 }
 
 // MARK: - Customer

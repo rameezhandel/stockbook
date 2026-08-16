@@ -1,37 +1,47 @@
 import Foundation
-import SwiftData
 
 /// One line of stock on the shelf.
 ///
-/// Everything in Stockbook sells **by the piece** — no units, no packs, no
-/// fractional quantities. One product is one stock count and one selling price.
-/// (An earlier design had pack/loose variants sharing a count; the owner cut it.)
-@Model
-final class Product {
+/// A plain value type: no framework, no persistence, no identity beyond its own
+/// `uid`. Storage is somebody else's problem — see `StockbookRepository`.
+///
+/// Everything in Stockbook sells **by the piece**. One product is one stock
+/// count and one selling price. (An earlier design had pack/loose variants
+/// sharing a count; the owner cut it.)
+struct Product: Identifiable, Codable, Equatable {
 
-    /// A stable identity that survives export and import. `persistentModelID`
-    /// cannot: it is local to one store, and a backup has to be readable on a
-    /// different phone.
-    var uid: UUID = UUID()
+    /// Stable identity, and the only one there is. It survives export, import
+    /// and a change of storage engine — which a row id or an object reference
+    /// would not.
+    let uid: UUID
 
-    var name: String = ""
+    var name: String
 
     /// Pieces on the shelf. Only ever changed by: setup, the product editor,
     /// saving a bill (decrement, floored at 0), voiding a bill (increment back),
     /// and restock (increment). See `StockbookStore`.
-    var stock: Int = 0
+    var stock: Int
 
     /// The **latest** buying price per piece — not a weighted average. A
     /// purchase entry overwrites it. There is no inventory valuation layer here
     /// and the handoff asks for it to stay that way.
-    var cost: Double = 0
+    var cost: Double
 
     /// Selling price per piece. Must be greater than zero.
-    var price: Double = 0
+    var price: Double
 
-    var createdAt: Date = Date.now
+    var createdAt: Date
 
-    init(uid: UUID = UUID(), name: String, stock: Int, cost: Double, price: Double, createdAt: Date = .now) {
+    var id: UUID { uid }
+
+    init(
+        uid: UUID = UUID(),
+        name: String,
+        stock: Int,
+        cost: Double,
+        price: Double,
+        createdAt: Date = .now
+    ) {
         self.uid = uid
         self.name = name
         self.stock = stock

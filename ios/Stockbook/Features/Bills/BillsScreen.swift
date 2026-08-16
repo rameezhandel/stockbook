@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 /// Every bill ever saved, newest first — and the only correction path the app
 /// has.
@@ -12,7 +11,7 @@ struct BillsScreen: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
 
-    @Query(sort: \Bill.createdAt, order: .reverse) private var bills: [Bill]
+    private var bills: [Bill] { store.bills }
 
     var body: some View {
         VStack(spacing: 0) {

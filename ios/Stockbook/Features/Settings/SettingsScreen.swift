@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import UniformTypeIdentifiers
 
 /// Settings, and the export/import handoff that is the app's only route onto a
@@ -12,10 +11,6 @@ import UniformTypeIdentifiers
 struct SettingsScreen: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
-
-    @Query private var settingsRows: [ShopSettings]
-    @Query private var products: [Product]
-    @Query private var bills: [Bill]
 
     @State private var ownerName = ""
     @State private var seeded = false
@@ -30,8 +25,10 @@ struct SettingsScreen: View {
     @State private var isImporting = false
     @State private var importFlow = ImportFlow()
 
-    private var settings: ShopSettings { settingsRows.first ?? store.settings() }
-    private var liveBills: [Bill] { bills.filter { !$0.voided } }
+    private var settings: Settings { store.settings }
+    private var products: [Product] { store.products }
+    private var bills: [Bill] { store.bills }
+    private var liveBills: [Bill] { store.liveBills }
 
     var body: some View {
         VStack(spacing: 0) {

@@ -1,25 +1,15 @@
 import SwiftUI
-import SwiftData
 
 /// The catalogue: what is on the shelf, what it cost, what it sells for.
 struct ItemsScreen: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
 
-    @Query(sort: \Product.name) private var products: [Product]
-    @Query private var settingsRows: [ShopSettings]
-
     @State private var query = ""
 
-    private var lowStockAt: Int { settingsRows.first?.lowStockAt ?? 40 }
-
-    /// Case-insensitive substring match. In-memory: 50–300 products is nothing,
-    /// and it keeps the rule visible.
-    private var filtered: [Product] {
-        let needle = query.trimmed.lowercased()
-        guard !needle.isEmpty else { return products }
-        return products.filter { $0.name.lowercased().contains(needle) }
-    }
+    private var products: [Product] { store.products }
+    private var lowStockAt: Int { store.settings.lowStockAt }
+    private var filtered: [Product] { store.products(matching: query) }
 
     var body: some View {
         VStack(spacing: 0) {

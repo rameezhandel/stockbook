@@ -1,40 +1,40 @@
 import Foundation
-import SwiftData
 
 /// One sale.
 ///
-/// Bills are never deleted — a mistake is *voided*, which puts the stock back
-/// and leaves the record in place.
-@Model
-final class Bill {
+/// Bills are never deleted. A mistake is *voided*, which puts the stock back and
+/// leaves the record in place — without that, one mistyped bill puts the shelf
+/// and the app permanently out of step.
+struct Bill: Identifiable, Codable, Equatable {
 
     /// The human-facing number, shown as "Bill #7". Allocated from
-    /// `ShopSettings.nextBillNumber` so it is stable and monotonic; SwiftData's
-    /// own identifier is not something to put in front of a customer.
-    var number: Int = 0
+    /// `Settings.nextBillNumber`, so it is stable, monotonic, and something you
+    /// can say to a customer.
+    let number: Int
 
-    @Relationship(deleteRule: .cascade, inverse: \BillLine.bill)
-    var lines: [BillLine] = []
+    var lines: [BillLine]
 
     /// Sum of `qty × price` at the moment of sale — **stored**, never recomputed
     /// from current product prices. Editing a product tomorrow must not rewrite
-    /// what a customer paid today.
-    var total: Double = 0
+    /// what somebody paid today.
+    var total: Double
 
     /// `nil` means paid in full. A number means part paid, and the customer owes
     /// `total − paid`.
     var paid: Double?
 
     /// Customer name, trimmed. Required on every bill.
-    var who: String = ""
+    var who: String
 
-    var createdAt: Date = Date.now
+    var createdAt: Date
 
-    var voided: Bool = false
+    var voided: Bool
+
+    var id: Int { number }
 
     init(
         number: Int,
-        lines: [BillLine] = [],
+        lines: [BillLine],
         total: Double,
         paid: Double?,
         who: String,
@@ -62,33 +62,30 @@ final class Bill {
     var timeLabel: String { Copy.time(createdAt) }
 
     /// The row's first line: the names on the bill, joined.
-    var summary: String {
-        lines.map(\.name).joined(separator: ", ")
-    }
+    var summary: String { lines.map(\.name).joined(separator: ", ") }
 }
 
 /// A single line on a bill.
 ///
 /// `name` and `price` are **snapshots** taken at sale time. The product may be
 /// renamed, repriced or deleted afterwards; history must not move.
-@Model
-final class BillLine {
+struct BillLine: Identifiable, Codable, Equatable {
 
-    /// Which product this was, by the identity that survives export/import.
-    /// Optional because a line can outlive its product.
+    /// Which product this was. Optional because a line can outlive its product.
     var productUID: UUID?
 
     /// The product's name *at the time of sale*.
-    var name: String = ""
+    var name: String
 
     /// At least 1.
-    var qty: Int = 1
+    var qty: Int
 
-    /// The price actually charged — which may be an override, not the product's
-    /// list price.
-    var price: Double = 0
+    /// The price actually charged — which may be an override, not the list price.
+    var price: Double
 
-    var bill: Bill?
+    /// Lines are identified by position within their bill; nothing outside a
+    /// bill ever refers to one.
+    var id: String { "\(productUID?.uuidString ?? "none")-\(name)-\(qty)-\(price)" }
 
     init(productUID: UUID?, name: String, qty: Int, price: Double) {
         self.productUID = productUID

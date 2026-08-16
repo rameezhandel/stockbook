@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 /// The billing flow: a product picker and a cart, sharing one search field and
 /// one header.
@@ -13,7 +12,7 @@ struct SellScreen: View {
     @Environment(AppRouter.self) private var router
     @Environment(Cart.self) private var cart
 
-    @Query(sort: \Product.name) private var products: [Product]
+    private var products: [Product] { store.products }
 
     @State private var query = ""
     /// Set by "Add another item" — the one case where the picker is showing even
@@ -24,11 +23,7 @@ struct SellScreen: View {
         cart.isEmpty || !query.isBlank || browsing
     }
 
-    private var matches: [Product] {
-        let needle = query.trimmed.lowercased()
-        guard !needle.isEmpty else { return products }
-        return products.filter { $0.name.lowercased().contains(needle) }
-    }
+    private var matches: [Product] { store.products(matching: query) }
 
     var body: some View {
         VStack(spacing: 0) {

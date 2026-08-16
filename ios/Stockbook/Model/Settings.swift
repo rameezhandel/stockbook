@@ -1,10 +1,7 @@
 import Foundation
-import SwiftData
 
-/// The single settings row. Fetched — or created on first launch — by
-/// `StockbookStore.settings()`; nothing else should instantiate one.
-@Model
-final class ShopSettings {
+/// The shop's own settings. One of these exists, always.
+struct Settings: Codable, Equatable {
 
     /// The business owner's name, asked for as step 1 of setup and shown as
     /// "Hello, <first name>" on the dashboard.
@@ -27,7 +24,19 @@ final class ShopSettings {
     /// Next value for `Bill.number`.
     var nextBillNumber: Int = 1
 
-    init() {}
-
     var hasBackup: Bool { lastExportAt != nil }
+}
+
+/// Everything the app persists, in one value.
+///
+/// The whole shop fits comfortably in memory — the handoff pins the catalogue at
+/// 50–300 products — which is what makes a value-typed domain and a swappable
+/// repository affordable here. At a hundred times the size this would be the
+/// wrong shape.
+struct ShopState: Codable, Equatable {
+    var products: [Product] = []
+    var bills: [Bill] = []
+    var settings: Settings = Settings()
+
+    static let empty = ShopState()
 }

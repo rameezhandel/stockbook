@@ -1,102 +1,133 @@
 import Foundation
-import SwiftData
+import Observation
 
-/// Every rule that changes data lives here.
+/// Every rule that changes data lives here, and the current shop lives here too.
 ///
-/// Views read with `@Query` — SwiftData keeps them fresh — but they never mutate
-/// a model directly. Stock arithmetic, bill numbering, snapshotting and the
-/// void/restock rules are all one layer, which is the layer the tests drive.
+/// Views read `products`, `bills` and `settings` directly and never mutate them —
+/// the setters are private, so that is enforced rather than merely asked for.
+/// Stock arithmetic, bill numbering, snapshotting and the void/restock rules are
+/// all one layer, which is the layer the tests drive.
 ///
-/// The catalogue is 50–300 products, so filtering and grouping happen in memory
-/// rather than in predicates. That is a deliberate size-appropriate choice, not
-/// an oversight: it keeps the search and suggestion rules readable and testable.
+/// Persistence is a `StockbookRepository` and nothing here knows which one. The
+/// whole shop is held in memory because it comfortably fits — 50–300 products —
+/// which is what makes reads free and the storage seam cheap.
 @MainActor
 @Observable
 final class StockbookStore {
 
-    let context: ModelContext
+    private(set) var products: [Product] = []
+    private(set) var bills: [Bill] = []
+    private(set) var settings: Settings = Settings()
 
-    init(context: ModelContext) {
-        self.context = context
+    /// Set when the disk refuses a write. Nothing in the UI surfaces it yet;
+    /// it exists so a failure is recorded rather than swallowed.
+    private(set) var lastError: String?
+
+    private let repository: StockbookRepository
+
+    init(repository: StockbookRepository) {
+        self.repository = repository
+        reload()
+    }
+
+    private func reload() {
+        do {
+            let state = try repository.loadAll()
+            products = state.products.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+            bills = state.bills.sorted { $0.createdAt > $1.createdAt }
+            settings = state.settings
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Writes are best-effort in the sense that a failure cannot roll back the
+    /// in-memory change — but it is recorded rather than ignored.
+    private func attempt(_ work: () throws -> Void) {
+        do {
+            try work()
+        } catch {
+            lastError = error.localizedDescription
+        }
     }
 
     // MARK: - Settings
 
-    /// The single settings row, created on first access.
-    func settings() -> ShopSettings {
-        let existing = (try? context.fetch(FetchDescriptor<ShopSettings>())) ?? []
-        if let first = existing.first { return first }
-
-        let created = ShopSettings()
-        context.insert(created)
-        save()
-        return created
-    }
-
     func setOwnerName(_ name: String) {
-        settings().ownerName = name.trimmed
-        save()
+        settings.ownerName = name.trimmed
+        attempt { try repository.save(settings) }
     }
 
     func completeSetup() {
-        settings().setupCompleted = true
-        save()
+        settings.setupCompleted = true
+        attempt { try repository.save(settings) }
+    }
+
+    func markExported(at date: Date = .now) {
+        settings.lastExportAt = date
+        attempt { try repository.save(settings) }
     }
 
     // MARK: - Reading
 
-    func allProducts() -> [Product] {
-        let descriptor = FetchDescriptor<Product>(sortBy: [SortDescriptor(\.name)])
-        return (try? context.fetch(descriptor)) ?? []
-    }
-
     func product(uid: UUID) -> Product? {
-        allProducts().first { $0.uid == uid }
+        products.first { $0.uid == uid }
     }
 
-    func allBills() -> [Bill] {
-        let descriptor = FetchDescriptor<Bill>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
-        return (try? context.fetch(descriptor)) ?? []
+    var liveBills: [Bill] { bills.filter { !$0.voided } }
+
+    /// Case-insensitive substring match. In memory: at this catalogue size it is
+    /// free, and it keeps the rule visible.
+    func products(matching query: String) -> [Product] {
+        let needle = query.trimmed.lowercased()
+        guard !needle.isEmpty else { return products }
+        return products.filter { $0.name.lowercased().contains(needle) }
     }
 
     // MARK: - Products
 
-    /// Adds a product. Names are deduplicated case-insensitively — typing a name
+    /// Adds a product. Names are deduplicated case-insensitively — typing one
     /// that already exists is silently ignored, matching setup's behaviour, and
     /// the existing product comes back instead.
     @discardableResult
     func addProduct(name: String, stock: Int, cost: Double, price: Double) -> Product {
         let cleaned = name.trimmed
-        if let existing = allProducts().first(where: { $0.name.lowercased() == cleaned.lowercased() }) {
+        if let existing = products.first(where: { $0.name.lowercased() == cleaned.lowercased() }) {
             return existing
         }
         let product = Product(name: cleaned, stock: max(0, stock), cost: max(0, cost), price: max(0, price))
-        context.insert(product)
-        save()
+        products.append(product)
+        products.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+        attempt { try repository.upsert(product) }
         return product
     }
 
     func update(_ product: Product, name: String, stock: Int, cost: Double, price: Double) {
-        product.name = name.trimmed
-        product.stock = max(0, stock)
-        product.cost = max(0, cost)
-        product.price = max(0, price)
-        save()
+        guard var updated = self.product(uid: product.uid) else { return }
+        updated.name = name.trimmed
+        updated.stock = max(0, stock)
+        updated.cost = max(0, cost)
+        updated.price = max(0, price)
+        replace(updated)
     }
 
     /// Deletes a product. Bill lines keep their name and price snapshots, so
     /// history survives; only `productUID` is left dangling, which is exactly
     /// what it is optional for.
     func delete(_ product: Product) {
-        context.delete(product)
-        save()
+        products.removeAll { $0.uid == product.uid }
+        attempt { try repository.delete(productUID: product.uid) }
+    }
+
+    private func replace(_ product: Product) {
+        guard let index = products.firstIndex(where: { $0.uid == product.uid }) else { return }
+        products[index] = product
+        products.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+        attempt { try repository.upsert(product) }
     }
 
     /// Whether a product editor's draft is complete enough to save: a name, a
     /// stock figure, a cost figure, and a selling price above zero.
-    ///
-    /// `nonisolated` because it touches no state — it is a pure rule about four
-    /// strings, and setup's draft struct needs it from outside the main actor.
     nonisolated static func isProductDraftComplete(name: String, stock: String, cost: String, price: String) -> Bool {
         !name.isBlank
             && !stock.isBlank
@@ -115,45 +146,48 @@ final class StockbookStore {
         let name = customer.trimmed
         guard !lines.isEmpty, !name.isEmpty else { return nil }
 
-        let settings = settings()
-        let total = lines.reduce(0) { $0 + Double($1.qty) * $1.price }
+        var snapshots: [BillLine] = []
+        for line in lines {
+            guard var product = product(uid: line.productUID) else { continue }
+            let quantity = max(1, line.qty)
+            snapshots.append(
+                BillLine(productUID: product.uid, name: product.name, qty: quantity, price: line.price)
+            )
+            product.stock = max(0, product.stock - quantity)
+            replace(product)
+        }
+        guard !snapshots.isEmpty else { return nil }
 
+        let total = snapshots.reduce(0) { $0 + $1.lineTotal }
         let bill = Bill(
             number: settings.nextBillNumber,
+            lines: snapshots,
             total: total,
             paid: paid.map { min(max(0, $0), total) },
             who: name
         )
-        context.insert(bill)
 
-        for line in lines {
-            let snapshot = BillLine(
-                productUID: line.product.uid,
-                name: line.product.name,
-                qty: max(1, line.qty),
-                price: line.price
-            )
-            snapshot.bill = bill
-            bill.lines.append(snapshot)
-            line.product.stock = max(0, line.product.stock - max(1, line.qty))
-        }
-
+        bills.insert(bill, at: 0)
         settings.nextBillNumber += 1
-        save()
+        attempt {
+            try repository.append(bill)
+            try repository.save(settings)
+        }
         return bill
     }
 
     /// Voids a bill and puts its stock back. Bills are never deleted.
     func void(_ bill: Bill) {
-        guard !bill.voided else { return }
-        let products = allProducts()
-        for line in bill.lines {
-            guard let uid = line.productUID,
-                  let product = products.first(where: { $0.uid == uid }) else { continue }
+        guard let index = bills.firstIndex(where: { $0.number == bill.number }), !bills[index].voided else { return }
+
+        for line in bills[index].lines {
+            guard let uid = line.productUID, var product = product(uid: uid) else { continue }
             product.stock += line.qty
+            replace(product)
         }
-        bill.voided = true
-        save()
+        bills[index].voided = true
+        let voided = bills[index]
+        attempt { try repository.update(voided) }
     }
 
     // MARK: - Customers
@@ -163,7 +197,7 @@ final class StockbookStore {
     /// first because that is who the owner most needs to recognise at the counter.
     func customers() -> [CustomerSuggestion] {
         var book: [String: (count: Int, owed: Double)] = [:]
-        for bill in allBills() where !bill.voided && !bill.who.isBlank {
+        for bill in bills where !bill.voided && !bill.who.isBlank {
             let key = bill.who.trimmed
             var entry = book[key] ?? (0, 0)
             entry.count += 1
@@ -172,9 +206,7 @@ final class StockbookStore {
         }
         return book
             .map { CustomerSuggestion(name: $0.key, billCount: $0.value.count, owed: $0.value.owed) }
-            .sorted {
-                $0.owed != $1.owed ? $0.owed > $1.owed : $0.billCount > $1.billCount
-            }
+            .sorted { $0.owed != $1.owed ? $0.owed > $1.owed : $0.billCount > $1.billCount }
     }
 
     /// Suggestions for the customer field: filtered by what has been typed,
@@ -196,7 +228,7 @@ final class StockbookStore {
     func outstanding() -> (names: [String], total: Double) {
         var names: [String] = []
         var total: Double = 0
-        for bill in allBills() where bill.isPartPaid && bill.balance > 0 {
+        for bill in bills where bill.isPartPaid && bill.balance > 0 {
             total += bill.balance
             let name = bill.who.trimmed
             if !name.isEmpty, !names.contains(name) { names.append(name) }
@@ -209,89 +241,72 @@ final class StockbookStore {
     /// Adds stock. A zero or negative quantity is a no-op — the sheet treats
     /// "nothing typed" as "close without doing anything".
     func restock(_ product: Product, quantity: Int, mode: RestockMode, unitCost: Double? = nil) {
-        guard quantity > 0 else { return }
-        product.stock += quantity
+        guard quantity > 0, var updated = self.product(uid: product.uid) else { return }
+        updated.stock += quantity
         if case .purchase = mode, let unitCost, unitCost > 0 {
-            product.cost = unitCost
+            updated.cost = unitCost
         }
-        save()
+        replace(updated)
     }
 
     // MARK: - Whole-database operations
 
     /// Wipes everything and sends the owner back to setup step 1.
     func startOver() {
-        for bill in allBills() { context.delete(bill) }
-        for product in allProducts() { context.delete(product) }
-        let settings = settings()
-        settings.ownerName = ""
-        settings.setupCompleted = false
-        settings.nextBillNumber = 1
-        settings.lastExportAt = nil
-        save()
+        products = []
+        bills = []
+        settings = Settings()
+        attempt { try repository.replaceAll(with: .empty) }
     }
 
     /// Replaces the entire database with the contents of a backup.
     ///
-    /// This is a **swap, not a merge** — the handoff is explicit, and the UI
-    /// gates it behind an explicit warning naming what is about to be lost.
+    /// A **swap, not a merge** — the handoff is explicit, and the UI gates it
+    /// behind a warning naming what is about to be lost.
     func replaceEverything(with document: BackupDocument) {
-        for bill in allBills() { context.delete(bill) }
-        for product in allProducts() { context.delete(product) }
-
-        for record in document.products {
-            context.insert(
-                Product(
-                    uid: record.uid,
-                    name: record.name,
-                    stock: max(0, record.stock),
-                    cost: max(0, record.cost),
-                    price: max(0, record.price)
-                )
-            )
-        }
-
-        var highestNumber = 0
-        for record in document.bills {
-            let bill = Bill(
-                number: record.number,
-                total: record.total,
-                paid: record.paid,
-                who: record.who,
-                createdAt: record.createdAt,
-                voided: record.voided
-            )
-            context.insert(bill)
-            for line in record.lines {
-                let stored = BillLine(productUID: line.productUID, name: line.name, qty: line.qty, price: line.price)
-                stored.bill = bill
-                bill.lines.append(stored)
-            }
-            highestNumber = max(highestNumber, record.number)
-        }
-
-        let settings = settings()
-        settings.ownerName = document.ownerName
-        settings.currencySymbol = document.currencySymbol
-        settings.nextBillNumber = highestNumber + 1
-        settings.setupCompleted = true
+        var restored = Settings()
+        restored.ownerName = document.ownerName
+        restored.currencySymbol = document.currencySymbol
+        restored.nextBillNumber = (document.bills.map(\.number).max() ?? 0) + 1
+        restored.setupCompleted = true
         // The imported file is a copy of *another* phone's backup, not a backup
         // of this one — the nudge stays on until this phone writes its own.
-        settings.lastExportAt = nil
-        save()
+        restored.lastExportAt = nil
+
+        let state = ShopState(
+            products: document.products.map {
+                Product(uid: $0.uid, name: $0.name, stock: max(0, $0.stock), cost: max(0, $0.cost), price: max(0, $0.price))
+            },
+            bills: document.bills.map { record in
+                Bill(
+                    number: record.number,
+                    lines: record.lines.map { BillLine(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price) },
+                    total: record.total,
+                    paid: record.paid,
+                    who: record.who,
+                    createdAt: record.createdAt,
+                    voided: record.voided
+                )
+            },
+            settings: restored
+        )
+
+        attempt { try repository.replaceAll(with: state) }
+        products = state.products.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+        bills = state.bills.sorted { $0.createdAt > $1.createdAt }
+        settings = restored
     }
 
     /// Snapshots the whole database into a backup document.
     func makeBackupDocument(at date: Date = .now) -> BackupDocument {
-        let settings = settings()
-        return BackupDocument(
+        BackupDocument(
             exportedAt: date,
             ownerName: settings.ownerName,
             currencySymbol: settings.currencySymbol,
-            products: allProducts().map {
+            products: products.map {
                 BackupDocument.ProductRecord(uid: $0.uid, name: $0.name, stock: $0.stock, cost: $0.cost, price: $0.price)
             },
-            bills: allBills().map { bill in
+            bills: bills.map { bill in
                 BackupDocument.BillRecord(
                     number: bill.number,
                     createdAt: bill.createdAt,
@@ -306,23 +321,11 @@ final class StockbookStore {
             }
         )
     }
-
-    func markExported(at date: Date = .now) {
-        settings().lastExportAt = date
-        save()
-    }
-
-    // MARK: - Persistence
-
-    private func save() {
-        guard context.hasChanges else { return }
-        try? context.save()
-    }
 }
 
 /// One line as the cart holds it, before it becomes history.
 struct DraftLine {
-    let product: Product
+    let productUID: UUID
     var qty: Int
     /// What is being charged — the product's price unless the owner overrode it
     /// for this bill.

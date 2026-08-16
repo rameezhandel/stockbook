@@ -33,8 +33,8 @@ ios/
 ├── Stockbook/
 │   ├── App/                   entry point, router, root view + tab shell
 │   ├── DesignSystem/          Nocturne tokens, type scale, metrics, components
-│   ├── Model/                 SwiftData @Model types
-│   ├── Store/                 StockbookStore (all business rules) + the cart
+│   ├── Model/                 plain value types — no framework, no persistence
+│   ├── Store/                 StockbookStore (all rules) + the storage seam + cart
 │   ├── Transfer/              the backup file format and its I/O
 │   ├── Features/              one folder per screen
 │   └── Support/               money, copy and date helpers
@@ -47,10 +47,25 @@ merge conflict.
 
 ## How the layers fit
 
-**Views read, the store writes.** Screens use `@Query` so SwiftData keeps them
-fresh, but no view mutates a model directly. Stock arithmetic, bill numbering,
-snapshotting, voiding and restocking all live in `StockbookStore` — which is
-also the layer the tests drive, with no UI in the loop.
+**Views read, the store writes.** Screens read `store.products`, `store.bills`
+and `store.settings`; the setters are private, so "no view mutates data" is
+enforced rather than requested. Stock arithmetic, bill numbering, snapshotting,
+voiding and restocking all live in `StockbookStore` — the layer the tests drive,
+with no UI in the loop.
+
+**Storage is behind one protocol.** `StockbookRepository` is the only seam
+between the rules and the disk. The shipping implementation is
+`JSONFileRepository`: the whole shop as one atomically-written JSON file. That
+suits what this app actually is — 50–300 products, one user, no queries, no
+reporting — and it has no minimum OS version, which SwiftData's iOS 17 floor
+turned out to matter for.
+
+The protocol's writes are incremental (`upsert`, `append`, `update`) rather than
+`save(wholeState:)`. A whole-state save is trivial for a file and ruinous for a
+real database, so the easy version of this protocol would have quietly ruled out
+the engines it exists to permit. Swapping in Core Data or SQLite means writing
+one type and adding a line to `RepositoryTests`, which runs the same contract
+suite against every implementation so no backing can rot unnoticed.
 
 **Navigation is flat.** The handoff describes a router
 (`setup0 | setup1 | setup2 | home | items | sell | bills | settings`) plus three

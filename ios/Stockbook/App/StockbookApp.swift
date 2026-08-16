@@ -1,10 +1,7 @@
 import SwiftUI
-import SwiftData
 
 @main
 struct StockbookApp: App {
-
-    private let container = ModelStack.makeContainer()
 
     init() {
         NocturneType.registerBundledFonts()
@@ -17,6 +14,5 @@ struct StockbookApp: App {
                 // keeps previews and any future multi-window case honest.
                 .preferredColorScheme(.dark)
         }
-        .modelContainer(container)
     }
 }

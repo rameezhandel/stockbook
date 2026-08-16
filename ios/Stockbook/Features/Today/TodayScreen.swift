@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import UniformTypeIdentifiers
 
 /// The home screen: what sold today, who owes money, the last few bills, and a
@@ -9,14 +8,12 @@ struct TodayScreen: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.currencySymbol) private var symbol
 
-    @Query(sort: \Bill.createdAt, order: .reverse) private var bills: [Bill]
-    @Query private var settingsRows: [ShopSettings]
-
     @State private var exportDocument: BackupFile?
     @State private var isExporting = false
 
-    private var settings: ShopSettings { settingsRows.first ?? store.settings() }
-    private var liveBills: [Bill] { bills.filter { !$0.voided } }
+    private var bills: [Bill] { store.bills }
+    private var settings: Settings { store.settings }
+    private var liveBills: [Bill] { store.liveBills }
 
     var body: some View {
         VStack(spacing: 0) {

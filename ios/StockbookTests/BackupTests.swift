@@ -1,5 +1,4 @@
 import Testing
-import SwiftData
 import Foundation
 @testable import Stockbook
 
@@ -10,8 +9,7 @@ import Foundation
 struct BackupTests {
 
     private func makeStore() -> StockbookStore {
-        let container = ModelStack.makeInMemoryContainer()
-        return StockbookStore(context: ModelContext(container))
+        StockbookStore(repository: InMemoryRepository())
     }
 
     @Test("A shop survives a round trip through the file")
@@ -19,7 +17,7 @@ struct BackupTests {
         let store = makeStore()
         store.setOwnerName("Khalid Al-Amri")
         let product = store.addProduct(name: "Cisa lock", stock: 12, cost: 60, price: 95)
-        store.saveBill(lines: [.init(product: product, qty: 2, price: 90)], customer: "Ahmed Contracting", paid: 100)
+        store.saveBill(lines: [.init(productUID: product.uid, qty: 2, price: 90)], customer: "Ahmed Contracting", paid: 100)
 
         let data = try BackupService.encode(store.makeBackupDocument())
         let restored = try BackupService.decode(data)
@@ -38,7 +36,7 @@ struct BackupTests {
         let source = makeStore()
         source.setOwnerName("Khalid Al-Amri")
         let sourceProduct = source.addProduct(name: "Cisa lock", stock: 12, cost: 60, price: 95)
-        source.saveBill(lines: [.init(product: sourceProduct, qty: 2, price: 95)], customer: "Ahmed", paid: nil)
+        source.saveBill(lines: [.init(productUID: sourceProduct.uid, qty: 2, price: 95)], customer: "Ahmed", paid: nil)
         let document = source.makeBackupDocument()
 
         let destination = makeStore()
@@ -47,23 +45,23 @@ struct BackupTests {
 
         destination.replaceEverything(with: document)
 
-        #expect(destination.allProducts().map(\.name) == ["Cisa lock"])
-        #expect(destination.allBills().count == 1)
-        #expect(destination.settings().ownerName == "Khalid Al-Amri")
-        #expect(destination.settings().setupCompleted)
+        #expect(destination.products.map(\.name) == ["Cisa lock"])
+        #expect(destination.bills.count == 1)
+        #expect(destination.settings.ownerName == "Khalid Al-Amri")
+        #expect(destination.settings.setupCompleted)
     }
 
     @Test("Imported bills keep numbering going instead of colliding")
     func numberingContinues() throws {
         let source = makeStore()
         let product = source.addProduct(name: "Hinge", stock: 50, cost: 3, price: 6)
-        source.saveBill(lines: [.init(product: product, qty: 1, price: 6)], customer: "A", paid: nil)
-        source.saveBill(lines: [.init(product: product, qty: 1, price: 6)], customer: "B", paid: nil)
+        source.saveBill(lines: [.init(productUID: product.uid, qty: 1, price: 6)], customer: "A", paid: nil)
+        source.saveBill(lines: [.init(productUID: product.uid, qty: 1, price: 6)], customer: "B", paid: nil)
 
         let destination = makeStore()
         destination.replaceEverything(with: source.makeBackupDocument())
 
-        #expect(destination.settings().nextBillNumber == 3)
+        #expect(destination.settings.nextBillNumber == 3)
     }
 
     @Test("An imported file is not this phone's backup")
@@ -75,7 +73,7 @@ struct BackupTests {
         let destination = makeStore()
         destination.replaceEverything(with: document)
 
-        #expect(destination.settings().lastExportAt == nil,
+        #expect(destination.settings.lastExportAt == nil,
                 "the nudge stays on until this phone writes its own file")
     }
 
@@ -84,19 +82,19 @@ struct BackupTests {
         let source = makeStore()
         let product = source.addProduct(name: "Deadbolt", stock: 10, cost: 40, price: 70)
         let bill = try #require(
-            source.saveBill(lines: [.init(product: product, qty: 3, price: 70)], customer: "Sami", paid: nil)
+            source.saveBill(lines: [.init(productUID: product.uid, qty: 3, price: 70)], customer: "Sami", paid: nil)
         )
-        #expect(product.stock == 7)
+        #expect(store.product(uid: product.uid)?.stock == 7)
 
         let destination = makeStore()
         destination.replaceEverything(with: source.makeBackupDocument())
 
         // Voiding on the new phone has to find the product by uid, which is the
         // whole reason products carry one.
-        let importedBill = try #require(destination.allBills().first { $0.number == bill.number })
+        let importedBill = try #require(destination.bills.first { $0.number == bill.number })
         destination.void(importedBill)
 
-        #expect(destination.allProducts().first?.stock == 10)
+        #expect(destination.products.first?.stock == 10)
     }
 
     // MARK: Validation

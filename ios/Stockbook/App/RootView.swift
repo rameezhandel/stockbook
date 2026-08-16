@@ -1,10 +1,7 @@
 import SwiftUI
-import SwiftData
 
 /// Owns the objects everything else reads, and picks between setup and the app.
 struct RootView: View {
-    @Environment(\.modelContext) private var modelContext
-
     @State private var store: StockbookStore?
     @State private var router = AppRouter()
     @State private var cart = Cart()
@@ -28,9 +25,13 @@ struct RootView: View {
         }
         .background(Nocturne.bg)
         .task {
-            if store == nil {
-                store = StockbookStore(context: modelContext)
-            }
+            guard store == nil else { return }
+            // A repository that cannot open its file is unrecoverable — there is
+            // no server to fall back to — so this fails loudly rather than
+            // running against a store the owner would type a day's bills into
+            // and lose.
+            let repository = try! JSONFileRepository(url: try! JSONFileRepository.defaultURL())
+            store = StockbookStore(repository: repository)
         }
     }
 }
@@ -40,21 +41,17 @@ struct RootView: View {
 private struct AppRoot: View {
     let store: StockbookStore
 
-    @Query private var settingsRows: [ShopSettings]
-
     var body: some View {
-        let settings = settingsRows.first ?? store.settings()
-
         ZStack {
             Nocturne.bg.ignoresSafeArea()
 
-            if settings.setupCompleted {
+            if store.settings.setupCompleted {
                 AppShell()
             } else {
                 SetupFlowView()
             }
         }
-        .environment(\.currencySymbol, settings.currencySymbol)
+        .environment(\.currencySymbol, store.settings.currencySymbol)
         .tint(Nocturne.accent)
     }
 }
