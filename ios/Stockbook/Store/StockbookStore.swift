@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 
 /// Every rule that changes data lives here, and the current shop lives here too.
 ///
@@ -11,17 +11,15 @@ import Observation
 /// Persistence is a `StockbookRepository` and nothing here knows which one. The
 /// whole shop is held in memory because it comfortably fits — 50–300 products —
 /// which is what makes reads free and the storage seam cheap.
-@MainActor
-@Observable
-final class StockbookStore {
+final class StockbookStore: ObservableObject {
 
-    private(set) var products: [Product] = []
-    private(set) var bills: [Bill] = []
-    private(set) var settings: Settings = Settings()
+    @Published private(set) var products: [Product] = []
+    @Published private(set) var bills: [Bill] = []
+    @Published private(set) var settings: Settings = Settings()
 
     /// Set when the disk refuses a write. Nothing in the UI surfaces it yet;
     /// it exists so a failure is recorded rather than swallowed.
-    private(set) var lastError: String?
+    @Published private(set) var lastError: String?
 
     private let repository: StockbookRepository
 

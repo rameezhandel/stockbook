@@ -8,8 +8,8 @@ import SwiftUI
 /// one mistyped bill puts the shelf and the app permanently out of step; with
 /// deletion instead, the history quietly stops matching what actually happened.
 struct BillsScreen: View {
-    @Environment(StockbookStore.self) private var store
-    @Environment(AppRouter.self) private var router
+    @EnvironmentObject private var store: StockbookStore
+    @EnvironmentObject private var router: AppRouter
 
     private var bills: [Bill] { store.bills }
 

@@ -6,14 +6,12 @@ struct CartView: View {
     let onBrowse: () -> Void
     let onSave: () -> Void
 
-    @Environment(Cart.self) private var cart
-    @Environment(StockbookStore.self) private var store
+    @EnvironmentObject private var cart: Cart
+    @EnvironmentObject private var store: StockbookStore
     @Environment(\.currencySymbol) private var symbol
     @Environment(\.bottomSafeInset) private var bottomInset
 
     var body: some View {
-        @Bindable var cart = cart
-
         VStack(spacing: 0) {
             ScrollView {
                 LazyVStack(spacing: 8) {
@@ -45,9 +43,7 @@ struct CartView: View {
     // MARK: Sticky footer
 
     private var footer: some View {
-        @Bindable var cart = cart
-
-        return VStack(spacing: 10) {
+        VStack(spacing: 10) {
             CustomerField(name: $cart.customer)
 
             HStack(spacing: 6) {
@@ -180,10 +176,10 @@ private struct CartLineCard: View {
             qtyText = String(line.qty)
             priceText = Money.amount(line.price)
         }
-        .onChange(of: line.qty) { _, new in
+        .onChange(of: line.qty) { new in
             if Int(qtyText.trimmed) != new { qtyText = String(new) }
         }
-        .onChange(of: line.price) { _, new in
+        .onChange(of: line.price) { new in
             if Money.parse(priceText) != new { priceText = Money.amount(new) }
         }
     }
@@ -206,7 +202,7 @@ private struct CartLineCard: View {
                 .keyboardType(.numberPad)
                 .tint(Nocturne.accent)
                 .frame(width: 44, height: 34)
-                .onChange(of: qtyText) { _, new in
+                .onChange(of: qtyText) { new in
                     if let value = Int(new.trimmed), value != line.qty { onQuantity(value) }
                 }
 
@@ -237,7 +233,7 @@ private struct CartLineCard: View {
                 .keyboardType(.decimalPad)
                 .tint(Nocturne.accent)
                 .frame(width: 56)
-                .onChange(of: priceText) { _, new in
+                .onChange(of: priceText) { new in
                     if let value = Money.parse(new), value != line.price { onPrice(value) }
                 }
         }
@@ -263,7 +259,7 @@ private struct CartLineCard: View {
 private struct CustomerField: View {
     @Binding var name: String
 
-    @Environment(StockbookStore.self) private var store
+    @EnvironmentObject private var store: StockbookStore
     @Environment(\.currencySymbol) private var symbol
     @FocusState private var focused: Bool
 

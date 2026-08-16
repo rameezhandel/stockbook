@@ -2,44 +2,35 @@ import SwiftUI
 
 /// Owns the objects everything else reads, and picks between setup and the app.
 struct RootView: View {
-    @State private var store: StockbookStore?
-    @State private var router = AppRouter()
-    @State private var cart = Cart()
+    // A repository that cannot open its file is unrecoverable — there is no
+    // server to fall back to — so this fails loudly rather than running against
+    // a store the owner would type a day's bills into and then lose.
+    @StateObject private var store = StockbookStore(
+        repository: try! JSONFileRepository(url: try! JSONFileRepository.defaultURL())
+    )
+    @StateObject private var router = AppRouter()
+    @StateObject private var cart = Cart()
 
     var body: some View {
         GeometryReader { proxy in
-            Group {
-                if let store {
-                    AppRoot(store: store)
-                        .environment(store)
-                        .environment(router)
-                        .environment(cart)
-                } else {
-                    Nocturne.bg
-                }
-            }
-            // Measured once, at the root, and read by anything that needs to
-            // position against the physical screen edge rather than the safe area.
-            .environment(\.topSafeInset, proxy.safeAreaInsets.top)
-            .environment(\.bottomSafeInset, proxy.safeAreaInsets.bottom)
+            AppRoot(store: store)
+                .environmentObject(store)
+                .environmentObject(router)
+                .environmentObject(cart)
+                // Measured once, at the root, and read by anything that needs
+                // to position against the physical screen edge rather than the
+                // safe area.
+                .environment(\.topSafeInset, proxy.safeAreaInsets.top)
+                .environment(\.bottomSafeInset, proxy.safeAreaInsets.bottom)
         }
         .background(Nocturne.bg)
-        .task {
-            guard store == nil else { return }
-            // A repository that cannot open its file is unrecoverable — there is
-            // no server to fall back to — so this fails loudly rather than
-            // running against a store the owner would type a day's bills into
-            // and lose.
-            let repository = try! JSONFileRepository(url: try! JSONFileRepository.defaultURL())
-            store = StockbookStore(repository: repository)
-        }
     }
 }
 
 /// Setup gate plus the tab shell. Split out from `RootView` so the store is
 /// non-optional from here down.
 private struct AppRoot: View {
-    let store: StockbookStore
+    @ObservedObject var store: StockbookStore
 
     var body: some View {
         ZStack {
@@ -58,12 +49,10 @@ private struct AppRoot: View {
 
 /// The four tabs, the tab bar, and the overlays that can sit above any of them.
 private struct AppShell: View {
-    @Environment(AppRouter.self) private var router
-    @Environment(Cart.self) private var cart
+    @EnvironmentObject private var router: AppRouter
+    @EnvironmentObject private var cart: Cart
 
     var body: some View {
-        @Bindable var router = router
-
         ZStack {
             VStack(spacing: 0) {
                 Group {

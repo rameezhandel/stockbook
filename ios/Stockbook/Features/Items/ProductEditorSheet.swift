@@ -9,9 +9,9 @@ struct ProductEditorSheet: View {
     /// `nil` for "New product".
     let product: Product?
 
-    @Environment(StockbookStore.self) private var store
-    @Environment(AppRouter.self) private var router
-    @Environment(Cart.self) private var cart
+    @EnvironmentObject private var store: StockbookStore
+    @EnvironmentObject private var router: AppRouter
+    @EnvironmentObject private var cart: Cart
     @Environment(\.currencySymbol) private var symbol
 
     @State private var name = ""

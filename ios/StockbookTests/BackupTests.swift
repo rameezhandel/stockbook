@@ -1,19 +1,18 @@
-import Testing
+import XCTest
 import Foundation
 @testable import Stockbook
 
 /// The backup file is the only way data leaves the phone, and importing is a
 /// destructive whole-database replace — so both directions are pinned down here.
-@MainActor
-@Suite("Backup file")
-struct BackupTests {
+/// Backup file
+final class BackupTests: XCTestCase {
 
     private func makeStore() -> StockbookStore {
         StockbookStore(repository: InMemoryRepository())
     }
 
-    @Test("A shop survives a round trip through the file")
-    func roundTrip() throws {
+    /// A shop survives a round trip through the file
+    func testRoundTrip() throws {
         let store = makeStore()
         store.setOwnerName("Khalid Al-Amri")
         let product = store.addProduct(name: "Cisa lock", stock: 12, cost: 60, price: 95)
@@ -22,17 +21,17 @@ struct BackupTests {
         let data = try BackupService.encode(store.makeBackupDocument())
         let restored = try BackupService.decode(data)
 
-        #expect(restored.version == BackupDocument.currentVersion)
-        #expect(restored.ownerName == "Khalid Al-Amri")
-        #expect(restored.products.count == 1)
-        #expect(restored.products.first?.uid == product.uid)
-        #expect(restored.bills.count == 1)
-        #expect(restored.bills.first?.paid == 100)
-        #expect(restored.bills.first?.lines.first?.price == 90, "the charged price, not the list price")
+        XCTAssertEqual(restored.version, BackupDocument.currentVersion)
+        XCTAssertEqual(restored.ownerName, "Khalid Al-Amri")
+        XCTAssertEqual(restored.products.count, 1)
+        XCTAssertEqual(restored.products.first?.uid, product.uid)
+        XCTAssertEqual(restored.bills.count, 1)
+        XCTAssertEqual(restored.bills.first?.paid, 100)
+        XCTAssertEqual(restored.bills.first?.lines.first?.price, 90, "the charged price, not the list price")
     }
 
-    @Test("Importing replaces everything rather than merging")
-    func importReplaces() throws {
+    /// Importing replaces everything rather than merging
+    func testImportReplaces() throws {
         let source = makeStore()
         source.setOwnerName("Khalid Al-Amri")
         let sourceProduct = source.addProduct(name: "Cisa lock", stock: 12, cost: 60, price: 95)
@@ -45,14 +44,14 @@ struct BackupTests {
 
         destination.replaceEverything(with: document)
 
-        #expect(destination.products.map(\.name) == ["Cisa lock"])
-        #expect(destination.bills.count == 1)
-        #expect(destination.settings.ownerName == "Khalid Al-Amri")
-        #expect(destination.settings.setupCompleted)
+        XCTAssertEqual(destination.products.map(\.name), ["Cisa lock"])
+        XCTAssertEqual(destination.bills.count, 1)
+        XCTAssertEqual(destination.settings.ownerName, "Khalid Al-Amri")
+        XCTAssertTrue(destination.settings.setupCompleted)
     }
 
-    @Test("Imported bills keep numbering going instead of colliding")
-    func numberingContinues() throws {
+    /// Imported bills keep numbering going instead of colliding
+    func testNumberingContinues() throws {
         let source = makeStore()
         let product = source.addProduct(name: "Hinge", stock: 50, cost: 3, price: 6)
         source.saveBill(lines: [.init(productUID: product.uid, qty: 1, price: 6)], customer: "A", paid: nil)
@@ -61,11 +60,11 @@ struct BackupTests {
         let destination = makeStore()
         destination.replaceEverything(with: source.makeBackupDocument())
 
-        #expect(destination.settings.nextBillNumber == 3)
+        XCTAssertEqual(destination.settings.nextBillNumber, 3)
     }
 
-    @Test("An imported file is not this phone's backup")
-    func importDoesNotCountAsBackup() throws {
+    /// An imported file is not this phone's backup
+    func testImportDoesNotCountAsBackup() throws {
         let source = makeStore()
         source.markExported()
         let document = source.makeBackupDocument()
@@ -73,58 +72,58 @@ struct BackupTests {
         let destination = makeStore()
         destination.replaceEverything(with: document)
 
-        #expect(destination.settings.lastExportAt == nil,
-                "the nudge stays on until this phone writes its own file")
+        XCTAssertNil(destination.settings.lastExportAt,
+                     "the nudge stays on until this phone writes its own file")
     }
 
-    @Test("Bill lines still point at their products after an import")
-    func linesResolveAfterImport() throws {
+    /// Bill lines still point at their products after an import
+    func testLinesResolveAfterImport() throws {
         let source = makeStore()
         let product = source.addProduct(name: "Deadbolt", stock: 10, cost: 40, price: 70)
-        let bill = try #require(
+        let bill = try XCTUnwrap(
             source.saveBill(lines: [.init(productUID: product.uid, qty: 3, price: 70)], customer: "Sami", paid: nil)
         )
-        #expect(source.product(uid: product.uid)?.stock == 7)
+        XCTAssertEqual(source.product(uid: product.uid)?.stock, 7)
 
         let destination = makeStore()
         destination.replaceEverything(with: source.makeBackupDocument())
 
         // Voiding on the new phone has to find the product by uid, which is the
         // whole reason products carry one.
-        let importedBill = try #require(destination.bills.first { $0.number == bill.number })
+        let importedBill = try XCTUnwrap(destination.bills.first { $0.number == bill.number })
         destination.void(importedBill)
 
-        #expect(destination.products.first?.stock == 10)
+        XCTAssertEqual(destination.products.first?.stock, 10)
     }
 
     // MARK: Validation
 
-    @Test("Junk is rejected as not a Stockbook file")
-    func rejectsJunk() {
+    /// Junk is rejected as not a Stockbook file
+    func testRejectsJunk() {
         let data = Data("this is not json".utf8)
-        #expect(throws: BackupError.notStockbookData) {
-            try BackupService.decode(data)
+        XCTAssertThrowsError(try BackupService.decode(data)) { error in
+            XCTAssertEqual(error as? BackupError, BackupError.notStockbookData)
         }
     }
 
-    @Test("Valid JSON that is not a backup is rejected")
-    func rejectsForeignJSON() {
+    /// Valid JSON that is not a backup is rejected
+    func testRejectsForeignJSON() {
         let data = Data(#"{"hello":"world"}"#.utf8)
-        #expect(throws: BackupError.notStockbookData) {
-            try BackupService.decode(data)
+        XCTAssertThrowsError(try BackupService.decode(data)) { error in
+            XCTAssertEqual(error as? BackupError, BackupError.notStockbookData)
         }
     }
 
-    @Test("A file from a newer format is rejected, not guessed at")
-    func rejectsNewerVersion() {
+    /// A file from a newer format is rejected, not guessed at
+    func testRejectsNewerVersion() {
         let data = Data(#"{"version":99,"exportedAt":"2026-08-11T00:00:00Z","ownerName":"K","currencySymbol":"SAR ","products":[],"bills":[]}"#.utf8)
-        #expect(throws: BackupError.newerVersion(found: 99)) {
-            try BackupService.decode(data)
+        XCTAssertThrowsError(try BackupService.decode(data)) { error in
+            XCTAssertEqual(error as? BackupError, BackupError.newerVersion(found: 99))
         }
     }
 
-    @Test("The filename carries the export date")
-    func filename() {
+    /// The filename carries the export date
+    func testFilename() {
         var components = DateComponents()
         components.year = 2026
         components.month = 8
@@ -140,11 +139,11 @@ struct BackupTests {
             bills: []
         )
 
-        #expect(document.suggestedFilename == "stockbook-2026-08-11.json")
+        XCTAssertEqual(document.suggestedFilename, "stockbook-2026-08-11.json")
     }
 
-    @Test("The summary line reads the way Settings shows it")
-    func summary() {
+    /// The summary line reads the way Settings shows it
+    func testSummary() {
         var components = DateComponents()
         components.year = 2026
         components.month = 7
@@ -162,6 +161,6 @@ struct BackupTests {
             bills: []
         )
 
-        #expect(document.summaryLine == "Khalid Al-Amri · 8 products · 0 bills · saved 28 July 2026")
+        XCTAssertEqual(document.summaryLine, "Khalid Al-Amri · 8 products · 0 bills · saved 28 July 2026")
     }
 }

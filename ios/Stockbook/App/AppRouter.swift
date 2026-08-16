@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 
 /// Navigation state.
 ///
@@ -11,24 +11,23 @@ import Observation
 ///
 /// Setup is not held here. Whether it has run is *persisted* state
 /// (`ShopSettings.setupCompleted`), and `RootView` branches on it.
-@Observable
-final class AppRouter {
+final class AppRouter: ObservableObject {
 
-    var tab: AppTab = .today
+    @Published var tab: AppTab = .today
 
     /// Settings is reached from the Today gear, not from the tab bar.
-    var showingSettings = false
+    @Published var showingSettings = false
 
     // MARK: Overlays
 
     /// The product editor sheet — `nil` closed, otherwise create or edit.
-    var productEditor: ProductEditorTarget?
+    @Published var productEditor: ProductEditorTarget?
 
     /// The add-stock sheet.
-    var addStock: AddStockTarget?
+    @Published var addStock: AddStockTarget?
 
     /// The receipt, shown full-screen after a bill is saved.
-    var receipt: Bill?
+    @Published var receipt: Bill?
 
     // MARK: Intents
     //

@@ -4,8 +4,8 @@ import UniformTypeIdentifiers
 /// The home screen: what sold today, who owes money, the last few bills, and a
 /// standing reminder that nothing is backed up.
 struct TodayScreen: View {
-    @Environment(StockbookStore.self) private var store
-    @Environment(AppRouter.self) private var router
+    @EnvironmentObject private var store: StockbookStore
+    @EnvironmentObject private var router: AppRouter
     @Environment(\.currencySymbol) private var symbol
 
     @State private var exportDocument: BackupFile?

@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 
 /// The state machine behind importing a backup.
 ///
@@ -12,8 +12,7 @@ import Observation
 /// document only from `picked`.** Nothing else can produce one, so a corrupt
 /// file, a cancelled pick, or a double tap after importing cannot reach
 /// `replaceEverything`.
-@Observable
-final class ImportFlow {
+final class ImportFlow: ObservableObject {
 
     enum Stage {
         case idle
@@ -33,7 +32,7 @@ final class ImportFlow {
         }
     }
 
-    private(set) var stage: Stage = .idle
+    @Published private(set) var stage: Stage = .idle
 
     /// Handles the document picker's result. A file that does not decode, or
     /// that fails validation, lands in `failed` and never in `picked`.
