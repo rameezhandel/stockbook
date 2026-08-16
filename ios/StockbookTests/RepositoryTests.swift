@@ -179,6 +179,6 @@ final class RepositoryTests: XCTestCase {
 
         // Silently starting empty would look exactly like a working app that had
         // eaten the owner's shop.
-        XCTAssertThrowsError(try _ = try JSONFileRepository(url: url))
+        XCTAssertThrowsError(try JSONFileRepository(url: url))
     }
 }
