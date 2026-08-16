@@ -1,0 +1,111 @@
+package com.stockbook.core.transfer
+
+import com.stockbook.core.model.InstantSerializer
+import com.stockbook.core.text.Dates
+import com.stockbook.core.text.Strings
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import java.time.Instant
+
+/**
+ * The export/import file format.
+ *
+ * This is the *only* way data moves between phones — including **between an
+ * iPhone and an Android phone**, which is why every field name below matches the
+ * iOS build's byte for byte. `productUID` is spelled the way Swift spells it for
+ * exactly that reason; renaming it to fit Kotlin's conventions would quietly
+ * strand every line item on the way across.
+ *
+ * Compatibility rules, in order of importance:
+ * 1. Never repurpose a key. Add new ones and give them defaults.
+ * 2. Bump [currentVersion] when a reader written against the old shape would
+ *    misinterpret the new one, and reject unknown-but-higher versions on import
+ *    rather than guessing.
+ * 3. Products carry a `uid` so bill lines can point at them across devices.
+ */
+@Serializable
+data class BackupDocument(
+    val version: Int = currentVersion,
+    @Serializable(with = InstantSerializer::class)
+    val exportedAt: Instant,
+    val ownerName: String,
+    /**
+     * Kept from format v1 and still written, so a build from before currencies
+     * were selectable reads a current file unchanged.
+     */
+    val currencySymbol: String,
+    /**
+     * The authoritative one. Absent in files written by that older build, which
+     * is why [currencySymbol] above is still what it falls back to.
+     */
+    val currencyCode: String? = null,
+    val products: List<ProductRecord> = emptyList(),
+    val bills: List<BillRecord> = emptyList()
+) {
+    @Serializable
+    data class ProductRecord(
+        val uid: String,
+        val name: String,
+        val stock: Int,
+        val cost: Double,
+        val price: Double
+    )
+
+    @Serializable
+    data class BillRecord(
+        val number: Int,
+        @Serializable(with = InstantSerializer::class)
+        val createdAt: Instant,
+        val total: Double,
+        /** Absent for a bill paid in full. */
+        val paid: Double? = null,
+        val who: String,
+        val voided: Boolean = false,
+        val lines: List<LineRecord> = emptyList()
+    )
+
+    @Serializable
+    data class LineRecord(
+        /** Absent when the product had already been deleted at export time. */
+        @SerialName("productUID")
+        val productUid: String? = null,
+        val name: String,
+        val qty: Int,
+        val price: Double
+    )
+
+    /** `Khalid Al-Amri · 8 products · 4 bills · saved 28 July 2026` */
+    fun summaryLine(strings: Strings): String = listOf(
+        ownerName,
+        strings.products(products.size),
+        strings.bills(bills.size),
+        strings.savedOn(strings.longDate(exportedAt))
+    ).joinToString(" · ")
+
+    /** `stockbook-2026-08-11.json` */
+    val suggestedFilename: String get() = "stockbook-${Dates.fileDate(exportedAt)}.json"
+
+    companion object {
+        /** The format this build writes. */
+        const val currentVersion = 1
+    }
+}
+
+/**
+ * Everything that can go wrong reading a file the owner picked. Each case
+ * carries enough to say something true to the owner — "that is not a Stockbook
+ * file" reads very differently from "that file is from a newer version". The
+ * sentences themselves live in `Strings.backupError`, so they can be said in
+ * either language.
+ */
+sealed class BackupError : Exception() {
+    data object Unreadable : BackupError() {
+        private fun readResolve(): Any = Unreadable
+    }
+
+    data object NotStockbookData : BackupError() {
+        private fun readResolve(): Any = NotStockbookData
+    }
+
+    data class NewerVersion(val found: Int) : BackupError()
+}
