@@ -84,7 +84,7 @@ struct BackupTests {
         let bill = try #require(
             source.saveBill(lines: [.init(productUID: product.uid, qty: 3, price: 70)], customer: "Sami", paid: nil)
         )
-        #expect(store.product(uid: product.uid)?.stock == 7)
+        #expect(source.product(uid: product.uid)?.stock == 7)
 
         let destination = makeStore()
         destination.replaceEverything(with: source.makeBackupDocument())
