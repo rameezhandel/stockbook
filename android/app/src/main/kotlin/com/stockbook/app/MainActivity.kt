@@ -20,7 +20,12 @@ import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Motion
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.StockbookTabBar
+import com.stockbook.app.design.BottomSheet
+import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.bills.BillsScreen
+import com.stockbook.app.feature.items.AddStockSheet
+import com.stockbook.app.feature.items.ItemsScreen
+import com.stockbook.app.feature.items.ProductEditorSheet
 import com.stockbook.app.feature.today.TodayScreen
 import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
@@ -78,7 +83,12 @@ private fun Shell(store: StockbookStore) {
                         strings = strings,
                         onExport = { /* wired with the backup screen */ }
                     )
-                    AppTab.ITEMS -> Placeholder("Items")
+                    AppTab.ITEMS -> ItemsScreen(
+                        state = state,
+                        store = store,
+                        router = router,
+                        strings = strings
+                    )
                     AppTab.SELL -> Placeholder("Sell")
                     AppTab.BILLS -> BillsScreen(
                         state = state,
@@ -94,6 +104,53 @@ private fun Shell(store: StockbookStore) {
                 onSelect = { router.tab = it },
                 strings = strings
             )
+        }
+
+        // Overlays sit above every screen, which is the whole of this app's
+        // navigation — there is no drill-down and no back stack anywhere.
+        BottomSheet(
+            visible = router.creatingProduct || router.productEditor != null,
+            onDismiss = { router.creatingProduct = false; router.productEditor = null }
+        ) {
+            ProductEditorSheet(
+                product = router.productEditor,
+                store = store,
+                currency = state.settings.currency,
+                strings = strings,
+                onClose = { router.creatingProduct = false; router.productEditor = null },
+                onAddStock = { router.openAddStock(it) },
+                onDeleted = { }
+            )
+        }
+
+        BottomSheet(
+            visible = router.addStock != null,
+            onDismiss = { router.addStock = null }
+        ) {
+            router.addStock?.let { product ->
+                AddStockSheet(
+                    product = product,
+                    store = store,
+                    currency = state.settings.currency,
+                    strings = strings,
+                    onClose = { router.addStock = null }
+                )
+            }
+        }
+
+        BottomSheet(
+            visible = router.billDetail != null,
+            onDismiss = { router.billDetail = null }
+        ) {
+            router.billDetail?.let { bill ->
+                BillSheet(
+                    bill = bill,
+                    state = state,
+                    store = store,
+                    strings = strings,
+                    onClose = { router.billDetail = null }
+                )
+            }
         }
     }
 }
