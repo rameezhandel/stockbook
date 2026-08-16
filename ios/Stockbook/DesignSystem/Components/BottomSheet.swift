@@ -41,6 +41,7 @@ struct BottomSheetContainer<Content: View>: View {
             .transition(.move(edge: .bottom))
         }
         .frame(maxHeight: .infinity, alignment: .bottom)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 }
 

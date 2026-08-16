@@ -40,6 +40,7 @@ struct CartView: View {
 
             footer
         }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .keyboardDoneButton()
     }
 

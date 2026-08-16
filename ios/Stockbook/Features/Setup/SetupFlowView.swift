@@ -58,6 +58,9 @@ struct SetupFlowView: View {
         .padding(.top, max(0, 60 - topInset))
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Nocturne.bg.ignoresSafeArea())
+        // The keyboard overlays the screen; it does not shove it upwards. The
+        // footer buttons stay where they are.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .keyboardDoneButton()
     }
 

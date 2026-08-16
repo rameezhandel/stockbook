@@ -48,6 +48,7 @@ struct SettingsScreen: View {
             }
         }
         .background(Nocturne.bg.ignoresSafeArea())
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear(perform: seed)
         .fileExporter(
             isPresented: $isExporting,
