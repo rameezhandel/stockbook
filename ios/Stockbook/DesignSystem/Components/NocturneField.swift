@@ -9,6 +9,19 @@ import SwiftUI
 /// field's `accent-700`, and the accent border on an overridden price).
 struct NocturneField: View {
 
+    /// When a required-but-empty field starts wearing its accent border.
+    ///
+    /// `immediate` is right for a handful of fields — the product editor asks
+    /// four questions and marking them at once reads as a checklist. On setup
+    /// step 3 it does not scale: four products is twelve outlined fields on
+    /// arrival, which reads as twelve errors rather than a prompt, before the
+    /// owner has done anything wrong. `afterTouch` waits until a field has been
+    /// visited and left empty, and lets the footer's gate line carry the rest.
+    enum RequiredMarking {
+        case immediate
+        case afterTouch
+    }
+
     enum Emphasis {
         /// Ordinary field: neutral-800 border.
         case none
@@ -24,6 +37,7 @@ struct NocturneField: View {
     var height: CGFloat = Metrics.inputHeight
     var keyboard: UIKeyboardType = .default
     var isRequiredAndEmpty: Bool = false
+    var requiredMarking: RequiredMarking = .immediate
     var emphasis: Emphasis = .none
     var alignment: TextAlignment = .leading
     /// Rendered inside the field, before the value — the `SAR` on a price box.
@@ -35,6 +49,7 @@ struct NocturneField: View {
     var onSubmit: (() -> Void)?
 
     @FocusState private var focused: Bool
+    @State private var hasBeenFocused = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -84,6 +99,9 @@ struct NocturneField: View {
             .hairline(borderColor, radius: Metrics.controlRadius)
             .animation(Metrics.quick, value: borderColor)
         }
+        .onChange(of: focused) { _, isFocused in
+            if isFocused { hasBeenFocused = true }
+        }
     }
 
     /// Keypads that offer no return key of their own.
@@ -92,7 +110,9 @@ struct NocturneField: View {
     }
 
     private var borderColor: Color {
-        if isRequiredAndEmpty { return Nocturne.accent }
+        if isRequiredAndEmpty, requiredMarking == .immediate || hasBeenFocused {
+            return Nocturne.accent
+        }
         switch emphasis {
         case .changed: return Nocturne.accent
         case .sellingPrice: return Nocturne.accent700
@@ -117,6 +137,7 @@ extension NocturneField {
         text: Binding<String>,
         height: CGFloat = Metrics.inputHeight,
         isRequiredAndEmpty: Bool = false,
+        requiredMarking: RequiredMarking = .immediate,
         emphasis: Emphasis = .none,
         alignment: TextAlignment = .leading,
         prefix: String? = nil,
@@ -130,6 +151,7 @@ extension NocturneField {
             height: height,
             keyboard: .decimalPad,
             isRequiredAndEmpty: isRequiredAndEmpty,
+            requiredMarking: requiredMarking,
             emphasis: emphasis,
             alignment: alignment,
             prefix: prefix,

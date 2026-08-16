@@ -28,20 +28,7 @@ struct SettingsScreen: View {
 
     // Import
     @State private var isImporting = false
-    @State private var importStage: ImportStage = .idle
-
-    private enum ImportStage {
-        case idle
-        /// Decoded and validated — the owner has not agreed to anything yet.
-        case picked(BackupDocument, filename: String)
-        case failed(String)
-        case imported
-
-        var isFailure: Bool {
-            if case .failed = self { return true }
-            return false
-        }
-    }
+    @State private var importFlow = ImportFlow()
 
     private var settings: ShopSettings { settingsRows.first ?? store.settings() }
     private var liveBills: [Bill] { bills.filter { !$0.voided } }
@@ -82,7 +69,7 @@ struct SettingsScreen: View {
             isPresented: $isImporting,
             allowedContentTypes: [.json]
         ) { result in
-            handlePickedFile(result)
+            importFlow.pick(result)
         }
     }
 
@@ -199,11 +186,11 @@ struct SettingsScreen: View {
 
             Text(importNote)
                 .font(NocturneType.inter(12))
-                .foregroundStyle(importStage.isFailure ? Nocturne.accent300 : Nocturne.neutral500)
+                .foregroundStyle(importFlow.stage.isFailure ? Nocturne.accent300 : Nocturne.neutral500)
                 .lineSpacing(3)
                 .padding(.bottom, 11)
 
-            if case .picked(let document, let filename) = importStage {
+            if case .picked(let document, let filename) = importFlow.stage {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(filename)
                         .font(NocturneType.inter(13))
@@ -232,11 +219,12 @@ struct SettingsScreen: View {
                 .padding(.bottom, 10)
 
                 HStack(spacing: 8) {
-                    Button("Cancel") { importStage = .idle }
+                    Button("Cancel") { importFlow.cancel() }
                         .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
                     Button("Replace everything") {
-                        store.replaceEverything(with: document)
-                        importStage = .imported
+                        // Only ever acts on what confirm() hands back.
+                        guard let confirmed = importFlow.confirm() else { return }
+                        store.replaceEverything(with: confirmed)
                         seeded = false
                         seed()
                         refreshExportChip()
@@ -295,7 +283,7 @@ struct SettingsScreen: View {
     }
 
     private var importNote: String {
-        switch importStage {
+        switch importFlow.stage {
         case .imported:
             "Imported. Everything from that file is now on this phone."
         case .failed(let message):
@@ -336,19 +324,4 @@ struct SettingsScreen: View {
         shareURL = try? BackupService.writeToTemporaryFile(document)
     }
 
-    private func handlePickedFile(_ result: Result<URL, Error>) {
-        switch result {
-        case .failure:
-            importStage = .failed(BackupError.unreadable.localizedDescription)
-        case .success(let url):
-            do {
-                let document = try BackupService.read(from: url)
-                importStage = .picked(document, filename: url.lastPathComponent)
-            } catch let error as BackupError {
-                importStage = .failed(error.localizedDescription)
-            } catch {
-                importStage = .failed(BackupError.unreadable.localizedDescription)
-            }
-        }
-    }
 }

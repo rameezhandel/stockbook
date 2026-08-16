@@ -62,6 +62,19 @@ full-screen overlay, so there is no `NavigationStack`.
 SwiftData. The cart, search strings, sheet drafts and payment mode are `Cart` and
 `@State` — a half-typed bill is not history and must not survive a relaunch.
 
+**Required-empty marking has two modes.** A handful of fields marked at once
+reads as a checklist; twelve do not. The product editor marks immediately, as
+specified. Setup step 3 waits until a field has been visited and left empty —
+otherwise four products means twelve accent outlines on arrival, which reads as
+twelve errors before the owner has done anything. The footer's gate line carries
+the message until then.
+
+**The import state machine lives outside its view.** `ImportFlow` owns the
+idle → picked → imported path, so the most destructive operation in the app can
+be asserted without a simulator. Its one guarantee: a document only ever comes
+out of `confirm()`, and only from `picked` — so a corrupt file, a cancel, or a
+second tap cannot reach `replaceEverything`.
+
 **Setup is a draft, not a partial shop.** Nothing entered during the three
 steps touches the database until "Open the shop" — a half-finished setup should
 leave nothing behind to reconcile. `RootView` shows the flow whenever
@@ -201,10 +214,10 @@ construction:
   the app in a simulator and publishes a picture of every screen to the
   `screenshots` branch on each push to `main`, so the views are at least *seen*.
   It is a camera, not a test — it cannot tell you a screen looks right.
-- **No view-level tests.** Settings can erase the whole database, and while
-  `replaceEverything` and `BackupService.decode` are covered, the screen's own
-  gating — Cancel leaves the database alone, a corrupt file never reaches the
-  replace — has no assertion behind it.
+- **View bodies remain untested.** The import gating is now covered by
+  `ImportFlowTests` after being lifted out of the view, but nothing asserts what
+  any SwiftUI body renders — the screenshots are for looking at, not for failing
+  a build.
 
 **Not built, and not to be built without asking:** low-stock alerts, a customer
 ledger, returns, bill editing beyond void, printable receipts, barcode scanning,

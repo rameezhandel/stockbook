@@ -12,10 +12,19 @@ Design notes
 Every colour is a Nocturne token; the handoff is explicit that no hard-coded
 hexes belong in this app, and that applies to its icon too.
 
-The mark is a ledger: a spine on the left, and three entries beside it running
-bright to dim down the accent ramp — a stock list trailing off. The spine is
-what makes it a *book* rather than the sort/align glyph that three bars alone
-read as.
+The mark is a ledger seen face on: a cover, a brighter spine down its left
+edge, and three entry lines across it.
+
+Two earlier attempts are worth recording, because both failed in ways that only
+showed up once rendered. Three bars alone read as a sort or align glyph. Adding
+a detached vertical bar beside them fixed that but produced a legible letter
+"F" — a vertical stroke with horizontals running right off it is a letterform
+before it is an object. Enclosing the entries inside a solid cover removes the
+reading entirely: there is no stroke to mistake for a stem.
+
+The accent is filled here rather than outlined. Inside the app nothing is
+filled with it — but an icon needs mass to survive being 60pt on a busy home
+screen, and a hairline would simply vanish.
 
 It was chosen over the wordmark's `shapes` glyph in an accent-outlined tile
 because that tile is a 1px hairline: correct at 38pt inside the app, invisible
@@ -66,35 +75,37 @@ def gradient(size: int) -> Image.Image:
 def draw_mark(image: Image.Image, scale: int) -> None:
     draw = ImageDraw.Draw(image)
 
-    spine_width = 104
-    spine_gap = 68
-    bar_height = 112
-    bar_gap = 76
-    widths = [408, 300, 196]
-    colors = [ACCENT_300, ACCENT, ACCENT_700]
+    cover_w, cover_h = 604, 664
+    radius = 64
+    spine_w = 132
 
-    block_height = len(widths) * bar_height + (len(widths) - 1) * bar_gap
-    block_width = spine_width + spine_gap + widths[0]
-    top = (SIZE - block_height) // 2
-    left = (SIZE - block_width) // 2
+    left = (SIZE - cover_w) // 2
+    top = (SIZE - cover_h) // 2
 
-    # The spine: full height of the entries it holds.
-    draw.rounded_rectangle(
-        [left * scale, top * scale,
-         (left + spine_width) * scale, (top + block_height) * scale],
-        radius=(spine_width // 2) * scale,
-        fill=ACCENT,
-    )
-
-    bar_left = left + spine_width + spine_gap
-    for index, (width, color) in enumerate(zip(widths, colors)):
-        y0 = top + index * (bar_height + bar_gap)
+    def box(x0, y0, x1, y1, r, fill):
         draw.rounded_rectangle(
-            [bar_left * scale, y0 * scale,
-             (bar_left + width) * scale, (y0 + bar_height) * scale],
-            radius=(bar_height // 2) * scale,
-            fill=color,
+            [x0 * scale, y0 * scale, x1 * scale, y1 * scale],
+            radius=r * scale, fill=fill,
         )
+
+    # Cover, then the spine over its left edge — drawn as a rounded rect of the
+    # same radius and clipped by overdrawing, so both outer corners stay true.
+    box(left, top, left + cover_w, top + cover_h, radius, ACCENT_700)
+    box(left, top, left + spine_w + radius, top + cover_h, radius, ACCENT)
+    box(left + spine_w, top, left + spine_w + radius, top + cover_h, 0, ACCENT_700)
+
+    # Entries across the cover.
+    entry_left = left + spine_w + 76
+    entry_h = 62
+    entry_gap = 74
+    entry_widths = [332, 268, 196]
+    block = len(entry_widths) * entry_h + (len(entry_widths) - 1) * entry_gap
+    entry_top = top + (cover_h - block) // 2
+
+    for index, width in enumerate(entry_widths):
+        y0 = entry_top + index * (entry_h + entry_gap)
+        box(entry_left, y0, entry_left + width, y0 + entry_h,
+            entry_h // 2, ACCENT_300)
 
 
 def main() -> None:

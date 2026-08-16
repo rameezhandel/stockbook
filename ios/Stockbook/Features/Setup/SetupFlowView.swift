@@ -235,18 +235,21 @@ struct SetupFlowView: View {
                                         label: "In stock",
                                         text: $draft.stock,
                                         isRequiredAndEmpty: draft.stock.isBlank,
+                                        requiredMarking: .afterTouch,
                                         identifier: "setup.stock"
                                     )
                                     NocturneField.number(
                                         label: "You pay",
                                         text: $draft.cost,
                                         isRequiredAndEmpty: draft.cost.isBlank,
+                                        requiredMarking: .afterTouch,
                                         identifier: "setup.cost"
                                     )
                                     NocturneField.number(
                                         label: "You sell",
                                         text: $draft.price,
                                         isRequiredAndEmpty: (Money.parse(draft.price) ?? 0) <= 0,
+                                        requiredMarking: .afterTouch,
                                         emphasis: .sellingPrice,
                                         identifier: "setup.price"
                                     )
