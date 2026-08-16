@@ -126,3 +126,29 @@ fun <T> DropdownField(
         }
     }
 }
+
+/**
+ * The currency picker, used on setup step 1 and in Settings — which is the whole
+ * reason it is a component and not two similar blocks.
+ */
+@Composable
+fun CurrencyDropdown(
+    selected: com.stockbook.core.model.Currency,
+    onSelect: (com.stockbook.core.model.Currency) -> Unit,
+    strings: com.stockbook.core.text.Strings,
+    modifier: Modifier = Modifier,
+    label: String? = null
+) {
+    DropdownField(
+        options = com.stockbook.core.model.Currency.supported,
+        selected = selected,
+        onSelect = onSelect,
+        // The symbol as it will appear on a bill: the part the owner actually
+        // recognises. The code and the name are there to confirm it.
+        title = { strings.currencyName(it) },
+        rowTitle = { strings.currencyRow(it) },
+        mark = { it.symbol.trim() },
+        label = label,
+        modifier = modifier
+    )
+}

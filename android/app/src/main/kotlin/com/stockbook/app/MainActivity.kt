@@ -27,6 +27,9 @@ import com.stockbook.app.feature.items.ProductEditorSheet
 import com.stockbook.app.feature.sell.Cart
 import com.stockbook.app.feature.sell.ReceiptOverlay
 import com.stockbook.app.feature.sell.SellScreen
+import com.stockbook.app.feature.settings.BackupScreen
+import com.stockbook.app.feature.settings.SettingsScreen
+import com.stockbook.app.feature.setup.SetupFlow
 import com.stockbook.app.feature.today.TodayScreen
 import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
@@ -69,6 +72,13 @@ private fun Shell(store: StockbookStore) {
     val cart = remember { Cart() }
     val strings = remember(state.settings.language) { Strings(state.settings.language) }
 
+    // Setup is persisted state, not a route: `setupCompleted` decides which of
+    // the two this is, which is also why "Start over" is a data operation.
+    if (!state.settings.setupCompleted) {
+        SetupFlow(store = store, strings = strings)
+        return
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Nocturne.bg)) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             Crossfade(
@@ -83,7 +93,7 @@ private fun Shell(store: StockbookStore) {
                         store = store,
                         router = router,
                         strings = strings,
-                        onExport = { /* wired with the backup screen */ }
+                        onExport = { router.showingBackup = true }
                     )
                     AppTab.ITEMS -> ItemsScreen(
                         state = state,
@@ -114,6 +124,32 @@ private fun Shell(store: StockbookStore) {
                     strings = strings
                 )
             }
+        }
+
+        if (router.showingSettings) {
+            SettingsScreen(
+                state = state,
+                store = store,
+                strings = strings,
+                onClose = { router.showingSettings = false },
+                onOpenBackup = { router.showingBackup = true },
+                onStartOver = {
+                    store.startOver()
+                    cart.clear()
+                    router.closeOverlays()
+                    router.showingSettings = false
+                    router.tab = AppTab.TODAY
+                }
+            )
+        }
+
+        if (router.showingBackup) {
+            BackupScreen(
+                state = state,
+                store = store,
+                strings = strings,
+                onClose = { router.showingBackup = false }
+            )
         }
 
         router.receipt?.let { bill ->
