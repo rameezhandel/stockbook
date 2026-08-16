@@ -116,63 +116,64 @@ struct SetupFlowView: View {
     // MARK: Step 2 — what
 
     private var productsStep: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(ownerName.firstName.isEmpty ? "Your shelves" : "Hello, \(ownerName.firstName)")
-                    .font(NocturneType.inter(11))
-                    .tracking(11 * 0.09)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Nocturne.accent)
-                    .padding(.bottom, 6)
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(ownerName.firstName.isEmpty ? "Your shelves" : "Hello, \(ownerName.firstName)")
+                        .font(NocturneType.inter(11))
+                        .tracking(11 * 0.09)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Nocturne.accent)
+                        .padding(.bottom, 6)
 
-                Text("What do you stock?")
-                    .nocturneText(.setupTitle)
-                    .padding(.bottom, 5)
+                    Text("What do you stock?")
+                        .nocturneText(.setupTitle)
+                        .padding(.bottom, 5)
 
-                Text("Names only for now. Prices and counts come next, and you can add or remove items any time after.")
-                    .nocturneText(.body)
+                    Text("Names only for now. Prices and counts come next, and you can add or remove items any time after.")
+                        .nocturneText(.body)
+                        .padding(.bottom, 16)
+
+                    HStack(spacing: 8) {
+                        NocturneField(
+                            placeholder: "e.g. 4 inch hinge",
+                            text: $draftName,
+                            height: Metrics.tallInputHeight,
+                            fontSize: 15,
+                            identifier: "setup.productName",
+                            onSubmit: { addDraft(draftName) }
+                        )
+                        Button { addDraft(draftName) } label: {
+                            Glyph(Icon.add, size: 18)
+                        }
+                        .buttonStyle(PrimaryButtonStyle(height: Metrics.tallInputHeight))
+                    }
                     .padding(.bottom, 16)
 
-                HStack(spacing: 8) {
-                    NocturneField(
-                        placeholder: "e.g. 4 inch hinge",
-                        text: $draftName,
-                        height: Metrics.tallInputHeight,
-                        fontSize: 15,
-                        identifier: "setup.productName",
-                        onSubmit: { addDraft(draftName) }
-                    )
-                    Button { addDraft(draftName) } label: {
-                        Glyph(Icon.add, size: 18)
-                    }
-                    .buttonStyle(PrimaryButtonStyle(height: Metrics.tallInputHeight))
-                }
-                .padding(.bottom, 16)
-
-                if !availableSuggestions.isEmpty {
-                    Kicker("Common hardware lines").padding(.bottom, 8)
-                    FlowLayout(spacing: 6) {
-                        ForEach(availableSuggestions, id: \.self) { name in
-                            Button { addDraft(name) } label: {
-                                Text("+ \(name)")
-                                    .font(NocturneType.inter(11.5))
-                                    .foregroundStyle(Nocturne.accent)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 3)
-                                    .frame(minHeight: 30)
-                                    .hairline(Nocturne.accent, radius: 6)
-                                    .contentShape(Rectangle())
+                    if !availableSuggestions.isEmpty {
+                        Kicker("Common hardware lines").padding(.bottom, 8)
+                        FlowLayout(spacing: 6) {
+                            ForEach(availableSuggestions, id: \.self) { name in
+                                Button { addDraft(name) } label: {
+                                    Text("+ \(name)")
+                                        .font(NocturneType.inter(11.5))
+                                        .foregroundStyle(Nocturne.accent)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 3)
+                                        .frame(minHeight: 30)
+                                        .hairline(Nocturne.accent, radius: 6)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
+                        .padding(.bottom, 20)
                     }
-                    .padding(.bottom, 20)
-                }
 
-                Kicker(drafts.isEmpty ? "Nothing added yet" : "Added · \(drafts.count)")
-                    .padding(.bottom, 8)
+                    Kicker(drafts.isEmpty ? "Nothing added yet" : "Added · \(drafts.count)")
+                        .padding(.bottom, 8)
 
-                VStack(spacing: Metrics.rowGap) {
+                    VStack(spacing: Metrics.rowGap) {
                         ForEach(drafts) { draft in
                             HStack(spacing: 10) {
                                 Text(draft.name).nocturneText(.rowPrimary)
@@ -192,13 +193,13 @@ struct SetupFlowView: View {
                             .padding(.vertical, 9)
                             .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
                         }
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 10)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .safeAreaInset(edge: .bottom) {
+            .scrollDismissesKeyboard(.interactively)
+
             footer {
                 HStack(spacing: 8) {
                     backButton(to: .name)
@@ -207,42 +208,41 @@ struct SetupFlowView: View {
                         .disabled(drafts.isEmpty)
                 }
             }
-            .background(Nocturne.bg)
         }
     }
 
     // MARK: Step 3 — how much
 
     private var pricesStep: some View {
-        // Everything scrolls, and the footer is a safe-area inset. That is the
-        // shape a form with a keyboard wants: the scroll view owns its own
-        // height, insets itself when the keyboard appears, and nothing fights
-        // over the space that is left.
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Stock and prices")
-                    .nocturneText(.setupTitle)
-                    .padding(.bottom, 5)
+        // Content scrolls; the footer is a plain sibling beneath it. A
+        // safe-area inset floats over the scroll view and travels with its
+        // bounce, which pushed the buttons up over the content. A sibling in a
+        // stack simply cannot move: the scroll view takes the space that is
+        // left, and the footer sits under it.
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Stock and prices")
+                        .nocturneText(.setupTitle)
+                        .padding(.bottom, 5)
 
-                Text("All three are needed for every item — the count on the shelf, what you paid, what you charge.")
-                    .nocturneText(.body)
-                    .padding(.bottom, 16)
+                    Text("All three are needed for every item — the count on the shelf, what you paid, what you charge.")
+                        .nocturneText(.body)
+                        .padding(.bottom, 16)
 
-                // A plain stack. There are a handful of products, so laziness
-                // buys nothing — and a LazyVStack renders only what is visible,
-                // which meant the cards disappeared the moment the keyboard
-                // squeezed the scroll view.
-                VStack(spacing: 10) {
-                    ForEach($drafts) { $draft in
-                        priceCard(draft: $draft)
+                    // A plain stack: a handful of products, and a lazy one
+                    // renders nothing when the keyboard squeezes its container.
+                    VStack(spacing: 10) {
+                        ForEach($drafts) { $draft in
+                            priceCard(draft: $draft)
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 10)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 10)
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .safeAreaInset(edge: .bottom) {
+            .scrollDismissesKeyboard(.interactively)
+
             footer {
                 VStack(spacing: 8) {
                     // The gate explains itself rather than leaving a dead button
@@ -261,7 +261,6 @@ struct SetupFlowView: View {
                     }
                 }
             }
-            .background(Nocturne.bg)
         }
     }
 
