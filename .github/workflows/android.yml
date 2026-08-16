@@ -1,0 +1,82 @@
+name: Android
+
+# Builds and tests the Android app on every push and pull request.
+#
+# Two things run here, and they are not the same kind of check:
+#
+#   :core:test      the whole domain — stock arithmetic, bill numbering,
+#                   voiding, customers, money, both languages, and the backup
+#                   format's compatibility with the iOS build. Plain JVM tests,
+#                   no emulator, seconds.
+#   :app:assembleDebug  proves the Compose layer compiles and produces an APK
+#                   that can be installed straight onto a phone.
+#
+# Runs on ubuntu, which bills at 1x — unlike the iOS workflow's macOS runner at
+# 10x — so this one can afford to run on every push.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: android
+
+jobs:
+  build-and-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Run first and alone: the domain is where a wrong answer costs somebody
+      # their stock count, and a failure here should not be buried under a
+      # Compose compile log.
+      - name: Test the domain
+        run: ./gradlew :core:test
+
+      - name: Build the app
+        run: ./gradlew :app:assembleDebug
+
+      # The whole point on Android: an APK the owner can install from a phone,
+      # with no developer account, no signing ceremony and no TestFlight.
+      - name: Keep the APK
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: stockbook-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Keep the test report
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: core-test-report
+          path: android/core/build/reports/tests/test
+          retention-days: 7
+          if-no-files-found: ignore

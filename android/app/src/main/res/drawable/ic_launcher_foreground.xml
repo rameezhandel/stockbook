@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A placeholder mark until the iOS icon is redrawn for Android's shapes. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#9184D9"
+        android:pathData="M34,34h40v9h-40z M34,49h40v9h-40z M34,64h26v9h-26z" />
+</vector>

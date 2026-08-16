@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The only string in a resource file, because the launcher needs one before
+      any Kotlin runs. Everything the app itself says lives in `core`'s Strings,
+      in both languages side by side.
+    -->
+    <string name="app_name">Stockbook</string>
+</resources>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Dark, always. The design is a single dark theme and does not have a light
+      counterpart to fall back to, so following the system would produce a screen
+      nobody drew.
+    -->
+    <style name="Theme.Stockbook" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#161826</item>
+        <item name="android:navigationBarColor">#161826</item>
+        <item name="android:windowBackground">#161826</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
