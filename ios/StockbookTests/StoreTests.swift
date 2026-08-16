@@ -22,7 +22,7 @@ struct StoreTests {
 
         #expect(first.uid == second.uid)
         #expect(store.products.count == 1)
-        #expect(first.stock == 10, "the existing product must not be overwritten")
+        #expect(store.product(uid: first.uid)?.stock == 10, "the existing product must not be overwritten")
     }
 
     @Test("A draft needs a name, a stock figure, a cost figure and a price above zero")
@@ -82,9 +82,10 @@ struct StoreTests {
 
         store.update(product, name: "Padlock 50mm", stock: 5, cost: 25, price: 60)
 
-        #expect(bill.lines.first?.name == "Padlock")
-        #expect(bill.lines.first?.price == 45)
-        #expect(bill.total == 45)
+        let stored = try #require(store.bills.first { $0.number == bill.number })
+        #expect(stored.lines.first?.name == "Padlock")
+        #expect(stored.lines.first?.price == 45)
+        #expect(stored.total == 45)
     }
 
     @Test("Stock floors at zero rather than going negative")
@@ -145,7 +146,9 @@ struct StoreTests {
         store.void(bill)
 
         #expect(store.product(uid: product.uid)?.stock == 8)
-        #expect(bill.voided)
+        // Bills are values, so the copy returned by saveBill cannot learn that
+        // it was voided — the store's own record is the one that matters.
+        #expect(store.bills.first { $0.number == bill.number }?.voided == true)
         #expect(store.bills.count == 1, "bills are voided, never deleted")
     }
 
