@@ -1,5 +1,5 @@
 import Foundation
-import Combine
+import Observation
 
 /// The bill being typed right now.
 ///
@@ -7,7 +7,8 @@ import Combine
 /// (products, bills, settings) from transient state (the cart, search strings,
 /// sheet drafts, payment mode) — a half-typed bill is not history, and an
 /// abandoned one should not survive a relaunch.
-final class Cart: ObservableObject {
+@Observable
+final class Cart {
 
     struct Line: Identifiable {
         let productUID: UUID
@@ -32,11 +33,11 @@ final class Cart: ObservableObject {
         case part
     }
 
-    @Published var lines: [Line] = []
-    @Published var customer: String = ""
-    @Published var payMode: PayMode = .full
+    var lines: [Line] = []
+    var customer: String = ""
+    var payMode: PayMode = .full
     /// Held as text so a half-typed amount is representable.
-    @Published var paidText: String = ""
+    var paidText: String = ""
 
     var isEmpty: Bool { lines.isEmpty }
 
@@ -115,6 +116,7 @@ final class Cart: ObservableObject {
     /// Live shelf count for a line. The cart deliberately does not carry one:
     /// stock changes elsewhere while a bill is open, and a stale number here is
     /// exactly the sort of quiet wrongness this app is meant to avoid.
+    @MainActor
     func stock(for line: Line, in store: StockbookStore) -> Int {
         store.product(uid: line.productUID)?.stock ?? 0
     }

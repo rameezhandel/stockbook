@@ -8,9 +8,9 @@ import SwiftUI
 /// in the search box, or when "Add another item" was tapped. Anything that
 /// empties all three conditions drops you back to the cart.
 struct SellScreen: View {
-    @EnvironmentObject private var store: StockbookStore
-    @EnvironmentObject private var router: AppRouter
-    @EnvironmentObject private var cart: Cart
+    @Environment(StockbookStore.self) private var store
+    @Environment(AppRouter.self) private var router
+    @Environment(Cart.self) private var cart
 
     private var products: [Product] { store.products }
 
@@ -117,7 +117,7 @@ private struct ProductPicker: View {
     let onAddProduct: () -> Void
     let onDoneAdding: () -> Void
 
-    @EnvironmentObject private var cart: Cart
+    @Environment(Cart.self) private var cart
     @Environment(\.currencySymbol) private var symbol
     @Environment(\.bottomSafeInset) private var bottomInset
 

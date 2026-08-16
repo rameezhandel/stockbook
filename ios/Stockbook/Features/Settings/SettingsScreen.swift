@@ -9,8 +9,8 @@ import UniformTypeIdentifiers
 /// share sheet, and import reads a file the owner picked, **validates it before
 /// asking anything**, and only then offers to replace the database.
 struct SettingsScreen: View {
-    @EnvironmentObject private var store: StockbookStore
-    @EnvironmentObject private var router: AppRouter
+    @Environment(StockbookStore.self) private var store
+    @Environment(AppRouter.self) private var router
 
     @State private var ownerName = ""
     @State private var seeded = false
@@ -82,7 +82,7 @@ struct SettingsScreen: View {
                     placeholder: "Business owner name",
                     text: $ownerName
                 )
-                .onChange(of: ownerName) { new in
+                .onChange(of: ownerName) { _, new in
                     store.setOwnerName(new)
                 }
 

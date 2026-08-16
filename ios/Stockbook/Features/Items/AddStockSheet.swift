@@ -9,8 +9,8 @@ import SwiftUI
 struct AddStockSheet: View {
     let product: Product
 
-    @EnvironmentObject private var store: StockbookStore
-    @EnvironmentObject private var router: AppRouter
+    @Environment(StockbookStore.self) private var store
+    @Environment(AppRouter.self) private var router
     @Environment(\.currencySymbol) private var symbol
 
     @State private var mode: RestockMode = .quickAdd

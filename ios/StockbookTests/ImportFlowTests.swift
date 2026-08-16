@@ -1,4 +1,4 @@
-import XCTest
+import Testing
 import Foundation
 @testable import Stockbook
 
@@ -9,8 +9,8 @@ import Foundation
 /// `confirm()`, and only from `picked`.** Every other path — a bad file, a
 /// cancel, a second tap — has to yield nil, because nil is what stops the view
 /// calling `replaceEverything`.
-/// Import gating
-final class ImportFlowTests: XCTestCase {
+@Suite("Import gating")
+struct ImportFlowTests {
 
     private func writeFile(_ contents: String, named name: String = "backup.json") throws -> URL {
         let url = FileManager.default.temporaryDirectory
@@ -38,109 +38,109 @@ final class ImportFlowTests: XCTestCase {
 
     // MARK: The happy path
 
-    /// A valid file lands in picked, and confirm hands it back
-    func testValidFileConfirms() throws {
+    @Test("A valid file lands in picked, and confirm hands it back")
+    func validFileConfirms() throws {
         let flow = ImportFlow()
         flow.pick(.success(try writeValidBackup()))
 
-        XCTAssertNotNil(flow.stage.pickedDocument)
-        XCTAssertEqual(flow.stage.pickedDocument?.ownerName, "Khalid Al-Amri")
+        #expect(flow.stage.pickedDocument != nil)
+        #expect(flow.stage.pickedDocument?.ownerName == "Khalid Al-Amri")
 
         let confirmed = flow.confirm()
-        XCTAssertEqual(confirmed?.ownerName, "Khalid Al-Amri")
-        XCTAssertEqual(confirmed?.products.count, 1)
+        #expect(confirmed?.ownerName == "Khalid Al-Amri")
+        #expect(confirmed?.products.count == 1)
     }
 
-    /// The filename shown is the one the owner picked
-    func testFilenameSurvives() throws {
+    @Test("The filename shown is the one the owner picked")
+    func filenameSurvives() throws {
         let flow = ImportFlow()
         flow.pick(.success(try writeValidBackup()))
 
         guard case .picked(_, let filename) = flow.stage else {
-            XCTFail("expected picked")
+            Issue.record("expected picked")
             return
         }
-        XCTAssertEqual(filename, "stockbook-2026-07-28.json")
+        #expect(filename == "stockbook-2026-07-28.json")
     }
 
     // MARK: Nothing else may produce a document
 
-    /// Cancel discards the pick, and confirm then yields nothing
-    func testCancelDiscards() throws {
+    @Test("Cancel discards the pick, and confirm then yields nothing")
+    func cancelDiscards() throws {
         let flow = ImportFlow()
         flow.pick(.success(try writeValidBackup()))
-        XCTAssertNotNil(flow.stage.pickedDocument)
+        #expect(flow.stage.pickedDocument != nil)
 
         flow.cancel()
 
-        XCTAssertNil(flow.stage.pickedDocument)
-        XCTAssertNil(flow.confirm(), "Cancel must leave the database untouched")
+        #expect(flow.stage.pickedDocument == nil)
+        #expect(flow.confirm() == nil, "Cancel must leave the database untouched")
     }
 
-    /// Confirming from idle yields nothing
-    func testIdleConfirmsNothing() {
+    @Test("Confirming from idle yields nothing")
+    func idleConfirmsNothing() {
         let flow = ImportFlow()
-        XCTAssertNil(flow.confirm())
+        #expect(flow.confirm() == nil)
     }
 
-    /// Confirming twice yields nothing the second time
-    func testDoubleConfirmIsInert() throws {
+    @Test("Confirming twice yields nothing the second time")
+    func doubleConfirmIsInert() throws {
         let flow = ImportFlow()
         flow.pick(.success(try writeValidBackup()))
 
-        XCTAssertNotNil(flow.confirm())
-        XCTAssertNil(flow.confirm(), "a second tap must not replace the database again")
+        #expect(flow.confirm() != nil)
+        #expect(flow.confirm() == nil, "a second tap must not replace the database again")
     }
 
     // MARK: Bad files never reach confirm
 
-    /// Junk is refused and cannot be confirmed
-    func testJunkIsRefused() throws {
+    @Test("Junk is refused and cannot be confirmed")
+    func junkIsRefused() throws {
         let flow = ImportFlow()
         flow.pick(.success(try writeFile("this is not json")))
 
-        XCTAssertTrue(flow.stage.isFailure)
-        XCTAssertNil(flow.confirm())
+        #expect(flow.stage.isFailure)
+        #expect(flow.confirm() == nil)
     }
 
-    /// Valid JSON that is not a backup is refused
-    func testForeignJSONIsRefused() throws {
+    @Test("Valid JSON that is not a backup is refused")
+    func foreignJSONIsRefused() throws {
         let flow = ImportFlow()
         flow.pick(.success(try writeFile(#"{"hello":"world"}"#)))
 
-        XCTAssertTrue(flow.stage.isFailure)
-        XCTAssertNil(flow.confirm())
+        #expect(flow.stage.isFailure)
+        #expect(flow.confirm() == nil)
     }
 
-    /// A newer format is refused rather than guessed at
-    func testNewerVersionIsRefused() throws {
+    @Test("A newer format is refused rather than guessed at")
+    func newerVersionIsRefused() throws {
         let flow = ImportFlow()
         let json = #"{"version":99,"exportedAt":"2026-08-11T00:00:00Z","ownerName":"K","currencySymbol":"SAR ","products":[],"bills":[]}"#
         flow.pick(.success(try writeFile(json)))
 
-        XCTAssertTrue(flow.stage.isFailure)
-        XCTAssertNil(flow.confirm())
+        #expect(flow.stage.isFailure)
+        #expect(flow.confirm() == nil)
     }
 
-    /// A picker failure is refused
-    func testPickerFailureIsRefused() {
+    @Test("A picker failure is refused")
+    func pickerFailureIsRefused() {
         struct Cancelled: Error {}
         let flow = ImportFlow()
         flow.pick(.failure(Cancelled()))
 
-        XCTAssertTrue(flow.stage.isFailure)
-        XCTAssertNil(flow.confirm())
+        #expect(flow.stage.isFailure)
+        #expect(flow.confirm() == nil)
     }
 
-    /// A bad file after a good one clears the pending document
-    func testBadFileClearsPrevious() throws {
+    @Test("A bad file after a good one clears the pending document")
+    func badFileClearsPrevious() throws {
         let flow = ImportFlow()
         flow.pick(.success(try writeValidBackup()))
-        XCTAssertNotNil(flow.stage.pickedDocument)
+        #expect(flow.stage.pickedDocument != nil)
 
         flow.pick(.success(try writeFile("garbage")))
 
-        XCTAssertNil(flow.stage.pickedDocument, "the earlier document must not remain confirmable")
-        XCTAssertNil(flow.confirm())
+        #expect(flow.stage.pickedDocument == nil, "the earlier document must not remain confirmable")
+        #expect(flow.confirm() == nil)
     }
 }

@@ -99,7 +99,7 @@ struct NocturneField: View {
             .hairline(borderColor, radius: Metrics.controlRadius)
             .animation(Metrics.quick, value: borderColor)
         }
-        .onChange(of: focused) { isFocused in
+        .onChange(of: focused) { _, isFocused in
             if isFocused { hasBeenFocused = true }
         }
     }

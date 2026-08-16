@@ -5,7 +5,7 @@ import SwiftUI
 struct ReceiptOverlay: View {
     let bill: Bill
 
-    @EnvironmentObject private var router: AppRouter
+    @Environment(AppRouter.self) private var router
     @Environment(\.currencySymbol) private var symbol
     @Environment(\.topSafeInset) private var topInset
     @Environment(\.bottomSafeInset) private var bottomInset
@@ -87,6 +87,7 @@ struct ReceiptOverlay: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
         }
+        .scrollBounceBehavior(.basedOnSize)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.statRadius, style: .continuous))
     }

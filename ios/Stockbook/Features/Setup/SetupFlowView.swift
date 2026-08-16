@@ -9,7 +9,7 @@ import SwiftUI
 /// Shown by `RootView` whenever `ShopSettings.setupCompleted` is false, which is
 /// also what "Start over" resets, so there is no separate route back here.
 struct SetupFlowView: View {
-    @EnvironmentObject private var store: StockbookStore
+    @Environment(StockbookStore.self) private var store
 
     @State private var step: Step = .name
     @State private var ownerName = ""

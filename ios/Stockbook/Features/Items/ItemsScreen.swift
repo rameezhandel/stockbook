@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The catalogue: what is on the shelf, what it cost, what it sells for.
 struct ItemsScreen: View {
-    @EnvironmentObject private var store: StockbookStore
-    @EnvironmentObject private var router: AppRouter
+    @Environment(StockbookStore.self) private var store
+    @Environment(AppRouter.self) private var router
 
     @State private var query = ""
 

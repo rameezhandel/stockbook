@@ -32,6 +32,7 @@ struct BottomSheetContainer<Content: View>: View {
                         .padding(.horizontal, Metrics.screenPadding)
                         .padding(.bottom, 32)
                 }
+                .scrollBounceBehavior(.basedOnSize)
             }
             .frame(maxWidth: .infinity)
             .background(Nocturne.surface)
