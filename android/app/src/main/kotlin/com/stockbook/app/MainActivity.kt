@@ -4,22 +4,27 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.stockbook.app.design.Metrics
+import com.stockbook.app.design.Motion
 import com.stockbook.app.design.Nocturne
-import com.stockbook.core.money.Money
+import com.stockbook.app.design.StockbookTabBar
+import com.stockbook.app.feature.bills.BillsScreen
+import com.stockbook.app.feature.today.TodayScreen
 import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
+import com.stockbook.core.text.AppTab
 import com.stockbook.core.text.Strings
 import java.io.File
 
@@ -27,8 +32,12 @@ import java.io.File
  * The one activity.
  *
  * The store is built here, over a file in the app's own directory, and handed
- * down. Nothing above this line knows what a repository is and nothing below it
+ * down. Nothing above this line knows what a repository is, and nothing below it
  * knows what an Activity is.
+ *
+ * The keyboard never moves the layout: `windowSoftInputMode="adjustNothing"` in
+ * the manifest says so once, for the whole app. The iOS build arrived at the
+ * same rule the long way round, one screen at a time.
  */
 class MainActivity : ComponentActivity() {
 
@@ -47,47 +56,53 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/**
- * The tab shell and the four screens go here.
- *
- * Deliberately a stub: the domain underneath it is finished and covered by 66
- * tests that run without an emulator, and the screens are being built against a
- * toolchain proven to compile rather than written blind and hoped over.
- */
 @Composable
 private fun Shell(store: StockbookStore) {
     val state by store.state.collectAsStateWithLifecycle()
-    val strings = Strings(state.settings.language)
+    val router = remember { AppRouter() }
+    val strings = remember(state.settings.language) { Strings(state.settings.language) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Nocturne.bg)
-            .systemBarsPadding()
-            .padding(20.dp)
-    ) {
-        Text(
-            text = strings.today,
-            color = Nocturne.text,
-            fontSize = 28.sp
-        )
-        Text(
-            text = strings.itemsSubtitle(
-                total = state.products.size,
-                low = state.products.count { it.isLow(state.settings.lowStockAt) }
-            ),
-            color = Nocturne.neutral500,
-            fontSize = 13.sp,
-            modifier = Modifier.padding(top = 6.dp)
-        )
-        Text(
-            text = Money.text(
-                state.bills.filterNot { it.voided }.sumOf { it.total },
-                state.settings.currency
-            ),
-            color = Nocturne.accent400,
-            fontSize = 22.sp,
-            modifier = Modifier.padding(top = 14.dp)
-        )
+    Box(modifier = Modifier.fillMaxSize().background(Nocturne.bg)) {
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+            Crossfade(
+                targetState = router.tab,
+                animationSpec = Motion.screenSpec,
+                label = "tab",
+                modifier = Modifier.weight(1f)
+            ) { tab ->
+                when (tab) {
+                    AppTab.TODAY -> TodayScreen(
+                        state = state,
+                        store = store,
+                        router = router,
+                        strings = strings,
+                        onExport = { /* wired with the backup screen */ }
+                    )
+                    AppTab.ITEMS -> Placeholder("Items")
+                    AppTab.SELL -> Placeholder("Sell")
+                    AppTab.BILLS -> BillsScreen(
+                        state = state,
+                        store = store,
+                        router = router,
+                        strings = strings
+                    )
+                }
+            }
+
+            StockbookTabBar(
+                selected = router.tab,
+                onSelect = { router.tab = it },
+                strings = strings
+            )
+        }
     }
+}
+
+@Composable
+private fun Placeholder(name: String) {
+    androidx.compose.material3.Text(
+        text = name,
+        color = Nocturne.neutral500,
+        modifier = Modifier.padding(Metrics.screenPadding)
+    )
 }

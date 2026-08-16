@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -299,3 +300,28 @@ fun IconButton(
 
 /** Screen-edge padding, applied once so no screen repeats the number. */
 fun screenPadding() = PaddingValues(horizontal = Metrics.screenPadding)
+
+/**
+ * A 1px rule that fades to transparent at both ends.
+ *
+ * A Nocturne signature the handoff calls out explicitly and asks to preserve.
+ * Used on the bill document, between the lines and the total.
+ */
+@Composable
+fun FadedRule(modifier: Modifier = Modifier, inset: Dp = 24.dp) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(Metrics.hairline)
+            .drawWithCache {
+                val stop = (inset.toPx() / size.width).coerceIn(0f, 0.5f)
+                val brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                    0f to Color.Transparent,
+                    stop to Nocturne.neutral800,
+                    (1f - stop) to Nocturne.neutral800,
+                    1f to Color.Transparent
+                )
+                onDrawBehind { drawRect(brush) }
+            }
+    )
+}
