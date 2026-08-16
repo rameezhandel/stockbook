@@ -9,14 +9,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Motion
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.StockbookTabBar
@@ -26,6 +24,9 @@ import com.stockbook.app.feature.bills.BillsScreen
 import com.stockbook.app.feature.items.AddStockSheet
 import com.stockbook.app.feature.items.ItemsScreen
 import com.stockbook.app.feature.items.ProductEditorSheet
+import com.stockbook.app.feature.sell.Cart
+import com.stockbook.app.feature.sell.ReceiptOverlay
+import com.stockbook.app.feature.sell.SellScreen
 import com.stockbook.app.feature.today.TodayScreen
 import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
@@ -65,6 +66,7 @@ class MainActivity : ComponentActivity() {
 private fun Shell(store: StockbookStore) {
     val state by store.state.collectAsStateWithLifecycle()
     val router = remember { AppRouter() }
+    val cart = remember { Cart() }
     val strings = remember(state.settings.language) { Strings(state.settings.language) }
 
     Box(modifier = Modifier.fillMaxSize().background(Nocturne.bg)) {
@@ -89,7 +91,13 @@ private fun Shell(store: StockbookStore) {
                         router = router,
                         strings = strings
                     )
-                    AppTab.SELL -> Placeholder("Sell")
+                    AppTab.SELL -> SellScreen(
+                        state = state,
+                        store = store,
+                        router = router,
+                        cart = cart,
+                        strings = strings
+                    )
                     AppTab.BILLS -> BillsScreen(
                         state = state,
                         store = store,
@@ -99,10 +107,28 @@ private fun Shell(store: StockbookStore) {
                 }
             }
 
-            StockbookTabBar(
-                selected = router.tab,
-                onSelect = { router.tab = it },
-                strings = strings
+            if (router.tab != AppTab.SELL || cart.isEmpty) {
+                StockbookTabBar(
+                    selected = router.tab,
+                    onSelect = { router.tab = it },
+                    strings = strings
+                )
+            }
+        }
+
+        router.receipt?.let { bill ->
+            ReceiptOverlay(
+                bill = bill,
+                state = state,
+                strings = strings,
+                onSeeBills = {
+                    router.receipt = null
+                    router.tab = AppTab.BILLS
+                },
+                onNextCustomer = {
+                    router.receipt = null
+                    router.tab = AppTab.SELL
+                }
             )
         }
 
@@ -153,13 +179,4 @@ private fun Shell(store: StockbookStore) {
             }
         }
     }
-}
-
-@Composable
-private fun Placeholder(name: String) {
-    androidx.compose.material3.Text(
-        text = name,
-        color = Nocturne.neutral500,
-        modifier = Modifier.padding(Metrics.screenPadding)
-    )
 }
