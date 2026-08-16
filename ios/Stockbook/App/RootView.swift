@@ -92,7 +92,12 @@ private struct AppShell: View {
                     StockbookTabBar(selection: $router.tab)
                 }
             }
-            .ignoresSafeArea(.container, edges: .bottom)
+            // The keyboard overlays the app; it never shoves it upwards. This
+            // is the one place that has to say so — the tab bar lives here,
+            // above all four screens, so protecting the screens individually
+            // left the bar itself being pushed to the top of the display the
+            // moment a search field took focus.
+            .ignoresSafeArea([.container, .keyboard], edges: .bottom)
 
             if router.showingSettings {
                 SettingsScreen()

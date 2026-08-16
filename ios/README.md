@@ -278,6 +278,28 @@ of the spec, both about physical screens rather than the design canvas:
   indicator, which is exactly what the device's bottom safe inset does; the bar
   defers to it and falls back to 24 where there is none.
 
+### The keyboard never moves the layout
+
+`AppShell` declares `.ignoresSafeArea([.container, .keyboard], edges: .bottom)`,
+and every screen presented outside it — setup, Settings, the backup handoff, the
+bottom sheet — says the same for the keyboard. The keyboard **overlays** the app;
+nothing slides up to make room for it.
+
+This was arrived at the hard way. Letting the layout move produced a different
+bug on every screen it touched: fields vanishing from a squeezed scroll view on
+setup step 3, a footer floating up over content as it bounced, and finally the
+tab bar itself travelling to the top of the display when a search field took
+focus. Each was fixed locally and the next one appeared somewhere else, because
+the cause was one rule, not several bugs.
+
+The tab bar case is why the declaration belongs in `AppShell` rather than on each
+screen: the bar lives above all four tabs, so protecting the tabs individually
+left the thing between them unprotected.
+
+The cost is that content can sit under the keyboard, so the scroll views that can
+be searched use `.scrollDismissesKeyboard(.interactively)` — the way back to what
+the keyboard covers is to push it down.
+
 ### Motion
 
 `DesignSystem/Motion.swift` holds one rule: **motion carries information or it

@@ -58,6 +58,9 @@ struct ItemsScreen: View {
                 // from the sheet arrives into it. Both read better moving.
                 .motion(Motion.list, value: filtered.count)
             }
+            // Nothing moves out of the keyboard's way any more, so the way back
+            // to what it covers is to push it down.
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 
