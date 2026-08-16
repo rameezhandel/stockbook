@@ -302,7 +302,13 @@ private struct CustomerField: View {
         .overlay(alignment: .top) {
             if focused, !suggestions.isEmpty {
                 suggestionCard
-                    .alignmentGuide(.top) { $0[.bottom] + 4 }
+                    // An overlay is proposed its parent's size — 40pt here — so
+                    // without this the card is squeezed to the height of the
+                    // field, the guide shifts it up by almost nothing, and it
+                    // lands on top of the very field it is meant to sit above.
+                    .fixedSize(horizontal: false, vertical: true)
+                    .alignmentGuide(.top) { $0[.bottom] + 6 }
+                    .zIndex(1)
             }
         }
     }
