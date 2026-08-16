@@ -152,6 +152,9 @@ private struct CartLineCard: View {
                 stepper
                 Text(stockNote)
                     .nocturneText(.meta)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .layoutPriority(-1)
                 Spacer(minLength: 4)
                 priceBox
             }
@@ -226,10 +229,14 @@ private struct CartLineCard: View {
     }
 
     private var priceBox: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             Text(symbol.trimmed)
                 .font(NocturneType.inter(12.5))
                 .foregroundStyle(Nocturne.neutral500)
+                .lineLimit(1)
+                // Without this the row's squeeze lands here first and "SAR"
+                // wraps onto two lines inside a 34pt box.
+                .fixedSize(horizontal: true, vertical: false)
             TextField("", text: $priceText)
                 .font(NocturneType.inter(14))
                 .foregroundStyle(line.isPriceOverridden ? Nocturne.accent300 : Nocturne.text)
@@ -241,7 +248,7 @@ private struct CartLineCard: View {
                     if let value = Money.parse(new), value != line.price { onPrice(value) }
                 }
         }
-        .padding(.horizontal, 9)
+        .padding(.horizontal, 11)
         .frame(height: Metrics.compactControlHeight)
         .background(Nocturne.bg, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
         .hairline(line.isPriceOverridden ? Nocturne.accent : Nocturne.neutral800, radius: Metrics.controlRadius)
