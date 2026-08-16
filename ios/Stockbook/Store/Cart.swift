@@ -113,6 +113,11 @@ final class Cart {
         paidText = ""
     }
 
+    /// How many of a product are on the bill already. Zero when it is not.
+    func quantity(forProduct uid: UUID) -> Int {
+        lines.first { $0.productUID == uid }?.qty ?? 0
+    }
+
     /// Live shelf count for a line. The cart deliberately does not carry one:
     /// stock changes elsewhere while a bill is open, and a stale number here is
     /// exactly the sort of quiet wrongness this app is meant to avoid.

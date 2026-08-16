@@ -143,8 +143,23 @@ private struct ProductPicker: View {
                                     .font(NocturneType.inter(14))
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .lineLimit(1)
+
+                                // Browsing keeps you on this list, so without a
+                                // mark here a tap produces no visible result and
+                                // the same item gets added twice.
+                                let onBill = cart.quantity(forProduct: product.uid)
+                                if onBill > 0 {
+                                    HStack(spacing: 3) {
+                                        Glyph(Icon.confirm, size: 11)
+                                        Text("\(onBill)")
+                                            .font(NocturneType.inter(11.5))
+                                    }
+                                    .foregroundStyle(Nocturne.accent)
+                                }
+
                                 Text(product.stockLabel)
                                     .nocturneText(.meta)
+                                    .lineLimit(1)
                                 Text(Money.text(product.price, symbol: symbol))
                                     .font(NocturneType.inter(14))
                                     .foregroundStyle(Nocturne.accent400)
@@ -156,6 +171,11 @@ private struct ProductPicker: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(
+                            cart.quantity(forProduct: product.uid) > 0
+                                ? "\(product.name), \(Copy.count(cart.quantity(forProduct: product.uid), "on the bill"))"
+                                : product.name
+                        )
                     }
                 }
                 .padding(.horizontal, Metrics.screenPadding)
