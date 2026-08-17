@@ -258,16 +258,6 @@ final class StockbookStore {
             }
         }
 
-        // Payments come off what is owed. Without this the Bills filter, the
-        // Today banner and every statement would go on claiming money that is
-        // already in the till.
-        for payment in payments {
-            if var entry = book[payment.customerKey] {
-                entry.owed -= payment.amount
-                book[payment.customerKey] = entry
-            }
-        }
-
         let roster = Dictionary(uniqueKeysWithValues: customerRecords.map { ($0.key, $0) })
         for record in customerRecords where book[record.key] == nil {
             order.append(record.key)
@@ -280,6 +270,21 @@ final class StockbookStore {
             if var entry = book[record.key] {
                 entry.owed += record.openingBalance
                 book[record.key] = entry
+            }
+        }
+
+        // Payments come off what is owed, and this has to run **after** every
+        // customer is in the book — roster entries included.
+        //
+        // It used to run straight after the bills, which meant the lookup missed
+        // for anyone who had never been billed, and their payment was dropped
+        // without a sound. On a fresh shop that is the ordinary case, not an edge
+        // one: a customer is entered with what they owed from the old book, and
+        // the first thing that ever happens to them is paying it off.
+        for payment in payments {
+            if var entry = book[payment.customerKey] {
+                entry.owed -= payment.amount
+                book[payment.customerKey] = entry
             }
         }
 

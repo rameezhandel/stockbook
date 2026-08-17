@@ -284,13 +284,6 @@ class StockbookStore(private val repository: StockbookRepository) {
             tally.owed += bill.balance
         }
 
-        // Payments come off what is owed. Without this the Bills filter, the
-        // Today banner and every statement would go on claiming money that is
-        // already in the till.
-        for (payment in payments) {
-            book[payment.customerKey]?.let { it.owed -= payment.amount }
-        }
-
         // The roster and history are merged, not chosen between. Somebody entered
         // during setup who has never bought anything is a customer with no bills;
         // a name typed at the counter that nobody added is a customer too.
@@ -303,6 +296,18 @@ class StockbookStore(private val repository: StockbookRepository) {
         // customer with an opening balance and no bills still shows what they owe.
         for (record in roster.values) {
             book[record.key]?.let { it.owed += record.openingBalance }
+        }
+
+        // Payments come off what is owed, and this has to run **after** every
+        // customer is in the book — roster entries included.
+        //
+        // It used to run straight after the bills, which meant `book[key]` was
+        // still null for anyone who had never been billed, and their payment was
+        // dropped without a sound. On a fresh shop that is the ordinary case, not
+        // an edge one: a customer is entered with what they owed from the old
+        // book, and the first thing that ever happens to them is paying it off.
+        for (payment in payments) {
+            book[payment.customerKey]?.let { it.owed -= payment.amount }
         }
 
         return book.map { (key, tally) ->
