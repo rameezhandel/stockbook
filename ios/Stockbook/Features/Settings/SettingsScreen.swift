@@ -137,7 +137,7 @@ struct SettingsScreen: View {
 
             HStack(spacing: 6) {
                 ForEach(AppTheme.allCases) { option in
-                    ThemePill(
+                    ChoicePill(
                         title: option.name(Loc),
                         icon: option == .light ? Icon.themeLight : Icon.themeDark,
                         selected: settings.theme == option
