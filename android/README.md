@@ -17,7 +17,7 @@ android/
 format. It has **no Android dependency at all**, which means:
 
 ```sh
-cd android && ./gradlew :core:test        # 66 tests, about 8 seconds
+cd android && ./gradlew :core:test        # 108 tests, about 6 seconds
 ```
 
 runs on any machine with a JDK — no SDK, no emulator, no Google servers. That is
