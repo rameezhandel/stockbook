@@ -52,7 +52,7 @@ struct CartView: View {
         @Bindable var cart = cart
 
         return VStack(spacing: 10) {
-            CustomerField(name: $cart.customer)
+            CustomerPicker()
 
             HStack(spacing: 6) {
                 PaymentPill(
@@ -101,8 +101,10 @@ struct CartView: View {
             }
 
             // Validation is the button's label, never a toast: it says what is
-            // missing and stays disabled until it isn't.
-            Button(cart.canSave ? Loc.saveBill : Loc.enterCustomerName, action: onSave)
+            // missing and stays disabled until it isn't. Two different things can
+            // be missing, and the button says which: an empty box needs a name, a
+            // typed one needs a choice.
+            Button(saveTitle, action: onSave)
                 .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                 .disabled(!cart.canSave)
         }
@@ -113,6 +115,11 @@ struct CartView: View {
         .overlay(alignment: .top) {
             Rectangle().fill(Nocturne.neutral800).frame(height: 1)
         }
+    }
+
+    private var saveTitle: String {
+        if cart.canSave { return Loc.saveBill }
+        return cart.customer.isBlank ? Loc.enterCustomerName : Loc.chooseFromTheList
     }
 }
 
@@ -277,17 +284,48 @@ private struct CartLineCard: View {
 
 // MARK: - Customer
 
-/// Required on every bill, with suggestions drawn from who has been billed
-/// before — debtors first, because those are the names worth recognising.
-private struct CustomerField: View {
-    @Binding var name: String
-
+/// Required on every bill, and **chosen** rather than typed: the box filters the
+/// roster as characters arrive, and only tapping a row counts.
+///
+/// Free text is how "Ahmed", "ahmed " and "Ahmd" become three people with three
+/// balances, which stopped being cosmetic once statements, payments and opening
+/// balances started hanging off a customer.
+private struct CustomerPicker: View {
+    @Environment(Cart.self) private var cart
     @Environment(StockbookStore.self) private var store
     @Environment(\.currency) private var currency
     @FocusState private var focused: Bool
 
-    private var suggestions: [Customer] {
-        store.customerSuggestions(matching: name)
+    /// Rows are a fixed height so the list's own height is arithmetic rather than
+    /// a measurement — a `ScrollView` given `maxHeight` alone accepts the whole
+    /// 150 even for one row, leaving a gap where the list has ended.
+    private static let rowHeight: CGFloat = 35
+
+    /// How tall the list may grow before it scrolls. Deliberately not a whole
+    /// number of rows: a sliver of the fifth showing is what says "there is more
+    /// below" without a scrollbar to draw.
+    private static let maxListHeight: CGFloat = 150
+
+    private var typed: String { cart.customer.trimmed }
+    private var query: String { Customer.key(for: typed) }
+
+    /// Not `store.customerSuggestions`, which deliberately drops an exact match —
+    /// sensible when the field also took free text, fatal now that a choice is
+    /// compulsory: typing a name in full would remove the only row that could be
+    /// tapped, and offer no way to create it either, because it already exists.
+    ///
+    /// Every match, not the first four. The list scrolls instead — a cap looks
+    /// identical to "no such customer" for anyone who happens to sort fifth.
+    private var matches: [Customer] {
+        guard cart.customerKey == nil else { return [] }
+        return store.customers().filter { query.isEmpty || $0.key.contains(query) }
+    }
+
+    /// Offered when what was typed is nobody yet. **A required choice must never
+    /// block a sale**, and right now it would: a shop with an empty roster would
+    /// have a permanently unusable Sell screen.
+    private var canCreate: Bool {
+        cart.customerKey == nil && !typed.isEmpty && !store.customers().contains { $0.key == query }
     }
 
     var body: some View {
@@ -299,25 +337,25 @@ private struct CustomerField: View {
         // the stack cannot overlap by construction: the footer simply grows
         // upwards to make room, which is what a popover looks like here anyway.
         VStack(spacing: 6) {
-            if focused, !suggestions.isEmpty {
-                suggestionCard
+            if !matches.isEmpty || canCreate {
+                listCard
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             field
         }
-        .animation(.easeOut(duration: 0.14), value: focused)
-        .animation(.easeOut(duration: 0.14), value: suggestions.count)
+        .animation(.easeOut(duration: 0.14), value: matches.count)
+        .animation(.easeOut(duration: 0.14), value: canCreate)
     }
 
     private var field: some View {
         ZStack(alignment: .leading) {
-            if name.isEmpty {
+            if cart.customer.isEmpty {
                 Text(Loc.customerName)
                     .font(NocturneType.inter(14))
                     .foregroundStyle(Nocturne.neutral500)
                     .allowsHitTesting(false)
             }
-            TextField("", text: $name)
+            TextField("", text: Binding(get: { cart.customer }, set: { cart.typeCustomer($0) }))
                 .font(NocturneType.inter(14))
                 .accessibilityIdentifier("cart.customer")
                 .focused($focused)
@@ -327,43 +365,77 @@ private struct CustomerField: View {
         .padding(.horizontal, 10)
         .frame(height: 40)
         .background(Nocturne.bg, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
-        .hairline(name.isBlank ? Nocturne.accent : Nocturne.neutral800, radius: Metrics.controlRadius)
+        // Marked until somebody is actually chosen, not merely until the box has
+        // characters in it. Accent means "this still needs something", so a chosen
+        // customer drops back to the neutral border — the two states have to look
+        // different or the gate is invisible.
+        .hairline(cart.customerKey == nil ? Nocturne.accent : Nocturne.neutral800, radius: Metrics.controlRadius)
     }
 
-    private var suggestionCard: some View {
+    private var listCard: some View {
         VStack(spacing: 0) {
-            ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, suggestion in
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(matches) { candidate in
+                        Button { choose(candidate) } label: {
+                            HStack(spacing: 8) {
+                                Glyph(Icon.customer, size: 13)
+                                    .foregroundStyle(Nocturne.neutral500)
+                                Text(candidate.name)
+                                    .font(NocturneType.inter(13.5))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .lineLimit(1)
+                                Text(candidate.meta(in: currency, strings: Loc))
+                                    .font(NocturneType.inter(11))
+                                    .foregroundStyle(candidate.owed > 0 ? Nocturne.accent400 : Nocturne.neutral500)
+                            }
+                            .padding(.horizontal, 11)
+                            .frame(height: Self.rowHeight)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .frame(height: min(CGFloat(matches.count) * Self.rowHeight, Self.maxListHeight))
+            .scrollBounceBehavior(.basedOnSize)
+
+            // Outside the scrolling part on purpose: this is the way out when
+            // nobody matches, and it must never be something to scroll for.
+            if canCreate {
                 Button {
-                    name = suggestion.name
-                    focused = false
+                    guard let record = store.addCustomer(name: typed),
+                          let created = store.customer(key: record.key)
+                    else { return }
+                    choose(created)
                 } label: {
                     HStack(spacing: 8) {
-                        Glyph(Icon.customer, size: 15)
-                            .foregroundStyle(Nocturne.neutral500)
-                        Text(suggestion.name)
+                        Glyph(Icon.add, size: 13)
+                        Text(Loc.addAsCustomer(typed))
                             .font(NocturneType.inter(13.5))
-                            .frame(maxWidth: .infinity, alignment: .leading)
                             .lineLimit(1)
-                        Text(suggestion.meta(in: currency, strings: Loc))
-                            .font(NocturneType.inter(11))
-                            .foregroundStyle(Nocturne.neutral500)
+                        Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
+                    .foregroundStyle(Nocturne.accent)
+                    .padding(.horizontal, 11)
+                    .frame(height: Self.rowHeight)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-
-                if index < suggestions.count - 1 {
-                    Rectangle().fill(Nocturne.neutral800).frame(height: 1)
-                }
             }
         }
+        .padding(.vertical, 3)
         .frame(maxWidth: .infinity)
         .background(Nocturne.surface)
         .clipShape(RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
-        .hairline(radius: Metrics.controlRadius)
+        .hairline(Nocturne.accent, radius: Metrics.controlRadius)
         .shadow(color: .black.opacity(0.55), radius: 9, x: 0, y: 6)
+    }
+
+    private func choose(_ customer: Customer) {
+        cart.selectCustomer(customer)
+        focused = false
+        dismissKeyboard()
     }
 }
 

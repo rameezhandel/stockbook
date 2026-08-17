@@ -34,7 +34,20 @@ final class Cart {
     }
 
     var lines: [Line] = []
-    var customer: String = ""
+
+    /// The customer's name as it will be written on the bill.
+    ///
+    /// Set through `typeCustomer` and `selectCustomer` rather than assigned, so
+    /// the name and `customerKey` can never disagree.
+    private(set) var customer: String = ""
+
+    /// The chosen customer's key, or nil when nobody has been chosen yet.
+    ///
+    /// This is what gates saving. A typed name that matches nobody is not a
+    /// customer, and letting it through is how "Ahmed", "ahmed " and "Ahmd" become
+    /// three people with three balances — the thing the roster exists to stop.
+    private(set) var customerKey: String?
+
     var payMode: PayMode = .full
     /// Held as text so a half-typed amount is representable.
     var paidText: String = ""
@@ -60,10 +73,29 @@ final class Cart {
         payMode == .full ? nil : paidNow
     }
 
-    /// The one gate on this screen: a bill cannot be saved without a customer.
-    var canSave: Bool { !lines.isEmpty && !customer.isBlank }
+    /// The one gate on this screen: a bill needs something on it, and somebody
+    /// **chosen** to give it to.
+    ///
+    /// Not merely a non-blank name: a name nobody picked from the list is a name
+    /// with no account behind it, so nothing could be owed against it or settled
+    /// off it later.
+    var canSave: Bool { !lines.isEmpty && customerKey != nil }
 
     // MARK: Mutation
+
+    /// Typed into the field. Invalidates any earlier choice, deliberately.
+    func typeCustomer(_ text: String) {
+        customer = text
+        // Choosing Ahmed and then editing the text must not save a bill against
+        // Ahmed's account under a name that is no longer his.
+        customerKey = nil
+    }
+
+    /// Chosen from the list. Takes the roster's spelling, not whatever was typed.
+    func selectCustomer(_ chosen: Customer) {
+        customer = chosen.name
+        customerKey = chosen.key
+    }
 
     /// Adds one piece at the product's current selling price, or increments the
     /// line if it is already in the cart.
@@ -109,6 +141,7 @@ final class Cart {
     func clear() {
         lines = []
         customer = ""
+        customerKey = nil
         payMode = .full
         paidText = ""
     }
