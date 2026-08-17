@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.design.CurrencyDropdown
 import com.stockbook.app.design.FieldEmphasis
@@ -43,6 +44,7 @@ import com.stockbook.app.design.RequiredMarking
 import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.card
 import com.stockbook.core.model.Currency
+import com.stockbook.core.model.Customer
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
@@ -58,7 +60,8 @@ private class Draft(val name: String) {
 }
 
 /**
- * First-run setup: name and currency, then product names, then stock and prices.
+ * First-run setup: name and currency, then product names, then stock and prices,
+ * then the regulars who buy on account.
  *
  * **Nothing here is persisted until "Open the shop."** The whole flow is a draft
  * held in this composable — a half-finished setup is not a shop, and abandoning
@@ -71,6 +74,10 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
     var currency by remember { mutableStateOf(Currency.default) }
     var draftName by remember { mutableStateOf("") }
     val drafts = remember { mutableStateListOf<Draft>() }
+    var draftCustomer by remember { mutableStateOf("") }
+    /** Only names here. Phone and place are asked for in the editor sheet later —
+     *  setup is already four screens long and the owner has a shop to open. */
+    val customerDrafts = remember { mutableStateListOf<String>() }
 
     // The exact set the owner asked for — a lock shop's four common lines.
     val suggestions = remember { listOf("Lever Handle Lock", "Cisa lock", "Padlock", "Deadbolt") }
@@ -78,6 +85,15 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
 
     val incomplete = drafts.count { !it.isComplete }
     val isComplete = drafts.isNotEmpty() && incomplete == 0
+
+    fun addCustomerDraft(name: String) {
+        val cleaned = name.trim()
+        if (cleaned.isEmpty()) { draftCustomer = ""; return }
+        // Same rule as the product list: a name already there is not a mistake
+        // worth interrupting anybody for.
+        if (customerDrafts.none { Customer.key(it) == Customer.key(cleaned) }) customerDrafts.add(cleaned)
+        draftCustomer = ""
+    }
 
     fun addDraft(name: String) {
         val cleaned = name.trim()
@@ -97,7 +113,7 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
             .padding(top = 24.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp)) {
-            repeat(3) { index ->
+            repeat(TOTAL_STEPS) { index ->
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -105,7 +121,7 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                         .clip(RoundedCornerShape(2.dp))
                         .background(if (index <= step) Nocturne.accent else Nocturne.neutral800)
                 )
-                if (index < 2) Spacer(Modifier.width(6.dp))
+                if (index < TOTAL_STEPS - 1) Spacer(Modifier.width(6.dp))
             }
         }
 
@@ -217,7 +233,7 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                 }
             }
 
-            else -> Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            2 -> Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 Text(strings.stockAndPrices, style = NocturneType.setupTitle, color = Nocturne.text)
                 Text(
                     strings.stockAndPricesBody,
@@ -282,6 +298,72 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                 )
             }
 
+            // Step 4 — who buys on account. The only optional step, and it says
+            // so: a setup screen that looks compulsory is where an owner gives up
+            // and types nonsense.
+            if (step == 3) {
+                Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                    Kicker(strings.yourCustomers, modifier = Modifier.padding(bottom = 6.dp))
+                    Text(strings.whoDoYouSellTo, style = NocturneType.setupTitle, color = Nocturne.text)
+                    Text(
+                        strings.customersSetupBody,
+                        style = NocturneType.body,
+                        color = Nocturne.neutral500,
+                        modifier = Modifier.padding(top = 5.dp, bottom = 16.dp)
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        NocturneField(
+                            value = draftCustomer,
+                            onValueChange = { draftCustomer = it },
+                            placeholder = strings.customerNameExample,
+                            height = Metrics.tallInputHeight,
+                            fontSize = 15.0,
+                            onImeAction = { addCustomerDraft(draftCustomer) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        PrimaryButton("+", onClick = { addCustomerDraft(draftCustomer) }, height = Metrics.tallInputHeight)
+                    }
+
+                    Kicker(
+                        if (customerDrafts.isEmpty()) strings.noCustomersYetKicker
+                        else strings.addedCount(customerDrafts.size),
+                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                    )
+
+                    customerDrafts.forEach { name ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = Metrics.rowGap)
+                                .card(Metrics.controlRadius)
+                                .padding(start = 13.dp, end = 4.dp)
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Glyph(Icon.customer, size = 13.dp, tint = Nocturne.neutral500)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                name,
+                                style = NocturneType.rowPrimary,
+                                color = Nocturne.text,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                Icon.close,
+                                onClick = { customerDrafts.remove(name) },
+                                size = 15.dp,
+                                tint = Nocturne.neutral500,
+                                contentDescription = strings.remove(name)
+                            )
+                        }
+                    }
+                }
+            }
+
             Row(modifier = Modifier.fillMaxWidth()) {
                 if (step > 0) {
                     SecondaryButton(strings.back, onClick = { step -= 1 }, height = 48.dp)
@@ -306,6 +388,17 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                         fontSize = 15.0,
                         modifier = Modifier.weight(1f)
                     )
+                    2 -> PrimaryButton(
+                        strings.nextCustomers,
+                        onClick = { if (isComplete) step = 3 },
+                        enabled = isComplete,
+                        fullWidth = true,
+                        height = 48.dp,
+                        fontSize = 15.0,
+                        modifier = Modifier.weight(1f)
+                    )
+                    // Never disabled. Nobody is required here, and a dead button
+                    // on an optional step reads as a wall.
                     else -> PrimaryButton(
                         strings.openTheShop,
                         onClick = {
@@ -321,9 +414,10 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                                     price = Money.parse(draft.price) ?: 0.0
                                 )
                             }
+                            customerDrafts.forEach { store.addCustomer(it) }
                             store.completeSetup()
                         },
-                        enabled = isComplete,
+                        enabled = true,
                         fullWidth = true,
                         height = 48.dp,
                         fontSize = 15.0,
@@ -334,3 +428,6 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
         }
     }
 }
+
+/** Name, products, prices, customers. */
+private const val TOTAL_STEPS = 4

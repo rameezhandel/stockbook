@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.stockbook.app.design.Motion
 import com.stockbook.app.design.Nocturne
@@ -21,6 +22,9 @@ import com.stockbook.app.design.StockbookTabBar
 import com.stockbook.app.design.BottomSheet
 import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.bills.BillsScreen
+import com.stockbook.app.feature.customers.CustomerEditorSheet
+import com.stockbook.app.feature.customers.RecordPaymentSheet
+import com.stockbook.app.feature.customers.StatementScreen
 import com.stockbook.app.feature.items.AddStockSheet
 import com.stockbook.app.feature.items.ItemsScreen
 import com.stockbook.app.feature.items.ProductEditorSheet
@@ -67,6 +71,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun Shell(store: StockbookStore) {
+    val context = LocalContext.current
     val state by store.state.collectAsStateWithLifecycle()
     val router = remember { AppRouter() }
     val cart = remember { Cart() }
@@ -152,6 +157,19 @@ private fun Shell(store: StockbookStore) {
             )
         }
 
+        // A document rather than a sheet: it runs to a page, and it is the one
+        // screen here the owner may turn round and show a customer.
+        router.statementFor?.let { key ->
+            StatementScreen(
+                customerKey = key,
+                store = store,
+                currency = state.settings.currency,
+                strings = strings,
+                onShare = { text -> shareText(context, text) },
+                onClose = { router.statementFor = null }
+            )
+        }
+
         router.receipt?.let { bill ->
             ReceiptOverlay(
                 bill = bill,
@@ -201,6 +219,36 @@ private fun Shell(store: StockbookStore) {
         }
 
         BottomSheet(
+            visible = router.creatingCustomer || router.customerEditor != null,
+            onDismiss = { router.closeCustomerEditor() }
+        ) {
+            CustomerEditorSheet(
+                existing = router.customerEditor,
+                store = store,
+                currency = state.settings.currency,
+                strings = strings,
+                onClose = { router.closeCustomerEditor() }
+            )
+        }
+
+        BottomSheet(
+            visible = router.paymentFor != null,
+            onDismiss = { router.paymentFor = null }
+        ) {
+            router.paymentFor?.let { customer ->
+                RecordPaymentSheet(
+                    // Re-read from the store so the sheet's "what will be left"
+                    // line is not a stale copy taken when it opened.
+                    customer = store.customer(customer.key) ?: customer,
+                    store = store,
+                    currency = state.settings.currency,
+                    strings = strings,
+                    onClose = { router.paymentFor = null }
+                )
+            }
+        }
+
+        BottomSheet(
             visible = router.billDetail != null,
             onDismiss = { router.billDetail = null }
         ) {
@@ -215,4 +263,18 @@ private fun Shell(store: StockbookStore) {
             }
         }
     }
+}
+
+/**
+ * Hands text to whatever the owner picks — a message, a note, a printer app.
+ *
+ * `ACTION_SEND` is a hand-off, not a network call: this app opens no socket and
+ * has no permission to. What happens next belongs to the app the owner chose.
+ */
+private fun shareText(context: android.content.Context, text: String) {
+    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(android.content.Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(android.content.Intent.createChooser(intent, null))
 }

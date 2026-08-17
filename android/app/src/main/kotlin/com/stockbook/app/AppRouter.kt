@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.stockbook.core.model.Bill
+import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Product
 import com.stockbook.core.text.AppTab
 
@@ -39,6 +40,43 @@ class AppRouter {
      */
     var billDetail by mutableStateOf<Bill?>(null)
 
+    /**
+     * The customer editor sheet. Null closed; a customer means correct, and
+     * [creatingCustomer] means create.
+     */
+    var customerEditor by mutableStateOf<Customer?>(null)
+    var creatingCustomer by mutableStateOf(false)
+
+    /** The record-a-payment sheet, for one customer. */
+    var paymentFor by mutableStateOf<Customer?>(null)
+
+    /**
+     * A customer's statement, full screen. Held as a **key** rather than a
+     * [Customer], because recording a payment while it is open changes every
+     * derived figure on it — the screen has to re-read the customer, not show a
+     * copy taken when it opened.
+     */
+    var statementFor by mutableStateOf<String?>(null)
+
+    fun openNewCustomer() {
+        customerEditor = null
+        creatingCustomer = true
+    }
+
+    fun openCustomer(customer: Customer) {
+        creatingCustomer = false
+        customerEditor = customer
+    }
+
+    fun openStatement(customer: Customer) {
+        statementFor = customer.key
+    }
+
+    fun closeCustomerEditor() {
+        customerEditor = null
+        creatingCustomer = false
+    }
+
     fun openNewProduct() {
         productEditor = null
         creatingProduct = true
@@ -70,5 +108,9 @@ class AppRouter {
         receipt = null
         billDetail = null
         showingBackup = false
+        customerEditor = null
+        creatingCustomer = false
+        paymentFor = null
+        statementFor = null
     }
 }

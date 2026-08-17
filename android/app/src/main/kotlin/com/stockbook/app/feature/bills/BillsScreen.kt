@@ -25,11 +25,14 @@ import com.stockbook.app.AppRouter
 import com.stockbook.app.design.DropdownField
 import com.stockbook.app.design.EmptyStateBox
 import com.stockbook.app.design.Glyph
+import com.stockbook.app.design.IconButton
 import com.stockbook.app.design.Icon
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
+import com.stockbook.app.design.PrimaryButton
 import com.stockbook.app.design.ScreenHeader
+import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
 import com.stockbook.core.model.Customer
@@ -64,17 +67,42 @@ fun BillsScreen(
     Column(modifier = modifier.fillMaxWidth()) {
         ScreenHeader(title = strings.billsTitle, bottomPadding = 10.dp)
 
-        if (customers.isNotEmpty()) {
-            val options = remember(customers) { listOf<Customer?>(null) + customers }
-            DropdownField(
-                options = options,
-                selected = selected,
-                onSelect = { customerKey = it?.key ?: "" },
-                title = { it?.name ?: strings.allCustomers },
-                modifier = Modifier
-                    .padding(horizontal = Metrics.screenPadding)
-                    .padding(bottom = 10.dp)
-            )
+        // The filter is the app's customer surface, so adding one lives beside it
+        // rather than in Settings.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Metrics.screenPadding)
+                .padding(bottom = 10.dp)
+        ) {
+            if (customers.isEmpty()) {
+                // Nothing to filter yet, so the button says what it does instead
+                // of being an icon beside an absent dropdown.
+                SecondaryButton(
+                    strings.addACustomer,
+                    onClick = { router.openNewCustomer() },
+                    fullWidth = true,
+                    height = Metrics.inputHeight,
+                    fontSize = 13.0
+                )
+            } else {
+                val options = remember(customers) { listOf<Customer?>(null) + customers }
+                DropdownField(
+                    options = options,
+                    selected = selected,
+                    onSelect = { customerKey = it?.key ?: "" },
+                    title = { it?.name ?: strings.allCustomers },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                SecondaryButton(
+                    "",
+                    onClick = { router.openNewCustomer() },
+                    height = Metrics.inputHeight,
+                    leading = Icon.customer
+                )
+            }
         }
 
         LazyColumn(
@@ -86,7 +114,14 @@ fun BillsScreen(
         ) {
             if (selected != null) {
                 item {
-                    CustomerSummary(selected, currency, strings)
+                    CustomerSummary(
+                        customer = selected,
+                        currency = currency,
+                        strings = strings,
+                        onEdit = { router.openCustomer(selected) },
+                        onStatement = { router.openStatement(selected) },
+                        onRecordPayment = { router.paymentFor = selected }
+                    )
                     Spacer(Modifier.height(Metrics.rowGap + 4.dp))
                 }
             }
@@ -125,7 +160,10 @@ fun BillsScreen(
 private fun CustomerSummary(
     customer: Customer,
     currency: com.stockbook.core.model.Currency,
-    strings: Strings
+    strings: Strings,
+    onEdit: () -> Unit,
+    onStatement: () -> Unit,
+    onRecordPayment: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -134,15 +172,36 @@ private fun CustomerSummary(
             .hairline(radius = Metrics.cardRadius)
             .padding(13.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Glyph(Icon.customer, size = 16.dp, tint = Nocturne.accent)
             Spacer(Modifier.width(9.dp))
-            Text(
-                customer.name,
-                style = NocturneType.rowPrimary,
-                color = Nocturne.text,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    customer.name,
+                    style = NocturneType.rowPrimary,
+                    color = Nocturne.text,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                val contact = listOfNotNull(customer.phone, customer.place)
+                if (contact.isNotEmpty()) {
+                    Text(
+                        contact.joinToString(" · "),
+                        style = NocturneType.meta,
+                        color = Nocturne.neutral500,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            // Editing is where a phone number gets added to somebody who has only
+            // ever been a name on a bill.
+            IconButton(
+                Icon.edit,
+                onClick = onEdit,
+                size = 13.dp,
+                tint = Nocturne.neutral500,
+                contentDescription = strings.editCustomer
             )
         }
         Spacer(Modifier.height(10.dp))
@@ -155,11 +214,40 @@ private fun CustomerSummary(
             )
             Figure(
                 label = strings.pendingPayment,
-                value = if (customer.owed > 0) Money.text(customer.owed, currency) else strings.nothingPending,
+                value = when {
+                    customer.owed > 0 -> Money.text(customer.owed, currency)
+                    customer.owed < 0 -> strings.inAdvance(Money.text(-customer.owed, currency))
+                    else -> strings.nothingPending
+                },
                 detail = null,
                 tint = if (customer.owed > 0) Nocturne.accent400 else Nocturne.neutral500,
                 modifier = Modifier.weight(1f)
             )
+        }
+
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 11.dp)) {
+            SecondaryButton(
+                strings.statement,
+                onClick = onStatement,
+                fullWidth = true,
+                height = 38.dp,
+                fontSize = 12.5,
+                modifier = Modifier.weight(1f)
+            )
+            // Offered only when there is something to settle. A payment against a
+            // customer who owes nothing is an advance, which is real but not what
+            // this button is for.
+            if (customer.owed > 0) {
+                Spacer(Modifier.width(6.dp))
+                PrimaryButton(
+                    strings.recordAPayment,
+                    onClick = onRecordPayment,
+                    fullWidth = true,
+                    height = 38.dp,
+                    fontSize = 12.5,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }
