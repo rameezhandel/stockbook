@@ -56,6 +56,7 @@ struct LocalizationTests {
         \.customersStat, \.languageSection, \.languageAndCurrency, \.notBackedUpYet,
         \.themeSection, \.themeDark, \.themeLight,
         \.bookTitle, \.salesSide, \.purchasesSide, \.recordDelivery,
+        \.whoDoYouBuyFrom, \.suppliersSetupBody, \.noSuppliersYetKicker, \.supplierOpeningNote,
         \.whichProductArrived, \.noDeliveriesYet, \.deliveryDetail,
         \.suppliersTitle, \.allSuppliers, \.addASupplier, \.newSupplier,
         \.editSupplier, \.saveSupplier, \.removeFromSuppliers, \.removeSupplierNote, \.supplierNameExample,

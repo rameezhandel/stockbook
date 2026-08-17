@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.design.CurrencyDropdown
 import com.stockbook.app.design.FieldEmphasis
+import com.stockbook.app.design.ChoicePill
 import com.stockbook.app.design.Glyph
 import com.stockbook.app.design.Icon
 import com.stockbook.app.design.IconButton
@@ -84,6 +85,10 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
      * is how an owner decides the app is not worth it.
      */
     val customerDrafts = remember { mutableStateListOf<CustomerDraft>() }
+    val supplierDrafts = remember { mutableStateListOf<CustomerDraft>() }
+
+    /** Which half of step 3 is showing. Customers first: every bill needs one. */
+    var addingCustomers by remember { mutableStateOf(true) }
 
     // The exact set the owner asked for — a lock shop's four common lines.
     val suggestions = remember { listOf("Lever Handle Lock", "Cisa lock", "Padlock", "Deadbolt") }
@@ -91,6 +96,18 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
 
     val incomplete = drafts.count { !it.isComplete }
     val isComplete = drafts.isNotEmpty() && incomplete == 0
+
+    fun addSupplierDraft(name: String) {
+        val cleaned = name.trim()
+        if (cleaned.isEmpty()) { draftCustomer = ""; return }
+        // Same rule as the products list: a name already there is not a mistake
+        // worth interrupting anybody for.
+        if (supplierDrafts.none { Customer.key(it.name) == Customer.key(cleaned) }) {
+            supplierDrafts.add(CustomerDraft(cleaned, Money.parse(draftOpening) ?: 0.0))
+        }
+        draftCustomer = ""
+        draftOpening = ""
+    }
 
     fun addCustomerDraft(name: String) {
         val cleaned = name.trim()
@@ -102,6 +119,10 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
         }
         draftCustomer = ""
         draftOpening = ""
+    }
+
+    fun addDraftHere(name: String) {
+        if (addingCustomers) addCustomerDraft(name) else addSupplierDraft(name)
     }
 
     fun addDraft(name: String) {
@@ -252,10 +273,45 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
             // and this is the one the counter needs: a bill's customer is chosen
             // from this roster, not typed.
             2 -> Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                Kicker(strings.yourCustomers, modifier = Modifier.padding(bottom = 6.dp))
-                Text(strings.whoDoYouSellTo, style = NocturneType.setupTitle, color = Nocturne.text)
+                // The two rosters share a step rather than taking one each. They
+                // are the same form — a name and what was owed before — and a
+                // fifth screen between the owner and an open shop is a screen that
+                // gets skipped. The chips are the same ones the Book uses.
+                val drafts = if (addingCustomers) customerDrafts else supplierDrafts
+
+                Row(modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
+                    ChoicePill(
+                        title = strings.customersTitle,
+                        icon = Icon.customer,
+                        selected = addingCustomers,
+                        onClick = {
+                            addingCustomers = true
+                            draftCustomer = ""
+                            draftOpening = ""
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    ChoicePill(
+                        title = strings.suppliersTitle,
+                        icon = Icon.addStock,
+                        selected = !addingCustomers,
+                        onClick = {
+                            addingCustomers = false
+                            draftCustomer = ""
+                            draftOpening = ""
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
                 Text(
-                    strings.customersSetupBody,
+                    if (addingCustomers) strings.whoDoYouSellTo else strings.whoDoYouBuyFrom,
+                    style = NocturneType.setupTitle,
+                    color = Nocturne.text
+                )
+                Text(
+                    if (addingCustomers) strings.customersSetupBody else strings.suppliersSetupBody,
                     style = NocturneType.body,
                     color = Nocturne.neutral500,
                     modifier = Modifier.padding(top = 5.dp, bottom = 16.dp)
@@ -265,7 +321,8 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                     NocturneField(
                         value = draftCustomer,
                         onValueChange = { draftCustomer = it },
-                        placeholder = strings.customerNameExample,
+                        placeholder = if (addingCustomers) strings.customerNameExample
+                        else strings.supplierNameExample,
                         height = Metrics.tallInputHeight,
                         fontSize = 15.0,
                         imeAction = ImeAction.Next,
@@ -280,26 +337,29 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                         numeric = true,
                         prefix = currency.symbol.trim(),
                         fontSize = 15.0,
-                        onImeAction = { addCustomerDraft(draftCustomer) },
+                        onImeAction = { addDraftHere(draftCustomer) },
                         modifier = Modifier.width(120.dp)
                     )
                     Spacer(Modifier.width(8.dp))
-                    PrimaryButton("+", onClick = { addCustomerDraft(draftCustomer) }, height = Metrics.tallInputHeight)
+                    PrimaryButton("+", onClick = { addDraftHere(draftCustomer) }, height = Metrics.tallInputHeight)
                 }
                 Text(
-                    strings.openingBalanceNote,
+                    if (addingCustomers) strings.openingBalanceNote else strings.supplierOpeningNote,
                     style = NocturneType.meta,
                     color = Nocturne.neutral500,
                     modifier = Modifier.padding(top = 6.dp)
                 )
 
                 Kicker(
-                    if (customerDrafts.isEmpty()) strings.noCustomersYetKicker
-                    else strings.addedCount(customerDrafts.size),
+                    if (drafts.isEmpty()) {
+                        if (addingCustomers) strings.noCustomersYetKicker else strings.noSuppliersYetKicker
+                    } else {
+                        strings.addedCount(drafts.size)
+                    },
                     modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
                 )
 
-                customerDrafts.forEach { draft ->
+                drafts.forEach { draft ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -329,7 +389,7 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                         }
                         IconButton(
                             Icon.close,
-                            onClick = { customerDrafts.remove(draft) },
+                            onClick = { drafts.remove(draft) },
                             size = 15.dp,
                             tint = Nocturne.neutral500,
                             contentDescription = strings.remove(draft.name)
@@ -455,6 +515,9 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                                     cost = Money.parse(draft.cost) ?: 0.0,
                                     price = Money.parse(draft.price) ?: 0.0
                                 )
+                            }
+                            supplierDrafts.forEach {
+                                store.addSupplier(it.name, openingBalance = it.openingBalance)
                             }
                             customerDrafts.forEach {
                                 store.addCustomer(it.name, openingBalance = it.openingBalance)

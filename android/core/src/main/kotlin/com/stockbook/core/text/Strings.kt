@@ -517,6 +517,24 @@ class Strings(val language: AppLanguage) {
     val customerNameExample: String get() = pick("Ahmed Contracting", "ಅಹ್ಮದ್ ಕಂಟ್ರಾಕ್ಟಿಂಗ್")
     val noCustomersYetKicker: String get() = pick("Nobody added yet", "ಇನ್ನೂ ಯಾರನ್ನೂ ಸೇರಿಸಿಲ್ಲ")
 
+    val whoDoYouBuyFrom: String get() = pick("Who do you buy from?", "ನೀವು ಯಾರಿಂದ ಖರೀದಿಸುತ್ತೀರಿ?")
+
+    // The supplier half of the same step, and the same promise: skippable.
+    val suppliersSetupBody: String
+        get() = pick(
+            "The people who deliver to you, so their names are ready when stock arrives. Skip this — you can add anybody while entering a delivery.",
+            "ನಿಮಗೆ ಸಾಮಾನು ತಲುಪಿಸುವವರು — ದಾಸ್ತಾನು ಬಂದಾಗ ಹೆಸರು ಸಿದ್ಧವಿರುತ್ತದೆ. ಇದನ್ನು ಬಿಟ್ಟುಬಿಡಬಹುದು — ಡೆಲಿವರಿ ದಾಖಲಿಸುವಾಗಲೂ ಸೇರಿಸಬಹುದು."
+        )
+
+    val noSuppliersYetKicker: String get() = pick("Nobody added yet", "ಇನ್ನೂ ಯಾರನ್ನೂ ಸೇರಿಸಿಲ್ಲ")
+
+    // The mirror of `openingBalanceNote`: money owed *out* rather than in.
+    val supplierOpeningNote: String
+        get() = pick(
+            "What you already owed them before Stockbook, from the old book. Leave it empty if nothing.",
+            "ಸ್ಟಾಕ್‌ಬುಕ್ ಶುರು ಮಾಡುವ ಮೊದಲು ಹಳೆಯ ಪುಸ್ತಕದಲ್ಲಿ ನೀವು ಅವರಿಗೆ ಕೊಡಬೇಕಿದ್ದ ಮೊತ್ತ. ಏನೂ ಇಲ್ಲದಿದ್ದರೆ ಖಾಲಿ ಬಿಡಿ."
+        )
+
     val openTheShop: String get() = pick("Open the shop", "ಅಂಗಡಿ ತೆರೆಯಿರಿ")
 
     val allSet: String get() =

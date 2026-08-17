@@ -574,6 +574,26 @@ struct Strings {
     var customerNameExample: String { pick("Ahmed Contracting", "ಅಹ್ಮದ್ ಕಂಟ್ರಾಕ್ಟಿಂಗ್") }
     var noCustomersYetKicker: String { pick("Nobody added yet", "ಇನ್ನೂ ಯಾರನ್ನೂ ಸೇರಿಸಿಲ್ಲ") }
 
+    var whoDoYouBuyFrom: String { pick("Who do you buy from?", "ನೀವು ಯಾರಿಂದ ಖರೀದಿಸುತ್ತೀರಿ?") }
+
+    /// The supplier half of the same step, and the same promise: skippable.
+    var suppliersSetupBody: String {
+        pick(
+            "The people who deliver to you, so their names are ready when stock arrives. Skip this — you can add anybody while entering a delivery.",
+            "ನಿಮಗೆ ಸಾಮಾನು ತಲುಪಿಸುವವರು — ದಾಸ್ತಾನು ಬಂದಾಗ ಹೆಸರು ಸಿದ್ಧವಿರುತ್ತದೆ. ಇದನ್ನು ಬಿಟ್ಟುಬಿಡಬಹುದು — ಡೆಲಿವರಿ ದಾಖಲಿಸುವಾಗಲೂ ಸೇರಿಸಬಹುದು."
+        )
+    }
+
+    var noSuppliersYetKicker: String { pick("Nobody added yet", "ಇನ್ನೂ ಯಾರನ್ನೂ ಸೇರಿಸಿಲ್ಲ") }
+
+    /// The mirror of `openingBalanceNote`: money owed *out* rather than in.
+    var supplierOpeningNote: String {
+        pick(
+            "What you already owed them before Stockbook, from the old book. Leave it empty if nothing.",
+            "ಸ್ಟಾಕ್‌ಬುಕ್ ಶುರು ಮಾಡುವ ಮೊದಲು ಹಳೆಯ ಪುಸ್ತಕದಲ್ಲಿ ನೀವು ಅವರಿಗೆ ಕೊಡಬೇಕಿದ್ದ ಮೊತ್ತ. ಏನೂ ಇಲ್ಲದಿದ್ದರೆ ಖಾಲಿ ಬಿಡಿ."
+        )
+    }
+
     var openTheShop: String { pick("Open the shop", "ಅಂಗಡಿ ತೆರೆಯಿರಿ") }
 
     var allSet: String {
