@@ -101,21 +101,39 @@ jobs:
       # The manifest asks for no permissions, but the manifest is not what ships:
       # every library merges its own into the APK. One dependency that quietly
       # wants INTERNET would turn "this app cannot phone home" into a sentence
-      # nobody can verify — so the built APK is asked directly, and a permission
-      # of any kind fails the build.
-      - name: The APK must ask for no permissions
+      # nobody can verify — so the built APK is asked directly.
+      #
+      # Exactly one line is allowed through, and it is worth knowing why. Since
+      # 1.9, `androidx.core` declares a **signature-level permission of the app's
+      # own**, named after the app itself, so that a broadcast receiver registered
+      # at runtime can be marked not-exported on API 33+. It is defined by this
+      # APK and granted only to this APK; it asks nothing of the phone, the user
+      # or another app, and no permission dialog exists for it. Stripping it with
+      # `tools:node="remove"` would risk a SecurityException in a library that
+      # expects it — a real crash traded for a cosmetic line.
+      #
+      # Anything else — anything the phone's owner would be asked about, or that
+      # another app could hold — fails the build.
+      - name: The APK must ask for nothing of the phone
         run: |
           set -o pipefail
           AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
           APK=app/build/outputs/apk/debug/app-debug.apk
-          FOUND=$("$AAPT" dump permissions "$APK" | grep -E "^uses-permission" || true)
+          OWN="com.stockbook.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+
+          ALL=$("$AAPT" dump permissions "$APK" | grep -E "^uses-permission" || true)
+          FOUND=$(echo "$ALL" | grep -v "name='$OWN'" | grep -E "^uses-permission" || true)
+
+          echo "Declared by the APK:"
+          echo "${ALL:-  (none)}"
+
           if [ -n "$FOUND" ]; then
             echo "$FOUND" | while IFS= read -r line; do
-              echo "::error::APK declares a permission: $line"
+              echo "::error::APK asks the phone for something: $line"
             done
             exit 1
           fi
-          echo "No permissions declared."
+          echo "Nothing asked of the phone."
 
       # The whole point on Android: an APK the owner can install from a phone,
       # with no developer account, no signing ceremony and no TestFlight.

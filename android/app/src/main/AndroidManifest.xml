@@ -2,12 +2,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-      No permissions. Not one.
+      No permissions. Not one — and this file is not the whole story, so here is
+      the rest of it.
 
       The first constraint of this app is that it never touches the network, and
-      the honest way to say so on Android is to ask for nothing — no INTERNET, no
-      storage, no anything. A reviewer can confirm the promise from this file
-      alone, which is worth more than a sentence in a privacy policy.
+      the honest way to say so on Android is to ask for nothing: no INTERNET, no
+      storage, no anything. Nothing is requested here, and CI asks the built APK
+      directly rather than trusting this file, because every library's manifest is
+      merged into it.
+
+      That check permits exactly one line, which `androidx.core` contributes:
+      a signature-level permission named `${applicationId}.DYNAMIC_RECEIVER_NOT_
+      EXPORTED_PERMISSION`, defined by this APK and grantable only to this APK, so
+      a runtime-registered receiver can be marked not-exported on API 33+. It asks
+      nothing of the phone and raises no dialog. It has been in the merged manifest
+      since long before it was noticed — `androidx.core` arrives underneath
+      `activity-compose` whether or not it is named in `build.gradle.kts` — and it
+      was the permission check, added later, that made it visible.
     -->
 
     <application
