@@ -82,7 +82,7 @@ struct ScanLeftoversCard: View {
     let onSearch: (String) -> Void
     let onDismiss: () -> Void
 
-    @Environment(\.currencySymbol) private var symbol
+    @Environment(\.currency) private var currency
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -118,7 +118,7 @@ struct ScanLeftoversCard: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .lineLimit(1)
                         if let price = line.unitPrice {
-                            Text(Money.text(price, symbol: symbol))
+                            Text(Money.text(price, in: currency))
                                 .nocturneText(.meta)
                         }
                         Glyph(Icon.browseAll, size: 12)
