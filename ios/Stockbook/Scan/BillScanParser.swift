@@ -180,10 +180,15 @@ enum BillScanParser {
             default: character
             }
         })
+        // A thousands separator is not a digit, and it has to go before the
+        // all-digits check rather than after it — otherwise "1,240" fails a test
+        // it was always going to pass, which is exactly what happened.
+        .replacingOccurrences(of: ",", with: "")
+
         guard corrected.allSatisfy({ $0.isNumber || $0 == "." }) else { return nil }
         guard corrected.contains(where: \.isNumber) else { return nil }
 
-        return Double(corrected.replacingOccurrences(of: ",", with: ""))
+        return Double(corrected)
     }
 
     private static func wholeNumber(_ value: Double) -> Int? {
@@ -217,6 +222,19 @@ enum BillScanParser {
             "thank you", "paid", "cash", "discount"
         ]
         let lowered = row.lowercased().trimmed
-        return noise.contains { lowered == $0 || lowered.hasPrefix($0 + " ") || lowered.hasPrefix($0 + ":") }
+
+        for word in noise {
+            if lowered == word { return true }
+            for separator in [" ", ":"] where lowered.hasPrefix(word + separator) {
+                // "Total 480" is the totals row. "Total lock set" is a product
+                // that happens to open with the same word, and throwing it away
+                // loses a line off the bill. What separates them is whether
+                // anything after the word is a word: a figure, a date or nothing
+                // makes it furniture; more letters make it an item.
+                let rest = String(lowered.dropFirst(word.count + separator.count))
+                if rest.rangeOfCharacter(from: .letters) == nil { return true }
+            }
+        }
+        return false
     }
 }

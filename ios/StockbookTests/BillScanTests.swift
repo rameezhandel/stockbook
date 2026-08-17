@@ -150,8 +150,13 @@ struct BillScanTests {
     @Test("Only a labelled customer name is taken")
     func customer() {
         #expect(BillScanParser.customerName(in: "To: Ahmed Contracting") == "Ahmed Contracting")
-        #expect(BillScanParser.customerName(in: "Customer - Sami") == nil, "the label must be a prefix, not a mention")
         #expect(BillScanParser.customerName(in: "Customer: Sami") == "Sami")
+        // A dash is as good a separator as a colon; a shopkeeper uses whichever.
+        #expect(BillScanParser.customerName(in: "Customer - Sami") == "Sami")
+        // The label has to open the row. Mentioned mid-sentence it is prose, and
+        // taking a name out of prose is how the shop's own strapline ends up in
+        // the customer box.
+        #expect(BillScanParser.customerName(in: "Sold to the customer: Sami") == nil)
         #expect(BillScanParser.customerName(in: "M/S Al-Amri Trading") == "Al-Amri Trading")
         // Guessing that the top line is the customer picks up the shop's own
         // letterhead as often as not.
