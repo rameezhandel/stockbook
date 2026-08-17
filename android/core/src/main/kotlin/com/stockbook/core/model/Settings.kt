@@ -43,6 +43,11 @@ data class Settings(
      */
     val language: AppLanguage = AppLanguage.ENGLISH,
     /**
+     * Dark or light, chosen in Settings and never inferred from the phone — same
+     * reasoning as [language], and the same shape.
+     */
+    val theme: AppTheme = AppTheme.default,
+    /**
      * When the owner last wrote a backup file. Null keeps the Today nudge
      * shouting — with no server, a file is the only thing between this shop and
      * a dropped phone.

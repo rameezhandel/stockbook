@@ -5,11 +5,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Remove
@@ -56,4 +58,8 @@ object Icon {
 
     // People
     val customer: ImageVector = Icons.Filled.Person
+
+    // Appearance
+    val themeDark: ImageVector = Icons.Filled.DarkMode        // phosphor: moon
+    val themeLight: ImageVector = Icons.Filled.LightMode      // phosphor: sun
 }

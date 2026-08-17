@@ -38,6 +38,10 @@ enum Icon {
     static let money = "dollarsign.circle"            // phosphor: money
     static let partPayment = "scissors"               // phosphor: scissors
 
+    // Appearance
+    static let themeDark = "moon"                     // phosphor: moon
+    static let themeLight = "sun.max"                 // phosphor: sun
+
     // Files & backup
     static let export = "square.and.arrow.up"         // phosphor: export
     static let importFile = "tray.and.arrow.down"     // phosphor: tray-arrow-down

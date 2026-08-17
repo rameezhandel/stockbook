@@ -48,6 +48,7 @@ final class StockbookStore {
             payments = state.payments.sorted { $0.receivedAt > $1.receivedAt }
             settings = state.settings
             L10n.use(settings.language)
+            Nocturne.use(settings.theme)
         } catch {
             lastError = error.localizedDescription
         }
@@ -77,6 +78,16 @@ final class StockbookStore {
         guard settings.language != language else { return }
         settings.language = language
         L10n.use(language)
+        attempt { try repository.save(settings) }
+    }
+
+    /// Dark or light. Applied to `Nocturne` in the same breath and for the same
+    /// reason as the language: `RootView` rebuilds off `settings.theme` while
+    /// every colour is read from `Nocturne`, so the two must never disagree.
+    func setTheme(_ theme: AppTheme) {
+        guard settings.theme != theme else { return }
+        settings.theme = theme
+        Nocturne.use(theme)
         attempt { try repository.save(settings) }
     }
 
@@ -524,11 +535,12 @@ final class StockbookStore {
         bills = []
         customerRecords = []
         payments = []
-        // Everything goes except the language. Wiping the shop is a data
-        // decision; being handed setup in a language you cannot read is not one
-        // the owner asked for.
+        // Everything goes except the language and the theme. Wiping the shop is a
+        // data decision; being handed setup in a language you cannot read — or in
+        // a colour scheme you turned off — is not one the owner asked for.
         var fresh = Settings()
         fresh.language = settings.language
+        fresh.theme = settings.theme
         settings = fresh
         attempt { try repository.replaceAll(with: ShopState(settings: fresh)) }
     }
@@ -539,10 +551,12 @@ final class StockbookStore {
     /// behind a warning naming what is about to be lost.
     func replaceEverything(with document: BackupDocument) {
         var restored = Settings()
-        // The language belongs to the person holding this phone, not to the
-        // file — a backup carried over from a shop that reads English must not
-        // switch this one.
+        // The language and the theme belong to the person holding this phone, not
+        // to the file — a backup carried over from a shop that reads English must
+        // not switch this one. Neither is written into a backup for the same
+        // reason, so there is nothing in the document to take them from anyway.
         restored.language = settings.language
+        restored.theme = settings.theme
         restored.ownerName = document.ownerName
         // Currency, unlike language, is a property of the numbers in the file:
         // those prices were entered in it.

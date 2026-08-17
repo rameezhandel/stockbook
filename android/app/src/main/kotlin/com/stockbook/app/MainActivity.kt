@@ -1,5 +1,7 @@
 package com.stockbook.app
 
+import android.app.Activity
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,14 +14,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.stockbook.app.design.Motion
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.StockbookTabBar
+import com.stockbook.app.design.StockbookTheme
 import com.stockbook.app.design.BottomSheet
 import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.bills.BillsScreen
@@ -36,6 +44,7 @@ import com.stockbook.app.feature.settings.BackupScreen
 import com.stockbook.app.feature.settings.SettingsScreen
 import com.stockbook.app.feature.setup.SetupFlow
 import com.stockbook.app.feature.today.TodayScreen
+import com.stockbook.core.model.AppTheme
 import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppTab
@@ -68,7 +77,15 @@ class MainActivity : ComponentActivity() {
         // against a store the owner would type a day's bills into and lose.
         store = StockbookStore(JsonFileRepository(File(filesDir, "stockbook/shop.json")))
 
-        setContent { Shell(store) }
+        // The first frame is Compose's, but the window behind it is the system's
+        // and comes from `themes.xml`. Repainting it once the shop is loaded stops
+        // a light-theme shop from opening on a dark rectangle. The instant before
+        // this — the starting window — stays dark, and the only way to fix that
+        // would be to read the shop file before the process draws anything.
+        Nocturne.use(store.settings.theme)
+        window.setBackgroundDrawable(ColorDrawable(Nocturne.bg.toArgb()))
+
+        setContent { StockbookTheme { Shell(store) } }
     }
 }
 
@@ -76,6 +93,27 @@ class MainActivity : ComponentActivity() {
 private fun Shell(store: StockbookStore) {
     val context = LocalContext.current
     val state by store.state.collectAsStateWithLifecycle()
+
+    // The palette is published to `Nocturne` after the composition that read the
+    // setting, not during it. `Nocturne` holds the palette in a snapshot state,
+    // and writing snapshot state *inside* composition — in a function that also
+    // reads it, as this one does through `Nocturne.bg` below — is how a tree ends
+    // up recomposing itself. The first frame does not need this anyway: the
+    // activity applies the stored theme before `setContent`.
+    SideEffect { Nocturne.use(state.settings.theme) }
+
+    // The system bars are not ours to draw, only to tell: dark icons over a light
+    // theme, light icons over a dark one. Without this the status bar keeps the
+    // white glyphs `themes.xml` gave it, and they vanish into a white page.
+    val view = LocalView.current
+    val light = state.settings.theme == AppTheme.LIGHT
+    LaunchedEffect(light) {
+        val window = (view.context as Activity).window
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = light
+            isAppearanceLightNavigationBars = light
+        }
+    }
     val router = remember { AppRouter() }
     val cart = remember { Cart() }
     val strings = remember(state.settings.language) { Strings(state.settings.language) }

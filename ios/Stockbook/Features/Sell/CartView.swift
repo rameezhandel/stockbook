@@ -55,13 +55,13 @@ struct CartView: View {
             CustomerPicker()
 
             HStack(spacing: 6) {
-                PaymentPill(
+                ChoicePill(
                     title: Loc.paidInFull,
                     icon: Icon.money,
                     selected: cart.payMode == .full
                 ) { cart.payMode = .full }
 
-                PaymentPill(
+                ChoicePill(
                     title: Loc.partPayment,
                     icon: Icon.partPayment,
                     selected: cart.payMode == .part
@@ -429,37 +429,12 @@ private struct CustomerPicker: View {
         .background(Nocturne.surface)
         .clipShape(RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
         .hairline(Nocturne.accent, radius: Metrics.controlRadius)
-        .shadow(color: .black.opacity(0.55), radius: 9, x: 0, y: 6)
+        .shadow(color: Nocturne.shadow, radius: 9, x: 0, y: 6)
     }
 
     private func choose(_ customer: Customer) {
         cart.selectCustomer(customer)
         focused = false
         dismissKeyboard()
-    }
-}
-
-// MARK: - Payment
-
-private struct PaymentPill: View {
-    let title: String
-    let icon: String
-    let selected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Glyph(icon, size: 14)
-                Text(title).font(NocturneType.inter(13, .medium))
-            }
-            .foregroundStyle(selected ? Nocturne.accent : Nocturne.neutral500)
-            .frame(maxWidth: .infinity)
-            .frame(height: 38)
-            .hairline(selected ? Nocturne.accent : Nocturne.neutral800, radius: Metrics.controlRadius)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
 }

@@ -37,7 +37,7 @@ struct BottomSheetContainer<Content: View>: View {
             .frame(maxWidth: .infinity)
             .background(Nocturne.surface)
             .clipShape(TopRoundedRectangle(radius: Metrics.sheetRadius))
-            .shadow(color: .black.opacity(0.65), radius: 20, x: 0, y: -16)
+            .shadow(color: Nocturne.sheetShadow, radius: 20, x: 0, y: -16)
             .transition(.move(edge: .bottom))
         }
         .frame(maxHeight: .infinity, alignment: .bottom)

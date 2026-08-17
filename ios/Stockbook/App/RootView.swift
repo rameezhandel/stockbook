@@ -54,12 +54,18 @@ private struct AppRoot: View {
         .environment(\.currency, store.settings.currency)
         .environment(\.locale, store.settings.language.locale)
         .tint(Nocturne.accent)
-        // Every string in the app is read from `L10n` at render time, and
-        // `L10n` is not observable, so nothing would redraw on its own when the
-        // language changes. Keying the whole tree on the language rebuilds it
-        // instead — heavy-handed, and exactly right for something that happens
-        // once and must leave nothing behind in the old language.
-        .id(store.settings.language)
+        // Every string in the app is read from `L10n` at render time, and every
+        // colour from `Nocturne`. Neither is observable, so nothing would redraw
+        // on its own when the language or the theme changes. Keying the whole
+        // tree on both rebuilds it instead — heavy-handed, and exactly right for
+        // something that happens once and must leave nothing behind of the
+        // language or the palette it replaced.
+        .id("\(store.settings.language.rawValue)-\(store.settings.theme.rawValue)")
+        // System-drawn things — the keyboard, the menu behind a dropdown, the
+        // date picker — take their appearance from here rather than from the
+        // phone. The build no longer pins `UIUserInterfaceStyle`, because pinning
+        // it would win over this.
+        .preferredColorScheme(store.settings.theme == .light ? .light : .dark)
     }
 }
 

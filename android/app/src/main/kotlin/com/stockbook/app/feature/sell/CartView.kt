@@ -24,7 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.design.FieldEmphasis
@@ -37,6 +36,7 @@ import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneField
 import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.PrimaryButton
+import com.stockbook.app.design.ChoicePill
 import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
@@ -124,7 +124,7 @@ private fun Footer(
             Spacer(Modifier.height(10.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {
-                PaymentPill(
+                ChoicePill(
                     strings.paidInFull,
                     Icon.confirm,
                     selected = cart.payMode == PayMode.FULL,
@@ -132,7 +132,7 @@ private fun Footer(
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(6.dp))
-                PaymentPill(
+                ChoicePill(
                     strings.partPayment,
                     Icon.edit,
                     selected = cart.payMode == PayMode.PART,
@@ -326,32 +326,6 @@ private fun PriceBox(symbol: String, text: String, overridden: Boolean, onChange
             emphasis = if (overridden) FieldEmphasis.CHANGED else FieldEmphasis.NONE,
             textAlign = androidx.compose.ui.text.style.TextAlign.End,
             fontSize = 13.5
-        )
-    }
-}
-
-@Composable
-private fun PaymentPill(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .height(38.dp)
-            .hairline(if (selected) Nocturne.accent else Nocturne.neutral800, Metrics.controlRadius)
-            .clickable(onClick = onClick)
-    ) {
-        Glyph(icon, size = 14.dp, tint = if (selected) Nocturne.accent else Nocturne.neutral500)
-        Spacer(Modifier.width(6.dp))
-        Text(
-            title,
-            style = NocturneType.inter(13.0, FontWeight.Medium),
-            color = if (selected) Nocturne.accent else Nocturne.neutral500
         )
     }
 }

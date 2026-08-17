@@ -4,7 +4,7 @@ SwiftUI implementation of the design in
 [`../project/design_handoff_stockbook/README.md`](../project/design_handoff_stockbook/README.md).
 That file is the spec; this one describes how the code is arranged.
 
-**Requirements:** Xcode 16+, iOS 17.0+, iPhone only, portrait, dark-only.
+**Requirements:** Xcode 16+, iOS 17.0+, iPhone only, portrait.
 Open `Stockbook.xcodeproj` and run — there are no dependencies, no package
 resolution, no `pod install`.
 
@@ -265,8 +265,15 @@ changed meaning.
 `DesignSystem/` is the whole of the visual spec, and feature code never reaches
 past it:
 
-- **`Nocturne.swift`** — every colour token. The one file allowed to contain a
-  hex literal.
+- **`Nocturne.swift`** — every colour token, and the one file allowed to contain
+  a hex literal. It holds **two palettes behind one set of names**: a screen
+  reads `Nocturne.surface` and gets the surface of whichever theme the owner
+  chose in Settings. That is what stops a second theme from becoming a second
+  design — a screen cannot forget to handle light, because it never asks which
+  theme it is in. The light palette is not the dark one inverted: the accent
+  darkens to stay legible on white, the ground and the card swap roles rather
+  than values, and `accent300` — the loudest shade on dark — becomes the deepest
+  on light, because the ramp means "more attention", not "more light".
 - **`NocturneType.swift`** — the type scale as named roles (`.screenTitle`,
   `.meta`, `.kicker`…), applied with `.nocturneText(_:)`. No feature file names a
   point size. Inter is not bundled; drop `Inter-Regular.ttf` and
@@ -429,6 +436,9 @@ both it and setup step 4.
   the four suggestion capsules, the customer roster with opening balances, then
   the stock-and-prices grid with its completeness gate.
 - **English and Kannada**, with the switcher in Settings.
+- **Dark and light**, chosen in Settings and stored with the shop. Two themes,
+  no "System": following the phone would hand the decision to whoever set the
+  phone up, who is not always the person behind the counter.
 - **Currency selection** — fourteen currencies, picked in setup and changeable
   in Settings.
 - **Product editor** and **Add stock** sheets, both complete.

@@ -456,6 +456,9 @@ class Strings(val language: AppLanguage) {
     val productsStat: String get() = pick("Products", "ಸಾಮಾನುಗಳು")
     val customersStat: String get() = pick("Customers", "ಗ್ರಾಹಕರು")
     val languageSection: String get() = pick("Language", "ಭಾಷೆ")
+    val themeSection: String get() = pick("Theme", "ಥೀಮ್")
+    val themeDark: String get() = pick("Dark", "ಕಪ್ಪು")
+    val themeLight: String get() = pick("Light", "ಬಿಳಿ")
     val languageAndCurrency: String get() = pick("Language and currency", "ಭಾಷೆ ಮತ್ತು ಹಣ")
     val notBackedUpYet: String get() = pick("Nothing backed up yet", "ಇನ್ನೂ ಬ್ಯಾಕಪ್ ಆಗಿಲ್ಲ")
 

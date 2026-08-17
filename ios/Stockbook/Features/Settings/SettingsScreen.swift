@@ -29,6 +29,7 @@ struct SettingsScreen: View {
                 VStack(alignment: .leading, spacing: 0) {
                     thisPhone
                     languageAndCurrency
+                    theme
                     backupRow
                     #if DEBUG
                     startAgain
@@ -118,6 +119,34 @@ struct SettingsScreen: View {
                 .foregroundStyle(Nocturne.neutral500)
                 .lineSpacing(3)
                 .padding(.bottom, 20)
+        }
+    }
+
+    // MARK: How it looks
+
+    /// Two pills rather than a dropdown. There are exactly two answers, both
+    /// worth showing at once, and the choice is the sort somebody makes by
+    /// looking at the result — a menu that hides the alternative behind a tap is
+    /// the wrong shape for that.
+    ///
+    /// There is no "System". Following the phone would hand the decision to
+    /// whoever set the phone up, who is not always the person behind the counter.
+    private var theme: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Kicker(Loc.themeSection).padding(.bottom, 8)
+
+            HStack(spacing: 6) {
+                ForEach(AppTheme.allCases) { option in
+                    ThemePill(
+                        title: option.name(Loc),
+                        icon: option == .light ? Icon.themeLight : Icon.themeDark,
+                        selected: settings.theme == option
+                    ) {
+                        store.setTheme(option)
+                    }
+                }
+            }
+            .padding(.bottom, 20)
         }
     }
 

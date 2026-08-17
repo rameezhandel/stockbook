@@ -1,5 +1,6 @@
 package com.stockbook.core.store
 
+import com.stockbook.core.model.AppTheme
 import com.stockbook.core.model.Bill
 import com.stockbook.core.model.BillLine
 import com.stockbook.core.model.Currency
@@ -115,6 +116,15 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun setLanguage(language: AppLanguage) {
         if (settings.language == language) return
         updateSettings { it.copy(language = language) }
+    }
+
+    /**
+     * Dark or light. Stored here; the palette itself is applied by the UI layer,
+     * which is the only part of the app that knows what a colour is.
+     */
+    fun setTheme(theme: AppTheme) {
+        if (settings.theme == theme) return
+        updateSettings { it.copy(theme = theme) }
     }
 
     /**
@@ -544,10 +554,10 @@ class StockbookStore(private val repository: StockbookRepository) {
 
     /** Wipes everything and sends the owner back to setup step 1. */
     fun startOver() {
-        // Everything goes except the language. Wiping the shop is a data
-        // decision; being handed setup in a language you cannot read is not one
-        // the owner asked for.
-        val fresh = Settings(language = settings.language)
+        // Everything goes except the language and the theme. Wiping the shop is a
+        // data decision; being handed setup in a language you cannot read — or in
+        // a colour scheme you turned off — is not one the owner asked for.
+        val fresh = Settings(language = settings.language, theme = settings.theme)
         _state.value = ShopState(settings = fresh)
         attempt { repository.replaceAll(ShopState(settings = fresh)) }
     }
@@ -566,10 +576,12 @@ class StockbookStore(private val repository: StockbookRepository) {
             currencyCode = document.currencyCode
                 ?: Currency.matching(document.currencySymbol)?.code
                 ?: Currency.default.code,
-            // The language belongs to the person holding this phone, not to the
-            // file — a backup carried over from a shop that reads English must
-            // not switch this one.
+            // The language and the theme belong to the person holding this phone,
+            // not to the file — a backup carried over from a shop that reads
+            // English must not switch this one. Neither is written into a backup
+            // for the same reason, so the document has nothing to take them from.
             language = settings.language,
+            theme = settings.theme,
             // The imported file is a copy of *another* phone's backup, not a
             // backup of this one — the nudge stays on until this phone writes
             // its own.

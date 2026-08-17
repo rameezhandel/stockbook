@@ -37,8 +37,11 @@ Google's Maven, so it builds in CI and in Android Studio.
   `productUID` is spelled the way Swift spells it for exactly that reason.
 - **Every string**, in both languages, in one table ported line for line from
   the iOS `Strings`. A correction belongs in both.
-- **The palette.** `Nocturne.kt` carries the same hex values. Two apps drawn from
-  one palette stay one product.
+- **The palette.** `Nocturne.kt` carries the same hex values, in both themes.
+  Two apps drawn from one palette stay one product. Where the two builds differ
+  is only in how a theme change reaches the screen: Compose reads the tokens
+  through a snapshot state and recomposes what draws, while iOS rebuilds its tree
+  on a key, because its palette is not observable.
 - **The rules.** `StoreTests` is a port of the iOS suite, assertion for
   assertion. The two apps share a file and a shop; they had better share their
   arithmetic.
@@ -109,8 +112,10 @@ Everything the iOS app does.
   sheets, the customer editor, the record-a-payment sheet, the statement
   document, the receipt, the bill document, the customer filter, Settings and the
   backup handoff.
-- The design system: palette, named type roles, metrics, motion, and the
-  Phosphor-to-Material icon map.
+- The design system: both palettes, named type roles, metrics, motion, and the
+  Phosphor-to-Material icon map — plus the dark/light switch in Settings, which
+  also tells the status bar and the few Material surfaces (menus, the date
+  picker) which theme they are sitting over.
 - CI that runs the domain tests and ships an installable APK.
 
 ## Where Android answers better than iOS

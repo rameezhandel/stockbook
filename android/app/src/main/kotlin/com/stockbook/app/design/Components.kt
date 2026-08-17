@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -343,4 +344,42 @@ fun FadedRule(modifier: Modifier = Modifier, inset: Dp = 24.dp) {
                 onDrawBehind { drawRect(brush) }
             }
     )
+}
+
+/**
+ * One of two or three answers, all of them on screen at once: an icon, a word,
+ * and an accent outline on the one in force.
+ *
+ * Where a dropdown hides the alternatives behind a tap, this shows them — the
+ * right trade for a short list somebody chooses by comparing (full payment
+ * against part payment, dark against light) and the wrong one for fourteen
+ * currencies.
+ *
+ * Started life as `PaymentPill` inside the cart, and moved here the second time a
+ * screen needed it rather than the third.
+ */
+@Composable
+fun ChoicePill(
+    title: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .height(38.dp)
+            .hairline(if (selected) Nocturne.accent else Nocturne.neutral800, Metrics.controlRadius)
+            .clickable(onClick = onClick)
+    ) {
+        Glyph(icon, size = 14.dp, tint = if (selected) Nocturne.accent else Nocturne.neutral500)
+        Spacer(Modifier.width(6.dp))
+        Text(
+            title,
+            style = NocturneType.inter(13.0, FontWeight.Medium),
+            color = if (selected) Nocturne.accent else Nocturne.neutral500
+        )
+    }
 }

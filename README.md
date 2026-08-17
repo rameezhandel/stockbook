@@ -4,7 +4,7 @@ Offline inventory and billing for a small hardware shop. Single user, no
 account, no server — everything lives on the phone, and the only way data moves
 between devices is a file the owner exports by hand.
 
-Native iOS: SwiftUI + SwiftData, iOS 17+, iPhone only, dark-only.
+Native iOS: SwiftUI, iOS 17+, iPhone only, portrait, dark or light.
 
 ## Where things are
 

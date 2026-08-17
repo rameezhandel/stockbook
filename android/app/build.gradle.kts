@@ -83,6 +83,11 @@ dependencies {
     implementation(libs.compose.material.icons)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.activity.compose)
+    // Already on the runtime path underneath activity-compose; named here because
+    // `WindowCompat` is used directly, to tell the status bar which theme it is
+    // sitting over. It declares no permissions of its own, and the CI step below
+    // `assembleDebug` now proves that of the built APK rather than trusting it.
+    implementation(libs.androidx.core)
     implementation(libs.lifecycle.runtime.compose)
 
     debugImplementation(libs.compose.ui.tooling)

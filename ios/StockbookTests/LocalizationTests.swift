@@ -54,6 +54,7 @@ struct LocalizationTests {
         \.stockAndPricesBody, \.youPay, \.youSell, \.openTheShop,
         \.allSet, \.thisPhone, \.businessOwner, \.productsStat,
         \.customersStat, \.languageSection, \.languageAndCurrency, \.notBackedUpYet,
+        \.themeSection, \.themeDark, \.themeLight,
         \.currencySection, \.currencyNote, \.setupCurrencyNote, \.moveToAnotherPhone,
         \.moveToAnotherPhoneNote, \.exportEverything, \.exportNoteFirstTime, \.exportNoteAfterBackup,
         \.writeAFreshFile, \.createBackupFile, \.importABackupFile, \.chooseAFile,

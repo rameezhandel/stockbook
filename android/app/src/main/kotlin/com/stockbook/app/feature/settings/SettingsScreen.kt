@@ -29,6 +29,7 @@ import com.stockbook.app.design.DropdownField
 import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Glyph
 import com.stockbook.app.design.Icon
+import com.stockbook.app.design.ChoicePill
 import com.stockbook.app.design.Kicker
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
@@ -37,6 +38,7 @@ import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.ScreenHeader
 import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.card
+import com.stockbook.core.model.AppTheme
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.store.StockbookStore
@@ -131,6 +133,34 @@ fun SettingsScreen(
                 color = Nocturne.neutral500,
                 modifier = Modifier.padding(top = 8.dp)
             )
+
+            Spacer(Modifier.height(20.dp))
+            Kicker(strings.themeSection, modifier = Modifier.padding(bottom = 8.dp))
+            // Two pills rather than a dropdown. There are exactly two answers,
+            // both worth showing at once, and this is a choice somebody makes by
+            // looking at the result — a menu that hides the alternative behind a
+            // tap is the wrong shape for it.
+            //
+            // There is no "System": following the phone would hand the decision
+            // to whoever set the phone up, who is not always the person behind
+            // the counter.
+            Row(modifier = Modifier.fillMaxWidth()) {
+                ChoicePill(
+                    title = strings.themeDark,
+                    icon = Icon.themeDark,
+                    selected = state.settings.theme == AppTheme.DARK,
+                    onClick = { store.setTheme(AppTheme.DARK) },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(6.dp))
+                ChoicePill(
+                    title = strings.themeLight,
+                    icon = Icon.themeLight,
+                    selected = state.settings.theme == AppTheme.LIGHT,
+                    onClick = { store.setTheme(AppTheme.LIGHT) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             Spacer(Modifier.height(20.dp))
             // A row, not a section. The subtitle carries the backup state,

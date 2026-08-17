@@ -510,6 +510,9 @@ struct Strings {
     var productsStat: String { pick("Products", "ಸಾಮಾನುಗಳು") }
     var customersStat: String { pick("Customers", "ಗ್ರಾಹಕರು") }
     var languageSection: String { pick("Language", "ಭಾಷೆ") }
+    var themeSection: String { pick("Theme", "ಥೀಮ್") }
+    var themeDark: String { pick("Dark", "ಕಪ್ಪು") }
+    var themeLight: String { pick("Light", "ಬಿಳಿ") }
     var languageAndCurrency: String { pick("Language and currency", "ಭಾಷೆ ಮತ್ತು ಹಣ") }
     var notBackedUpYet: String { pick("Nothing backed up yet", "ಇನ್ನೂ ಬ್ಯಾಕಪ್ ಆಗಿಲ್ಲ") }
 

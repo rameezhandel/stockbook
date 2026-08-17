@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      Dark, always. The design is a single dark theme and does not have a light
-      counterpart to fall back to, so following the system would produce a screen
-      nobody drew.
+      The starting window, and nothing else.
+
+      Everything the app draws takes its colour from `Nocturne`, which now holds
+      two palettes; this style paints only the frame the system puts up before the
+      process has drawn anything, and `MainActivity` repaints the window as soon
+      as it knows which theme the shop chose. A light-theme shop therefore sees
+      the dark ground for the length of a cold start and no longer — the only way
+      to remove even that would be to read the shop file before the first frame.
+
+      The bar icons are set at runtime too, for the same reason: white glyphs
+      disappear into a white page.
     -->
     <style name="Theme.Stockbook" parent="android:Theme.Material.NoActionBar">
         <item name="android:statusBarColor">#161826</item>

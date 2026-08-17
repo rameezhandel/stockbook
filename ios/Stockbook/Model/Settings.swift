@@ -25,6 +25,10 @@ struct Settings: Codable, Equatable {
     /// reads.
     var language: AppLanguage = .english
 
+    /// Dark or light, chosen in Settings and never inferred from the phone —
+    /// same reasoning as the language, and the same shape.
+    var theme: AppTheme = .default
+
     /// When the owner last wrote a backup file. `nil` keeps the Today nudge
     /// shouting — with no server, a file is the only thing between this shop and
     /// a dropped phone.
@@ -68,6 +72,7 @@ struct Settings: Codable, Equatable {
             currencyCode = symbol.flatMap { Currency.matching(symbol: $0)?.code } ?? fallback.currencyCode
         }
         language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? fallback.language
+        theme = try container.decodeIfPresent(AppTheme.self, forKey: .theme) ?? fallback.theme
         lastExportAt = try container.decodeIfPresent(Date.self, forKey: .lastExportAt)
         setupCompleted = try container.decodeIfPresent(Bool.self, forKey: .setupCompleted) ?? fallback.setupCompleted
         nextBillNumber = try container.decodeIfPresent(Int.self, forKey: .nextBillNumber) ?? fallback.nextBillNumber
