@@ -118,7 +118,7 @@ struct RosterMigrationTests {
         let data = try BackupService.encode(store.makeBackupDocument())
         let document = try BackupService.decode(data)
 
-        #expect(document.version == 2)
+        #expect(document.version == 3)
         #expect(document.customers?.count == 1)
         #expect(document.payments?.count == 1)
 

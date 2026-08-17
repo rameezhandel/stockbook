@@ -87,7 +87,10 @@ data class Statement(
     val customer: Customer,
     val period: StatementPeriod,
     val range: StatementRange,
-    /** Net owed the instant before [range]'s start, from everything earlier. */
+    /**
+     * Net owed the instant before [range]'s start: the customer's carried-over
+     * opening balance, plus unpaid bills, less payments, from everything earlier.
+     */
     val openingBalance: Double,
     /**
      * Bills and payments inside the period, oldest first — a statement reads
@@ -141,7 +144,10 @@ data class Statement(
             // A voided bill did not happen: it contributes nothing to any figure.
             // It is still listed, because history is marked here rather than
             // hidden.
-            val opening = bills.filter { !it.voided && it.createdAt < range.start }.sumOf { it.balance } -
+            // The customer's carried-over balance predates every bill, so it is
+            // part of the brought-forward figure whatever period is being shown.
+            val opening = customer.openingBalance +
+                bills.filter { !it.voided && it.createdAt < range.start }.sumOf { it.balance } -
                 payments.filter { it.receivedAt < range.start }.sumOf { it.amount }
 
             val billsInRange = bills.filter { it.createdAt in range }

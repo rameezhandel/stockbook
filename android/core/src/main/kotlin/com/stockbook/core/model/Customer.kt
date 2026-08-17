@@ -48,6 +48,11 @@ data class Customer(
     val phone: String? = null,
     val place: String? = null,
     /**
+     * Carried over from the paper book. Already included in [owed]; exposed so
+     * the editor can show what was typed rather than a figure with bills mixed in.
+     */
+    val openingBalance: Double = 0.0,
+    /**
      * On the roster rather than merely seen on a bill. The two are shown
      * identically; this exists so the editor knows whether it is adding or
      * correcting.

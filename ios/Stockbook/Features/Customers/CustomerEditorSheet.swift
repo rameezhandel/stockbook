@@ -19,6 +19,7 @@ struct CustomerEditorSheet: View {
     @State private var name = ""
     @State private var phone = ""
     @State private var place = ""
+    @State private var opening = ""
     @State private var confirmingRemoval = false
 
     private var isEditing: Bool { existing?.isOnRoster == true }
@@ -63,7 +64,20 @@ struct CustomerEditorSheet: View {
                     identifier: "customer.place"
                 )
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, 12)
+
+            NocturneField.number(
+                label: Loc.openingBalanceField,
+                placeholder: Loc.optionalField,
+                text: $opening,
+                prefix: currency.symbol.trimmed,
+                identifier: "customer.openingBalance"
+            )
+
+            Text(Loc.openingBalanceNote)
+                .nocturneText(.meta)
+                .padding(.top, 6)
+                .padding(.bottom, 16)
 
             Button(Loc.saveCustomer) { save() }
                 .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
@@ -100,19 +114,31 @@ struct CustomerEditorSheet: View {
             name = existing?.name ?? ""
             phone = existing?.phone ?? ""
             place = existing?.place ?? ""
+            // Blank rather than "0" for a customer who owes nothing from before: a
+            // zero in the box reads as a figure somebody checked.
+            if let carried = existing?.openingBalance, carried > 0 {
+                opening = Money.amount(carried, in: currency)
+            }
         }
         .keyboardDoneButton()
     }
 
     private func save() {
         guard canSave else { return }
+        let carried = Money.parse(opening) ?? 0
         if let existing, existing.isOnRoster {
-            store.updateCustomer(key: existing.key, name: name, phone: phone, place: place)
+            store.updateCustomer(
+                key: existing.key,
+                name: name,
+                phone: phone,
+                place: place,
+                openingBalance: carried
+            )
         } else {
             // A name that has only ever appeared on bills lands here too: adding
             // it is what puts it on the roster, and `addCustomer` keys it the
             // same way, so their history comes with them.
-            store.addCustomer(name: name, phone: phone, place: place)
+            store.addCustomer(name: name, phone: phone, place: place, openingBalance: carried)
         }
         onClose()
     }

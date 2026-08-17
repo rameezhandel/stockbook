@@ -1,5 +1,9 @@
 package com.stockbook.core
 
+import com.stockbook.core.model.Bill
+import com.stockbook.core.model.BillLine
+import com.stockbook.core.model.Customer
+import com.stockbook.core.model.Statement
 import com.stockbook.core.model.CustomerRecord
 import com.stockbook.core.model.Payment
 import com.stockbook.core.model.Product
@@ -361,7 +365,7 @@ class RosterMigrationTests {
 
         val document = BackupService.decode(BackupService.encode(store.makeBackupDocument()))
 
-        assertEquals(2, document.version)
+        assertEquals(3, document.version)
         assertEquals(1, document.customers?.size)
         assertEquals(1, document.payments?.size)
 
@@ -476,5 +480,164 @@ class RosterRepositoryTests {
 
         repository.deletePayment(first.id)
         assertEquals(listOf(50.0), repository.loadAll().payments.map { it.amount })
+    }
+}
+
+/**
+ * The balance a customer brought over from the paper book.
+ *
+ * The reason this matters: a shop that starts using Stockbook on Monday has
+ * customers who already owe from Sunday, and without this every one of them
+ * starts at zero — which is the app telling the owner they are owed nothing.
+ */
+class OpeningBalanceTests {
+
+    private val utc: java.time.ZoneId = java.time.ZoneId.of("UTC")
+
+    private fun at(year: Int, month: Int, day: Int): java.time.Instant =
+        java.time.LocalDate.of(year, month, day).atTime(12, 0).atZone(utc).toInstant()
+
+    private fun store() = StockbookStore(InMemoryRepository())
+
+    @Test
+    fun `a customer who owed from before shows it with no bills at all`() {
+        val store = store()
+
+        store.addCustomer("Ahmed", openingBalance = 5000.0)
+
+        val customer = assertNotNull(store.customers().firstOrNull())
+        assertEquals(5000.0, customer.owed)
+        assertEquals(5000.0, customer.openingBalance)
+        assertEquals(0, customer.billCount, "owing money is not the same as having bought something here")
+    }
+
+    @Test
+    fun `it is never negative`() {
+        val store = store()
+
+        store.addCustomer("Ahmed", openingBalance = -200.0)
+
+        assertEquals(0.0, assertNotNull(store.customers().firstOrNull()).openingBalance)
+    }
+
+    @Test
+    fun `bills and payments stack on top of it`() {
+        val store = store()
+        val product = store.addProduct("Cisa lock", 100, 60.0, 95.0)
+        store.addCustomer("Ahmed", openingBalance = 1000.0)
+        // Bought 190, paid nothing at the counter.
+        store.saveBill(listOf(DraftLine(product.uid, 2, 95.0)), "Ahmed", 0.0)
+        store.recordPayment("ahmed", 300.0)
+
+        // 1000 carried over + 190 billed − 300 paid.
+        assertEquals(890.0, assertNotNull(store.customers().firstOrNull()).owed)
+    }
+
+    @Test
+    fun `correcting it in the editor corrects what they owe`() {
+        val store = store()
+        store.addCustomer("Ahmed", openingBalance = 5000.0)
+
+        store.updateCustomer("ahmed", "Ahmed", null, null, openingBalance = 500.0)
+
+        assertEquals(500.0, assertNotNull(store.customers().firstOrNull()).owed)
+    }
+
+    /**
+     * It predates every bill, so it belongs to every period's brought-forward —
+     * including a period that contains nothing else at all.
+     */
+    @Test
+    fun `every statement period carries it forward`() {
+        val store = store()
+        store.addCustomer("Ahmed", openingBalance = 700.0)
+
+        val statement = assertNotNull(store.statementForCustomer("ahmed", StatementPeriod.thisMonth()))
+
+        assertEquals(700.0, statement.openingBalance)
+        assertEquals(700.0, statement.closingBalance)
+        assertTrue(statement.isEmpty, "nothing happened this month, and they still owe")
+    }
+
+    @Test
+    fun `the running balance still lands on the closing balance`() {
+        val customer = Customer(
+            name = "Ahmed", key = "ahmed", billCount = 0, total = 0.0, owed = 0.0,
+            openingBalance = 1000.0, isOnRoster = true
+        )
+        val bill = Bill(
+            number = 1,
+            lines = listOf(BillLine(productUid = null, name = "Cisa lock", qty = 1, price = 250.0)),
+            total = 250.0, paid = 0.0, who = "Ahmed", createdAt = at(2026, 8, 4)
+        )
+        val payment = Payment(customerKey = "ahmed", amount = 400.0, receivedAt = at(2026, 8, 20))
+
+        val statement = Statement.make(
+            customer = customer,
+            bills = listOf(bill),
+            payments = listOf(payment),
+            period = StatementPeriod.Month(at(2026, 8, 10)),
+            zone = utc
+        )
+
+        assertEquals(1000.0, statement.openingBalance)
+        // 1000 + 250 − 400.
+        assertEquals(850.0, statement.closingBalance)
+        assertEquals(statement.closingBalance, statement.runningBalances.last())
+    }
+
+    /**
+     * The Today banner. It used to walk bills directly, which meant it ignored
+     * payments *and* opening balances — naming somebody who had settled up and
+     * missing somebody who owed from before the app.
+     */
+    @Test
+    fun `the outstanding banner counts what customers actually owe`() {
+        val store = store()
+        val product = store.addProduct("Cisa lock", 100, 60.0, 95.0)
+        store.addCustomer("Ahmed", openingBalance = 1000.0)
+        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Sami", 0.0)
+        // Sami settles up in full; Ahmed has never bought anything here.
+        store.recordPayment("sami", 95.0)
+
+        val (names, total) = store.outstanding()
+
+        assertEquals(listOf("Ahmed"), names, "Sami has paid; Ahmed owes from the old book")
+        assertEquals(1000.0, total)
+    }
+
+    @Test
+    fun `a backup carries it, and a v2 file without it reads as nothing owed`() {
+        val store = store()
+        store.addCustomer("Ahmed", openingBalance = 5000.0)
+
+        val document = BackupService.decode(BackupService.encode(store.makeBackupDocument()))
+        assertEquals(3, document.version)
+        assertEquals(5000.0, assertNotNull(document.customers?.firstOrNull()).openingBalance)
+
+        val restored = store()
+        restored.replaceEverything(document)
+        assertEquals(5000.0, assertNotNull(restored.customers().firstOrNull()).owed)
+    }
+
+    @Test
+    fun `a customer row written before opening balances existed reads as zero`() {
+        val v2 = """
+        {
+          "version": 2,
+          "exportedAt": "2026-08-17T09:41:00Z",
+          "ownerName": "Khalid",
+          "currencySymbol": "SAR ",
+          "products": [],
+          "bills": [],
+          "customers": [
+            { "key": "ahmed", "name": "Ahmed", "createdAt": "2026-08-01T06:00:00Z" }
+          ]
+        }
+        """.trimIndent()
+
+        val document = BackupService.decode(v2)
+
+        assertEquals(0.0, assertNotNull(document.customers?.firstOrNull()).openingBalance)
     }
 }

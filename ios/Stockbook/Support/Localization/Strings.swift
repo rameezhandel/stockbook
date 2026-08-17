@@ -194,6 +194,16 @@ struct Strings {
     var removeFromCustomers: String { pick("Remove from customers", "ಗ್ರಾಹಕರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಿರಿ") }
     var tapAgainToRemove: String { pick("Tap again to remove", "ತೆಗೆಯಲು ಇನ್ನೊಮ್ಮೆ ಒತ್ತಿ") }
     var noBillsYet: String { pick("No bills yet", "ಇನ್ನೂ ಬಿಲ್ ಇಲ್ಲ") }
+    var openingBalanceField: String { pick("Opening balance", "ಪ್ರಾರಂಭಿಕ ಬಾಕಿ") }
+
+    /// Says which balance this is, because the statement has one of its own with
+    /// a different meaning — that one is derived, this one is typed in once.
+    var openingBalanceNote: String {
+        pick(
+            "What they already owed you before Stockbook, from the old book. Leave it empty if nothing.",
+            "ಸ್ಟಾಕ್‌ಬುಕ್ ಶುರು ಮಾಡುವ ಮೊದಲು ಹಳೆಯ ಪುಸ್ತಕದಲ್ಲಿ ಅವರು ಕೊಡಬೇಕಿದ್ದ ಮೊತ್ತ. ಏನೂ ಇಲ್ಲದಿದ್ದರೆ ಖಾಲಿ ಬಿಡಿ."
+        )
+    }
     var enterCustomerNameFirst: String { pick("Enter a name", "ಹೆಸರು ಬರೆಯಿರಿ") }
 
     /// Said when removing a roster entry, because "remove" beside somebody's

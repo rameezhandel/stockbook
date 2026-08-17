@@ -75,9 +75,14 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
     var draftName by remember { mutableStateOf("") }
     val drafts = remember { mutableStateListOf<Draft>() }
     var draftCustomer by remember { mutableStateOf("") }
-    /** Only names here. Phone and place are asked for in the editor sheet later —
-     *  setup is already four screens long and the owner has a shop to open. */
-    val customerDrafts = remember { mutableStateListOf<String>() }
+    var draftOpening by remember { mutableStateOf("") }
+    /**
+     * Name and what they already owe. Phone and place wait for the editor sheet —
+     * but the carried-over balance belongs *here*, because this screen is where a
+     * paper book gets migrated and going back to set twenty of them one at a time
+     * is how an owner decides the app is not worth it.
+     */
+    val customerDrafts = remember { mutableStateListOf<CustomerDraft>() }
 
     // The exact set the owner asked for — a lock shop's four common lines.
     val suggestions = remember { listOf("Lever Handle Lock", "Cisa lock", "Padlock", "Deadbolt") }
@@ -91,8 +96,11 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
         if (cleaned.isEmpty()) { draftCustomer = ""; return }
         // Same rule as the product list: a name already there is not a mistake
         // worth interrupting anybody for.
-        if (customerDrafts.none { Customer.key(it) == Customer.key(cleaned) }) customerDrafts.add(cleaned)
+        if (customerDrafts.none { Customer.key(it.name) == Customer.key(cleaned) }) {
+            customerDrafts.add(CustomerDraft(cleaned, Money.parse(draftOpening) ?: 0.0))
+        }
         draftCustomer = ""
+        draftOpening = ""
     }
 
     fun addDraft(name: String) {
@@ -319,12 +327,30 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                             placeholder = strings.customerNameExample,
                             height = Metrics.tallInputHeight,
                             fontSize = 15.0,
-                            onImeAction = { addCustomerDraft(draftCustomer) },
+                            imeAction = ImeAction.Next,
                             modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        NocturneField(
+                            value = draftOpening,
+                            onValueChange = { draftOpening = it },
+                            placeholder = strings.openingBalanceField,
+                            height = Metrics.tallInputHeight,
+                            numeric = true,
+                            prefix = currency.symbol.trim(),
+                            fontSize = 15.0,
+                            onImeAction = { addCustomerDraft(draftCustomer) },
+                            modifier = Modifier.width(120.dp)
                         )
                         Spacer(Modifier.width(8.dp))
                         PrimaryButton("+", onClick = { addCustomerDraft(draftCustomer) }, height = Metrics.tallInputHeight)
                     }
+                    Text(
+                        strings.openingBalanceNote,
+                        style = NocturneType.meta,
+                        color = Nocturne.neutral500,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
 
                     Kicker(
                         if (customerDrafts.isEmpty()) strings.noCustomersYetKicker
@@ -332,7 +358,7 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                         modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
                     )
 
-                    customerDrafts.forEach { name ->
+                    customerDrafts.forEach { draft ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -345,19 +371,27 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                             Glyph(Icon.customer, size = 13.dp, tint = Nocturne.neutral500)
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                name,
+                                draft.name,
                                 style = NocturneType.rowPrimary,
                                 color = Nocturne.text,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
+                            if (draft.openingBalance > 0) {
+                                Text(
+                                    strings.owes(Money.text(draft.openingBalance, currency)),
+                                    style = NocturneType.meta,
+                                    color = Nocturne.accent400
+                                )
+                                Spacer(Modifier.width(6.dp))
+                            }
                             IconButton(
                                 Icon.close,
-                                onClick = { customerDrafts.remove(name) },
+                                onClick = { customerDrafts.remove(draft) },
                                 size = 15.dp,
                                 tint = Nocturne.neutral500,
-                                contentDescription = strings.remove(name)
+                                contentDescription = strings.remove(draft.name)
                             )
                         }
                     }
@@ -414,7 +448,9 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                                     price = Money.parse(draft.price) ?: 0.0
                                 )
                             }
-                            customerDrafts.forEach { store.addCustomer(it) }
+                            customerDrafts.forEach {
+                                store.addCustomer(it.name, openingBalance = it.openingBalance)
+                            }
                             store.completeSetup()
                         },
                         enabled = true,
@@ -431,3 +467,6 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
 
 /** Name, products, prices, customers. */
 private const val TOTAL_STEPS = 4
+
+/** One customer typed during setup: a name, and what they brought over. */
+private data class CustomerDraft(val name: String, val openingBalance: Double)

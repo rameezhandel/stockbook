@@ -274,6 +274,15 @@ final class StockbookStore {
             book[record.key] = (record.name, 0, 0, 0)
         }
 
+        // What they brought over from the paper book. Added after the tallies so a
+        // customer with an opening balance and no bills still shows what they owe.
+        for record in customerRecords {
+            if var entry = book[record.key] {
+                entry.owed += record.openingBalance
+                book[record.key] = entry
+            }
+        }
+
         return order
             .compactMap { key -> Customer? in
                 guard let entry = book[key] else { return nil }
@@ -289,6 +298,7 @@ final class StockbookStore {
                     owed: (entry.owed * 100).rounded() / 100,
                     phone: record?.phone,
                     place: record?.place,
+                    openingBalance: record?.openingBalance ?? 0,
                     isOnRoster: record != nil
                 )
             }
@@ -307,14 +317,20 @@ final class StockbookStore {
     /// Returns nil for a blank name, the way the product editor treats an empty
     /// form: nothing typed means nothing to do.
     @discardableResult
-    func addCustomer(name: String, phone: String? = nil, place: String? = nil) -> CustomerRecord? {
+    func addCustomer(
+        name: String,
+        phone: String? = nil,
+        place: String? = nil,
+        openingBalance: Double = 0
+    ) -> CustomerRecord? {
         guard !name.isBlank else { return nil }
-        let record = CustomerRecord(name: name, phone: phone, place: place)
+        let record = CustomerRecord(name: name, phone: phone, place: place, openingBalance: openingBalance)
         if let index = customerRecords.firstIndex(where: { $0.key == record.key }) {
             var existing = customerRecords[index]
             existing.name = record.name
             existing.phone = record.phone
             existing.place = record.place
+            existing.openingBalance = record.openingBalance
             customerRecords[index] = existing
             attempt { try repository.upsert(existing) }
             return existing
@@ -332,7 +348,13 @@ final class StockbookStore {
     /// saying "Ahmed Contracting" while their bills are filed under "ahmed" and
     /// the two never meeting again. What a bill records about *money* is still
     /// untouchable.
-    func updateCustomer(key: String, name: String, phone: String?, place: String?) {
+    func updateCustomer(
+        key: String,
+        name: String,
+        phone: String?,
+        place: String?,
+        openingBalance: Double = 0
+    ) {
         guard !name.isBlank, let index = customerRecords.firstIndex(where: { $0.key == key }) else { return }
         let newKey = Customer.key(for: name)
 
@@ -340,6 +362,7 @@ final class StockbookStore {
         record.name = name.trimmed
         record.phone = CustomerRecord.tidied(phone)
         record.place = CustomerRecord.tidied(place)
+        record.openingBalance = max(0, openingBalance)
 
         guard newKey != key else {
             customerRecords[index] = record
@@ -466,16 +489,13 @@ final class StockbookStore {
     /// customers, not bills** — two unpaid bills from one person is one person,
     /// however they capitalised it the second time.
     func outstanding() -> (names: [String], total: Double) {
-        var names: [String] = []
-        var seen: Set<String> = []
-        var total: Double = 0
-        for bill in bills where bill.isPartPaid && bill.balance > 0 {
-            total += bill.balance
-            let name = bill.who.trimmed
-            guard !name.isEmpty else { continue }
-            if seen.insert(Customer.key(for: name)).inserted { names.append(name) }
-        }
-        return (names, total)
+        // Derived from `customers()` rather than from bills directly, which is the
+        // only way this figure can be right. Walking bills alone ignored both
+        // payments received and balances carried over from the paper book — so a
+        // customer who had settled up in full went on being named here, and one
+        // who owed from before the app existed never was.
+        let owing = customers().filter { $0.owed > 0 }
+        return (owing.map(\.name), owing.reduce(0) { $0 + $1.owed })
     }
 
     // MARK: - Restock
@@ -551,6 +571,7 @@ final class StockbookStore {
                     name: $0.name,
                     phone: $0.phone,
                     place: $0.place,
+                    openingBalance: $0.openingBalance ?? 0,
                     createdAt: $0.createdAt
                 )
             } ?? [],
@@ -603,6 +624,7 @@ final class StockbookStore {
                     name: $0.name,
                     phone: $0.phone,
                     place: $0.place,
+                    openingBalance: $0.openingBalance,
                     createdAt: $0.createdAt
                 )
             },

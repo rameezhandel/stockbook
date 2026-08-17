@@ -25,6 +25,7 @@ import com.stockbook.app.design.PrimaryButton
 import com.stockbook.app.design.SheetHeader
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
+import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
 
@@ -50,6 +51,13 @@ fun CustomerEditorSheet(
     var name by remember(existing?.key) { mutableStateOf(existing?.name ?: "") }
     var phone by remember(existing?.key) { mutableStateOf(existing?.phone ?: "") }
     var place by remember(existing?.key) { mutableStateOf(existing?.place ?: "") }
+    var opening by remember(existing?.key) {
+        mutableStateOf(
+            // Blank rather than "0" for a customer who owes nothing from before:
+            // a zero in the box reads as a figure somebody checked.
+            existing?.openingBalance?.takeIf { it > 0 }?.let { Money.amount(it, currency) } ?: ""
+        )
+    }
     var confirmingRemoval by remember(existing?.key) { mutableStateOf(false) }
 
     val isEditing = existing?.isOnRoster == true
@@ -95,19 +103,36 @@ fun CustomerEditorSheet(
                 modifier = Modifier.weight(1f)
             )
         }
+        Spacer(Modifier.height(12.dp))
+
+        NocturneField(
+            value = opening,
+            onValueChange = { opening = it },
+            label = strings.openingBalanceField,
+            placeholder = strings.optionalField,
+            numeric = true,
+            prefix = currency.symbol.trim()
+        )
+        Text(
+            strings.openingBalanceNote,
+            style = NocturneType.meta,
+            color = Nocturne.neutral500,
+            modifier = Modifier.padding(top = 6.dp)
+        )
         Spacer(Modifier.height(16.dp))
 
         PrimaryButton(
             title = if (canSave) strings.saveCustomer else strings.enterCustomerNameFirst,
             onClick = {
                 if (!canSave) return@PrimaryButton
+                val openingValue = Money.parse(opening) ?: 0.0
                 if (isEditing && existing != null) {
-                    store.updateCustomer(existing.key, name, phone, place)
+                    store.updateCustomer(existing.key, name, phone, place, openingValue)
                 } else {
                     // A name that has only ever appeared on bills lands here too:
                     // adding it is what puts it on the roster, and `addCustomer`
                     // keys it the same way, so their history comes with them.
-                    store.addCustomer(name, phone, place)
+                    store.addCustomer(name, phone, place, openingValue)
                 }
                 onClose()
             },

@@ -18,6 +18,7 @@ struct SetupFlowView: View {
     @State private var draftName = ""
     @State private var drafts: [ProductDraft] = []
     @State private var draftCustomer = ""
+    @State private var draftOpening = ""
     @State private var customerDrafts: [CustomerDraft] = []
 
     /// Step 3's twelve-or-so boxes, focused from here rather than each one
@@ -40,12 +41,14 @@ struct SetupFlowView: View {
         "Deadbolt"
     ]
 
-    /// Only a name here. Phone and place are asked for in the editor sheet
-    /// later — setup is already four screens long, and the owner has a shop to
-    /// open.
+    /// A name and what they already owe. Phone and place wait for the editor
+    /// sheet — but the carried-over balance belongs *here*, because this screen is
+    /// where a paper book gets migrated, and going back to set twenty of them one
+    /// at a time is how an owner decides the app is not worth it.
     private struct CustomerDraft: Identifiable {
         let id = UUID()
         var name: String
+        var openingBalance: Double
     }
 
     private struct ProductDraft: Identifiable {
@@ -416,12 +419,25 @@ struct SetupFlowView: View {
                             identifier: "setup.customerName",
                             onSubmit: { addCustomerDraft(draftCustomer) }
                         )
+                        NocturneField.number(
+                            placeholder: Loc.openingBalanceField,
+                            text: $draftOpening,
+                            height: Metrics.tallInputHeight,
+                            prefix: currency.symbol.trimmed,
+                            fontSize: 15,
+                            identifier: "setup.customerOpening"
+                        )
+                        .frame(width: 118)
                         Button { addCustomerDraft(draftCustomer) } label: {
                             Glyph(Icon.add, size: 18)
                         }
                         .buttonStyle(PrimaryButtonStyle(height: Metrics.tallInputHeight))
                     }
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 6)
+
+                    Text(Loc.openingBalanceNote)
+                        .nocturneText(.meta)
+                        .padding(.bottom, 16)
 
                     Kicker(customerDrafts.isEmpty ? Loc.noCustomersYetKicker : Loc.addedCount(customerDrafts.count))
                         .padding(.bottom, 8)
@@ -433,6 +449,11 @@ struct SetupFlowView: View {
                                     .foregroundStyle(Nocturne.neutral500)
                                 Text(draft.name).nocturneText(.rowPrimary)
                                 Spacer(minLength: 0)
+                                if draft.openingBalance > 0 {
+                                    Text(Loc.owes(Money.text(draft.openingBalance, in: currency)))
+                                        .font(NocturneType.inter(11.5))
+                                        .foregroundStyle(Nocturne.accent400)
+                                }
                                 Button {
                                     customerDrafts.removeAll { $0.id == draft.id }
                                 } label: {
@@ -527,10 +548,14 @@ struct SetupFlowView: View {
         guard !cleaned.isEmpty else { return }
         guard !customerDrafts.contains(where: { Customer.key(for: $0.name) == Customer.key(for: cleaned) }) else {
             draftCustomer = ""
+            draftOpening = ""
             return
         }
-        customerDrafts.append(CustomerDraft(name: cleaned))
+        customerDrafts.append(
+            CustomerDraft(name: cleaned, openingBalance: Money.parse(draftOpening) ?? 0)
+        )
         draftCustomer = ""
+        draftOpening = ""
     }
 
     private func advance(to destination: Step) {
@@ -555,7 +580,7 @@ struct SetupFlowView: View {
             )
         }
         for draft in customerDrafts {
-            store.addCustomer(name: draft.name)
+            store.addCustomer(name: draft.name, openingBalance: draft.openingBalance)
         }
         store.completeSetup()
     }

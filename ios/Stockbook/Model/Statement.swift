@@ -103,7 +103,8 @@ struct Statement: Equatable {
     let period: StatementPeriod
     let range: StatementRange
 
-    /// Net owed the instant before `range.start`, from everything earlier.
+    /// Net owed the instant before `range.start`: the customer's carried-over
+    /// opening balance, plus unpaid bills, less payments, from everything earlier.
     let openingBalance: Double
 
     /// Bills and payments inside the period, oldest first — a statement reads
@@ -139,7 +140,10 @@ struct Statement: Equatable {
         // is still listed, because history is marked here rather than hidden.
         let liveBefore = bills.filter { !$0.voided && $0.createdAt < range.start }
         let paymentsBefore = payments.filter { $0.receivedAt < range.start }
-        let opening = liveBefore.reduce(0) { $0 + $1.balance }
+        // The customer's carried-over balance predates every bill, so it is part
+        // of the brought-forward figure whatever period is being shown.
+        let opening = customer.openingBalance
+            + liveBefore.reduce(0) { $0 + $1.balance }
             - paymentsBefore.reduce(0) { $0 + $1.amount }
 
         let billsInRange = bills.filter { range.contains($0.createdAt) }

@@ -39,6 +39,19 @@ data class CustomerRecord(
      */
     val phone: String? = null,
     val place: String? = null,
+    /**
+     * What this customer already owed **before Stockbook** — the figure carried
+     * over from the paper book on the day the shop started using the app.
+     *
+     * Distinct from `Statement.openingBalance`, which is what they owed at the
+     * start of whichever period is on screen and is derived. This one is stored,
+     * predates every bill, and is therefore part of *every* period's
+     * brought-forward figure.
+     *
+     * Never negative. A customer who was somehow in credit gets a payment
+     * recorded instead, which is a thing with a date on it.
+     */
+    val openingBalance: Double = 0.0,
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant = Timestamps.now()
 ) {
@@ -48,12 +61,14 @@ data class CustomerRecord(
             name: String,
             phone: String? = null,
             place: String? = null,
+            openingBalance: Double = 0.0,
             createdAt: Instant = Timestamps.now()
         ): CustomerRecord = CustomerRecord(
             key = Customer.key(name),
             name = name.trim(),
             phone = tidied(phone),
             place = tidied(place),
+            openingBalance = maxOf(0.0, openingBalance),
             createdAt = createdAt
         )
 

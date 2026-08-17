@@ -269,3 +269,201 @@ struct PaymentTests {
         #expect(store.statement(forCustomer: "nobody", period: .thisYear()) == nil)
     }
 }
+
+/// The balance a customer brought over from the paper book.
+///
+/// The reason this matters: a shop that starts using Stockbook on Monday has
+/// customers who already owe from Sunday, and without this every one of them
+/// starts at zero — which is the app telling the owner they are owed nothing.
+@Suite("Opening balance")
+@MainActor
+struct OpeningBalanceTests {
+
+    private var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
+    }
+
+    private func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
+        calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12))!
+    }
+
+    private func makeStore() -> StockbookStore {
+        StockbookStore(repository: InMemoryRepository())
+    }
+
+    @Test("A customer who owed from before shows it with no bills at all")
+    func carriedOverWithNoHistory() throws {
+        let store = makeStore()
+
+        store.addCustomer(name: "Ahmed", openingBalance: 5000)
+
+        let customer = try #require(store.customers().first)
+        #expect(customer.owed == 5000)
+        #expect(customer.openingBalance == 5000)
+        #expect(customer.billCount == 0, "owing money is not the same as having bought something here")
+    }
+
+    @Test("It is never negative")
+    func clamped() throws {
+        let store = makeStore()
+
+        store.addCustomer(name: "Ahmed", openingBalance: -200)
+
+        let customer = try #require(store.customers().first)
+        #expect(customer.openingBalance == 0)
+    }
+
+    @Test("Bills and payments stack on top of it")
+    func stacking() throws {
+        let store = makeStore()
+        let product = store.addProduct(name: "Cisa lock", stock: 100, cost: 60, price: 95)
+        store.addCustomer(name: "Ahmed", openingBalance: 1000)
+        store.saveBill(lines: [DraftLine(productUID: product.uid, qty: 2, price: 95)], customer: "Ahmed", paid: 0)
+        store.recordPayment(customerKey: "ahmed", amount: 300)
+
+        // 1000 carried over + 190 billed − 300 paid.
+        let customer = try #require(store.customers().first)
+        #expect(customer.owed == 890)
+    }
+
+    @Test("Correcting it in the editor corrects what they owe")
+    func corrected() throws {
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed", openingBalance: 5000)
+
+        store.updateCustomer(key: "ahmed", name: "Ahmed", phone: nil, place: nil, openingBalance: 500)
+
+        let customer = try #require(store.customers().first)
+        #expect(customer.owed == 500)
+    }
+
+    /// It predates every bill, so it belongs to every period's brought-forward —
+    /// including a period that contains nothing else at all.
+    @Test("Every statement period carries it forward")
+    func everyPeriod() throws {
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed", openingBalance: 700)
+
+        let statement = try #require(store.statement(forCustomer: "ahmed", period: .thisMonth()))
+
+        #expect(statement.openingBalance == 700)
+        #expect(statement.closingBalance == 700)
+        #expect(statement.isEmpty, "nothing happened this month, and they still owe")
+    }
+
+    @Test("The running balance still lands on the closing balance")
+    func runningBalanceAgrees() {
+        let customer = Customer(
+            name: "Ahmed", key: "ahmed", billCount: 0, total: 0, owed: 0,
+            phone: nil, place: nil, openingBalance: 1000, isOnRoster: true
+        )
+        let bill = Bill(
+            number: 1,
+            lines: [BillLine(productUID: nil, name: "Cisa lock", qty: 1, price: 250)],
+            total: 250,
+            paid: 0,
+            who: "Ahmed",
+            createdAt: date(2026, 8, 4)
+        )
+        let payment = Payment(customerKey: "ahmed", amount: 400, receivedAt: date(2026, 8, 20))
+
+        let statement = Statement.make(
+            customer: customer,
+            bills: [bill],
+            payments: [payment],
+            period: .month(date(2026, 8, 10)),
+            calendar: calendar
+        )
+
+        #expect(statement.openingBalance == 1000)
+        // 1000 + 250 − 400.
+        #expect(statement.closingBalance == 850)
+        let last = statement.runningBalances.last
+        #expect(last == statement.closingBalance)
+    }
+
+    /// The Today banner. It used to walk bills directly, which meant it ignored
+    /// payments *and* opening balances — naming somebody who had settled up and
+    /// missing somebody who owed from before the app.
+    @Test("The outstanding banner counts what customers actually owe")
+    func outstandingIsHonest() {
+        let store = makeStore()
+        let product = store.addProduct(name: "Cisa lock", stock: 100, cost: 60, price: 95)
+        store.addCustomer(name: "Ahmed", openingBalance: 1000)
+        store.saveBill(lines: [DraftLine(productUID: product.uid, qty: 1, price: 95)], customer: "Sami", paid: 0)
+        // Sami settles up in full; Ahmed has never bought anything here.
+        store.recordPayment(customerKey: "sami", amount: 95)
+
+        let outstanding = store.outstanding()
+
+        #expect(outstanding.names == ["Ahmed"], "Sami has paid; Ahmed owes from the old book")
+        #expect(outstanding.total == 1000)
+    }
+
+    @Test("A backup carries it")
+    func backupRoundTrip() throws {
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed", openingBalance: 5000)
+
+        let document = try BackupService.decode(try BackupService.encode(store.makeBackupDocument()))
+        #expect(document.version == 3)
+        let row = try #require(document.customers?.first)
+        #expect(row.openingBalance == 5000)
+
+        let restored = makeStore()
+        restored.replaceEverything(with: document)
+        let customer = try #require(restored.customers().first)
+        #expect(customer.owed == 5000)
+    }
+
+    /// The trap this codebase keeps setting for itself: a default value does not
+    /// make Swift's synthesised decoder tolerate a missing key.
+    @Test("A customer stored before opening balances existed still decodes")
+    func storedRecordWithoutTheKey() throws {
+        let json = Data("""
+        {
+          "key": "ahmed",
+          "name": "Ahmed Contracting",
+          "phone": "0500 111 222",
+          "createdAt": "2026-08-01T06:00:00Z"
+        }
+        """.utf8)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let record = try decoder.decode(CustomerRecord.self, from: json)
+
+        #expect(record.key == "ahmed")
+        #expect(record.openingBalance == 0)
+        #expect(record.phone == "0500 111 222")
+    }
+
+    @Test("A v2 backup row without the field reads as nothing owed")
+    func version2RowReadsAsZero() throws {
+        let file = Data("""
+        {
+          "version": 2,
+          "exportedAt": "2026-08-17T09:41:00Z",
+          "ownerName": "Khalid",
+          "currencySymbol": "SAR ",
+          "products": [],
+          "bills": [],
+          "customers": [
+            { "key": "ahmed", "name": "Ahmed", "createdAt": "2026-08-01T06:00:00Z" }
+          ]
+        }
+        """.utf8)
+
+        let document = try BackupService.decode(file)
+        let row = try #require(document.customers?.first)
+
+        #expect(row.openingBalance == nil)
+
+        let store = makeStore()
+        store.replaceEverything(with: document)
+        let customer = try #require(store.customers().first)
+        #expect(customer.openingBalance == 0)
+    }
+}

@@ -299,6 +299,12 @@ class StockbookStore(private val repository: StockbookRepository) {
             book.getOrPut(record.key) { Tally(record.name, 0, 0.0, 0.0) }
         }
 
+        // What they brought over from the paper book. Added after the tallies so a
+        // customer with an opening balance and no bills still shows what they owe.
+        for (record in roster.values) {
+            book[record.key]?.let { it.owed += record.openingBalance }
+        }
+
         return book.map { (key, tally) ->
             val record = roster[key]
             Customer(
@@ -314,6 +320,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 owed = Math.round(tally.owed * 100) / 100.0,
                 phone = record?.phone,
                 place = record?.place,
+                openingBalance = record?.openingBalance ?: 0.0,
                 isOnRoster = record != null
             )
         }.sortedWith(compareByDescending<Customer> { it.owed }.thenByDescending { it.billCount })
@@ -327,11 +334,21 @@ class StockbookStore(private val repository: StockbookRepository) {
      * duplicated — typing a name that is already there is a correction, not a
      * second person. Returns null for a blank name.
      */
-    fun addCustomer(name: String, phone: String? = null, place: String? = null): CustomerRecord? {
+    fun addCustomer(
+        name: String,
+        phone: String? = null,
+        place: String? = null,
+        openingBalance: Double = 0.0
+    ): CustomerRecord? {
         if (name.isBlank()) return null
-        val fresh = CustomerRecord.of(name, phone, place)
+        val fresh = CustomerRecord.of(name, phone, place, openingBalance)
         val existing = customerRecords.firstOrNull { it.key == fresh.key }
-        val record = existing?.copy(name = fresh.name, phone = fresh.phone, place = fresh.place) ?: fresh
+        val record = existing?.copy(
+            name = fresh.name,
+            phone = fresh.phone,
+            place = fresh.place,
+            openingBalance = fresh.openingBalance
+        ) ?: fresh
         _state.value = _state.value.copy(
             customers = if (existing == null) {
                 customerRecords + record
@@ -352,7 +369,13 @@ class StockbookStore(private val repository: StockbookRepository) {
      * "Ahmed Contracting" while their bills are filed under "ahmed" and the two
      * never meeting again. What a bill records about *money* stays untouchable.
      */
-    fun updateCustomer(key: String, name: String, phone: String?, place: String?) {
+    fun updateCustomer(
+        key: String,
+        name: String,
+        phone: String?,
+        place: String?,
+        openingBalance: Double = 0.0
+    ) {
         if (name.isBlank()) return
         val existing = customerRecords.firstOrNull { it.key == key } ?: return
         val newKey = Customer.key(name)
@@ -360,7 +383,8 @@ class StockbookStore(private val repository: StockbookRepository) {
             key = newKey,
             name = name.trim(),
             phone = CustomerRecord.tidied(phone),
-            place = CustomerRecord.tidied(place)
+            place = CustomerRecord.tidied(place),
+            openingBalance = maxOf(0.0, openingBalance)
         )
 
         if (newKey == key) {
@@ -485,17 +509,13 @@ class StockbookStore(private val repository: StockbookRepository) {
      * however they capitalised it the second time.
      */
     fun outstanding(): Pair<List<String>, Double> {
-        val names = mutableListOf<String>()
-        val seen = mutableSetOf<String>()
-        var total = 0.0
-        for (bill in bills) {
-            if (!bill.isPartPaid || bill.balance <= 0) continue
-            total += bill.balance
-            val name = bill.who.trim()
-            if (name.isEmpty()) continue
-            if (seen.add(Customer.key(name))) names.add(name)
-        }
-        return names to total
+        // Derived from [customers] rather than from bills directly, which is the
+        // only way this figure can be right. Walking bills alone ignored both
+        // payments received and balances carried over from the paper book — so a
+        // customer who had settled up in full went on being named here, and one
+        // who owed from before the app existed never was.
+        val owing = customers().filter { it.owed > 0 }
+        return owing.map { it.name } to owing.sumOf { it.owed }
     }
 
     // --- Restock
@@ -589,6 +609,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                     name = it.name,
                     phone = it.phone,
                     place = it.place,
+                    openingBalance = it.openingBalance,
                     createdAt = it.createdAt
                 )
             }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }),
@@ -636,6 +657,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 name = it.name,
                 phone = it.phone,
                 place = it.place,
+                openingBalance = it.openingBalance,
                 createdAt = it.createdAt
             )
         },

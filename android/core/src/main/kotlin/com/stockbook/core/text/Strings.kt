@@ -176,6 +176,15 @@ class Strings(val language: AppLanguage) {
     val removeFromCustomers: String get() = pick("Remove from customers", "ಗ್ರಾಹಕರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಿರಿ")
     val tapAgainToRemove: String get() = pick("Tap again to remove", "ತೆಗೆಯಲು ಇನ್ನೊಮ್ಮೆ ಒತ್ತಿ")
     val noBillsYet: String get() = pick("No bills yet", "ಇನ್ನೂ ಬಿಲ್ ಇಲ್ಲ")
+    val openingBalanceField: String get() = pick("Opening balance", "ಪ್ರಾರಂಭಿಕ ಬಾಕಿ")
+
+    // Says which balance this is, because the statement has one of its own with a
+    // different meaning — that one is derived, this one is typed in once.
+    val openingBalanceNote: String
+        get() = pick(
+            "What they already owed you before Stockbook, from the old book. Leave it empty if nothing.",
+            "ಸ್ಟಾಕ್‌ಬುಕ್ ಶುರು ಮಾಡುವ ಮೊದಲು ಹಳೆಯ ಪುಸ್ತಕದಲ್ಲಿ ಅವರು ಕೊಡಬೇಕಿದ್ದ ಮೊತ್ತ. ಏನೂ ಇಲ್ಲದಿದ್ದರೆ ಖಾಲಿ ಬಿಡಿ."
+        )
     val enterCustomerNameFirst: String get() = pick("Enter a name", "ಹೆಸರು ಬರೆಯಿರಿ")
 
     // Said when removing a roster entry, because "remove" beside somebody's

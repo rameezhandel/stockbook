@@ -58,6 +58,8 @@ data class BackupDocument(
         val name: String,
         val phone: String? = null,
         val place: String? = null,
+        /** Carried over from the paper book. Absent in v2 files, where it is zero. */
+        val openingBalance: Double = 0.0,
         @Serializable(with = InstantSerializer::class)
         val createdAt: Instant
     )
@@ -124,8 +126,14 @@ data class BackupDocument(
          * what makes an outstanding balance go down, so a build that ignored them
          * would read this file and confidently tell the owner that customers who
          * have settled up still owe. Better that build refuses the file.
+         *
+         * 3 adds each customer's carried-over opening balance, for the same
+         * reason once more: a v2 reader would drop it and understate what every
+         * customer who predates the app owes. The rule is worth applying even
+         * when only one phone is in play — judging it case by case is how a
+         * format quietly starts lying.
          */
-        const val currentVersion = 2
+        const val currentVersion = 3
     }
 }
 

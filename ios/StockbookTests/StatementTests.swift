@@ -105,6 +105,7 @@ struct StatementTests {
         owed: 0,
         phone: nil,
         place: nil,
+        openingBalance: 0,
         isOnRoster: true
     )
 
@@ -270,7 +271,7 @@ struct StatementTests {
         // And the customer row says it in words rather than showing a minus sign.
         let paidAhead = Customer(
             name: "Ahmed", key: "ahmed", billCount: 1, total: 100, owed: -150,
-            phone: nil, place: nil, isOnRoster: true
+            phone: nil, place: nil, openingBalance: 0, isOnRoster: true
         )
         let meta = paidAhead.meta(in: .default, strings: Strings(language: .english))
         #expect(meta.contains("in advance"))

@@ -22,7 +22,13 @@ struct BackupDocument: Codable, Equatable {
     /// makes an outstanding balance go down, so a build that ignored them would
     /// read this file and confidently tell the owner that customers who have
     /// settled up still owe. Better that build refuses the file and says so.
-    static let currentVersion = 2
+    ///
+    /// 3 adds each customer's carried-over opening balance, for the same reason
+    /// once more: a v2 reader would drop it and understate what every customer
+    /// who predates the app owes. The rule is worth applying even when only one
+    /// phone is in play — judging it case by case is how a format quietly starts
+    /// lying.
+    static let currentVersion = 3
 
     var version: Int = BackupDocument.currentVersion
     var exportedAt: Date
@@ -48,6 +54,8 @@ struct BackupDocument: Codable, Equatable {
         var name: String
         var phone: String?
         var place: String?
+        /// Carried over from the paper book. Absent in v2 files, where it is zero.
+        var openingBalance: Double? = nil
         var createdAt: Date
     }
 
