@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
@@ -50,6 +51,7 @@ object Icon {
     val remove: ImageVector = Icons.Filled.Remove
     val delete: ImageVector = Icons.Filled.Delete
     val edit: ImageVector = Icons.Filled.Edit
+    val addStock: ImageVector = Icons.Filled.LibraryAdd      // phosphor: stack-plus
     val close: ImageVector = Icons.Filled.Close
     val confirm: ImageVector = Icons.Filled.Check
     val openRow: ImageVector = Icons.Filled.KeyboardArrowRight

@@ -30,7 +30,9 @@ import com.stockbook.app.design.StockbookTabBar
 import com.stockbook.app.design.StockbookTheme
 import com.stockbook.app.design.BottomSheet
 import com.stockbook.app.feature.bills.BillSheet
-import com.stockbook.app.feature.bills.BillsScreen
+import com.stockbook.app.feature.book.BookScreen
+import com.stockbook.app.feature.book.PurchaseSheet
+import com.stockbook.app.feature.book.WhichProductSheet
 import com.stockbook.app.feature.customers.CustomerEditorSheet
 import com.stockbook.app.feature.customers.RecordPaymentSheet
 import com.stockbook.app.feature.customers.PaySupplierSheet
@@ -163,7 +165,7 @@ private fun Shell(store: StockbookStore) {
                         cart = cart,
                         strings = strings
                     )
-                    AppTab.BILLS -> BillsScreen(
+                    AppTab.BOOK -> BookScreen(
                         state = state,
                         store = store,
                         router = router,
@@ -239,7 +241,7 @@ private fun Shell(store: StockbookStore) {
                 strings = strings,
                 onSeeBills = {
                     router.receipt = null
-                    router.tab = AppTab.BILLS
+                    router.tab = AppTab.BOOK
                 },
                 onNextCustomer = {
                     router.receipt = null
@@ -276,7 +278,38 @@ private fun Shell(store: StockbookStore) {
                     store = store,
                     currency = state.settings.currency,
                     strings = strings,
+                    startInPurchase = router.startingPurchase,
                     onClose = { router.addStock = null }
+                )
+            }
+        }
+
+        // Which product arrived. A purchase carries one product, so something has
+        // to name it, and asking here is fewer taps than making the owner find the
+        // product first.
+        BottomSheet(
+            visible = router.recordingDelivery,
+            onDismiss = { router.recordingDelivery = false }
+        ) {
+            WhichProductSheet(
+                state = state,
+                router = router,
+                strings = strings,
+                onClose = { router.recordingDelivery = false }
+            )
+        }
+
+        BottomSheet(
+            visible = router.purchaseDetail != null,
+            onDismiss = { router.purchaseDetail = null }
+        ) {
+            router.purchaseDetail?.let { purchase ->
+                PurchaseSheet(
+                    purchase = purchase,
+                    state = state,
+                    store = store,
+                    strings = strings,
+                    onClose = { router.purchaseDetail = null }
                 )
             }
         }

@@ -73,6 +73,17 @@ fun ItemsScreen(
 
     Column(modifier = modifier.fillMaxWidth()) {
         ScreenHeader(title = strings.itemsTitle, subtitle = subtitle, bottomPadding = 10.dp) {
+            // Recording a delivery used to be three taps down inside a product,
+            // which is nobody's idea of discoverable. It starts here now and asks
+            // which product arrived, rather than making the owner find it first.
+            SecondaryButton(
+                strings.recordDelivery,
+                onClick = { router.recordingDelivery = true },
+                height = Metrics.compactControlHeight,
+                fontSize = 12.5,
+                leading = Icon.addStock
+            )
+            Spacer(Modifier.width(6.dp))
             PrimaryButton(strings.add, onClick = { router.openNewProduct() }, compact = true, leading = Icon.add)
         }
 
@@ -117,26 +128,6 @@ fun ItemsScreen(
                     strings = strings,
                     onClick = { router.openProduct(product) },
                     modifier = Modifier.padding(bottom = Metrics.rowGap)
-                )
-            }
-
-            // Suppliers live under the shelves rather than in a tab of their own.
-            // This is where stock comes from, and where somebody stands when the
-            // question "who did we get these from, and have we paid them?" comes
-            // up. The customer half sits under Bills for the same reason.
-            item {
-                SupplierSection(
-                    // Passed rather than read off the store inside: `suppliers()`
-                    // is a plain function over a StateFlow's current value, so it
-                    // subscribes to nothing. Taking the state as a parameter is
-                    // what makes this recompose when a delivery is recorded — the
-                    // same mistake the cart's customer list made once.
-                    state = state,
-                    store = store,
-                    router = router,
-                    currency = currency,
-                    strings = strings,
-                    modifier = Modifier.padding(top = 22.dp)
                 )
             }
         }
@@ -191,154 +182,5 @@ private fun ProductRow(
                 modifier = Modifier.padding(top = 2.dp)
             )
         }
-    }
-}
-
-/**
- * The supplier half of the book, folded under the shelves.
- *
- * A mirror of the customer panel on Bills: pick one, see what the shop has bought
- * from them and what it still owes, and go on to a statement or a payment.
- */
-@Composable
-private fun SupplierSection(
-    state: ShopState,
-    store: StockbookStore,
-    router: AppRouter,
-    currency: Currency,
-    strings: Strings,
-    modifier: Modifier = Modifier
-) {
-    val suppliers = remember(state) { store.suppliers() }
-    var chosen by remember { mutableStateOf<String?>(null) }
-    val selected = chosen?.let { key -> suppliers.firstOrNull { it.key == key } }
-
-    Column(modifier = modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Kicker(strings.suppliersTitle, modifier = Modifier.weight(1f))
-            GhostButton(strings.addASupplier, onClick = { router.openNewSupplier() }, fontSize = 12.0)
-        }
-        Spacer(Modifier.height(8.dp))
-
-        if (suppliers.isEmpty()) {
-            // Not an empty state with a call to action: a shop can run for weeks
-            // before anybody records a delivery, and the way most suppliers get
-            // added is the picker inside the purchase sheet.
-            Text(
-                strings.noPurchasesYet,
-                style = NocturneType.meta,
-                color = Nocturne.neutral500
-            )
-            return@Column
-        }
-
-        // Null is "all suppliers", the same way the Bills filter spells it.
-        val options = remember(suppliers) { listOf<Supplier?>(null) + suppliers }
-        DropdownField(
-            options = options,
-            selected = selected,
-            onSelect = { chosen = it?.key },
-            title = { it?.name ?: strings.allSuppliers }
-        )
-
-        if (selected == null) {
-            Spacer(Modifier.height(8.dp))
-            val (names, total) = remember(state) { store.payable() }
-            Text(
-                if (names.isEmpty()) strings.nothingOwedOut
-                else "${strings.owedToSuppliers}: ${Money.text(total, currency)}",
-                style = NocturneType.meta,
-                color = if (names.isEmpty()) Nocturne.neutral500 else Nocturne.accent400
-            )
-            return@Column
-        }
-
-        Spacer(Modifier.height(10.dp))
-        Column(modifier = Modifier.fillMaxWidth().card().hairline(Nocturne.neutral800, Metrics.cardRadius).padding(13.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Glyph(Icon.customer, size = 16.dp, tint = Nocturne.accent)
-                Spacer(Modifier.width(9.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(selected.name, style = NocturneType.rowPrimary, color = Nocturne.text, maxLines = 1)
-                    listOfNotNull(selected.phone, selected.place).takeIf { it.isNotEmpty() }?.let {
-                        Text(
-                            it.joinToString(" · "),
-                            style = NocturneType.meta,
-                            color = Nocturne.neutral500,
-                            maxLines = 1
-                        )
-                    }
-                }
-                IconButton(
-                    Icon.edit,
-                    onClick = { router.openSupplier(selected) },
-                    size = 13.dp,
-                    tint = Nocturne.neutral500,
-                    contentDescription = strings.editSupplier
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Figure(
-                    label = strings.boughtFromThem,
-                    value = Money.text(selected.total, currency),
-                    detail = strings.purchases(selected.purchaseCount),
-                    modifier = Modifier.weight(1f)
-                )
-                Figure(
-                    label = strings.youOwe,
-                    value = when {
-                        selected.owed > 0 -> Money.text(selected.owed, currency)
-                        selected.owed < 0 -> strings.inAdvance(Money.text(-selected.owed, currency))
-                        else -> strings.nothingPending
-                    },
-                    detail = null,
-                    tint = if (selected.owed > 0) Nocturne.accent400 else Nocturne.neutral500,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(Modifier.height(11.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                SecondaryButton(
-                    strings.statement,
-                    onClick = { router.openSupplierStatement(selected) },
-                    fullWidth = true,
-                    height = 38.dp,
-                    fontSize = 12.5,
-                    modifier = Modifier.weight(1f)
-                )
-                // Offered only when there is something to settle. Paying a supplier
-                // who is owed nothing is an advance — real, but not what this
-                // button is for.
-                if (selected.owed > 0) {
-                    Spacer(Modifier.width(6.dp))
-                    PrimaryButton(
-                        strings.recordAPayment,
-                        onClick = { router.supplierPaymentFor = selected },
-                        fullWidth = true,
-                        height = 38.dp,
-                        fontSize = 12.5,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Figure(
-    label: String,
-    value: String,
-    detail: String?,
-    modifier: Modifier = Modifier,
-    tint: Color = Nocturne.text
-) {
-    Column(modifier = modifier) {
-        Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
-        Text(value, style = NocturneType.inter(15.0), color = tint, maxLines = 1)
-        detail?.let { Text(it, style = NocturneType.meta, color = Nocturne.neutral500) }
     }
 }

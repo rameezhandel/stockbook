@@ -76,7 +76,7 @@ class Strings(val language: AppLanguage) {
         AppTab.TODAY -> pick("Today", "ಇಂದು")
         AppTab.ITEMS -> pick("Items", "ಸಾಮಾನು")
         AppTab.SELL -> pick("Sell", "ಮಾರಾಟ")
-        AppTab.BILLS -> pick("Bills", "ಬಿಲ್")
+        AppTab.BOOK -> pick("Book", "ಪುಸ್ತಕ")
     }
 
     // --- Today
@@ -140,6 +140,22 @@ class Strings(val language: AppLanguage) {
     // --- Bills
 
     val billsTitle: String get() = pick("Bills", "ಬಿಲ್‌ಗಳು")
+
+    // --- The book: both halves of the account, side by side
+
+    val bookTitle: String get() = pick("Book", "ಪುಸ್ತಕ")
+    val salesSide: String get() = pick("Sales", "ಮಾರಾಟ")
+    val purchasesSide: String get() = pick("Purchases", "ಖರೀದಿ")
+
+    // On the Items header. Says "delivery" rather than "purchase" because that is
+    // the word for the thing arriving at the door.
+    val recordDelivery: String get() = pick("Delivery", "ಡೆಲಿವರಿ")
+    val whichProductArrived: String get() = pick("What arrived?", "ಏನು ಬಂತು?")
+    val noDeliveriesYet: String get() = pick("No deliveries yet", "ಇನ್ನೂ ಡೆಲಿವರಿ ಇಲ್ಲ")
+    val deliveryDetail: String get() = pick("Delivery", "ಡೆಲಿವರಿ")
+
+    // `12 × SAR 60` — what a delivery row says under the product's name.
+    fun perPiece(qty: Int, cost: String): String = "$qty × $cost"
 
     val noBillsEver: String get() =
             pick(

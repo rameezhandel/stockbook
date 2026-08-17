@@ -62,9 +62,11 @@ fun AddStockSheet(
     store: StockbookStore,
     currency: Currency,
     strings: Strings,
+    /** Opened from the Delivery button rather than from a product's own sheet. */
+    startInPurchase: Boolean = false,
     onClose: () -> Unit
 ) {
-    var purchase by remember { mutableStateOf(false) }
+    var purchase by remember { mutableStateOf(startInPurchase) }
     var quantity by remember { mutableStateOf("") }
     var unitCost by remember { mutableStateOf("") }
     /** What was typed into the supplier box, and who was actually chosen. */

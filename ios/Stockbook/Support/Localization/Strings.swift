@@ -156,6 +156,22 @@ struct Strings {
 
     var billsTitle: String { pick("Bills", "ಬಿಲ್‌ಗಳು") }
 
+    // MARK: The book: both halves of the account, side by side
+
+    var bookTitle: String { pick("Book", "ಪುಸ್ತಕ") }
+    var salesSide: String { pick("Sales", "ಮಾರಾಟ") }
+    var purchasesSide: String { pick("Purchases", "ಖರೀದಿ") }
+
+    /// On the Items header. Says "delivery" rather than "purchase" because that
+    /// is the word for the thing arriving at the door.
+    var recordDelivery: String { pick("Delivery", "ಡೆಲಿವರಿ") }
+    var whichProductArrived: String { pick("What arrived?", "ಏನು ಬಂತು?") }
+    var noDeliveriesYet: String { pick("No deliveries yet", "ಇನ್ನೂ ಡೆಲಿವರಿ ಇಲ್ಲ") }
+    var deliveryDetail: String { pick("Delivery", "ಡೆಲಿವರಿ") }
+
+    /// `12 × SAR 60` — what a delivery row says under the product's name.
+    func perPiece(qty: Int, cost: String) -> String { "\(qty) × \(cost)" }
+
     var noBillsEver: String {
         pick(
             "Nothing sold yet. Every bill you save shows up here.",

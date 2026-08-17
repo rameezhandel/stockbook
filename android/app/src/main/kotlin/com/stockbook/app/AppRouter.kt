@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import com.stockbook.core.model.Bill
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Product
+import com.stockbook.core.model.Purchase
 import com.stockbook.core.model.Supplier
 import com.stockbook.core.text.AppTab
 
@@ -31,6 +32,28 @@ class AppRouter {
     var creatingProduct by mutableStateOf(false)
 
     var addStock by mutableStateOf<Product?>(null)
+
+    /**
+     * Set by the Items header's Delivery button: the sheet that asks which
+     * product arrived, before the purchase sheet itself.
+     *
+     * A purchase carries one product, so something has to name it. Starting from
+     * the header and asking is fewer taps than making the owner find the product
+     * first, which is what recording a delivery used to cost.
+     */
+    var recordingDelivery by mutableStateOf(false)
+
+    /** A delivery opened from the book, the way a bill is opened from history. */
+    var purchaseDetail by mutableStateOf<Purchase?>(null)
+
+    /** Set when the add-stock sheet should open on its purchase half. */
+    var startingPurchase by mutableStateOf(false)
+
+    fun openDelivery(product: Product) {
+        recordingDelivery = false
+        startingPurchase = true
+        addStock = product
+    }
 
     /** The receipt, shown full-screen after a bill is saved. */
     var receipt by mutableStateOf<Bill?>(null)
@@ -128,6 +151,7 @@ class AppRouter {
     fun openAddStock(product: Product) {
         productEditor = null
         creatingProduct = false
+        startingPurchase = false
         addStock = product
     }
 
@@ -143,6 +167,9 @@ class AppRouter {
         productEditor = null
         creatingProduct = false
         addStock = null
+        recordingDelivery = false
+        purchaseDetail = null
+        startingPurchase = false
         receipt = null
         billDetail = null
         showingBackup = false

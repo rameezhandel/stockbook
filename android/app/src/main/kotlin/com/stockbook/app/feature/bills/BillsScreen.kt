@@ -54,6 +54,8 @@ fun BillsScreen(
     store: StockbookStore,
     router: AppRouter,
     strings: Strings,
+    /** False inside the book, which carries one header for both halves. */
+    showHeader: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val currency = state.settings.currency
@@ -65,7 +67,7 @@ fun BillsScreen(
     val bills = if (selected == null) state.bills else store.billsForCustomer(customerKey)
 
     Column(modifier = modifier.fillMaxWidth()) {
-        ScreenHeader(title = strings.billsTitle, bottomPadding = 10.dp)
+        if (showHeader) ScreenHeader(title = strings.billsTitle, bottomPadding = 10.dp)
 
         // The filter is the app's customer surface, so adding one lives beside it
         // rather than in Settings.
