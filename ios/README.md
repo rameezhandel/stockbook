@@ -352,56 +352,6 @@ specifies things the system sheet does not expose: an `rgba(16,17,28,0.74)`
 scrim, 18px rounding on the top corners only, a specific upward shadow, a 38×4
 handle, and the tab bar staying visible behind the scrim.
 
-### Scanning a paper bill
-
-The owner writes bills by hand, then has to type them in again. `Scan a paper
-bill` on the Sell screen photographs one and fills the cart from it.
-
-**On-device only, because the alternative does not exist here.** Vision's
-`VNRecognizeTextRequest` runs on the phone, fetches no model, and works in
-airplane mode. Cloud OCR — which is what everyone reaches for and what would
-read handwriting far better — is ruled out by the app's first rule, not by
-preference.
-
-**It fills the cart. It does not save a bill.** Everything lands on the screen
-the owner already uses, editable exactly as a hand-typed bill is, and it is saved
-by the same button through the same code path that snapshots lines and moves
-stock. This feature changes nothing about the data model, which is why it carries
-no risk to anybody's stock count.
-
-**Nothing it reads is trusted.** A line whose figures came off a photograph
-wears an accent edge and says so, until either the owner edits it or dismisses
-the scan card — which is what dismissing it means. A misread 7 for a 1 on a price
-is a silently wrong bill, and the paper is in the owner's other hand.
-
-**It never invents a number.** A figure it cannot read is left `nil` and the box
-stays empty. A blank box costs a tap; a filled wrong one costs a wrong bill and
-gets no second look.
-
-Where the heuristics live, and why they are testable:
-
-| | |
-| --- | --- |
-| `BillScanParser` | rows by vertical clustering, then quantity/rate/amount per row. No camera needed to test it, so `BillScanTests` drives it from literal strings. |
-| `ProductMatcher` | `4in hinge` on paper finds `4 inch hinge` in the catalogue. Conservative: below the threshold it returns nothing, because a wrong match takes stock off the wrong shelf. |
-| `TextScanner` | the only part that touches Vision. |
-| `DocumentScanner` | the system document camera, for edge detection and deskewing — a bill photographed at an angle reads far worse. |
-
-Two rules that fell out of writing the tests rather than the code:
-
-- **A row with no figure on it is not an item.** That one rule throws out the
-  shop's own letterhead, its address and "Thank you" without any of them being
-  listed as noise.
-- **Only a labelled customer name is taken** (`To:`, `Customer:`, `M/S`).
-  Guessing that the top line is the customer picks up the letterhead as often as
-  not.
-
-**Handwriting is the risk, and it is unresolved.** Vision is trained on print and
-does well on neat hand-printing, poorly on cursive. When a scan yields nothing,
-the failure sheet shows **what the camera did read** — because "it did not work"
-is not actionable, and the first question about a bad scan is always whether the
-page was read at all.
-
 ### Validation, as the design does it
 
 Never a toast, never red text. A required-but-empty input carries an accent

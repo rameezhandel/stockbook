@@ -180,43 +180,6 @@ struct Strings {
     var newBill: String { pick("New bill", "ಹೊಸ ಬಿಲ್") }
     var cartEmpty: String { pick("empty", "ಖಾಲಿ") }
     var addAProductPlaceholder: String { pick("Add a product…", "ಸಾಮಾನು ಸೇರಿಸಿ…") }
-
-    // MARK: - Scanning a paper bill
-
-    var scanABill: String { pick("Scan a paper bill", "ಕಾಗದದ ಬಿಲ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ") }
-    var scanReading: String { pick("Reading the bill…", "ಬಿಲ್ ಓದುತ್ತಿದೆ…") }
-
-    var scanFilledIn: String {
-        pick("Filled in from the bill", "ಬಿಲ್‌ನಿಂದ ತುಂಬಿಸಲಾಗಿದೆ")
-    }
-
-    /// The one thing the owner must do before saving a scanned bill.
-    var scanCheckFigures: String {
-        pick(
-            "Check every figure against the paper. Anything the camera read is marked until you touch it.",
-            "ಪ್ರತಿ ಸಂಖ್ಯೆಯನ್ನೂ ಕಾಗದದೊಂದಿಗೆ ತಾಳೆ ನೋಡಿ. ಕ್ಯಾಮೆರಾ ಓದಿದ್ದನ್ನು ನೀವು ಮುಟ್ಟುವವರೆಗೆ ಗುರುತು ಮಾಡಲಾಗಿದೆ."
-        )
-    }
-
-    func scanCouldNotPlace(_ n: Int) -> String {
-        pick(
-            n == 1 ? "1 line was not in your items — tap to find it" : "\(n) lines were not in your items — tap to find them",
-            "\(n) ಸಾಲು ನಿಮ್ಮ ಸಾಮಾನುಗಳಲ್ಲಿ ಇಲ್ಲ — ಹುಡುಕಲು ಒತ್ತಿ"
-        )
-    }
-
-    var scanNothingRead: String {
-        pick(
-            "Nothing could be read from that. Handwriting is hard for a camera — try again in better light, flatter, and closer.",
-            "ಅದರಿಂದ ಏನೂ ಓದಲು ಆಗಲಿಲ್ಲ. ಕೈಬರಹ ಕ್ಯಾಮೆರಾಗೆ ಕಷ್ಟ — ಒಳ್ಳೆಯ ಬೆಳಕಿನಲ್ಲಿ, ಸಮತಟ್ಟಾಗಿ, ಹತ್ತಿರದಿಂದ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
-        )
-    }
-
-    var scanRawTitle: String { pick("What the camera read", "ಕ್ಯಾಮೆರಾ ಓದಿದ್ದು") }
-
-    var scanTryAgain: String { pick("Scan again", "ಮತ್ತೆ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ") }
-    var scanFromTheBill: String { pick("Read from the bill", "ಬಿಲ್‌ನಿಂದ ಓದಿದ್ದು") }
-    var scanLineIsRight: String { pick("Correct", "ಸರಿಯಾಗಿದೆ") }
     var doneAdding: String { pick("Done adding", "ಸೇರಿಸಿ ಆಯಿತು") }
     var addAnotherItem: String { pick("Add another item", "ಇನ್ನೊಂದು ಸಾಮಾನು ಸೇರಿಸಿ") }
     var oneFewer: String { pick("One fewer", "ಒಂದು ಕಡಿಮೆ") }
