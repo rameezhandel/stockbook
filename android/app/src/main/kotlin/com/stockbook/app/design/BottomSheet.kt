@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -95,6 +96,10 @@ fun BottomSheet(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = Metrics.screenPadding)
                         .navigationBarsPadding()
+                        // Every sheet in the app carries fields, so this one line
+                        // lifts all of them clear of the keyboard rather than each
+                        // sheet remembering to.
+                        .imePadding()
                         .padding(bottom = 32.dp)
                 ) {
                     content()

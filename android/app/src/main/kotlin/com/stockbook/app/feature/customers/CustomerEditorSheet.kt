@@ -100,6 +100,9 @@ fun CustomerEditorSheet(
                 onValueChange = { place = it },
                 label = strings.customerPlace,
                 placeholder = strings.optionalField,
+                // The opening balance box sits below this one, so Place is not the
+                // end of the form any more.
+                imeAction = ImeAction.Next,
                 modifier = Modifier.weight(1f)
             )
         }

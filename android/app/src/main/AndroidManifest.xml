@@ -19,11 +19,21 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Stockbook">
 
+        <!--
+          `adjustResize`, not `adjustNothing`.
+          `adjustNothing` was chosen to mirror the iOS rule that the keyboard
+          overlays the app rather than moving it. That rule works on iOS because
+          the system still scrolls a focused field into view inside a scroll view,
+          so nothing is ever hidden. Android does no such thing: with
+          `adjustNothing` any field below the keyboard line was simply covered,
+          with no way to scroll to it. The layout moving is the lesser cost by a
+          long way — see the `imePadding` calls that go with this.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustNothing"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Stockbook">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

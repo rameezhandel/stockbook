@@ -178,6 +178,18 @@ fun EmptyStateBox(
 // own heights, radii, pressed fills and disabled opacity, and fighting
 // Material's defaults to reach them costs more than drawing them.
 
+/**
+ * The primary action: a 1px accent border on transparent, accent text, and a faint
+ * accent wash while held.
+ *
+ * **Nothing in this design is filled with the accent** — the iOS style says so in
+ * as many words, and this had been built the other way round: a solid accent fill
+ * with near-black text. Besides being wrong, it made the button disappear the
+ * instant it was pressed, because the pressed token is a 22% wash meant to sit
+ * *over* a ground rather than to replace one.
+ *
+ * One per screen, and never two side by side.
+ */
 @Composable
 fun PrimaryButton(
     title: String,
@@ -200,19 +212,26 @@ fun PrimaryButton(
             .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
             .height(if (compact) 34.dp else height)
             .clip(RoundedCornerShape(Metrics.controlRadius))
-            .background(if (pressed) Nocturne.primaryPressed else Nocturne.accent)
+            // Transparent, washed faintly when held — not filled. `primaryPressed`
+            // is accent at 22% opacity, which is a *wash over* the ground and was
+            // being used here as a replacement *for* the ground: the moment the
+            // button was touched a solid accent fill collapsed to a barely-there
+            // tint carrying near-black text, and the button vanished under the
+            // thumb that pressed it.
+            .background(if (pressed) Nocturne.primaryPressed else Color.Transparent)
+            .hairline(Nocturne.accent, Metrics.controlRadius)
             .alpha(if (enabled) 1f else Nocturne.DISABLED_OPACITY)
             .clickable(interaction, null, enabled = enabled, onClick = onClick)
             .padding(horizontal = if (compact) 12.dp else 16.dp)
     ) {
         if (leading != null) {
-            Glyph(leading, size = 15.dp, tint = Nocturne.bg)
+            Glyph(leading, size = 15.dp, tint = Nocturne.accent)
             Spacer(Modifier.width(6.dp))
         }
         Text(
             title,
             style = NocturneType.inter(if (compact) 12.5 else fontSize, androidx.compose.ui.text.font.FontWeight.Medium),
-            color = Nocturne.bg
+            color = Nocturne.accent
         )
     }
 }

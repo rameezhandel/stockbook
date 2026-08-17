@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -117,6 +118,7 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
             .fillMaxSize()
             .background(Nocturne.bg)
             .statusBarsPadding()
+            .imePadding()
             .padding(horizontal = Metrics.screenPadding)
             .padding(top = 24.dp)
     ) {
@@ -250,7 +252,7 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                     modifier = Modifier.padding(top = 5.dp, bottom = 16.dp)
                 )
 
-                drafts.forEach { draft ->
+                drafts.forEachIndexed { index, draft ->
                     Column(modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp).card().padding(12.dp)) {
                         Text(draft.name, style = NocturneType.rowPrimary, color = Nocturne.text)
                         Spacer(Modifier.height(10.dp))
@@ -285,7 +287,11 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                                 isRequiredAndEmpty = (Money.parse(draft.price) ?: 0.0) <= 0,
                                 requiredMarking = RequiredMarking.AFTER_TOUCH,
                                 emphasis = FieldEmphasis.SELLING_PRICE,
-                                imeAction = ImeAction.Next,
+                                // The last box of the last product has nowhere to send focus, so
+                                // it offers Done and closes the keyboard instead of a Next
+                                // that does nothing. `NocturneField` already hides the
+                                // keyboard and drops focus on Done.
+                                imeAction = if (index == drafts.lastIndex) ImeAction.Done else ImeAction.Next,
                                 modifier = Modifier.weight(1f)
                             )
                         }

@@ -2,6 +2,9 @@ package com.stockbook.app.feature.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -95,7 +98,16 @@ fun BackupScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    // Drawn as a sibling of the tab content inside the shell's Box, so without a
+    // ground of its own the screen behind shows straight through it — and without
+    // `statusBarsPadding` its header sits under the status bar.
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Nocturne.bg)
+            .statusBarsPadding()
+            .imePadding()
+    ) {
         ScreenHeader(title = strings.moveToAnotherPhone) {
             GhostButton(strings.done, onClick = onClose)
         }

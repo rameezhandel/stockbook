@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,9 +49,11 @@ import java.io.File
  * down. Nothing above this line knows what a repository is, and nothing below it
  * knows what an Activity is.
  *
- * The keyboard never moves the layout: `windowSoftInputMode="adjustNothing"` in
- * the manifest says so once, for the whole app. The iOS build arrived at the
- * same rule the long way round, one screen at a time.
+ * The keyboard **does** move the layout, via `adjustResize` and `imePadding`.
+ * An earlier version copied the iOS rule that the keyboard only overlays — which
+ * holds on iOS because the system scrolls a focused field into view by itself.
+ * Android does not, so that rule left fields sitting under the keyboard with no
+ * way to reach them.
  */
 class MainActivity : ComponentActivity() {
 
@@ -85,7 +88,14 @@ private fun Shell(store: StockbookStore) {
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Nocturne.bg)) {
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                // Lifts the tab screens — the Sell cart's footer above all, which
+                // carries the customer field — clear of the keyboard.
+                .imePadding()
+        ) {
             Crossfade(
                 targetState = router.tab,
                 animationSpec = Motion.screenSpec,
