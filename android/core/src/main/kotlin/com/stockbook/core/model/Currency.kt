@@ -67,15 +67,5 @@ data class Currency private constructor(
          */
         fun named(code: String): Currency =
             supported.firstOrNull { it.code == code } ?: default
-
-        /**
-         * Recovers a currency from a bare symbol, for settings and backups
-         * written before the code was stored. `"SAR "` and `"SAR"` both resolve.
-         */
-        fun matching(symbol: String): Currency? {
-            val needle = symbol.trim()
-            if (needle.isEmpty()) return null
-            return supported.firstOrNull { it.symbol.trim() == needle }
-        }
     }
 }

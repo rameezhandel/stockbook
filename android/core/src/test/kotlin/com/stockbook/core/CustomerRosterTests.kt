@@ -329,32 +329,6 @@ class RosterMigrationTests {
     }
 
     @Test
-    fun `a backup written before payments existed still imports`() {
-        val file = """
-        {
-          "version": 1,
-          "exportedAt": "2026-07-28T09:41:00Z",
-          "ownerName": "Khalid Al-Amri",
-          "currencySymbol": "SAR ",
-          "products": [],
-          "bills": []
-        }
-        """.trimIndent()
-
-        val document = BackupService.decode(file)
-
-        assertEquals(1, document.version)
-        assertNull(document.customers)
-        assertNull(document.payments)
-
-        val store = StockbookStore(InMemoryRepository())
-        store.replaceEverything(document)
-        assertEquals("Khalid Al-Amri", store.settings.ownerName)
-        assertTrue(store.customerRecords.isEmpty())
-        assertTrue(store.payments.isEmpty())
-    }
-
-    @Test
     fun `a backup carries the roster and the payments to the new phone`() {
         val store = StockbookStore(InMemoryRepository())
         store.setOwnerName("Khalid Al-Amri")
@@ -365,7 +339,7 @@ class RosterMigrationTests {
 
         val document = BackupService.decode(BackupService.encode(store.makeBackupDocument()))
 
-        assertEquals(3, document.version)
+        assertEquals(1, document.version)
         assertEquals(1, document.customers?.size)
         assertEquals(1, document.payments?.size)
 
@@ -387,7 +361,7 @@ class RosterMigrationTests {
         store.addCustomer("Ahmed Contracting")
         val document = store.makeBackupDocument()
 
-        assertEquals("ahmed contracting", assertNotNull(document.customers?.firstOrNull()).key)
+        assertEquals("ahmed contracting", assertNotNull(document.customers.firstOrNull()).key)
 
         val restored = StockbookStore(InMemoryRepository())
         restored.replaceEverything(document)
@@ -416,10 +390,9 @@ class RosterMigrationTests {
     fun `the roster rows an iPhone writes decode here unchanged`() {
         val fromAnIPhone = """
         {
-          "version": 2,
+          "version": 1,
           "exportedAt": "2026-08-17T09:41:00Z",
           "ownerName": "Khalid Al-Amri",
-          "currencySymbol": "SAR ",
           "currencyCode": "SAR",
           "products": [],
           "bills": [],
@@ -436,8 +409,8 @@ class RosterMigrationTests {
         """.trimIndent()
 
         val document = BackupService.decode(fromAnIPhone)
-        val customer = assertNotNull(document.customers?.firstOrNull())
-        val payment = assertNotNull(document.payments?.firstOrNull())
+        val customer = assertNotNull(document.customers.firstOrNull())
+        val payment = assertNotNull(document.payments.firstOrNull())
 
         assertEquals("ahmed contracting", customer.key)
         assertEquals("Al Khobar", customer.place)
@@ -612,22 +585,30 @@ class OpeningBalanceTests {
         store.addCustomer("Ahmed", openingBalance = 5000.0)
 
         val document = BackupService.decode(BackupService.encode(store.makeBackupDocument()))
-        assertEquals(3, document.version)
-        assertEquals(5000.0, assertNotNull(document.customers?.firstOrNull()).openingBalance)
+        assertEquals(1, document.version)
+        assertEquals(5000.0, assertNotNull(document.customers.firstOrNull()).openingBalance)
 
         val restored = store()
         restored.replaceEverything(document)
         assertEquals(5000.0, assertNotNull(restored.customers().firstOrNull()).owed)
     }
 
+    /**
+     * A row with no `openingBalance` reads as nothing owed rather than failing.
+     *
+     * Not a file from the past — there are none — but the shape a *future* field
+     * will make of today's rows, and the reason every row field here carries a
+     * default. iOS is stricter and would refuse this file; both builds write the
+     * key always, so the difference stays theoretical.
+     */
     @Test
-    fun `a customer row written before opening balances existed reads as zero`() {
-        val v2 = """
+    fun `a customer row without the field reads as nothing owed`() {
+        val file = """
         {
-          "version": 2,
+          "version": 1,
           "exportedAt": "2026-08-17T09:41:00Z",
           "ownerName": "Khalid",
-          "currencySymbol": "SAR ",
+          "currencyCode": "SAR",
           "products": [],
           "bills": [],
           "customers": [
@@ -636,8 +617,8 @@ class OpeningBalanceTests {
         }
         """.trimIndent()
 
-        val document = BackupService.decode(v2)
+        val document = BackupService.decode(file)
 
-        assertEquals(0.0, assertNotNull(document.customers?.firstOrNull()).openingBalance)
+        assertEquals(0.0, assertNotNull(document.customers.firstOrNull()).openingBalance)
     }
 }

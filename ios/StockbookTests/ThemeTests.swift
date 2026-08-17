@@ -84,7 +84,7 @@ struct ThemeTests {
             store.replaceEverything(with: BackupDocument(
                 exportedAt: .now,
                 ownerName: "Someone Else",
-                currencySymbol: "SAR ",
+                currencyCode: "SAR",
                 products: [],
                 bills: []
             ))

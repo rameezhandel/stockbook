@@ -561,8 +561,6 @@ final class StockbookStore {
         // Currency, unlike language, is a property of the numbers in the file:
         // those prices were entered in it.
         restored.currencyCode = document.currencyCode
-            ?? Currency.matching(symbol: document.currencySymbol)?.code
-            ?? Currency.default.code
         restored.nextBillNumber = (document.bills.map(\.number).max() ?? 0) + 1
         restored.setupCompleted = true
         // The imported file is a copy of *another* phone's backup, not a backup
@@ -584,17 +582,17 @@ final class StockbookStore {
                     voided: record.voided
                 )
             },
-            customers: document.customers?.map {
+            customers: document.customers.map {
                 CustomerRecord(
                     key: $0.key,
                     name: $0.name,
                     phone: $0.phone,
                     place: $0.place,
-                    openingBalance: $0.openingBalance ?? 0,
+                    openingBalance: $0.openingBalance,
                     createdAt: $0.createdAt
                 )
-            } ?? [],
-            payments: document.payments?.map {
+            },
+            payments: document.payments.map {
                 Payment(
                     id: $0.id,
                     customerKey: $0.customerKey,
@@ -602,7 +600,7 @@ final class StockbookStore {
                     receivedAt: $0.receivedAt,
                     note: $0.note
                 )
-            } ?? [],
+            },
             settings: restored
         )
 
@@ -619,7 +617,6 @@ final class StockbookStore {
         BackupDocument(
             exportedAt: date,
             ownerName: settings.ownerName,
-            currencySymbol: settings.currency.symbol,
             currencyCode: settings.currencyCode,
             products: products.map {
                 BackupDocument.ProductRecord(uid: $0.uid, name: $0.name, stock: $0.stock, cost: $0.cost, price: $0.price)

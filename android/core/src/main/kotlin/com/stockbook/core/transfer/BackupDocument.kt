@@ -29,24 +29,18 @@ data class BackupDocument(
     @Serializable(with = InstantSerializer::class)
     val exportedAt: Instant,
     val ownerName: String,
-    /**
-     * Kept from format v1 and still written, so a build from before currencies
-     * were selectable reads a current file unchanged.
-     */
-    val currencySymbol: String,
-    /**
-     * The authoritative one. Absent in files written by that older build, which
-     * is why [currencySymbol] above is still what it falls back to.
-     */
-    val currencyCode: String? = null,
+    /** ISO 4217, and the only thing that says what the numbers in this file mean. */
+    val currencyCode: String,
     val products: List<ProductRecord> = emptyList(),
     val bills: List<BillRecord> = emptyList(),
     /**
-     * Null so a v1 file — which has neither key — still decodes. Absent and empty
-     * mean the same thing here, which is why nothing distinguishes them.
+     * Always written, empty or not. Kotlin's decoder would also accept a file
+     * with neither key and read it as an empty roster; Swift's would refuse it.
+     * The asymmetry is harmless while both builds write every key, and worth
+     * knowing about the day one of them stops.
      */
-    val customers: List<CustomerRecordRow>? = null,
-    val payments: List<PaymentRow>? = null
+    val customers: List<CustomerRecordRow> = emptyList(),
+    val payments: List<PaymentRow> = emptyList()
 ) {
     @Serializable
     data class CustomerRecordRow(
@@ -58,7 +52,7 @@ data class BackupDocument(
         val name: String,
         val phone: String? = null,
         val place: String? = null,
-        /** Carried over from the paper book. Absent in v2 files, where it is zero. */
+        /** Carried over from the paper book, and zero for anyone who was not. */
         val openingBalance: Double = 0.0,
         @Serializable(with = InstantSerializer::class)
         val createdAt: Instant
@@ -118,22 +112,20 @@ data class BackupDocument(
     val suggestedFilename: String get() = "stockbook-${Dates.fileDate(exportedAt)}.json"
 
     companion object {
-        /** The format this build writes. */
         /**
-         * Bumped to 2 when payments arrived, and that bump is the point of rule
-         * 2 above. `customers` a v1 reader could safely ignore — it would lose an
-         * address book. `payments` it could not: money received after a bill is
-         * what makes an outstanding balance go down, so a build that ignored them
-         * would read this file and confidently tell the owner that customers who
-         * have settled up still owe. Better that build refuses the file.
+         * The format this build writes: **one**, and the first there has ever
+         * been.
          *
-         * 3 adds each customer's carried-over opening balance, for the same
-         * reason once more: a v2 reader would drop it and understate what every
-         * customer who predates the app owes. The rule is worth applying even
-         * when only one phone is in play — judging it case by case is how a
-         * format quietly starts lying.
+         * It reached 3 during development — a bump when payments arrived, another
+         * for opening balances — but nothing had shipped, so those numbers
+         * described files that exist nowhere. Carrying them forward would have
+         * meant three shapes of history to keep readable, all imaginary.
+         *
+         * It is still a version, and rule 2 still stands: the moment a shop
+         * exists on somebody's phone, the next field that changes what an older
+         * reader *believes* — rather than merely what it knows — makes this 2.
          */
-        const val currentVersion = 3
+        const val currentVersion = 1
     }
 }
 

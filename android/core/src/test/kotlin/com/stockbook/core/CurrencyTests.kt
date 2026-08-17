@@ -51,8 +51,9 @@ class CurrencyTests {
         val codes = Currency.supported.map { it.code }.toSet()
         val symbols = Currency.supported.map { it.symbol.trim() }.toSet()
         assertEquals(Currency.supported.size, codes.size)
-        // matching() reads legacy settings, so a duplicate symbol would silently
-        // resolve to whichever entry came first.
+        // Two currencies sharing a symbol would put an ambiguous mark on a bill,
+        // which is the one place these strings are read by somebody with no
+        // Settings screen in front of them.
         assertEquals(Currency.supported.size, symbols.size)
         assertTrue(Currency.default in Currency.supported)
     }
@@ -61,15 +62,6 @@ class CurrencyTests {
     fun `an unknown code falls back rather than failing`() {
         assertEquals(Currency.default, Currency.named("ZZZ"))
         assertEquals(Currency.INR, Currency.named("INR"))
-    }
-
-    @Test
-    fun `a bare symbol resolves back to its currency`() {
-        assertEquals(Currency.SAR, Currency.matching("SAR "))
-        assertEquals(Currency.SAR, Currency.matching("SAR"))
-        assertEquals(Currency.INR, Currency.matching("₹"))
-        assertNull(Currency.matching("  "))
-        assertNull(Currency.matching("nonsense"))
     }
 
     @Test
@@ -87,14 +79,17 @@ class CurrencyTests {
     }
 
     @Test
-    fun `a backup written before codes existed still lands on the right currency`() {
+    fun `a backup carries its currency to the new phone`() {
         val store = StockbookStore(InMemoryRepository())
+        store.setCurrency(Currency.SAR)
 
+        // Unlike the language, the currency belongs to the numbers in the file:
+        // those prices were entered in it.
         store.replaceEverything(
             BackupDocument(
                 exportedAt = Instant.now(),
                 ownerName = "Khalid",
-                currencySymbol = "₹",
+                currencyCode = "INR",
                 products = emptyList(),
                 bills = emptyList()
             )
@@ -104,13 +99,12 @@ class CurrencyTests {
     }
 
     @Test
-    fun `export writes both the symbol and the code`() {
+    fun `export names the currency by its code`() {
         val store = StockbookStore(InMemoryRepository())
         store.setCurrency(Currency.KWD)
 
-        val document = store.makeBackupDocument()
-
-        assertEquals("KWD", document.currencyCode)
-        assertEquals("KWD ", document.currencySymbol)
+        // The code, and only the code. The symbol used to be written beside it
+        // for a build that could not read one; there is no such build.
+        assertEquals("KWD", store.makeBackupDocument().currencyCode)
     }
 }

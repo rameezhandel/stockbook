@@ -39,7 +39,7 @@ class BackupTests {
         // A file from a future build may decode cleanly into today's structs
         // while meaning something different, and the result of getting that
         // wrong is a destructive whole-database replace.
-        val json = """{"version":99,"exportedAt":"2026-08-11T00:00:00Z","ownerName":"K","currencySymbol":"SAR ","products":[],"bills":[]}"""
+        val json = """{"version":99,"exportedAt":"2026-08-11T00:00:00Z","ownerName":"K","currencyCode":"SAR","products":[],"bills":[]}"""
         val error = assertFailsWith<BackupError.NewerVersion> { BackupService.decode(json) }
         assertEquals(99, error.found)
     }
@@ -56,7 +56,7 @@ class BackupTests {
         val document = BackupDocument(
             exportedAt = exportedAt,
             ownerName = "Khalid Al-Amri",
-            currencySymbol = "SAR ",
+            currencyCode = "SAR",
             products = (1..8).map { BackupDocument.ProductRecord("uid-$it", "P$it", 1, 1.0, 2.0) },
             bills = emptyList()
         )
@@ -71,7 +71,7 @@ class BackupTests {
         val document = BackupDocument(
             exportedAt = exportedAt,
             ownerName = "K",
-            currencySymbol = "SAR "
+            currencyCode = "SAR"
         )
         assertEquals("stockbook-2026-07-28.json", document.suggestedFilename)
         assertTrue(document.suggestedFilename.all { it.code < 128 })
@@ -121,9 +121,13 @@ class CrossPlatformBackupTests {
               "who" : "Sami"
             }
           ],
-          "currencySymbol" : "SAR ",
+          "currencyCode" : "SAR",
+          "customers" : [
+          ],
           "exportedAt" : "2026-07-28T11:00:00Z",
           "ownerName" : "Khalid Al-Amri",
+          "payments" : [
+          ],
           "products" : [
             {
               "cost" : 60,
@@ -150,9 +154,8 @@ class CrossPlatformBackupTests {
         assertEquals(100.0, document.bills.first().paid)
         // An absent `paid` is paid in full, not zero paid.
         assertNull(document.bills[1].paid)
-        // No currencyCode in a v1 file; the symbol is what identifies it.
-        assertNull(document.currencyCode)
-        assertEquals(Currency.SAR, Currency.matching(document.currencySymbol))
+        // The code is what says what these numbers mean; nothing else does.
+        assertEquals("SAR", document.currencyCode)
     }
 
     @Test
@@ -182,7 +185,7 @@ class CrossPlatformBackupTests {
         val text = BackupService.encode(store.makeBackupDocument(Instant.parse("2026-07-28T11:00:00Z")))
 
         for (key in listOf(
-            "version", "exportedAt", "ownerName", "currencySymbol",
+            "version", "exportedAt", "ownerName", "currencyCode",
             "uid", "stock", "cost", "price",
             "number", "createdAt", "total", "who", "voided", "productUID", "qty"
         )) {

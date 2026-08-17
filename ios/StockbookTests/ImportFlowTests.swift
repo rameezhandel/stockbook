@@ -25,7 +25,7 @@ struct ImportFlowTests {
         BackupDocument(
             exportedAt: Date(timeIntervalSince1970: 1_785_000_000),
             ownerName: "Khalid Al-Amri",
-            currencySymbol: "SAR ",
+            currencyCode: "SAR",
             products: [.init(uid: UUID(), name: "Padlock", stock: 8, cost: 20, price: 45)],
             bills: []
         )
@@ -115,7 +115,7 @@ struct ImportFlowTests {
     @Test("A newer format is refused rather than guessed at")
     func newerVersionIsRefused() throws {
         let flow = ImportFlow()
-        let json = #"{"version":99,"exportedAt":"2026-08-11T00:00:00Z","ownerName":"K","currencySymbol":"SAR ","products":[],"bills":[]}"#
+        let json = #"{"version":99,"exportedAt":"2026-08-11T00:00:00Z","ownerName":"K","currencyCode":"SAR","products":[],"bills":[]}"#
         flow.pick(.success(try writeFile(json)))
 
         #expect(flow.stage.isFailure)

@@ -48,8 +48,9 @@ struct CurrencyTests {
         let codes = Set(Currency.supported.map(\.code))
         let symbols = Set(Currency.supported.map { $0.symbol.trimmed })
         #expect(codes.count == Currency.supported.count)
-        // `matching(symbol:)` reads legacy settings, so a duplicate symbol would
-        // silently resolve to whichever entry came first.
+        // Two currencies sharing a symbol would put an ambiguous mark on a bill,
+        // which is the one place these strings are read by somebody who has no
+        // Settings screen in front of them.
         #expect(symbols.count == Currency.supported.count)
         #expect(Currency.supported.contains(Currency.default))
     }
@@ -59,15 +60,6 @@ struct CurrencyTests {
         // Showing the wrong symbol beats refusing to open the shop.
         #expect(Currency.named("ZZZ") == Currency.default)
         #expect(Currency.named("INR") == .inr)
-    }
-
-    @Test("A bare symbol resolves back to its currency")
-    func symbolLookup() {
-        #expect(Currency.matching(symbol: "SAR ") == .sar)
-        #expect(Currency.matching(symbol: "SAR") == .sar)
-        #expect(Currency.matching(symbol: "₹") == .inr)
-        #expect(Currency.matching(symbol: "  ") == nil)
-        #expect(Currency.matching(symbol: "nonsense") == nil)
     }
 }
 
@@ -114,28 +106,10 @@ struct CurrencySettingTests {
 
         // Unlike the language, the currency belongs to the numbers in the file:
         // those prices were entered in it.
-        var document = BackupDocument(
-            exportedAt: .now,
-            ownerName: "Someone Else",
-            currencySymbol: "₹",
-            products: [],
-            bills: []
-        )
-        document.currencyCode = "INR"
-        store.replaceEverything(with: document)
-
-        #expect(store.settings.currency == .inr)
-    }
-
-    @Test("A backup written before codes existed still lands on the right currency")
-    func importFallsBackToTheSymbol() {
-        let store = StockbookStore(repository: InMemoryRepository())
-
-        // currencyCode absent — exactly what a format v1 file looks like.
         store.replaceEverything(with: BackupDocument(
             exportedAt: .now,
-            ownerName: "Khalid",
-            currencySymbol: "₹",
+            ownerName: "Someone Else",
+            currencyCode: "INR",
             products: [],
             bills: []
         ))
@@ -143,16 +117,13 @@ struct CurrencySettingTests {
         #expect(store.settings.currency == .inr)
     }
 
-    @Test("Export writes both the symbol and the code")
-    func exportCarriesBoth() {
+    @Test("Export names the currency by its code")
+    func exportCarriesTheCode() {
         let store = StockbookStore(repository: InMemoryRepository())
         store.setCurrency(.kwd)
 
-        let document = store.makeBackupDocument()
-
-        #expect(document.currencyCode == "KWD")
-        // Still written, so a build from before currencies were selectable
-        // reads a current file unchanged.
-        #expect(document.currencySymbol == "KWD ")
+        // The code, and only the code. The symbol used to be written beside it
+        // for a build that could not read one; there is no such build.
+        #expect(store.makeBackupDocument().currencyCode == "KWD")
     }
 }

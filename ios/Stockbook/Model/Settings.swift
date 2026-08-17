@@ -46,42 +46,30 @@ struct Settings: Codable, Equatable {
 
     init() {}
 
-    /// Written by hand, because the synthesised one is wrong for a file already
-    /// sitting on somebody's phone.
+    /// Written by hand, because the synthesised one refuses a file that is merely
+    /// older than the code reading it.
     ///
     /// A default value on a property does **not** make the synthesised decoder
-    /// tolerate a missing key — it throws. Every field added after v1 shipped is
-    /// therefore a field that would refuse to read an existing shop, so all of
-    /// them are decoded as "if present, else the default", and a field whose
-    /// *shape* changed — `currencySymbol` became `currencyCode` — reads the old
-    /// key when the new one is absent.
+    /// tolerate a missing key — it throws. That is what makes this decoder the
+    /// difference between adding a field and shipping a migration: every field
+    /// here is read as "if present, else the default", so the next one — a credit
+    /// limit, a supplier, whatever the purchases work needs — can be added
+    /// without the shop already on somebody's phone becoming unreadable.
+    ///
+    /// It is not a compatibility shim for the past. There is no past — nothing has
+    /// shipped — and every path that existed to read one has gone, along with the
+    /// format versions that described it.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let fallback = Settings()
         ownerName = try container.decodeIfPresent(String.self, forKey: .ownerName) ?? fallback.ownerName
         lowStockAt = try container.decodeIfPresent(Int.self, forKey: .lowStockAt) ?? fallback.lowStockAt
-        // Settings written before the code was stored carry `currencySymbol`
-        // instead, read through a container of its own so the current shape
-        // stays synthesised — the legacy key is not a property and must not
-        // become one.
-        if let code = try container.decodeIfPresent(String.self, forKey: .currencyCode) {
-            currencyCode = code
-        } else {
-            let legacy = try decoder.container(keyedBy: LegacyKeys.self)
-            let symbol = try legacy.decodeIfPresent(String.self, forKey: .currencySymbol)
-            currencyCode = symbol.flatMap { Currency.matching(symbol: $0)?.code } ?? fallback.currencyCode
-        }
+        currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode) ?? fallback.currencyCode
         language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? fallback.language
         theme = try container.decodeIfPresent(AppTheme.self, forKey: .theme) ?? fallback.theme
         lastExportAt = try container.decodeIfPresent(Date.self, forKey: .lastExportAt)
         setupCompleted = try container.decodeIfPresent(Bool.self, forKey: .setupCompleted) ?? fallback.setupCompleted
         nextBillNumber = try container.decodeIfPresent(Int.self, forKey: .nextBillNumber) ?? fallback.nextBillNumber
-    }
-
-    /// The pre-`currencyCode` key. Kept off `CodingKeys` so the synthesised
-    /// encoder never writes it back.
-    private enum LegacyKeys: String, CodingKey {
-        case currencySymbol
     }
 }
 

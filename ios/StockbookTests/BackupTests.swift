@@ -117,7 +117,7 @@ struct BackupTests {
 
     @Test("A file from a newer format is rejected, not guessed at")
     func rejectsNewerVersion() {
-        let data = Data(#"{"version":99,"exportedAt":"2026-08-11T00:00:00Z","ownerName":"K","currencySymbol":"SAR ","products":[],"bills":[]}"#.utf8)
+        let data = Data(#"{"version":99,"exportedAt":"2026-08-11T00:00:00Z","ownerName":"K","currencyCode":"SAR","products":[],"bills":[]}"#.utf8)
         #expect(throws: BackupError.newerVersion(found: 99)) {
             try BackupService.decode(data)
         }
@@ -135,7 +135,7 @@ struct BackupTests {
         let document = BackupDocument(
             exportedAt: date,
             ownerName: "Khalid",
-            currencySymbol: "SAR ",
+            currencyCode: "SAR",
             products: [],
             bills: []
         )
@@ -155,7 +155,7 @@ struct BackupTests {
         let document = BackupDocument(
             exportedAt: date,
             ownerName: "Khalid Al-Amri",
-            currencySymbol: "SAR ",
+            currencyCode: "SAR",
             products: (0..<8).map {
                 .init(uid: UUID(), name: "P\($0)", stock: 1, cost: 1, price: 2)
             },

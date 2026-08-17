@@ -2,19 +2,28 @@ import Testing
 import Foundation
 @testable import Stockbook
 
-/// What happens to a shop that already exists when the update lands.
+/// What happens to a shop file older than the code reading it.
 ///
-/// The most expensive bug this feature could ship is not a wrong statement — it
-/// is an owner taking the update and finding an empty app, because two new fields
-/// made a perfectly good file undecodable. Every test here is about that.
-@Suite("Roster arrives on an existing shop")
+/// Nothing has shipped, so no such file exists yet — which is exactly why these
+/// tests are worth keeping rather than deleting with the format versions. The
+/// most expensive bug this app can ship is not a wrong statement: it is an owner
+/// taking an update and finding an empty app, because a new field made a
+/// perfectly good file undecodable. The shop file's decoders are written by hand
+/// so that cannot happen, and this is where that is checked — today with the
+/// roster's fields, tomorrow with whatever purchases add.
+///
+/// The **backup** file is a different matter and deliberately strict: it is
+/// version-stamped, always written whole, and a missing key there means a file
+/// this app did not write.
+@Suite("A shop file older than its reader")
 @MainActor
 struct RosterMigrationTests {
 
-    /// The exact shape `JSONFileRepository` wrote before customers and payments
-    /// existed. A default value on a property does **not** make the synthesised
-    /// decoder tolerate a missing key — it throws — so without a hand-written
-    /// decoder this file would take the whole shop down.
+    /// A shop file with no `customers` and no `payments` key — the shape this
+    /// repository wrote before either existed, and the shape it will have again
+    /// the next time a field is added. A default value on a property does **not**
+    /// make the synthesised decoder tolerate a missing key; it throws. Without a
+    /// hand-written decoder this file takes the whole shop down.
     private let shopFileBeforeRoster = Data("""
     {
       "bills" : [
@@ -75,33 +84,6 @@ struct RosterMigrationTests {
         #expect(customer.phone == nil)
     }
 
-    @Test("A backup written before payments existed still imports")
-    func version1FileImports() throws {
-        let file = Data("""
-        {
-          "version" : 1,
-          "exportedAt" : "2026-07-28T09:41:00Z",
-          "ownerName" : "Khalid Al-Amri",
-          "currencySymbol" : "SAR ",
-          "products" : [],
-          "bills" : []
-        }
-        """.utf8)
-
-        let document = try BackupService.decode(file)
-
-        #expect(document.version == 1)
-        #expect(document.customers == nil)
-        #expect(document.payments == nil)
-
-        // And it can still be imported, which is the part that matters.
-        let store = StockbookStore(repository: InMemoryRepository())
-        store.replaceEverything(with: document)
-        #expect(store.settings.ownerName == "Khalid Al-Amri")
-        #expect(store.customerRecords.isEmpty)
-        #expect(store.payments.isEmpty)
-    }
-
     @Test("A backup carries the roster and the payments to the new phone")
     func roundTrip() throws {
         let store = StockbookStore(repository: InMemoryRepository())
@@ -118,9 +100,9 @@ struct RosterMigrationTests {
         let data = try BackupService.encode(store.makeBackupDocument())
         let document = try BackupService.decode(data)
 
-        #expect(document.version == 3)
-        #expect(document.customers?.count == 1)
-        #expect(document.payments?.count == 1)
+        #expect(document.version == BackupDocument.currentVersion)
+        #expect(document.customers.count == 1)
+        #expect(document.payments.count == 1)
 
         let restored = StockbookStore(repository: InMemoryRepository())
         restored.replaceEverything(with: document)
@@ -142,7 +124,7 @@ struct RosterMigrationTests {
         store.addCustomer(name: "Ahmed Contracting")
         let document = store.makeBackupDocument()
 
-        let row = try #require(document.customers?.first)
+        let row = try #require(document.customers.first)
         #expect(row.key == "ahmed contracting")
 
         let restored = StockbookStore(repository: InMemoryRepository())

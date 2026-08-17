@@ -1,7 +1,6 @@
 package com.stockbook.core.model
 
 import com.stockbook.core.text.AppLanguage
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
 
@@ -9,9 +8,11 @@ import java.time.Instant
  * The shop's own settings. One of these exists, always.
  *
  * Every field has a default, and kotlinx.serialization uses those defaults for
- * keys a file does not carry — so a shop saved by an older build still opens.
- * The one field whose *shape* changed keeps its old key readable: see
- * [legacyCurrencySymbol].
+ * keys a file does not carry — so a shop saved before a field existed still
+ * opens, which is what lets the next field (a credit limit, whatever purchases
+ * need) be added without a migration. Swift needs a hand-written decoder to
+ * manage the same thing; here it is the default behaviour, and the two builds
+ * have to agree, so neither may rely on a key being present.
  */
 @Serializable
 data class Settings(
@@ -27,12 +28,6 @@ data class Settings(
      * everyone's saved settings.
      */
     val currencyCode: String = Currency.default.code,
-    /**
-     * What older builds wrote instead of [currencyCode]. Read, never written —
-     * [resolved] folds it into the current shape and drops it.
-     */
-    @SerialName("currencySymbol")
-    val legacyCurrencySymbol: String? = null,
     /** Stock at or below this count reads as "running low". */
     val lowStockAt: Int = 40,
     /**
@@ -62,19 +57,6 @@ data class Settings(
     val currency: Currency get() = Currency.named(currencyCode)
 
     val hasBackup: Boolean get() = lastExportAt != null
-
-    /**
-     * Settings as this build understands them, with any older shape folded in.
-     * Applied once on load, so nothing downstream has to know two shapes existed.
-     */
-    fun resolved(): Settings {
-        val legacy = legacyCurrencySymbol ?: return copy(legacyCurrencySymbol = null)
-        val recovered = Currency.matching(legacy)?.code
-        return copy(
-            currencyCode = recovered ?: currencyCode,
-            legacyCurrencySymbol = null
-        )
-    }
 }
 
 /**

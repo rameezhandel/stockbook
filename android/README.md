@@ -31,10 +31,17 @@ Google's Maven, so it builds in CI and in Android Studio.
 ## Shared with iOS, deliberately
 
 - **The backup file.** `BackupDocument` is byte-compatible with the iOS build:
-  same keys, same ISO-8601 timestamps, same absent-means-paid-in-full rule. A
-  shop exported from an iPhone opens on Android and back again, which is tested
-  in `CrossPlatformBackupTests` against a literal iPhone-written file.
-  `productUID` is spelled the way Swift spells it for exactly that reason.
+  same keys, same ISO-8601 timestamps, same absent-means-paid-in-full rule, same
+  format version — 1, and the only one there has ever been. A shop exported from
+  an iPhone opens on Android and back again, which is tested against a literal
+  iPhone-written file. `productUID` is spelled the way Swift spells it for
+  exactly that reason.
+
+  The two decoders are not equally strict, and it is worth knowing which way.
+  Kotlin fills a missing key from the field's default; Swift throws unless the
+  decoder was written by hand. Both builds write every key every time, so the
+  difference stays theoretical — but a file Android would read as an empty roster
+  is a file the iPhone refuses outright.
 - **Every string**, in both languages, in one table ported line for line from
   the iOS `Strings`. A correction belongs in both.
 - **The palette.** `Nocturne.kt` carries the same hex values, in both themes.

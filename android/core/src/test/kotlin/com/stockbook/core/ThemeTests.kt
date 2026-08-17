@@ -80,7 +80,7 @@ class ThemeTests {
             BackupDocument(
                 exportedAt = Instant.parse("2026-08-01T09:00:00Z"),
                 ownerName = "Someone Else",
-                currencySymbol = "SAR ",
+                currencyCode = "SAR",
                 products = emptyList(),
                 bills = emptyList()
             )

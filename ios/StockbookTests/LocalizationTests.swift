@@ -143,7 +143,7 @@ struct LocalizationTests {
         let document = BackupDocument(
             exportedAt: date,
             ownerName: "Khalid",
-            currencySymbol: "SAR ",
+            currencyCode: "SAR",
             products: [],
             bills: []
         )
@@ -169,13 +169,15 @@ struct LanguageSettingTests {
         StockbookStore(repository: InMemoryRepository())
     }
 
-    @Test("A shop saved before languages existed still opens, in English")
-    func legacySettingsDecode() throws {
-        // Exactly the shape written by the build before `language` was added.
+    @Test("A settings blob with no language in it opens in English")
+    func settingsWithoutLanguageDecode() throws {
+        // Not a file from the past — nothing has shipped — but the shape the
+        // *next* field will make of this one, which is why `Settings` decodes by
+        // hand and why this test outlives the field that prompted it.
         let json = Data("""
         {
           "ownerName": "Khalid",
-          "currencySymbol": "SAR ",
+          "currencyCode": "SAR",
           "lowStockAt": 40,
           "setupCompleted": true,
           "nextBillNumber": 3
@@ -186,7 +188,6 @@ struct LanguageSettingTests {
         #expect(settings.language == .english)
         #expect(settings.ownerName == "Khalid")
         #expect(settings.nextBillNumber == 3)
-        // The currency was stored as a bare symbol back then.
         #expect(settings.currencyCode == "SAR")
     }
 
@@ -228,7 +229,7 @@ struct LanguageSettingTests {
         store.replaceEverything(with: BackupDocument(
             exportedAt: .now,
             ownerName: "Someone Else",
-            currencySymbol: "SAR ",
+            currencyCode: "SAR",
             products: [],
             bills: []
         ))

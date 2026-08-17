@@ -41,9 +41,8 @@ class JsonFileRepository(private val file: File) : StockbookRepository {
             if (text.isBlank()) ShopState.EMPTY
             else json.decodeFromString<ShopState>(text)
         }
-        val resolved = state.copy(settings = state.settings.resolved())
-        cache = resolved
-        return resolved
+        cache = state
+        return state
     }
 
     override fun upsert(product: Product) = mutate { state ->

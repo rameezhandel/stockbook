@@ -408,8 +408,8 @@ struct OpeningBalanceTests {
         store.addCustomer(name: "Ahmed", openingBalance: 5000)
 
         let document = try BackupService.decode(try BackupService.encode(store.makeBackupDocument()))
-        #expect(document.version == 3)
-        let row = try #require(document.customers?.first)
+        #expect(document.version == BackupDocument.currentVersion)
+        let row = try #require(document.customers.first)
         #expect(row.openingBalance == 5000)
 
         let restored = makeStore()
@@ -440,30 +440,4 @@ struct OpeningBalanceTests {
         #expect(record.phone == "0500 111 222")
     }
 
-    @Test("A v2 backup row without the field reads as nothing owed")
-    func version2RowReadsAsZero() throws {
-        let file = Data("""
-        {
-          "version": 2,
-          "exportedAt": "2026-08-17T09:41:00Z",
-          "ownerName": "Khalid",
-          "currencySymbol": "SAR ",
-          "products": [],
-          "bills": [],
-          "customers": [
-            { "key": "ahmed", "name": "Ahmed", "createdAt": "2026-08-01T06:00:00Z" }
-          ]
-        }
-        """.utf8)
-
-        let document = try BackupService.decode(file)
-        let row = try #require(document.customers?.first)
-
-        #expect(row.openingBalance == nil)
-
-        let store = makeStore()
-        store.replaceEverything(with: document)
-        let customer = try #require(store.customers().first)
-        #expect(customer.openingBalance == 0)
-    }
 }

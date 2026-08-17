@@ -16,36 +16,36 @@ struct BackupDocument: Codable, Equatable {
 
     /// The format this build writes.
     ///
-    /// Bumped to 2 when payments arrived, and that bump is the point of rule 2
-    /// above. `customers` a v1 reader could safely ignore — it would lose an
-    /// address book. `payments` it could not: money received after a bill is what
-    /// makes an outstanding balance go down, so a build that ignored them would
-    /// read this file and confidently tell the owner that customers who have
-    /// settled up still owe. Better that build refuses the file and says so.
+    /// **One**, and the first one there has ever been. It reached 3 during
+    /// development — a bump when payments arrived, another for opening balances —
+    /// but nothing had shipped, so those numbers described files that exist
+    /// nowhere. Carrying them forward would have meant three shapes of history to
+    /// keep readable, all of them imaginary.
     ///
-    /// 3 adds each customer's carried-over opening balance, for the same reason
-    /// once more: a v2 reader would drop it and understate what every customer
-    /// who predates the app owes. The rule is worth applying even when only one
-    /// phone is in play — judging it case by case is how a format quietly starts
-    /// lying.
-    static let currentVersion = 3
+    /// It is still a version, and rule 2 still stands: the moment a shop exists
+    /// on somebody's phone, the next field that would change what an older reader
+    /// *believes* — rather than merely what it knows — makes this 2.
+    static let currentVersion = 1
 
     var version: Int = BackupDocument.currentVersion
     var exportedAt: Date
     var ownerName: String
-    /// Kept from format v1 and still written, so a build from before currencies
-    /// were selectable reads a current file unchanged.
-    var currencySymbol: String
-    /// The authoritative one. Absent in files written by that older build,
-    /// which is why `currencySymbol` above is still the thing it falls back to.
-    var currencyCode: String? = nil
+    /// ISO 4217, and the only thing that says what the numbers in this file mean.
+    var currencyCode: String
     var products: [ProductRecord]
     var bills: [BillRecord]
 
-    /// Optional so a v1 file — which has neither key — still decodes. Absent and
-    /// empty mean the same thing here, which is why nothing distinguishes them.
-    var customers: [CustomerRecordRow]? = nil
-    var payments: [PaymentRow]? = nil
+    /// Always written, empty or not — so `[]` in a file means a shop with no
+    /// roster, and a *missing* key means a file this app did not write.
+    ///
+    /// The `= []` is the value for a document built in code, not a decoding
+    /// fallback: Swift's synthesised decoder throws on a missing key whatever the
+    /// property defaults to, which is precisely the answer wanted here. Kotlin's
+    /// is tolerant by construction and would read such a file as an empty roster;
+    /// the asymmetry is harmless while both builds write every key, and worth
+    /// knowing about the day one of them stops.
+    var customers: [CustomerRecordRow] = []
+    var payments: [PaymentRow] = []
 
     struct CustomerRecordRow: Codable, Equatable {
         /// Written out rather than re-derived on import, so a future change to the
@@ -54,8 +54,8 @@ struct BackupDocument: Codable, Equatable {
         var name: String
         var phone: String?
         var place: String?
-        /// Carried over from the paper book. Absent in v2 files, where it is zero.
-        var openingBalance: Double? = nil
+        /// Carried over from the paper book, and zero for anyone who was not.
+        var openingBalance: Double
         var createdAt: Date
     }
 

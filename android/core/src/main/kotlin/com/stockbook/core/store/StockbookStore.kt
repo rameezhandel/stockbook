@@ -573,9 +573,7 @@ class StockbookStore(private val repository: StockbookRepository) {
             ownerName = document.ownerName,
             // Currency, unlike language, is a property of the numbers in the
             // file: those prices were entered in it.
-            currencyCode = document.currencyCode
-                ?: Currency.matching(document.currencySymbol)?.code
-                ?: Currency.default.code,
+            currencyCode = document.currencyCode,
             // The language and the theme belong to the person holding this phone,
             // not to the file — a backup carried over from a shop that reads
             // English must not switch this one. Neither is written into a backup
@@ -618,7 +616,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                     voided = record.voided
                 )
             }.sortedByDescending { it.createdAt },
-            customers = document.customers.orEmpty().map {
+            customers = document.customers.map {
                 CustomerRecord(
                     // The key comes from the file, not from re-deriving it: see
                     // `BackupDocument.CustomerRecordRow.key`.
@@ -630,7 +628,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                     createdAt = it.createdAt
                 )
             }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }),
-            payments = document.payments.orEmpty().map {
+            payments = document.payments.map {
                 Payment(
                     id = it.id,
                     customerKey = it.customerKey,
@@ -650,7 +648,6 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun makeBackupDocument(at: Instant = Timestamps.now()): BackupDocument = BackupDocument(
         exportedAt = at,
         ownerName = settings.ownerName,
-        currencySymbol = settings.currency.symbol,
         currencyCode = settings.currencyCode,
         products = products.map {
             BackupDocument.ProductRecord(it.uid, it.name, it.stock, it.cost, it.price)

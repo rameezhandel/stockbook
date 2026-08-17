@@ -175,10 +175,12 @@ or after the storage engine underneath has been swapped.
 it is the *only* way data moves between devices.
 
 ```json
-{ "version": 1, "exportedAt": "…", "ownerName": "…", "currencySymbol": "SAR ",
-  "products": [ { "uid": "…", "name": "…", "stock": 12, "cost": 60, "price": 95 } ],
-  "bills":    [ { "number": 1, "createdAt": "…", "total": 190, "paid": 100,
-                  "who": "…", "voided": false, "lines": [ … ] } ] }
+{ "version": 1, "exportedAt": "…", "ownerName": "…", "currencyCode": "SAR",
+  "products":  [ { "uid": "…", "name": "…", "stock": 12, "cost": 60, "price": 95 } ],
+  "bills":     [ { "number": 1, "createdAt": "…", "total": 190, "paid": 100,
+                   "who": "…", "voided": false, "lines": [ … ] } ],
+  "customers": [ { "key": "ahmed", "name": "Ahmed", "openingBalance": 0, "createdAt": "…" } ],
+  "payments":  [ { "id": "…", "customerKey": "ahmed", "amount": 30, "receivedAt": "…" } ] }
 ```
 
 Written as `stockbook-YYYY-MM-DD.json`. On the way back in, `BackupService.decode`
@@ -186,6 +188,18 @@ checks the **version before the shape** — a file from a future build may decod
 cleanly into today's structs while meaning something different, and the result of
 getting that wrong is a destructive whole-database replace. Import is a swap, not
 a merge, and the UI gates it behind a warning naming what is about to be lost.
+
+**The version is 1, and it has been 3.** It was bumped when payments arrived and
+again for opening balances, each time correctly by the rule above — and then
+collapsed back, because nothing has shipped and those numbers described files
+that exist nowhere. Three shapes of imaginary history is a cost paid every time
+the format is touched. The rule itself stands: once a shop exists on somebody's
+phone, the next field that changes what an older reader *believes* makes this 2.
+
+Every key is written every time, empty lists included, so a missing one means a
+file this app did not write. That strictness is the backup file's alone — the
+shop's own file on disk is read leniently, because that is what lets a field be
+added without a migration.
 
 ## Two languages
 
@@ -251,14 +265,10 @@ rather than a migration out of everyone's saved settings.
   numbers and start being drawn with the new symbol. That is the only honest
   behaviour for an app holding no rate, and the Settings copy says so before the
   tap rather than after.
-- **Import takes the file's currency**, unlike the language: those prices were
-  entered in it. Settings written before the code existed carry `currencySymbol`
-  instead, and are resolved back through the table.
-
-The backup format still writes `currencySymbol` alongside the new
-`currencyCode`, so a build from before currencies were selectable reads a
-current file unchanged — no version bump, because nothing an old reader sees has
-changed meaning.
+- **Import takes the file's currency**, unlike the language and the theme: those
+  prices were entered in it. The file names it by ISO code and nothing else — the
+  symbol used to be written alongside, for a build that could not read a code,
+  and went out with the format versions that build belonged to.
 
 ## The design system
 

@@ -68,12 +68,4 @@ struct Currency: Identifiable, Hashable, Sendable {
     static func named(_ code: String) -> Currency {
         supported.first { $0.code == code } ?? .default
     }
-
-    /// Recovers a currency from a bare symbol, for settings and backups written
-    /// before the code was stored. `"SAR "` and `"SAR"` both resolve.
-    static func matching(symbol: String) -> Currency? {
-        let needle = symbol.trimmed
-        guard !needle.isEmpty else { return nil }
-        return supported.first { $0.symbol.trimmed == needle }
-    }
 }
