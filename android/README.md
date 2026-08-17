@@ -62,10 +62,37 @@ that leaves this phone is the file the owner exports on purpose.
 
 ## Getting it onto a phone
 
-Easier than iOS: no developer account, no signing ceremony, no TestFlight.
+Easier than iOS: no developer account, no App Store Connect, no TestFlight.
 
-Every CI run uploads **`stockbook-debug-apk`** as an artifact. Download it on the
-phone, allow installing from that source once, and tap it.
+Every push that touches `android/` builds an APK and uploads it as the
+**`stockbook-debug-apk`** artifact, kept for 14 days.
+
+On the phone:
+
+1. Open the repository's **Actions** tab and pick the newest green **Android**
+   run. You need to be signed in to GitHub — artifacts are not public links.
+2. Download **`stockbook-debug-apk`**. GitHub always wraps artifacts in a zip, so
+   what lands is `stockbook-debug-apk.zip`.
+3. Extract it — the Files app on most phones will.
+4. Tap the `.apk` inside. Android asks once for permission to install from
+   whichever app is doing the tapping; allow it.
+
+### The build is signed with a committed key, on purpose
+
+`keystore/stockbook-debug.jks` is in the repository and its password is in
+`app/build.gradle.kts`. That is not an oversight.
+
+Left alone, AGP generates a debug keystore on whatever machine is building, and
+every CI runner is a fresh machine — so each build would carry a different
+signature, installing a new APK over an older one would fail with a mismatch,
+and the only way through would be to uninstall first. In an app whose whole
+premise is that the shop lives on this phone and nowhere else, that means
+throwing the shop away to take an update.
+
+A debug key protects nothing — Android's own default one is public. What this
+one buys is that build 12 installs over build 11 and the owner keeps their
+bills. A real release key, for the Play Store, would be a secret and would not
+live here.
 
 ## What is built
 
