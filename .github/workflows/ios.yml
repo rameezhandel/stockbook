@@ -47,8 +47,23 @@ jobs:
       - name: Ensure xcbeautify
         run: command -v xcbeautify || brew install xcbeautify
 
-      - name: Show available simulators
-        run: xcrun simctl list devices available | grep -i iphone || true
+      # Same reasoning as picking Xcode above: a hard-coded device name breaks
+      # whenever the runner image rotates its simulators. Prefer iPhone 16, take
+      # whatever iPhone is there if it has gone.
+      - name: Choose a simulator
+        run: |
+          DEVICE="iPhone 16"
+          if ! xcrun simctl list devices available | grep -q "^ *$DEVICE ("; then
+            DEVICE=$(xcrun simctl list devices available \
+              | sed -n 's/^ *\(iPhone[^(]*\) (.*/\1/p' | head -1 | xargs)
+          fi
+          if [ -z "$DEVICE" ]; then
+            echo "::error::No iPhone simulator is available on this runner."
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Using $DEVICE"
+          echo "SIMULATOR=$DEVICE" >> "$GITHUB_ENV"
 
       - name: Build and test
         run: |
@@ -56,7 +71,7 @@ jobs:
           xcodebuild test \
             -project ios/Stockbook.xcodeproj \
             -scheme Stockbook \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination "platform=iOS Simulator,name=$SIMULATOR,OS=latest" \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \
             2>&1 | tee build.log | xcbeautify --renderer github-actions
@@ -76,6 +91,13 @@ jobs:
             grep -E "error:|Testing failed|failed on" build.log | sort -u | head -60 \
               || echo "no compiler errors in the log — look at the test results artifact"
             echo '```'
+            echo ""
+            echo "<details><summary>Simulators on this runner</summary>"
+            echo ""
+            echo '```'
+            xcrun simctl list devices available | grep -i iphone || echo "none"
+            echo '```'
+            echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # Keeps the failure readable from a phone: the result bundle has the full
