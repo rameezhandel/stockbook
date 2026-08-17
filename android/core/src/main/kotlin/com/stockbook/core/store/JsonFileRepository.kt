@@ -1,6 +1,8 @@
 package com.stockbook.core.store
 
 import com.stockbook.core.model.Bill
+import com.stockbook.core.model.CustomerRecord
+import com.stockbook.core.model.Payment
 import com.stockbook.core.model.Product
 import com.stockbook.core.model.Settings
 import com.stockbook.core.model.ShopState
@@ -63,6 +65,27 @@ class JsonFileRepository(private val file: File) : StockbookRepository {
         state.copy(bills = state.bills.map { if (it.number == bill.number) bill else it })
     }
 
+    override fun upsert(customer: CustomerRecord) = mutate { state ->
+        val index = state.customers.indexOfFirst { it.key == customer.key }
+        if (index >= 0) {
+            state.copy(customers = state.customers.toMutableList().also { it[index] = customer })
+        } else {
+            state.copy(customers = state.customers + customer)
+        }
+    }
+
+    override fun deleteCustomer(key: String) = mutate { state ->
+        state.copy(customers = state.customers.filterNot { it.key == key })
+    }
+
+    override fun append(payment: Payment) = mutate { state ->
+        state.copy(payments = state.payments + payment)
+    }
+
+    override fun deletePayment(id: String) = mutate { state ->
+        state.copy(payments = state.payments.filterNot { it.id == id })
+    }
+
     override fun save(settings: Settings) = mutate { state ->
         state.copy(settings = settings)
     }
@@ -109,6 +132,25 @@ class InMemoryRepository(initial: ShopState = ShopState.EMPTY) : StockbookReposi
     override fun update(bill: Bill) {
         state = state.copy(bills = state.bills.map { if (it.number == bill.number) bill else it })
     }
+    override fun upsert(customer: CustomerRecord) {
+        val index = state.customers.indexOfFirst { it.key == customer.key }
+        state = if (index >= 0) {
+            state.copy(customers = state.customers.toMutableList().also { it[index] = customer })
+        } else {
+            state.copy(customers = state.customers + customer)
+        }
+    }
+
+    override fun deleteCustomer(key: String) {
+        state = state.copy(customers = state.customers.filterNot { it.key == key })
+    }
+
+    override fun append(payment: Payment) { state = state.copy(payments = state.payments + payment) }
+
+    override fun deletePayment(id: String) {
+        state = state.copy(payments = state.payments.filterNot { it.id == id })
+    }
+
     override fun save(settings: Settings) { state = state.copy(settings = settings) }
     override fun replaceAll(state: ShopState) { this.state = state }
 }

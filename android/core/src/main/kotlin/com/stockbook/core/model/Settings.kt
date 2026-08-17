@@ -84,6 +84,19 @@ data class Settings(
 data class ShopState(
     val products: List<Product> = emptyList(),
     val bills: List<Bill> = emptyList(),
+    /**
+     * The customer roster: typed-in facts only. Figures are derived from [bills]
+     * and [payments] every time they are asked for.
+     *
+     * Arriving after v1 shipped cost nothing here: kotlinx.serialization applies
+     * a property's default when the key is absent, so a shop file written before
+     * this existed still loads. The iOS twin needed a hand-written decoder for
+     * exactly this, because Swift's synthesised one throws on a missing key even
+     * when the property has a default.
+     */
+    val customers: List<CustomerRecord> = emptyList(),
+    /** Money received after the bill was written. */
+    val payments: List<Payment> = emptyList(),
     val settings: Settings = Settings()
 ) {
     companion object {

@@ -4,9 +4,13 @@ import com.stockbook.core.model.Bill
 import com.stockbook.core.model.BillLine
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
+import com.stockbook.core.model.CustomerRecord
+import com.stockbook.core.model.Payment
 import com.stockbook.core.model.Product
 import com.stockbook.core.model.Settings
 import com.stockbook.core.model.ShopState
+import com.stockbook.core.model.Statement
+import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
 import com.stockbook.core.text.AppLanguage
@@ -54,6 +58,17 @@ class StockbookStore(private val repository: StockbookRepository) {
 
     val products: List<Product> get() = _state.value.products
     val bills: List<Bill> get() = _state.value.bills
+
+    /**
+     * The roster: typed-in facts about customers. Named for the record rather
+     * than the person because [customers] is what screens want — that one merges
+     * these with what history says.
+     */
+    val customerRecords: List<CustomerRecord> get() = _state.value.customers
+
+    /** Money received after the bill, newest first. */
+    val payments: List<Payment> get() = _state.value.payments
+
     val settings: Settings get() = _state.value.settings
 
     /** Bills that actually happened. Voided ones are history, not sales. */
@@ -269,15 +284,181 @@ class StockbookStore(private val repository: StockbookRepository) {
             tally.owed += bill.balance
         }
 
+        // Payments come off what is owed. Without this the Bills filter, the
+        // Today banner and every statement would go on claiming money that is
+        // already in the till.
+        for (payment in payments) {
+            book[payment.customerKey]?.let { it.owed -= payment.amount }
+        }
+
+        // The roster and history are merged, not chosen between. Somebody entered
+        // during setup who has never bought anything is a customer with no bills;
+        // a name typed at the counter that nobody added is a customer too.
+        val roster = customerRecords.associateBy { it.key }
+        for (record in roster.values) {
+            book.getOrPut(record.key) { Tally(record.name, 0, 0.0, 0.0) }
+        }
+
         return book.map { (key, tally) ->
+            val record = roster[key]
             Customer(
-                name = tally.name,
+                // Where a roster entry exists its spelling wins: it was typed on
+                // purpose rather than in a hurry with a customer waiting.
+                name = record?.name ?: tally.name,
                 key = key,
                 billCount = tally.count,
                 total = tally.total,
-                owed = tally.owed
+                // Rounded because netting payments off balances in binary
+                // floating point otherwise leaves a customer owing 0.000000001
+                // and the UI saying they owe money.
+                owed = Math.round(tally.owed * 100) / 100.0,
+                phone = record?.phone,
+                place = record?.place,
+                isOnRoster = record != null
             )
         }.sortedWith(compareByDescending<Customer> { it.owed }.thenByDescending { it.billCount })
+    }
+
+    /** One customer by key, roster figures and all. */
+    fun customer(key: String): Customer? = customers().firstOrNull { it.key == key }
+
+    /**
+     * Adds a customer to the roster. A key already present is updated rather than
+     * duplicated — typing a name that is already there is a correction, not a
+     * second person. Returns null for a blank name.
+     */
+    fun addCustomer(name: String, phone: String? = null, place: String? = null): CustomerRecord? {
+        if (name.isBlank()) return null
+        val fresh = CustomerRecord.of(name, phone, place)
+        val existing = customerRecords.firstOrNull { it.key == fresh.key }
+        val record = existing?.copy(name = fresh.name, phone = fresh.phone, place = fresh.place) ?: fresh
+        _state.value = _state.value.copy(
+            customers = if (existing == null) {
+                customerRecords + record
+            } else {
+                customerRecords.map { if (it.key == record.key) record else it }
+            }
+        )
+        attempt { repository.upsert(record) }
+        return record
+    }
+
+    /**
+     * Corrects the facts about a customer already on the roster.
+     *
+     * A name changed enough to change its key is a **rename**, and a rename
+     * rewrites `who` on that customer's bills. That is the one case where a saved
+     * bill is edited, and it is right: the alternative is the roster saying
+     * "Ahmed Contracting" while their bills are filed under "ahmed" and the two
+     * never meeting again. What a bill records about *money* stays untouchable.
+     */
+    fun updateCustomer(key: String, name: String, phone: String?, place: String?) {
+        if (name.isBlank()) return
+        val existing = customerRecords.firstOrNull { it.key == key } ?: return
+        val newKey = Customer.key(name)
+        val record = existing.copy(
+            key = newKey,
+            name = name.trim(),
+            phone = CustomerRecord.tidied(phone),
+            place = CustomerRecord.tidied(place)
+        )
+
+        if (newKey == key) {
+            _state.value = _state.value.copy(
+                customers = customerRecords.map { if (it.key == key) record else it }
+            )
+            attempt { repository.upsert(record) }
+            return
+        }
+
+        // Renamed. Move the roster entry, then bring the bills and payments with
+        // it so nothing is left filed under a name that no longer exists. A
+        // rename onto somebody already there merges: one person, not two.
+        val movedBills = bills.map { if (Customer.key(it.who) == key) it.copy(who = record.name) else it }
+        val movedPayments = payments.map { if (it.customerKey == key) it.copy(customerKey = newKey) else it }
+        _state.value = _state.value.copy(
+            bills = movedBills,
+            payments = movedPayments,
+            customers = customerRecords.filterNot { it.key == key || it.key == newKey } + record
+        )
+
+        attempt {
+            repository.deleteCustomer(key)
+            repository.deleteCustomer(newKey)
+            repository.upsert(record)
+            for (bill in movedBills) if (bill.who == record.name) repository.update(bill)
+            for (payment in movedPayments) {
+                if (payment.customerKey == newKey) {
+                    repository.deletePayment(payment.id)
+                    repository.append(payment)
+                }
+            }
+        }
+    }
+
+    /**
+     * Takes a customer off the roster. Their bills and payments stay: this
+     * forgets the address book entry, not the trading history.
+     */
+    fun removeCustomer(key: String) {
+        _state.value = _state.value.copy(customers = customerRecords.filterNot { it.key == key })
+        attempt { repository.deleteCustomer(key) }
+    }
+
+    // --- Payments
+
+    /**
+     * Records money handed over after the bill.
+     *
+     * Not allocated to a particular bill, because that is not how a counter
+     * works: somebody pays what they can against what they owe. A zero or
+     * negative amount is a no-op rather than an error — the sheet treats an empty
+     * box as "close without doing anything", the same as restock.
+     */
+    fun recordPayment(
+        customerKey: String,
+        amount: Double,
+        receivedAt: Instant = Timestamps.now(),
+        note: String? = null
+    ): Payment? {
+        if (amount <= 0 || customerKey.isEmpty()) return null
+        val payment = Payment(
+            customerKey = customerKey,
+            amount = amount,
+            receivedAt = receivedAt,
+            note = CustomerRecord.tidied(note)
+        )
+        _state.value = _state.value.copy(
+            payments = (payments + payment).sortedByDescending { it.receivedAt }
+        )
+        attempt { repository.append(payment) }
+        return payment
+    }
+
+    fun deletePayment(id: String) {
+        _state.value = _state.value.copy(payments = payments.filterNot { it.id == id })
+        attempt { repository.deletePayment(id) }
+    }
+
+    fun paymentsForCustomer(key: String): List<Payment> = payments.filter { it.customerKey == key }
+
+    // --- Statements
+
+    /**
+     * One customer's account over a period.
+     *
+     * The arithmetic is in [Statement.make], which takes plain lists — this only
+     * decides which lists. That is what keeps the figures testable without a
+     * store, a repository or a screen.
+     */
+    fun statementForCustomer(key: String, period: StatementPeriod): Statement? {
+        val customer = customer(key) ?: return null
+        return Statement.make(
+            customer = customer,
+            bills = billsForCustomer(key),
+            payments = paymentsForCustomer(key),
+            period = period
+        )
     }
 
     /**
@@ -400,6 +581,26 @@ class StockbookStore(private val repository: StockbookRepository) {
                     voided = record.voided
                 )
             }.sortedByDescending { it.createdAt },
+            customers = document.customers.orEmpty().map {
+                CustomerRecord(
+                    // The key comes from the file, not from re-deriving it: see
+                    // `BackupDocument.CustomerRecordRow.key`.
+                    key = it.key,
+                    name = it.name,
+                    phone = it.phone,
+                    place = it.place,
+                    createdAt = it.createdAt
+                )
+            }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }),
+            payments = document.payments.orEmpty().map {
+                Payment(
+                    id = it.id,
+                    customerKey = it.customerKey,
+                    amount = it.amount,
+                    receivedAt = it.receivedAt,
+                    note = it.note
+                )
+            }.sortedByDescending { it.receivedAt },
             settings = restored
         )
 
@@ -427,6 +628,24 @@ class StockbookStore(private val repository: StockbookRepository) {
                 lines = bill.lines.map {
                     BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price)
                 }
+            )
+        },
+        customers = customerRecords.map {
+            BackupDocument.CustomerRecordRow(
+                key = it.key,
+                name = it.name,
+                phone = it.phone,
+                place = it.place,
+                createdAt = it.createdAt
+            )
+        },
+        payments = payments.map {
+            BackupDocument.PaymentRow(
+                id = it.id,
+                customerKey = it.customerKey,
+                amount = it.amount,
+                receivedAt = it.receivedAt,
+                note = it.note
             )
         }
     )

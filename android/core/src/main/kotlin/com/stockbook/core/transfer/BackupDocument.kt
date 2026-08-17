@@ -40,8 +40,38 @@ data class BackupDocument(
      */
     val currencyCode: String? = null,
     val products: List<ProductRecord> = emptyList(),
-    val bills: List<BillRecord> = emptyList()
+    val bills: List<BillRecord> = emptyList(),
+    /**
+     * Null so a v1 file — which has neither key — still decodes. Absent and empty
+     * mean the same thing here, which is why nothing distinguishes them.
+     */
+    val customers: List<CustomerRecordRow>? = null,
+    val payments: List<PaymentRow>? = null
 ) {
+    @Serializable
+    data class CustomerRecordRow(
+        /**
+         * Written out rather than re-derived on import, so a future change to the
+         * keying rule cannot silently re-file everybody's history.
+         */
+        val key: String,
+        val name: String,
+        val phone: String? = null,
+        val place: String? = null,
+        @Serializable(with = InstantSerializer::class)
+        val createdAt: Instant
+    )
+
+    @Serializable
+    data class PaymentRow(
+        val id: String,
+        val customerKey: String,
+        val amount: Double,
+        @Serializable(with = InstantSerializer::class)
+        val receivedAt: Instant,
+        val note: String? = null
+    )
+
     @Serializable
     data class ProductRecord(
         val uid: String,
@@ -87,7 +117,15 @@ data class BackupDocument(
 
     companion object {
         /** The format this build writes. */
-        const val currentVersion = 1
+        /**
+         * Bumped to 2 when payments arrived, and that bump is the point of rule
+         * 2 above. `customers` a v1 reader could safely ignore — it would lose an
+         * address book. `payments` it could not: money received after a bill is
+         * what makes an outstanding balance go down, so a build that ignored them
+         * would read this file and confidently tell the owner that customers who
+         * have settled up still owe. Better that build refuses the file.
+         */
+        const val currentVersion = 2
     }
 }
 

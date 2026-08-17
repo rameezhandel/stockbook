@@ -158,6 +158,76 @@ class Strings(val language: AppLanguage) {
     val pendingPayment: String get() = pick("Pending", "ಬಾಕಿ")
     val nothingPending: String get() = pick("Nothing", "ಏನೂ ಇಲ್ಲ")
 
+    // Somebody who has paid ahead. The mirror of `owes`, and worth saying
+    // plainly rather than showing a negative amount the owner has to interpret.
+    fun inAdvance(amount: String): String =
+            pick("$amount in advance", "$amount ಮುಂಗಡ")
+
+    // --- Customers
+
+    val customersTitle: String get() = pick("Customers", "ಗ್ರಾಹಕರು")
+    val addACustomer: String get() = pick("Add a customer", "ಗ್ರಾಹಕರನ್ನು ಸೇರಿಸಿ")
+    val newCustomer: String get() = pick("New customer", "ಹೊಸ ಗ್ರಾಹಕ")
+    val editCustomer: String get() = pick("Edit customer", "ಗ್ರಾಹಕರ ವಿವರ ಬದಲಿಸಿ")
+    val customerPhone: String get() = pick("Phone", "ಫೋನ್")
+    val customerPlace: String get() = pick("Place", "ಸ್ಥಳ")
+    val optionalField: String get() = pick("Optional", "ಬೇಕಿದ್ದರೆ")
+    val saveCustomer: String get() = pick("Save customer", "ಗ್ರಾಹಕರನ್ನು ಉಳಿಸಿ")
+    val removeFromCustomers: String get() = pick("Remove from customers", "ಗ್ರಾಹಕರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಿರಿ")
+    val tapAgainToRemove: String get() = pick("Tap again to remove", "ತೆಗೆಯಲು ಇನ್ನೊಮ್ಮೆ ಒತ್ತಿ")
+    val noBillsYet: String get() = pick("No bills yet", "ಇನ್ನೂ ಬಿಲ್ ಇಲ್ಲ")
+    val enterCustomerNameFirst: String get() = pick("Enter a name", "ಹೆಸರು ಬರೆಯಿರಿ")
+
+    // Said when removing a roster entry, because "remove" beside somebody's
+    // name reads like deleting them and their history.
+    val removeCustomerNote: String
+        get() = pick(
+            "Their bills stay. This only takes them off the customer list.",
+            "ಅವರ ಬಿಲ್‌ಗಳು ಹಾಗೇ ಉಳಿಯುತ್ತವೆ. ಇದು ಅವರನ್ನು ಗ್ರಾಹಕರ ಪಟ್ಟಿಯಿಂದ ಮಾತ್ರ ತೆಗೆಯುತ್ತದೆ."
+        )
+
+    // --- Payments
+
+    val recordAPayment: String get() = pick("Record a payment", "ಪಾವತಿ ದಾಖಲಿಸಿ")
+    val amountReceived: String get() = pick("Amount received", "ಸ್ವೀಕರಿಸಿದ ಮೊತ್ತ")
+    val receivedOn: String get() = pick("Received on", "ಸ್ವೀಕರಿಸಿದ ದಿನ")
+    val paymentNote: String get() = pick("Note", "ಟಿಪ್ಪಣಿ")
+    val paymentNoteExample: String get() = pick("cash, cheque…", "ನಗದು, ಚೆಕ್…")
+    val savePayment: String get() = pick("Save payment", "ಪಾವತಿ ಉಳಿಸಿ")
+    val paymentLabel: String get() = pick("Payment", "ಪಾವತಿ")
+    val deleteThisPayment: String get() = pick("Delete this payment", "ಈ ಪಾವತಿಯನ್ನು ಅಳಿಸಿ")
+    val enterAnAmount: String get() = pick("Enter an amount", "ಮೊತ್ತ ಬರೆಯಿರಿ")
+
+    // The one thing to know about payments in this app.
+    val paymentNotAgainstOneBill: String
+        get() = pick(
+            "Recorded against the customer, not one bill — the way money actually arrives at a counter.",
+            "ಒಂದು ಬಿಲ್‌ಗೆ ಅಲ್ಲ, ಗ್ರಾಹಕರ ಖಾತೆಗೆ ದಾಖಲಾಗುತ್ತದೆ — ಕೌಂಟರಿನಲ್ಲಿ ಹಣ ಬರುವುದು ಹಾಗೆಯೇ."
+        )
+
+    // --- Statement
+
+    val statement: String get() = pick("Statement", "ಖಾತೆ ವಿವರ")
+    val thisMonth: String get() = pick("This month", "ಈ ತಿಂಗಳು")
+    val lastMonth: String get() = pick("Last month", "ಕಳೆದ ತಿಂಗಳು")
+    val thisYear: String get() = pick("This year", "ಈ ವರ್ಷ")
+    val chooseDates: String get() = pick("Choose dates", "ದಿನಾಂಕ ಆರಿಸಿ")
+    val fromDate: String get() = pick("From", "ಇಂದ")
+    val toDate: String get() = pick("To", "ವರೆಗೆ")
+    val openingBalance: String get() = pick("Brought forward", "ಹಿಂದಿನ ಬಾಕಿ")
+    val billedInPeriod: String get() = pick("Billed", "ಬಿಲ್ ಮಾಡಿದ್ದು")
+    val receivedInPeriod: String get() = pick("Received", "ಸ್ವೀಕರಿಸಿದ್ದು")
+    val closingBalance: String get() = pick("Balance due", "ಉಳಿದ ಬಾಕಿ")
+    val nothingInThisPeriod: String get() = pick("Nothing in this period", "ಈ ಅವಧಿಯಲ್ಲಿ ಏನೂ ಇಲ್ಲ")
+    val settledUp: String get() = pick("Settled up", "ಎಲ್ಲಾ ಪಾವತಿ ಆಗಿದೆ")
+
+    // `28 July 2026 to 27 August 2026` — the span a statement covers, written
+    // out because a date range abbreviated with a dash is read wrong often
+    // enough to matter on a document somebody may hand to a customer.
+    fun dateSpan(from: String, to: String): String =
+            pick("$from to $to", "$from ಇಂದ $to ವರೆಗೆ")
+
+
     // --- Sell
 
     val newBill: String get() = pick("New bill", "ಹೊಸ ಬಿಲ್")
@@ -331,6 +401,21 @@ class Strings(val language: AppLanguage) {
 
     val youPay: String get() = pick("You pay", "ನೀವು ಕೊಡುವುದು")
     val youSell: String get() = pick("You sell", "ನೀವು ಮಾರುವುದು")
+    val nextCustomers: String get() = pick("Next — your customers", "ಮುಂದೆ — ನಿಮ್ಮ ಗ್ರಾಹಕರು")
+    val yourCustomers: String get() = pick("Your customers", "ನಿಮ್ಮ ಗ್ರಾಹಕರು")
+    val whoDoYouSellTo: String get() = pick("Who buys on account?", "ಯಾರು ಖಾತೆಯಲ್ಲಿ ಖರೀದಿಸುತ್ತಾರೆ?")
+
+    // Says out loud that this step is skippable, because a setup screen that
+    // looks compulsory is where an owner gives up and types nonsense.
+    val customersSetupBody: String
+        get() = pick(
+            "The regulars who pay later, so their names are ready at the counter and you can print a statement. Skip this — you can add anybody while writing a bill.",
+            "ನಂತರ ಪಾವತಿಸುವ ನಿಯಮಿತ ಗ್ರಾಹಕರು — ಕೌಂಟರಿನಲ್ಲಿ ಹೆಸರು ಸಿದ್ಧವಿರುತ್ತದೆ ಮತ್ತು ಖಾತೆ ವಿವರ ತೆಗೆಯಬಹುದು. ಇದನ್ನು ಬಿಟ್ಟುಬಿಡಬಹುದು — ಬಿಲ್ ಬರೆಯುವಾಗಲೂ ಯಾರನ್ನಾದರೂ ಸೇರಿಸಬಹುದು."
+        )
+
+    val customerNameExample: String get() = pick("Ahmed Contracting", "ಅಹ್ಮದ್ ಕಂಟ್ರಾಕ್ಟಿಂಗ್")
+    val noCustomersYetKicker: String get() = pick("Nobody added yet", "ಇನ್ನೂ ಯಾರನ್ನೂ ಸೇರಿಸಿಲ್ಲ")
+
     val openTheShop: String get() = pick("Open the shop", "ಅಂಗಡಿ ತೆರೆಯಿರಿ")
 
     val allSet: String get() =

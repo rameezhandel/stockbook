@@ -1,6 +1,8 @@
 package com.stockbook.core.store
 
 import com.stockbook.core.model.Bill
+import com.stockbook.core.model.CustomerRecord
+import com.stockbook.core.model.Payment
 import com.stockbook.core.model.Product
 import com.stockbook.core.model.Settings
 import com.stockbook.core.model.ShopState
@@ -21,6 +23,20 @@ interface StockbookRepository {
     fun delete(productUid: String)
     fun append(bill: Bill)
     fun update(bill: Bill)
+
+    /** Insert or update, matched on [CustomerRecord.key]. */
+    fun upsert(customer: CustomerRecord)
+
+    /**
+     * Removes the roster entry only. The customer's bills are history and stay
+     * exactly where they are, which is why this takes a key rather than
+     * pretending to delete a person.
+     */
+    fun deleteCustomer(key: String)
+
+    fun append(payment: Payment)
+    fun deletePayment(id: String)
+
     fun save(settings: Settings)
     fun replaceAll(state: ShopState)
 }
