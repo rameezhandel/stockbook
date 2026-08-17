@@ -159,7 +159,7 @@ struct TodayScreen: View {
             HStack {
                 Kicker(Loc.recentBills)
                 Spacer()
-                Button(Loc.all) { router.tab = .bills }
+                Button(Loc.all) { router.tab = .book }
                     .buttonStyle(.ghost)
             }
             .padding(.bottom, 9)

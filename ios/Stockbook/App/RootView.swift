@@ -84,7 +84,7 @@ private struct AppShell: View {
                     case .today: TodayScreen()
                     case .items: ItemsScreen()
                     case .sell: SellScreen()
-                    case .bills: BillsScreen()
+                    case .book: BookScreen()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -146,7 +146,16 @@ private struct AppShell: View {
             ProductEditorSheet(product: target.product)
         }
         .nocturneSheet(item: $router.addStock) { target in
-            AddStockSheet(product: target.product)
+            AddStockSheet(product: target.product, startInPurchase: router.startingPurchase)
+        }
+        // Which product arrived. A purchase carries one product, so something has
+        // to name it, and asking here is fewer taps than making the owner find the
+        // product first.
+        .nocturneSheet(isPresented: $router.recordingDelivery) {
+            WhichProductSheet { router.recordingDelivery = false }
+        }
+        .nocturneSheet(item: $router.purchaseDetail) { purchase in
+            PurchaseSheet(purchase: purchase) { router.purchaseDetail = nil }
         }
         .nocturneSheet(item: $router.billDetail) { bill in
             BillSheet(bill: bill)

@@ -79,7 +79,7 @@ struct Strings {
         case .today: pick("Today", "ಇಂದು")
         case .items: pick("Items", "ಸಾಮಾನು")
         case .sell: pick("Sell", "ಮಾರಾಟ")
-        case .bills: pick("Bills", "ಬಿಲ್")
+        case .book: pick("Book", "ಪುಸ್ತಕ")
         }
     }
 

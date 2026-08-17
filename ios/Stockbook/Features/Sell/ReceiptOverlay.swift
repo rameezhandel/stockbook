@@ -63,7 +63,7 @@ struct ReceiptOverlay: View {
         HStack(spacing: 8) {
             Button(Loc.seeBills) {
                 router.receipt = nil
-                router.tab = .bills
+                router.tab = .book
             }
             .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 46))
 

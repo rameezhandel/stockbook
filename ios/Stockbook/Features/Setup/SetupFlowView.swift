@@ -20,6 +20,11 @@ struct SetupFlowView: View {
     @State private var draftCustomer = ""
     @State private var draftOpening = ""
     @State private var customerDrafts: [CustomerDraft] = []
+    @State private var supplierDrafts: [CustomerDraft] = []
+
+    /// Which half of step 3 is showing. Customers first: every bill needs one,
+    /// and a delivery can wait until stock arrives.
+    @State private var addingCustomers = true
 
     /// Step 4's twelve-or-so boxes, focused from here rather than each one
     /// managing itself, so the keyboard toolbar knows what comes next.
@@ -408,19 +413,35 @@ struct SetupFlowView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Kicker(Loc.yourCustomers).padding(.bottom, 6)
+                    // The two rosters share a step rather than taking one each.
+                    // They are the same form — a name and what was owed before —
+                    // and a fifth screen between the owner and an open shop is a
+                    // screen that gets skipped. The chips are the Book's.
+                    HStack(spacing: 6) {
+                        ChoicePill(title: Loc.customersTitle, icon: Icon.customer, selected: addingCustomers) {
+                            addingCustomers = true
+                            draftCustomer = ""
+                            draftOpening = ""
+                        }
+                        ChoicePill(title: Loc.suppliersTitle, icon: Icon.addStock, selected: !addingCustomers) {
+                            addingCustomers = false
+                            draftCustomer = ""
+                            draftOpening = ""
+                        }
+                    }
+                    .padding(.bottom, 14)
 
-                    Text(Loc.whoDoYouSellTo)
+                    Text(addingCustomers ? Loc.whoDoYouSellTo : Loc.whoDoYouBuyFrom)
                         .nocturneText(.setupTitle)
                         .padding(.bottom, 5)
 
-                    Text(Loc.customersSetupBody)
+                    Text(addingCustomers ? Loc.customersSetupBody : Loc.suppliersSetupBody)
                         .nocturneText(.body)
                         .padding(.bottom, 16)
 
                     HStack(spacing: 8) {
                         NocturneField(
-                            placeholder: Loc.customerNameExample,
+                            placeholder: addingCustomers ? Loc.customerNameExample : Loc.supplierNameExample,
                             text: $draftCustomer,
                             height: Metrics.tallInputHeight,
                             fontSize: 15,
@@ -443,15 +464,15 @@ struct SetupFlowView: View {
                     }
                     .padding(.bottom, 6)
 
-                    Text(Loc.openingBalanceNote)
+                    Text(addingCustomers ? Loc.openingBalanceNote : Loc.supplierOpeningNote)
                         .nocturneText(.meta)
                         .padding(.bottom, 16)
 
-                    Kicker(customerDrafts.isEmpty ? Loc.noCustomersYetKicker : Loc.addedCount(customerDrafts.count))
+                    Kicker(rosterKicker)
                         .padding(.bottom, 8)
 
                     VStack(spacing: Metrics.rowGap) {
-                        ForEach(customerDrafts) { draft in
+                        ForEach(roster) { draft in
                             HStack(spacing: 10) {
                                 Glyph(Icon.customer, size: 13)
                                     .foregroundStyle(Nocturne.neutral500)
@@ -463,7 +484,7 @@ struct SetupFlowView: View {
                                         .foregroundStyle(Nocturne.accent400)
                                 }
                                 Button {
-                                    customerDrafts.removeAll { $0.id == draft.id }
+                                    removeDraft(draft)
                                 } label: {
                                     Glyph(Icon.close, size: 16)
                                         .foregroundStyle(Nocturne.neutral500)
@@ -551,19 +572,41 @@ struct SetupFlowView: View {
 
     /// Same rule as the product list: a name already there is not a mistake
     /// worth interrupting anybody for.
+    /// Whichever roster the chips are showing.
+    private var roster: [CustomerDraft] {
+        addingCustomers ? customerDrafts : supplierDrafts
+    }
+
+    private var rosterKicker: String {
+        if !roster.isEmpty { return Loc.addedCount(roster.count) }
+        return addingCustomers ? Loc.noCustomersYetKicker : Loc.noSuppliersYetKicker
+    }
+
+    private func removeDraft(_ draft: CustomerDraft) {
+        if addingCustomers {
+            customerDrafts.removeAll { $0.id == draft.id }
+        } else {
+            supplierDrafts.removeAll { $0.id == draft.id }
+        }
+    }
+
+    /// Same rule on both sides, and the same as the product list's: a name
+    /// already there is not a mistake worth interrupting anybody for.
     private func addCustomerDraft(_ name: String) {
         let cleaned = name.trimmed
         guard !cleaned.isEmpty else { return }
-        guard !customerDrafts.contains(where: { Customer.key(for: $0.name) == Customer.key(for: cleaned) }) else {
+        let carried = Money.parse(draftOpening) ?? 0
+        defer {
             draftCustomer = ""
             draftOpening = ""
-            return
         }
-        customerDrafts.append(
-            CustomerDraft(name: cleaned, openingBalance: Money.parse(draftOpening) ?? 0)
-        )
-        draftCustomer = ""
-        draftOpening = ""
+        guard !roster.contains(where: { Customer.key(for: $0.name) == Customer.key(for: cleaned) }) else { return }
+        let draft = CustomerDraft(name: cleaned, openingBalance: carried)
+        if addingCustomers {
+            customerDrafts.append(draft)
+        } else {
+            supplierDrafts.append(draft)
+        }
     }
 
     private func advance(to destination: Step) {
@@ -585,6 +628,9 @@ struct SetupFlowView: View {
                 cost: Money.parse(draft.cost) ?? 0,
                 price: Money.parse(draft.price) ?? 0
             )
+        }
+        for draft in supplierDrafts {
+            store.addSupplier(name: draft.name, openingBalance: draft.openingBalance)
         }
         for draft in customerDrafts {
             store.addCustomer(name: draft.name, openingBalance: draft.openingBalance)

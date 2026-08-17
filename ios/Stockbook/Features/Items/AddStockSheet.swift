@@ -8,12 +8,15 @@ import SwiftUI
 /// weighted average, so the new figure simply takes over.
 struct AddStockSheet: View {
     let product: Product
+    /// Opened from the Delivery button rather than from a product's own sheet.
+    var startInPurchase = false
 
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
     @Environment(\.currency) private var currency
 
     @State private var mode: RestockMode = .quickAdd
+    @State private var seededMode = false
     @State private var quantity = ""
     @State private var unitCost = ""
     /// What was typed into the supplier box, and who was actually chosen.
@@ -88,6 +91,13 @@ struct AddStockSheet: View {
                 .padding(.top, 6)
         }
         .keyboardDoneButton()
+        .onAppear {
+            // Once, and only when opened from the Delivery button: re-seeding on
+            // every appearance would fight an owner who switched to Quick add.
+            guard startInPurchase, !seededMode else { return }
+            seededMode = true
+            mode = .purchase
+        }
     }
 
     private var modePills: some View {

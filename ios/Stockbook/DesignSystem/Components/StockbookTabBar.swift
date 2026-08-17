@@ -45,8 +45,15 @@ struct StockbookTabBar: View {
     }
 }
 
+/// The four tabs. Settings is deliberately *not* one.
+///
+/// `book` was `bills`, and grew rather than moved: it holds both halves of the
+/// account book now — what was sold and to whom, what arrived and from whom. Two
+/// chips inside it rather than two tabs out here, because a delivery arrives once
+/// a week and a sale happens fifty times a day, and a tab bar is weighted by how
+/// often a thumb goes there.
 enum AppTab: String, CaseIterable, Identifiable {
-    case today, items, sell, bills
+    case today, items, sell, book
 
     var id: String { rawValue }
 
@@ -55,7 +62,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .today: Icon.today
         case .items: Icon.items
         case .sell: Icon.sell
-        case .bills: Icon.bills
+        case .book: Icon.bills
         }
     }
 
@@ -64,7 +71,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .today: Icon.todayActive
         case .items: Icon.itemsActive
         case .sell: Icon.sellActive
-        case .bills: Icon.billsActive
+        case .book: Icon.billsActive
         }
     }
 }

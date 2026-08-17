@@ -53,6 +53,20 @@ final class AppRouter {
     /// copy taken when it opened.
     var statementFor: String?
 
+    /// Set by the Items header's Delivery button: the sheet that asks which
+    /// product arrived, before the purchase sheet itself.
+    ///
+    /// A purchase carries one product, so something has to name it. Starting from
+    /// the header and asking is fewer taps than making the owner find the product
+    /// first, which is what recording a delivery used to cost.
+    var recordingDelivery = false
+
+    /// A delivery opened from the book, the way a bill is opened from history.
+    var purchaseDetail: Purchase?
+
+    /// Set when the add-stock sheet should open on its purchase half.
+    var startingPurchase = false
+
     /// The supplier editor sheet. The customer editor's mirror, kept as its own
     /// pair of fields rather than one editor with a direction on it: the two
     /// sheets say different words and gate on different figures.
@@ -104,6 +118,13 @@ final class AppRouter {
 
     func openAddStock(for product: Product) {
         productEditor = nil
+        startingPurchase = false
+        addStock = AddStockTarget(product: product)
+    }
+
+    func openDelivery(for product: Product) {
+        recordingDelivery = false
+        startingPurchase = true
         addStock = AddStockTarget(product: product)
     }
 
@@ -127,6 +148,9 @@ final class AppRouter {
         supplierEditor = nil
         supplierPaymentFor = nil
         supplierStatementFor = nil
+        recordingDelivery = false
+        purchaseDetail = nil
+        startingPurchase = false
     }
 }
 

@@ -102,4 +102,26 @@ extension View {
             .animation(Metrics.sheet, value: item.wrappedValue != nil)
         }
     }
+
+    /// The same sheet, for something that is either showing or not.
+    ///
+    /// Most sheets here carry the thing they are about, so `item:` is the usual
+    /// form. A sheet whose whole content is a question — "which product arrived?"
+    /// — has nothing to carry, and inventing an `Identifiable` box for a boolean
+    /// would be ceremony.
+    func nocturneSheet<SheetContent: View>(
+        isPresented: Binding<Bool>,
+        @ViewBuilder content: @escaping () -> SheetContent
+    ) -> some View {
+        overlay {
+            ZStack {
+                if isPresented.wrappedValue {
+                    BottomSheetContainer(onDismiss: { isPresented.wrappedValue = false }) {
+                        content()
+                    }
+                }
+            }
+            .animation(Metrics.sheet, value: isPresented.wrappedValue)
+        }
+    }
 }

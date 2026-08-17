@@ -8,6 +8,9 @@ import SwiftUI
 /// one mistyped bill puts the shelf and the app permanently out of step; with
 /// deletion instead, the history quietly stops matching what actually happened.
 struct BillsScreen: View {
+    /// False inside the book, which carries one header for both halves.
+    var showsHeader = true
+
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
     @Environment(\.currency) private var currency
@@ -28,7 +31,9 @@ struct BillsScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: Loc.billsTitle, bottomPadding: 10)
+            if showsHeader {
+                ScreenHeader(title: Loc.billsTitle, bottomPadding: 10)
+            }
 
             // The filter is the app's customer surface, so adding one lives
             // beside it rather than in Settings. Shown even with an empty
