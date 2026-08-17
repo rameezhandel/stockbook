@@ -73,5 +73,5 @@ private fun AppTab.icon(active: Boolean) = when (this) {
     AppTab.TODAY -> if (active) Icon.todayActive else Icon.today
     AppTab.ITEMS -> if (active) Icon.itemsActive else Icon.items
     AppTab.SELL -> if (active) Icon.sellActive else Icon.sell
-    AppTab.BILLS -> if (active) Icon.billsActive else Icon.bills
+    AppTab.BOOK -> if (active) Icon.billsActive else Icon.bills
 }

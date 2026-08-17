@@ -135,7 +135,7 @@ fun TodayScreen(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 9.dp)
                 ) {
                     Kicker(strings.recentBills, modifier = Modifier.weight(1f))
-                    GhostButton(strings.all, onClick = { router.tab = com.stockbook.core.text.AppTab.BILLS })
+                    GhostButton(strings.all, onClick = { router.tab = com.stockbook.core.text.AppTab.BOOK })
                 }
             }
 
