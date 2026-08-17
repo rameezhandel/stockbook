@@ -192,6 +192,7 @@ struct Strings {
     var optionalField: String { pick("Optional", "ಬೇಕಿದ್ದರೆ") }
     var saveCustomer: String { pick("Save customer", "ಗ್ರಾಹಕರನ್ನು ಉಳಿಸಿ") }
     var removeFromCustomers: String { pick("Remove from customers", "ಗ್ರಾಹಕರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಿರಿ") }
+    var tapAgainToRemove: String { pick("Tap again to remove", "ತೆಗೆಯಲು ಇನ್ನೊಮ್ಮೆ ಒತ್ತಿ") }
     var noBillsYet: String { pick("No bills yet", "ಇನ್ನೂ ಬಿಲ್ ಇಲ್ಲ") }
     var enterCustomerNameFirst: String { pick("Enter a name", "ಹೆಸರು ಬರೆಯಿರಿ") }
 

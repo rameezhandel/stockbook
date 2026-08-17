@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// First-run setup: name, then product names, then stock and prices.
+/// First-run setup: name, then product names, then stock and prices, then the
+/// regulars who buy on account.
 ///
 /// Nothing here is persisted until "Open the shop". The whole flow is a draft
 /// held in this view — a half-finished setup is not a shop, and abandoning it
@@ -16,6 +17,8 @@ struct SetupFlowView: View {
     @State private var currency = Currency.default
     @State private var draftName = ""
     @State private var drafts: [ProductDraft] = []
+    @State private var draftCustomer = ""
+    @State private var customerDrafts: [CustomerDraft] = []
 
     /// Step 3's twelve-or-so boxes, focused from here rather than each one
     /// managing itself, so the keyboard toolbar knows what comes next.
@@ -24,8 +27,8 @@ struct SetupFlowView: View {
     @Environment(\.topSafeInset) private var topInset
     @Environment(\.bottomSafeInset) private var bottomInset
 
-    private enum Step: Int {
-        case name, products, prices
+    private enum Step: Int, CaseIterable {
+        case name, products, prices, customers
     }
 
     /// The exact set the owner asked for — a lock shop's four common lines, and
@@ -36,6 +39,14 @@ struct SetupFlowView: View {
         "Padlock",
         "Deadbolt"
     ]
+
+    /// Only a name here. Phone and place are asked for in the editor sheet
+    /// later — setup is already four screens long, and the owner has a shop to
+    /// open.
+    private struct CustomerDraft: Identifiable {
+        let id = UUID()
+        var name: String
+    }
 
     private struct ProductDraft: Identifiable {
         let id = UUID()
@@ -57,6 +68,7 @@ struct SetupFlowView: View {
             case .name: nameStep
             case .products: productsStep
             case .prices: pricesStep
+            case .customers: customersStep
             }
         }
         .padding(.horizontal, Metrics.screenPadding)
@@ -117,7 +129,7 @@ struct SetupFlowView: View {
 
     private var progressBar: some View {
         HStack(spacing: 6) {
-            ForEach(0..<3, id: \.self) { index in
+            ForEach(0..<Step.allCases.count, id: \.self) { index in
                 Capsule()
                     .fill(index <= step.rawValue ? Nocturne.accent : Nocturne.neutral800)
                     .frame(height: 3)
@@ -322,7 +334,7 @@ struct SetupFlowView: View {
 
                     HStack(spacing: 8) {
                         backButton(to: .products)
-                        Button(Loc.openTheShop, action: finish)
+                        Button(Loc.nextCustomers) { advance(to: .customers) }
                             .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                             .disabled(!isComplete)
                     }
@@ -371,6 +383,88 @@ struct SetupFlowView: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+    }
+
+    // MARK: Step 4 — who buys on account
+
+    /// The only optional step in setup, and it says so.
+    ///
+    /// A shop can open without knowing a single customer — names can be typed at
+    /// the counter, which is what happened before this screen existed. What this
+    /// buys is the regulars being ready, and a statement being possible for them
+    /// from the first bill rather than the second.
+    private var customersStep: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Kicker(Loc.yourCustomers).padding(.bottom, 6)
+
+                    Text(Loc.whoDoYouSellTo)
+                        .nocturneText(.setupTitle)
+                        .padding(.bottom, 5)
+
+                    Text(Loc.customersSetupBody)
+                        .nocturneText(.body)
+                        .padding(.bottom, 16)
+
+                    HStack(spacing: 8) {
+                        NocturneField(
+                            placeholder: Loc.customerNameExample,
+                            text: $draftCustomer,
+                            height: Metrics.tallInputHeight,
+                            fontSize: 15,
+                            identifier: "setup.customerName",
+                            onSubmit: { addCustomerDraft(draftCustomer) }
+                        )
+                        Button { addCustomerDraft(draftCustomer) } label: {
+                            Glyph(Icon.add, size: 18)
+                        }
+                        .buttonStyle(PrimaryButtonStyle(height: Metrics.tallInputHeight))
+                    }
+                    .padding(.bottom, 16)
+
+                    Kicker(customerDrafts.isEmpty ? Loc.noCustomersYetKicker : Loc.addedCount(customerDrafts.count))
+                        .padding(.bottom, 8)
+
+                    VStack(spacing: Metrics.rowGap) {
+                        ForEach(customerDrafts) { draft in
+                            HStack(spacing: 10) {
+                                Glyph(Icon.customer, size: 13)
+                                    .foregroundStyle(Nocturne.neutral500)
+                                Text(draft.name).nocturneText(.rowPrimary)
+                                Spacer(minLength: 0)
+                                Button {
+                                    customerDrafts.removeAll { $0.id == draft.id }
+                                } label: {
+                                    Glyph(Icon.close, size: 16)
+                                        .foregroundStyle(Nocturne.neutral500)
+                                        .minimumTouchTarget()
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(Loc.remove(draft.name))
+                            }
+                            .padding(.leading, 13)
+                            .padding(.trailing, 8)
+                            .padding(.vertical, 9)
+                            .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 10)
+            }
+            .scrollDismissesKeyboard(.interactively)
+
+            footer {
+                HStack(spacing: 8) {
+                    backButton(to: .prices)
+                    // Never disabled. Nobody is required here, and a dead button
+                    // on an optional step reads as a wall.
+                    Button(Loc.openTheShop, action: finish)
+                        .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
+                }
+            }
+        }
     }
 
     // MARK: Pieces
@@ -426,10 +520,24 @@ struct SetupFlowView: View {
         draftName = ""
     }
 
+    /// Same rule as the product list: a name already there is not a mistake
+    /// worth interrupting anybody for.
+    private func addCustomerDraft(_ name: String) {
+        let cleaned = name.trimmed
+        guard !cleaned.isEmpty else { return }
+        guard !customerDrafts.contains(where: { Customer.key(for: $0.name) == Customer.key(for: cleaned) }) else {
+            draftCustomer = ""
+            return
+        }
+        customerDrafts.append(CustomerDraft(name: cleaned))
+        draftCustomer = ""
+    }
+
     private func advance(to destination: Step) {
         switch destination {
         case .products where ownerName.isBlank: return
         case .prices where drafts.isEmpty: return
+        case .customers where !isComplete: return
         default: withAnimation(Metrics.quick) { step = destination }
         }
     }
@@ -445,6 +553,9 @@ struct SetupFlowView: View {
                 cost: Money.parse(draft.cost) ?? 0,
                 price: Money.parse(draft.price) ?? 0
             )
+        }
+        for draft in customerDrafts {
+            store.addCustomer(name: draft.name)
         }
         store.completeSetup()
     }

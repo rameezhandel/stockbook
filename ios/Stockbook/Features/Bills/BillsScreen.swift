@@ -30,11 +30,30 @@ struct BillsScreen: View {
         VStack(spacing: 0) {
             ScreenHeader(title: Loc.billsTitle, bottomPadding: 10)
 
-            if !customers.isEmpty {
-                filter
-                    .padding(.horizontal, Metrics.screenPadding)
-                    .padding(.bottom, 10)
+            // The filter is the app's customer surface, so adding one lives
+            // beside it rather than in Settings. Shown even with an empty
+            // roster: on a fresh shop this is the only way in other than
+            // writing a bill.
+            HStack(spacing: 8) {
+                if customers.isEmpty {
+                    // Nothing to filter yet, so the button says what it does
+                    // instead of being an icon beside an absent dropdown.
+                    Button(Loc.addACustomer) { router.openNewCustomer() }
+                        .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: Metrics.inputHeight, fontSize: 13))
+                } else {
+                    filter
+                    Button {
+                        router.openNewCustomer()
+                    } label: {
+                        Glyph(Icon.customer, size: 15)
+                    }
+                    .buttonStyle(SecondaryButtonStyle(height: Metrics.inputHeight))
+                    .frame(width: 48)
+                    .accessibilityLabel(Loc.addACustomer)
+                }
             }
+            .padding(.horizontal, Metrics.screenPadding)
+            .padding(.bottom, 10)
 
             ScrollView {
                 LazyVStack(spacing: Metrics.rowGap) {
@@ -100,10 +119,26 @@ struct BillsScreen: View {
             HStack(spacing: 9) {
                 Glyph(Icon.customer, size: 16)
                     .foregroundStyle(Nocturne.accent)
-                Text(customer.name)
-                    .nocturneText(.rowPrimary)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(customer.name)
+                        .nocturneText(.rowPrimary)
+                        .lineLimit(1)
+                    if let contact = contactLine(customer) {
+                        Text(contact).nocturneText(.meta).lineLimit(1)
+                    }
+                }
                 Spacer(minLength: 0)
+                // Editing is where a phone number gets added to somebody who has
+                // only ever been a name on a bill.
+                Button {
+                    router.openCustomer(customer)
+                } label: {
+                    Glyph(Icon.edit, size: 13)
+                        .foregroundStyle(Nocturne.neutral500)
+                        .minimumTouchTarget()
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Loc.editCustomer)
             }
             .padding(.bottom, 10)
 
@@ -115,16 +150,41 @@ struct BillsScreen: View {
                 )
                 figure(
                     label: Loc.pendingPayment,
-                    value: customer.owed > 0 ? Money.text(customer.owed, in: currency) : Loc.nothingPending,
+                    value: pendingText(customer),
                     detail: nil,
                     tint: customer.owed > 0 ? Nocturne.accent400 : Nocturne.neutral500
                 )
             }
+
+            HStack(spacing: 6) {
+                Button(Loc.statement) { router.openStatement(for: customer) }
+                    .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 38, fontSize: 12.5))
+                // Offered only when there is something to settle. A payment
+                // against a customer who owes nothing is an advance, which is
+                // real but not what this button is for.
+                if customer.owed > 0 {
+                    Button(Loc.recordAPayment) { router.paymentFor = customer }
+                        .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 38, fontSize: 12.5))
+                }
+            }
+            .padding(.top, 11)
         }
         .padding(13)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
         .hairline(radius: Metrics.cardRadius)
+    }
+
+    /// `0500 111 222 · Al Khobar`, or nothing for a customer who is only a name.
+    private func contactLine(_ customer: Customer) -> String? {
+        let details = [customer.phone, customer.place].compactMap { $0 }
+        return details.isEmpty ? nil : details.joined(separator: " · ")
+    }
+
+    private func pendingText(_ customer: Customer) -> String {
+        if customer.owed > 0 { return Money.text(customer.owed, in: currency) }
+        if customer.owed < 0 { return Loc.inAdvance(Money.text(-customer.owed, in: currency)) }
+        return Loc.nothingPending
     }
 
     private func figure(

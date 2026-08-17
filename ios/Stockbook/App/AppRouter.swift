@@ -40,12 +40,37 @@ final class AppRouter {
     /// being looked up.
     var billDetail: Bill?
 
+    /// The customer editor sheet — `nil` closed. Carries the customer being
+    /// corrected, or `.creating` for a new one.
+    var customerEditor: CustomerEditorTarget?
+
+    /// The record-a-payment sheet, for one customer.
+    var paymentFor: Customer?
+
+    /// A customer's statement, full screen. Held as a **key** rather than a
+    /// `Customer`, because recording a payment while it is open changes every
+    /// derived figure on it — the screen has to re-read the customer, not show a
+    /// copy taken when it opened.
+    var statementFor: String?
+
     // MARK: Intents
     //
     // Named for what the owner is doing, so call sites read as the design does.
 
     func openNewProduct() {
         productEditor = ProductEditorTarget(product: nil)
+    }
+
+    func openNewCustomer() {
+        customerEditor = CustomerEditorTarget(customer: nil)
+    }
+
+    func openCustomer(_ customer: Customer) {
+        customerEditor = CustomerEditorTarget(customer: customer)
+    }
+
+    func openStatement(for customer: Customer) {
+        statementFor = customer.key
     }
 
     func openProduct(_ product: Product) {
@@ -71,6 +96,9 @@ final class AppRouter {
         receipt = nil
         billDetail = nil
         showingBackup = false
+        customerEditor = nil
+        paymentFor = nil
+        statementFor = nil
     }
 }
 
@@ -83,4 +111,10 @@ struct ProductEditorTarget: Identifiable {
 struct AddStockTarget: Identifiable {
     let product: Product
     var id: UUID { product.uid }
+}
+
+/// Identifies the customer editor sheet. `nil` customer means "New customer".
+struct CustomerEditorTarget: Identifiable {
+    let customer: Customer?
+    var id: String { customer?.key ?? "new" }
 }
