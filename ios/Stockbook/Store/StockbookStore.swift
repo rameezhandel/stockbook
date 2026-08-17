@@ -26,6 +26,14 @@ final class StockbookStore {
     /// Money received after the bill, newest first.
     private(set) var payments: [Payment] = []
 
+    private(set) var supplierRecords: [SupplierRecord] = []
+
+    /// Stock that arrived, newest first.
+    private(set) var purchases: [Purchase] = []
+
+    /// Money paid out after the delivery, newest first.
+    private(set) var supplierPayments: [SupplierPayment] = []
+
     private(set) var settings: Settings = Settings()
 
     /// Set when the disk refuses a write. Nothing in the UI surfaces it yet;
@@ -46,6 +54,9 @@ final class StockbookStore {
             bills = state.bills.sorted { $0.createdAt > $1.createdAt }
             customerRecords = state.customers.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
             payments = state.payments.sorted { $0.receivedAt > $1.receivedAt }
+            supplierRecords = state.suppliers.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+            purchases = state.purchases.sorted { $0.createdAt > $1.createdAt }
+            supplierPayments = state.supplierPayments.sorted { $0.paidAt > $1.paidAt }
             settings = state.settings
             L10n.use(settings.language)
             Nocturne.use(settings.theme)
@@ -527,6 +538,276 @@ final class StockbookStore {
         replace(updated)
     }
 
+    // MARK: - Suppliers
+
+    /// Every supplier, roster and history merged — the mirror of `customers()`,
+    /// and the same three-step order for the same hard-won reason.
+    ///
+    /// Purchases first, then roster entries, then carried-over balances, and
+    /// **payments last**. On the customer side the payments loop once ran second,
+    /// which silently dropped every payment from somebody who had never been
+    /// billed. On a fresh shop that is the ordinary case, not an edge one: a
+    /// supplier is entered with what the paper book says is owed, and the first
+    /// thing that ever happens to them is being paid.
+    func suppliers() -> [Supplier] {
+        var order: [String] = []
+        var book: [String: (name: String, count: Int, total: Double, owed: Double)] = [:]
+
+        for purchase in purchases where !purchase.voided && !purchase.supplierKey.isBlank {
+            if var entry = book[purchase.supplierKey] {
+                entry.count += 1
+                entry.total += purchase.total
+                entry.owed += purchase.balance
+                book[purchase.supplierKey] = entry
+            } else {
+                order.append(purchase.supplierKey)
+                book[purchase.supplierKey] = (purchase.supplierKey, 1, purchase.total, purchase.balance)
+            }
+        }
+
+        let roster = Dictionary(uniqueKeysWithValues: supplierRecords.map { ($0.key, $0) })
+        for record in supplierRecords where book[record.key] == nil {
+            order.append(record.key)
+            book[record.key] = (record.name, 0, 0, 0)
+        }
+
+        for record in supplierRecords {
+            if var entry = book[record.key] {
+                entry.owed += record.openingBalance
+                book[record.key] = entry
+            }
+        }
+
+        for payment in supplierPayments {
+            if var entry = book[payment.supplierKey] {
+                entry.owed -= payment.amount
+                book[payment.supplierKey] = entry
+            }
+        }
+
+        return order
+            .compactMap { key -> Supplier? in
+                guard let entry = book[key] else { return nil }
+                let record = roster[key]
+                return Supplier(
+                    // A purchase stores only the key, so a supplier somehow off
+                    // the roster shows as the key rather than as nothing.
+                    name: record?.name ?? entry.name,
+                    key: key,
+                    purchaseCount: entry.count,
+                    total: entry.total,
+                    // Rounded for the same reason customers are: netting payments
+                    // off balances in binary floating point otherwise leaves
+                    // 0.000000001 owed and a screen saying money is outstanding.
+                    owed: (entry.owed * 100).rounded() / 100,
+                    phone: record?.phone,
+                    place: record?.place,
+                    openingBalance: record?.openingBalance ?? 0,
+                    isOnRoster: record != nil
+                )
+            }
+            .sorted { $0.owed != $1.owed ? $0.owed > $1.owed : $0.purchaseCount > $1.purchaseCount }
+    }
+
+    func supplier(key: String) -> Supplier? {
+        suppliers().first { $0.key == key }
+    }
+
+    /// Adds a supplier to the roster. A key already there is corrected rather
+    /// than duplicated. Returns nil for a blank name.
+    @discardableResult
+    func addSupplier(
+        name: String,
+        phone: String? = nil,
+        place: String? = nil,
+        openingBalance: Double = 0
+    ) -> SupplierRecord? {
+        guard !name.isBlank else { return nil }
+        let record = SupplierRecord(name: name, phone: phone, place: place, openingBalance: openingBalance)
+        if let index = supplierRecords.firstIndex(where: { $0.key == record.key }) {
+            var existing = supplierRecords[index]
+            existing.name = record.name
+            existing.phone = record.phone
+            existing.place = record.place
+            existing.openingBalance = record.openingBalance
+            supplierRecords[index] = existing
+            attempt { try repository.upsert(existing) }
+            return existing
+        }
+        supplierRecords.append(record)
+        attempt { try repository.upsert(record) }
+        return record
+    }
+
+    /// Corrects a supplier. A changed name that produces a different key is a
+    /// **rename**, and the purchases move with it — they carry the key, so unlike
+    /// a bill there is no spelling to rewrite, which makes this the simpler half
+    /// of the pair.
+    func updateSupplier(
+        key: String,
+        name: String,
+        phone: String?,
+        place: String?,
+        openingBalance: Double = 0
+    ) {
+        guard !name.isBlank, let existing = supplierRecords.first(where: { $0.key == key }) else { return }
+        let newKey = Supplier.key(for: name)
+        let record = SupplierRecord(
+            key: newKey,
+            name: name,
+            phone: phone,
+            place: place,
+            openingBalance: max(0, openingBalance),
+            createdAt: existing.createdAt
+        )
+
+        // A rename onto somebody already there merges: one supplier, not two.
+        supplierRecords.removeAll { $0.key == key || $0.key == newKey }
+        supplierRecords.append(record)
+        purchases = purchases.map { purchase in
+            guard purchase.supplierKey == key else { return purchase }
+            var moved = purchase
+            moved.supplierKey = newKey
+            return moved
+        }
+        supplierPayments = supplierPayments.map { payment in
+            guard payment.supplierKey == key else { return payment }
+            var moved = payment
+            moved.supplierKey = newKey
+            return moved
+        }
+
+        attempt {
+            try repository.delete(supplierKey: key)
+            try repository.delete(supplierKey: newKey)
+            try repository.upsert(record)
+            for purchase in purchases where purchase.supplierKey == newKey {
+                try repository.update(purchase)
+            }
+            for payment in supplierPayments where payment.supplierKey == newKey {
+                try repository.delete(supplierPaymentID: payment.id)
+                try repository.append(payment)
+            }
+        }
+    }
+
+    func removeSupplier(key: String) {
+        supplierRecords.removeAll { $0.key == key }
+        attempt { try repository.delete(supplierKey: key) }
+    }
+
+    // MARK: - Purchases
+
+    /// Records a delivery: stock goes on the shelf, the buying price becomes what
+    /// was just paid, and what is still owed lands on the supplier's account.
+    ///
+    /// `paid == nil` means settled on the spot. A quantity of zero or less is a
+    /// no-op, exactly as `restock` treats one.
+    @discardableResult
+    func recordPurchase(
+        product: Product,
+        supplierKey: String,
+        quantity: Int,
+        unitCost: Double,
+        paid: Double? = nil,
+        createdAt: Date = .now
+    ) -> Purchase? {
+        guard quantity > 0, !supplierKey.isBlank, var current = self.product(uid: product.uid) else { return nil }
+        let cost = unitCost > 0 ? unitCost : current.cost
+        let total = Double(quantity) * cost
+        let purchase = Purchase(
+            supplierKey: supplierKey,
+            productUID: current.uid,
+            name: current.name,
+            qty: quantity,
+            unitCost: cost,
+            total: total,
+            // Clamped to the total: a delivery cannot be overpaid, and a typo
+            // that says so would put the shop permanently in credit.
+            paid: paid.map { min(max(0, $0), total) },
+            createdAt: createdAt
+        )
+        purchases.insert(purchase, at: 0)
+        attempt { try repository.append(purchase) }
+        // Cost is "latest paid", not a weighted average: the new figure simply
+        // takes over, which is the rule `restock` has always followed.
+        current.stock += quantity
+        current.cost = cost
+        replace(current)
+        return purchase
+    }
+
+    /// Voids a delivery and takes its stock back off the shelf.
+    ///
+    /// The mirror of voiding a bill, which puts stock back on. Idempotent:
+    /// voiding twice must not remove the stock twice, which is the bug this rule
+    /// exists to prevent on both sides.
+    func voidPurchase(id: UUID) {
+        guard let index = purchases.firstIndex(where: { $0.id == id }), !purchases[index].voided else { return }
+        let purchase = purchases[index]
+        purchases[index].voided = true
+        attempt { try repository.update(purchases[index]) }
+
+        if let uid = purchase.productUID, var product = self.product(uid: uid) {
+            // Floored at zero. The stock may already have been sold, and a
+            // negative shelf count is a worse lie than an optimistic one.
+            product.stock = max(0, product.stock - purchase.qty)
+            replace(product)
+        }
+    }
+
+    func purchases(forSupplier key: String) -> [Purchase] {
+        purchases.filter { $0.supplierKey == key }
+    }
+
+    func purchases(forProduct uid: UUID) -> [Purchase] {
+        purchases.filter { $0.productUID == uid }
+    }
+
+    // MARK: - Money out
+
+    @discardableResult
+    func recordSupplierPayment(
+        supplierKey: String,
+        amount: Double,
+        paidAt: Date = .now,
+        note: String? = nil
+    ) -> SupplierPayment? {
+        guard amount > 0, !supplierKey.isEmpty else { return nil }
+        let payment = SupplierPayment(supplierKey: supplierKey, amount: amount, paidAt: paidAt, note: note)
+        supplierPayments.insert(payment, at: 0)
+        attempt { try repository.append(payment) }
+        return payment
+    }
+
+    func deleteSupplierPayment(id: UUID) {
+        supplierPayments.removeAll { $0.id == id }
+        attempt { try repository.delete(supplierPaymentID: id) }
+    }
+
+    func supplierPayments(for key: String) -> [SupplierPayment] {
+        supplierPayments.filter { $0.supplierKey == key }
+    }
+
+    /// One supplier's account over a period.
+    func statementForSupplier(key: String, period: StatementPeriod) -> Statement? {
+        guard let supplier = supplier(key: key) else { return nil }
+        return Statement.make(
+            supplier: supplier,
+            purchases: purchases(forSupplier: key),
+            payments: supplierPayments(for: key),
+            period: period
+        )
+    }
+
+    /// The other side of `outstanding()`: who the shop owes, and how much in
+    /// total. Derived from `suppliers()` for the same reason — walking purchases
+    /// alone would ignore both payments made and balances carried over.
+    func payable() -> (names: [String], total: Double) {
+        let owing = suppliers().filter { $0.owed > 0 }
+        return (owing.map(\.name), owing.reduce(0) { $0 + $1.owed })
+    }
+
     // MARK: - Whole-database operations
 
     /// Wipes everything and sends the owner back to setup step 1.
@@ -535,6 +816,9 @@ final class StockbookStore {
         bills = []
         customerRecords = []
         payments = []
+        supplierRecords = []
+        purchases = []
+        supplierPayments = []
         // Everything goes except the language and the theme. Wiping the shop is a
         // data decision; being handed setup in a language you cannot read — or in
         // a colour scheme you turned off — is not one the owner asked for.
@@ -592,6 +876,39 @@ final class StockbookStore {
                     createdAt: $0.createdAt
                 )
             },
+            suppliers: document.suppliers.map {
+                SupplierRecord(
+                    key: $0.key,
+                    name: $0.name,
+                    phone: $0.phone,
+                    place: $0.place,
+                    openingBalance: $0.openingBalance,
+                    createdAt: $0.createdAt
+                )
+            },
+            purchases: document.purchases.map {
+                Purchase(
+                    id: $0.id,
+                    supplierKey: $0.supplierKey,
+                    productUID: $0.productUID,
+                    name: $0.name,
+                    qty: $0.qty,
+                    unitCost: $0.unitCost,
+                    total: $0.total,
+                    paid: $0.paid,
+                    createdAt: $0.createdAt,
+                    voided: $0.voided
+                )
+            },
+            supplierPayments: document.supplierPayments.map {
+                SupplierPayment(
+                    id: $0.id,
+                    supplierKey: $0.supplierKey,
+                    amount: $0.amount,
+                    paidAt: $0.paidAt,
+                    note: $0.note
+                )
+            },
             payments: document.payments.map {
                 Payment(
                     id: $0.id,
@@ -642,6 +959,39 @@ final class StockbookStore {
                     place: $0.place,
                     openingBalance: $0.openingBalance,
                     createdAt: $0.createdAt
+                )
+            },
+            suppliers: supplierRecords.map {
+                BackupDocument.SupplierRecordRow(
+                    key: $0.key,
+                    name: $0.name,
+                    phone: $0.phone,
+                    place: $0.place,
+                    openingBalance: $0.openingBalance,
+                    createdAt: $0.createdAt
+                )
+            },
+            purchases: purchases.map {
+                BackupDocument.PurchaseRow(
+                    id: $0.id,
+                    supplierKey: $0.supplierKey,
+                    productUID: $0.productUID,
+                    name: $0.name,
+                    qty: $0.qty,
+                    unitCost: $0.unitCost,
+                    total: $0.total,
+                    paid: $0.paid,
+                    createdAt: $0.createdAt,
+                    voided: $0.voided
+                )
+            },
+            supplierPayments: supplierPayments.map {
+                BackupDocument.SupplierPaymentRow(
+                    id: $0.id,
+                    supplierKey: $0.supplierKey,
+                    amount: $0.amount,
+                    paidAt: $0.paidAt,
+                    note: $0.note
                 )
             },
             payments: payments.map {

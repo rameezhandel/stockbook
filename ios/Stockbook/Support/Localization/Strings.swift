@@ -37,6 +37,10 @@ struct Strings {
         pick(n == 1 ? "1 line" : "\(n) lines", "\(n) ಸಾಲು")
     }
 
+    func purchases(_ n: Int) -> String {
+        pick(n == 1 ? "1 purchase" : "\(n) purchases", "\(n) ಖರೀದಿ")
+    }
+
     func items(_ n: Int) -> String {
         pick(n == 1 ? "1 item" : "\(n) items", "\(n) ಸಾಮಾನು")
     }
@@ -212,6 +216,47 @@ struct Strings {
 
     /// Says which balance this is, because the statement has one of its own with
     /// a different meaning — that one is derived, this one is typed in once.
+    // MARK: Suppliers
+    //
+    // The customer block above, pointing the other way. Every line here has a
+    // counterpart there, and the words differ only where the direction of the
+    // money does: a supplier is somebody *the shop* owes.
+
+    var suppliersTitle: String { pick("Suppliers", "ಪೂರೈಕೆದಾರರು") }
+    var allSuppliers: String { pick("All suppliers", "ಎಲ್ಲಾ ಪೂರೈಕೆದಾರರು") }
+    var addASupplier: String { pick("Add a supplier", "ಪೂರೈಕೆದಾರರನ್ನು ಸೇರಿಸಿ") }
+    var newSupplier: String { pick("New supplier", "ಹೊಸ ಪೂರೈಕೆದಾರ") }
+    var editSupplier: String { pick("Edit supplier", "ಪೂರೈಕೆದಾರರ ವಿವರ ಬದಲಿಸಿ") }
+    var saveSupplier: String { pick("Save supplier", "ಪೂರೈಕೆದಾರರನ್ನು ಉಳಿಸಿ") }
+    var removeFromSuppliers: String { pick("Remove from suppliers", "ಪೂರೈಕೆದಾರರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಿರಿ") }
+    var supplierNameExample: String { pick("Al Faisal Hardware", "ಅಲ್ ಫೈಸಲ್ ಹಾರ್ಡ್‌ವೇರ್") }
+    var noPurchasesYet: String { pick("No purchases yet", "ಇನ್ನೂ ಖರೀದಿ ಇಲ್ಲ") }
+    var purchaseLabel: String { pick("Purchase", "ಖರೀದಿ") }
+    var boughtFromThem: String { pick("Bought", "ಖರೀದಿಸಿದ್ದು") }
+
+    /// What the shop owes, as opposed to what it is owed. Deliberately not the
+    /// same word as a customer's "Pending", because a shop owner reading a screen
+    /// fast needs the two totals to be tellable apart at a glance.
+    var youOwe: String { pick("You owe", "ನೀವು ಕೊಡಬೇಕು") }
+    var owedToSuppliers: String { pick("Owed to suppliers", "ಪೂರೈಕೆದಾರರಿಗೆ ಬಾಕಿ") }
+    var nothingOwedOut: String { pick("Nothing owed out", "ಕೊಡಬೇಕಾದ್ದು ಏನೂ ಇಲ್ಲ") }
+
+    var chooseSupplierFromTheList: String {
+        pick("Choose a supplier from the list", "ಪಟ್ಟಿಯಿಂದ ಪೂರೈಕೆದಾರರನ್ನು ಆರಿಸಿ")
+    }
+
+    func addAsSupplier(_ name: String) -> String {
+        pick("Add “\(name)” as a supplier", "“\(name)” ಅನ್ನು ಪೂರೈಕೆದಾರರಾಗಿ ಸೇರಿಸಿ")
+    }
+
+    /// A delivery entered wrongly is voided rather than edited, exactly as a bill
+    /// is — and voiding it takes the stock back off the shelf, which the button
+    /// says out loud because it is the part that surprises people.
+    var voidAndRemoveStock: String { pick("Void and remove stock", "ರದ್ದು ಮಾಡಿ ದಾಸ್ತಾನು ಹಿಂತೆಗೆಯಿರಿ") }
+    var purchaseVoidedNote: String {
+        pick("Voided. The stock went back off the shelf.", "ರದ್ದಾಗಿದೆ. ದಾಸ್ತಾನು ಹಿಂತೆಗೆಯಲಾಗಿದೆ.")
+    }
+
     var openingBalanceNote: String {
         pick(
             "What they already owed you before Stockbook, from the old book. Leave it empty if nothing.",
@@ -261,6 +306,11 @@ struct Strings {
     var openingBalance: String { pick("Brought forward", "ಹಿಂದಿನ ಬಾಕಿ") }
     var billedInPeriod: String { pick("Billed", "ಬಿಲ್ ಮಾಡಿದ್ದು") }
     var receivedInPeriod: String { pick("Received", "ಸ್ವೀಕರಿಸಿದ್ದು") }
+
+    /// The same two figures on a supplier's statement. "Billed" and "Received"
+    /// are the customer's words and read backwards on a delivery note.
+    var purchasedInPeriod: String { pick("Purchased", "ಖರೀದಿಸಿದ್ದು") }
+    var paidOutInPeriod: String { pick("Paid", "ಪಾವತಿಸಿದ್ದು") }
     var closingBalance: String { pick("Balance due", "ಉಳಿದ ಬಾಕಿ") }
     var nothingInThisPeriod: String { pick("Nothing in this period", "ಈ ಅವಧಿಯಲ್ಲಿ ಏನೂ ಇಲ್ಲ") }
     var settledUp: String { pick("Settled up", "ಎಲ್ಲಾ ಪಾವತಿ ಆಗಿದೆ") }

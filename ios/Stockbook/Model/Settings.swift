@@ -90,6 +90,15 @@ struct ShopState: Codable, Equatable {
     /// Money received after the bill was written.
     var payments: [Payment] = []
 
+    /// The supplier roster: the customer roster's mirror, for money going out.
+    var suppliers: [SupplierRecord] = []
+
+    /// Stock arriving, one product at a time.
+    var purchases: [Purchase] = []
+
+    /// Money paid to a supplier after the delivery.
+    var supplierPayments: [SupplierPayment] = []
+
     var settings: Settings = Settings()
 
     static let empty = ShopState()
@@ -99,12 +108,18 @@ struct ShopState: Codable, Equatable {
         bills: [Bill] = [],
         customers: [CustomerRecord] = [],
         payments: [Payment] = [],
+        suppliers: [SupplierRecord] = [],
+        purchases: [Purchase] = [],
+        supplierPayments: [SupplierPayment] = [],
         settings: Settings = Settings()
     ) {
         self.products = products
         self.bills = bills
         self.customers = customers
         self.payments = payments
+        self.suppliers = suppliers
+        self.purchases = purchases
+        self.supplierPayments = supplierPayments
         self.settings = settings
     }
 
@@ -122,6 +137,9 @@ struct ShopState: Codable, Equatable {
         bills = try container.decodeIfPresent([Bill].self, forKey: .bills) ?? []
         customers = try container.decodeIfPresent([CustomerRecord].self, forKey: .customers) ?? []
         payments = try container.decodeIfPresent([Payment].self, forKey: .payments) ?? []
+        suppliers = try container.decodeIfPresent([SupplierRecord].self, forKey: .suppliers) ?? []
+        purchases = try container.decodeIfPresent([Purchase].self, forKey: .purchases) ?? []
+        supplierPayments = try container.decodeIfPresent([SupplierPayment].self, forKey: .supplierPayments) ?? []
         settings = try container.decodeIfPresent(Settings.self, forKey: .settings) ?? Settings()
     }
 }

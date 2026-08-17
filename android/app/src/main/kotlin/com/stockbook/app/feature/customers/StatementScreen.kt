@@ -48,8 +48,8 @@ import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
 import com.stockbook.core.model.Currency
-import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Statement
+import com.stockbook.core.model.StatementParty
 import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.model.StatementRange
 import com.stockbook.core.model.Timestamps
@@ -123,7 +123,7 @@ fun StatementScreen(
             .background(Nocturne.bg)
             .statusBarsPadding()
     ) {
-        ScreenHeader(title = strings.statement, subtitle = statement?.customer?.name) {
+        ScreenHeader(title = strings.statement, subtitle = statement?.party?.name) {
             GhostButton(strings.done, onClick = onClose, fontSize = 12.5)
         }
 
@@ -150,7 +150,7 @@ fun StatementScreen(
 
             if (statement != null) {
                 Spacer(Modifier.height(10.dp))
-                ContactLine(statement.customer)
+                ContactLine(statement.party)
                 Document(
                     statement = statement,
                     currency = currency,
@@ -270,8 +270,8 @@ private fun DateRow(label: String, value: Instant, strings: Strings, onTap: () -
 }
 
 @Composable
-private fun ContactLine(customer: Customer) {
-    val details = listOfNotNull(customer.phone, customer.place)
+private fun ContactLine(party: StatementParty) {
+    val details = listOfNotNull(party.phone, party.place)
     if (details.isNotEmpty()) {
         Text(
             details.joinToString(" · "),
@@ -334,9 +334,9 @@ private fun Document(
 
         FadedRule(modifier = Modifier.padding(vertical = 10.dp))
 
-        Figure(strings.billedInPeriod, Money.text(statement.billed, currency))
+        Figure(chargedLabel(statement, strings), Money.text(statement.billed, currency))
         Spacer(Modifier.height(2.dp))
-        Figure(strings.receivedInPeriod, Money.text(statement.received, currency))
+        Figure(settledLabel(statement, strings), Money.text(statement.received, currency))
 
         FadedRule(modifier = Modifier.padding(vertical = 10.dp))
 
@@ -425,6 +425,33 @@ private fun EntryRow(
                             Text(it, style = NocturneType.meta, color = Nocturne.neutral500)
                         }
                     }
+                    is Statement.Entry.ForPurchase -> {
+                        Text(
+                            strings.purchaseLabel,
+                            style = NocturneType.inter(13.0),
+                            color = if (entry.purchase.voided) Nocturne.neutral500 else Nocturne.text
+                        )
+                        // The product and how many of it: a delivery note's whole
+                        // content on one line, since a purchase carries one product.
+                        Text(
+                            if (entry.purchase.voided) strings.voided
+                            else "${entry.purchase.name} × ${entry.purchase.qty}",
+                            style = NocturneType.meta,
+                            color = Nocturne.neutral500,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    is Statement.Entry.ForSupplierPayment -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Glyph(Icon.confirm, size = 10.dp, tint = Nocturne.accent400)
+                            Spacer(Modifier.width(5.dp))
+                            Text(strings.paymentLabel, style = NocturneType.inter(13.0), color = Nocturne.accent400)
+                        }
+                        entry.payment.note?.let {
+                            Text(it, style = NocturneType.meta, color = Nocturne.neutral500)
+                        }
+                    }
                 }
                 Text(strings.longDate(entry.date), style = NocturneType.meta, color = Nocturne.neutral500)
             }
@@ -438,7 +465,10 @@ private fun EntryRow(
                     color = when (entry) {
                         is Statement.Entry.ForBill ->
                             if (entry.bill.voided) Nocturne.neutral500 else Nocturne.text
-                        is Statement.Entry.ForPayment -> Nocturne.accent400
+                        is Statement.Entry.ForPurchase ->
+                            if (entry.purchase.voided) Nocturne.neutral500 else Nocturne.text
+                        is Statement.Entry.ForPayment,
+                        is Statement.Entry.ForSupplierPayment -> Nocturne.accent400
                     }
                 )
                 // The running balance beside every line: the column that turns a list
@@ -461,8 +491,23 @@ private fun EntryRow(
 
 private fun amountText(entry: Statement.Entry, currency: Currency): String = when (entry) {
     is Statement.Entry.ForBill -> Money.text(entry.bill.total, currency)
+    is Statement.Entry.ForPurchase -> Money.text(entry.purchase.total, currency)
+    // A minus sign on both kinds of payment: it is what the account moves by, and
+    // on a supplier's statement that is money leaving rather than arriving.
     is Statement.Entry.ForPayment -> "− ${Money.text(entry.payment.amount, currency)}"
+    is Statement.Entry.ForSupplierPayment -> "− ${Money.text(entry.payment.amount, currency)}"
 }
+
+/**
+ * "Billed" and "Received" are the customer's words. On a supplier's account they
+ * read backwards — the shop is the one being billed — so the two figures are
+ * named by which way the account runs.
+ */
+private fun chargedLabel(statement: Statement, strings: Strings): String =
+    if (statement.party.isSupplier) strings.purchasedInPeriod else strings.billedInPeriod
+
+private fun settledLabel(statement: Statement, strings: Strings): String =
+    if (statement.party.isSupplier) strings.paidOutInPeriod else strings.receivedInPeriod
 
 private fun closingText(statement: Statement, currency: Currency, strings: Strings): String =
     if (statement.closingBalance < 0) {
@@ -490,7 +535,7 @@ private fun plainText(
 ): String {
     val lines = mutableListOf<String>()
     if (store.settings.ownerName.isNotBlank()) lines.add(store.settings.ownerName)
-    lines.add("${strings.statement} — ${statement.customer.name}")
+    lines.add("${strings.statement} — ${statement.party.name}")
     lines.add(
         strings.dateSpan(
             from = strings.longDate(statement.range.start),
@@ -514,12 +559,24 @@ private fun plainText(
                 "${strings.longDate(entry.payment.receivedAt)}  ${strings.paymentLabel}  " +
                     "− ${Money.text(entry.payment.amount, currency)}  →  $balance"
             )
+            is Statement.Entry.ForPurchase -> {
+                val marker = if (entry.purchase.voided) " (${strings.voided})" else ""
+                lines.add(
+                    "${strings.longDate(entry.purchase.createdAt)}  " +
+                        "${entry.purchase.name} × ${entry.purchase.qty}$marker  " +
+                        "${Money.text(entry.purchase.total, currency)}  →  $balance"
+                )
+            }
+            is Statement.Entry.ForSupplierPayment -> lines.add(
+                "${strings.longDate(entry.payment.paidAt)}  ${strings.paymentLabel}  " +
+                    "− ${Money.text(entry.payment.amount, currency)}  →  $balance"
+            )
         }
     }
 
     lines.add("")
-    lines.add("${strings.billedInPeriod}: ${Money.text(statement.billed, currency)}")
-    lines.add("${strings.receivedInPeriod}: ${Money.text(statement.received, currency)}")
+    lines.add("${chargedLabel(statement, strings)}: ${Money.text(statement.billed, currency)}")
+    lines.add("${settledLabel(statement, strings)}: ${Money.text(statement.received, currency)}")
     lines.add("${strings.closingBalance}: ${closingText(statement, currency, strings)}")
     return lines.joinToString("\n")
 }

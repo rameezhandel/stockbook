@@ -122,6 +122,41 @@ final class JSONFileRepository: StockbookRepository {
         try persist()
     }
 
+    func upsert(_ supplier: SupplierRecord) throws {
+        if let index = state.suppliers.firstIndex(where: { $0.key == supplier.key }) {
+            state.suppliers[index] = supplier
+        } else {
+            state.suppliers.append(supplier)
+        }
+        try persist()
+    }
+
+    func delete(supplierKey: String) throws {
+        state.suppliers.removeAll { $0.key == supplierKey }
+        try persist()
+    }
+
+    func append(_ purchase: Purchase) throws {
+        state.purchases.append(purchase)
+        try persist()
+    }
+
+    func update(_ purchase: Purchase) throws {
+        guard let index = state.purchases.firstIndex(where: { $0.id == purchase.id }) else { return }
+        state.purchases[index] = purchase
+        try persist()
+    }
+
+    func append(_ payment: SupplierPayment) throws {
+        state.supplierPayments.append(payment)
+        try persist()
+    }
+
+    func delete(supplierPaymentID: UUID) throws {
+        state.supplierPayments.removeAll { $0.id == supplierPaymentID }
+        try persist()
+    }
+
     func save(_ settings: Settings) throws {
         state.settings = settings
         try persist()
@@ -197,6 +232,31 @@ final class InMemoryRepository: StockbookRepository {
 
     func delete(paymentID: UUID) throws {
         state.payments.removeAll { $0.id == paymentID }
+    }
+
+    func upsert(_ supplier: SupplierRecord) throws {
+        if let index = state.suppliers.firstIndex(where: { $0.key == supplier.key }) {
+            state.suppliers[index] = supplier
+        } else {
+            state.suppliers.append(supplier)
+        }
+    }
+
+    func delete(supplierKey: String) throws {
+        state.suppliers.removeAll { $0.key == supplierKey }
+    }
+
+    func append(_ purchase: Purchase) throws { state.purchases.append(purchase) }
+
+    func update(_ purchase: Purchase) throws {
+        guard let index = state.purchases.firstIndex(where: { $0.id == purchase.id }) else { return }
+        state.purchases[index] = purchase
+    }
+
+    func append(_ payment: SupplierPayment) throws { state.supplierPayments.append(payment) }
+
+    func delete(supplierPaymentID: UUID) throws {
+        state.supplierPayments.removeAll { $0.id == supplierPaymentID }
     }
 
     func save(_ settings: Settings) throws { state.settings = settings }

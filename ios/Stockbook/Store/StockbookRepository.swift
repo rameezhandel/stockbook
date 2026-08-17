@@ -51,6 +51,27 @@ protocol StockbookRepository {
     func append(_ payment: Payment) throws
     func delete(paymentID: UUID) throws
 
+    // MARK: Suppliers
+
+    /// Insert or update, matched on `key`.
+    func upsert(_ supplier: SupplierRecord) throws
+
+    /// Removes the roster entry only. The purchases are history and stay where
+    /// they are, for the same reason a customer's bills do.
+    func delete(supplierKey: String) throws
+
+    // MARK: Purchases
+
+    /// Appended, then only ever updated in place — voiding is the one thing that
+    /// touches a saved delivery.
+    func append(_ purchase: Purchase) throws
+    func update(_ purchase: Purchase) throws
+
+    // MARK: Money out
+
+    func append(_ payment: SupplierPayment) throws
+    func delete(supplierPaymentID: UUID) throws
+
     // MARK: Settings
 
     func save(_ settings: Settings) throws

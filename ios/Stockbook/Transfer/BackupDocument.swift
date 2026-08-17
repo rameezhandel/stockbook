@@ -22,10 +22,13 @@ struct BackupDocument: Codable, Equatable {
     /// nowhere. Carrying them forward would have meant three shapes of history to
     /// keep readable, all of them imaginary.
     ///
-    /// It is still a version, and rule 2 still stands: the moment a shop exists
-    /// on somebody's phone, the next field that would change what an older reader
-    /// *believes* — rather than merely what it knows — makes this 2.
-    static let currentVersion = 1
+    /// It is still a version, and rule 2 still stands — and **2 is the rule being
+    /// applied**, not abandoned. Suppliers, purchases and money paid out arrived
+    /// after 1, and a reader that ignored them would not merely lose an address
+    /// book: it would read this file and tell the owner the shop owes nobody
+    /// anything. That is the payments case again, and the answer is the same one.
+    /// Better that build refuses the file and says so.
+    static let currentVersion = 2
 
     var version: Int = BackupDocument.currentVersion
     var exportedAt: Date
@@ -47,6 +50,11 @@ struct BackupDocument: Codable, Equatable {
     var customers: [CustomerRecordRow] = []
     var payments: [PaymentRow] = []
 
+    /// The supplier roster, and the money going the other way.
+    var suppliers: [SupplierRecordRow] = []
+    var purchases: [PurchaseRow] = []
+    var supplierPayments: [SupplierPaymentRow] = []
+
     struct CustomerRecordRow: Codable, Equatable {
         /// Written out rather than re-derived on import, so a future change to the
         /// keying rule cannot silently re-file everybody's history.
@@ -64,6 +72,37 @@ struct BackupDocument: Codable, Equatable {
         var customerKey: String
         var amount: Double
         var receivedAt: Date
+        var note: String?
+    }
+
+    struct SupplierRecordRow: Codable, Equatable {
+        var key: String
+        var name: String
+        var phone: String?
+        var place: String?
+        var openingBalance: Double
+        var createdAt: Date
+    }
+
+    struct PurchaseRow: Codable, Equatable {
+        var id: UUID
+        var supplierKey: String
+        var productUID: UUID?
+        var name: String
+        var qty: Int
+        var unitCost: Double
+        var total: Double
+        /// Absent for a delivery settled on the spot, exactly as on a bill.
+        var paid: Double?
+        var createdAt: Date
+        var voided: Bool
+    }
+
+    struct SupplierPaymentRow: Codable, Equatable {
+        var id: UUID
+        var supplierKey: String
+        var amount: Double
+        var paidAt: Date
         var note: String?
     }
 

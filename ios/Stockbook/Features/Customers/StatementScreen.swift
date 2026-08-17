@@ -51,7 +51,7 @@ struct StatementScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: Loc.statement, subtitle: statement?.customer.name) {
+            ScreenHeader(title: Loc.statement, subtitle: statement?.party.name) {
                 Button(Loc.done, action: onClose)
                     .buttonStyle(GhostButtonStyle(fontSize: 12.5))
             }
@@ -65,7 +65,7 @@ struct StatementScreen: View {
                     }
 
                     if let statement {
-                        contactLine(statement.customer)
+                        contactLine(statement.party)
                         document(statement)
                         shareRow(statement)
                     }
@@ -132,8 +132,8 @@ struct StatementScreen: View {
     // MARK: The document
 
     @ViewBuilder
-    private func contactLine(_ customer: Customer) -> some View {
-        let details = [customer.phone, customer.place].compactMap { $0 }
+    private func contactLine(_ party: StatementParty) -> some View {
+        let details = [party.phone, party.place].compactMap { $0 }
         if !details.isEmpty {
             Text(details.joined(separator: " · "))
                 .nocturneText(.meta)
@@ -165,8 +165,8 @@ struct StatementScreen: View {
 
             FadedRule().padding(.vertical, 10)
 
-            row(Loc.billedInPeriod, Money.text(statement.billed, in: currency))
-            row(Loc.receivedInPeriod, Money.text(statement.received, in: currency))
+            row(chargedLabel(statement), Money.text(statement.billed, in: currency))
+            row(settledLabel(statement), Money.text(statement.received, in: currency))
 
             FadedRule().padding(.vertical, 10)
 
@@ -254,6 +254,26 @@ struct StatementScreen: View {
                     if let note = payment.note {
                         Text(note).nocturneText(.meta)
                     }
+                case .purchase(let purchase):
+                    Text(Loc.purchaseLabel)
+                        .font(NocturneType.inter(13))
+                        .foregroundStyle(purchase.voided ? Nocturne.neutral500 : Nocturne.text)
+                        .strikethrough(purchase.voided)
+                    // The product and how many of it: a delivery note's whole
+                    // content, on one line, since a purchase carries one product.
+                    Text(purchase.voided ? Loc.voided : "\(purchase.name) × \(purchase.qty)")
+                        .nocturneText(.meta)
+                        .lineLimit(2)
+                case .supplierPayment(let payment):
+                    HStack(spacing: 5) {
+                        Glyph(Icon.confirm, size: 10).foregroundStyle(Nocturne.accent400)
+                        Text(Loc.paymentLabel)
+                            .font(NocturneType.inter(13))
+                            .foregroundStyle(Nocturne.accent400)
+                    }
+                    if let note = payment.note {
+                        Text(note).nocturneText(.meta)
+                    }
                 }
                 Text(Loc.longDate(entry.date)).nocturneText(.meta)
             }
@@ -272,17 +292,33 @@ struct StatementScreen: View {
         }
     }
 
+    /// "Billed" and "Received" are the customer's words. On a supplier's account
+    /// they read backwards — the shop is the one being billed — so the two
+    /// figures are named by which way the account runs.
+    private func chargedLabel(_ statement: Statement) -> String {
+        statement.party.isSupplier ? Loc.purchasedInPeriod : Loc.billedInPeriod
+    }
+
+    private func settledLabel(_ statement: Statement) -> String {
+        statement.party.isSupplier ? Loc.paidOutInPeriod : Loc.receivedInPeriod
+    }
+
     private func amountText(_ entry: Statement.Entry) -> String {
         switch entry {
         case .bill(let bill): Money.text(bill.total, in: currency)
+        case .purchase(let purchase): Money.text(purchase.total, in: currency)
+        // A minus sign on both kinds of payment: it is what the account moves by,
+        // and on a supplier's statement that is money leaving rather than arriving.
         case .payment(let payment): "− \(Money.text(payment.amount, in: currency))"
+        case .supplierPayment(let payment): "− \(Money.text(payment.amount, in: currency))"
         }
     }
 
     private func amountTint(_ entry: Statement.Entry) -> Color {
         switch entry {
         case .bill(let bill): bill.voided ? Nocturne.neutral500 : Nocturne.text
-        case .payment: Nocturne.accent400
+        case .purchase(let purchase): purchase.voided ? Nocturne.neutral500 : Nocturne.text
+        case .payment, .supplierPayment: Nocturne.accent400
         }
     }
 
@@ -309,7 +345,7 @@ struct StatementScreen: View {
     private func plainText(_ statement: Statement) -> String {
         var lines: [String] = []
         if !store.settings.ownerName.isBlank { lines.append(store.settings.ownerName) }
-        lines.append("\(Loc.statement) — \(statement.customer.name)")
+        lines.append("\(Loc.statement) — \(statement.party.name)")
         lines.append(Loc.dateSpan(from: Loc.longDate(statement.range.start), to: Loc.longDate(lastDay(of: statement.range))))
         lines.append("")
         lines.append("\(Loc.openingBalance): \(Money.text(statement.openingBalance, in: currency))")
@@ -322,12 +358,17 @@ struct StatementScreen: View {
                 lines.append("\(Loc.longDate(bill.createdAt))  \(Loc.billNumber(bill.number))\(marker)  \(Money.text(bill.total, in: currency))  →  \(balance)")
             case .payment(let payment):
                 lines.append("\(Loc.longDate(payment.receivedAt))  \(Loc.paymentLabel)  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
+            case .purchase(let purchase):
+                let marker = purchase.voided ? " (\(Loc.voided))" : ""
+                lines.append("\(Loc.longDate(purchase.createdAt))  \(purchase.name) × \(purchase.qty)\(marker)  \(Money.text(purchase.total, in: currency))  →  \(balance)")
+            case .supplierPayment(let payment):
+                lines.append("\(Loc.longDate(payment.paidAt))  \(Loc.paymentLabel)  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
             }
         }
 
         lines.append("")
-        lines.append("\(Loc.billedInPeriod): \(Money.text(statement.billed, in: currency))")
-        lines.append("\(Loc.receivedInPeriod): \(Money.text(statement.received, in: currency))")
+        lines.append("\(chargedLabel(statement)): \(Money.text(statement.billed, in: currency))")
+        lines.append("\(settledLabel(statement)): \(Money.text(statement.received, in: currency))")
         lines.append("\(Loc.closingBalance): \(closingText(statement))")
         return lines.joined(separator: "\n")
     }

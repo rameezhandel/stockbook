@@ -71,4 +71,16 @@ struct Customer: Identifiable, Hashable, Sendable {
     /// — that is what the setup screen exists to create — but the difference
     /// between "no bills yet" and "nothing outstanding" is worth drawing.
     var hasHistory: Bool { billCount > 0 }
+
+    /// For a statement, a customer is an account like any other.
+    var party: StatementParty {
+        StatementParty(
+            name: name,
+            key: key,
+            phone: phone,
+            place: place,
+            openingBalance: openingBalance,
+            kind: .customer
+        )
+    }
 }
