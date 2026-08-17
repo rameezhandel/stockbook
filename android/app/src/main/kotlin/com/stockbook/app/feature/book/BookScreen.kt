@@ -86,14 +86,20 @@ fun BookScreen(
                 store = store,
                 router = router,
                 strings = strings,
-                showHeader = false
+                showHeader = false,
+                // Weighted, not wrapped. A `Column` measures an unweighted child
+                // against the *full* remaining height, so the list inside would
+                // have been given the whole screen and run off the bottom by
+                // exactly the height of the header and chips above it.
+                modifier = Modifier.weight(1f)
             )
         } else {
             PurchasesPane(
                 state = state,
                 store = store,
                 router = router,
-                strings = strings
+                strings = strings,
+                modifier = Modifier.weight(1f)
             )
         }
     }
