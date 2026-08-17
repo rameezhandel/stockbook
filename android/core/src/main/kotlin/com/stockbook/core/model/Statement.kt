@@ -72,19 +72,48 @@ sealed interface StatementPeriod {
 private fun LocalDate.startOf(zone: ZoneId): Instant = atStartOfDay(zone).toInstant()
 
 /**
- * One customer's account over a period: what they bought, what they paid, and
- * what is left.
+ * Who a statement is for.
  *
- * A pure function of bills and payments — [make] takes them as arguments rather
- * than reaching for a store — because the arithmetic here is the whole feature
- * and it has to be checkable against literal values.
+ * A statement is an **account**, and the shop keeps two kinds: customers, who owe
+ * it money, and suppliers, whom it owes. The arithmetic is identical — opening
+ * balance, charges, settlements, closing balance — so it lives in one place and
+ * takes one of these rather than a `Customer` or a `Supplier`.
+ *
+ * [kind] exists for the wording alone. "Billed" and "Received" are the wrong
+ * words for a delivery note, and a screen cannot infer which it is holding from
+ * figures that look the same either way.
+ */
+data class StatementParty(
+    val name: String,
+    val key: String,
+    val phone: String? = null,
+    val place: String? = null,
+    /** Carried over from the paper book, in whichever direction this account runs. */
+    val openingBalance: Double = 0.0,
+    val kind: Kind
+) {
+    enum class Kind { CUSTOMER, SUPPLIER }
+
+    val isSupplier: Boolean get() = kind == Kind.SUPPLIER
+}
+
+/**
+ * One account over a period: what was bought, what was paid, and what is left.
+ *
+ * A pure function of the events — [make] takes them as arguments rather than
+ * reaching for a store — because the arithmetic here is the whole feature and it
+ * has to be checkable against literal values.
  *
  * **The opening balance is what makes this a statement** rather than a filtered
- * list of bills. Without it, a customer who owed 900 from March and paid 400 in
- * April reads as being 400 in credit.
+ * list. Without it, a customer who owed 900 from March and paid 400 in April
+ * reads as being 400 in credit.
+ *
+ * Both directions run through this type. For a customer the figures mean what
+ * they owe the shop; for a supplier, what the shop owes them. Nothing in the sums
+ * below distinguishes the two, which is exactly why there is one of them.
  */
 data class Statement(
-    val customer: Customer,
+    val party: StatementParty,
     val period: StatementPeriod,
     val range: StatementRange,
     /**
@@ -97,11 +126,11 @@ data class Statement(
      * downwards, unlike every list in the app, which reads newest first.
      */
     val entries: List<Entry>,
-    /** Sum of live bill totals in the period. What they bought. */
+    /** Sum of live charges in the period: bills billed, or deliveries taken. */
     val billed: Double,
     /**
-     * Everything that came in during the period: paid at the counter on the bills
-     * themselves, plus payments received afterwards.
+     * Everything settled during the period: paid on the bill or delivery itself,
+     * plus payments made afterwards.
      */
     val received: Double,
     /** `openingBalance + billed − received`. What they owe at the end of it. */
@@ -113,73 +142,132 @@ data class Statement(
     val runningBalances: List<Double>
 ) {
 
-    /** A bill or a payment, in the order they happened. */
+    /**
+     * What happened, in the order it happened.
+     *
+     * Four cases rather than a neutral row of numbers, because the document has
+     * to mark a voided bill, name the product on a delivery and show a payment's
+     * note. Being a sealed hierarchy is also what makes adding the supplier side
+     * safe: every `when` over it stopped compiling until it had been thought
+     * about.
+     */
     sealed interface Entry {
         val date: Instant
         val id: String
 
+        /** What the account is charged, and what it settles at the same moment. */
+        val charge: Double
+        val settledAtOnce: Double
+
         data class ForBill(val bill: Bill) : Entry {
             override val date: Instant get() = bill.createdAt
             override val id: String get() = "bill-${bill.number}"
+            override val charge: Double get() = if (bill.voided) 0.0 else bill.total
+            override val settledAtOnce: Double get() = if (bill.voided) 0.0 else bill.total - bill.balance
         }
 
         data class ForPayment(val payment: Payment) : Entry {
             override val date: Instant get() = payment.receivedAt
             override val id: String get() = "payment-${payment.id}"
+            override val charge: Double get() = 0.0
+            override val settledAtOnce: Double get() = payment.amount
+        }
+
+        data class ForPurchase(val purchase: Purchase) : Entry {
+            override val date: Instant get() = purchase.createdAt
+            override val id: String get() = "purchase-${purchase.id}"
+            override val charge: Double get() = if (purchase.voided) 0.0 else purchase.total
+            override val settledAtOnce: Double
+                get() = if (purchase.voided) 0.0 else purchase.total - purchase.balance
+        }
+
+        data class ForSupplierPayment(val payment: SupplierPayment) : Entry {
+            override val date: Instant get() = payment.paidAt
+            override val id: String get() = "supplier-payment-${payment.id}"
+            override val charge: Double get() = 0.0
+            override val settledAtOnce: Double get() = payment.amount
         }
     }
 
     val isEmpty: Boolean get() = entries.isEmpty()
 
     companion object {
+
+        /** One customer's account: bills charge it, payments settle it. */
         fun make(
             customer: Customer,
             bills: List<Bill>,
             payments: List<Payment>,
             period: StatementPeriod,
             zone: ZoneId = ZoneId.systemDefault()
+        ): Statement = make(
+            party = customer.party,
+            entries = bills.map { Entry.ForBill(it) } + payments.map { Entry.ForPayment(it) },
+            period = period,
+            zone = zone
+        )
+
+        /**
+         * One supplier's account: deliveries charge it, payments out settle it.
+         *
+         * The same call as the customer one, with the words meaning the opposite
+         * side of the counter. Nothing was copied to get here — that is the whole
+         * point of [StatementParty].
+         */
+        fun make(
+            supplier: Supplier,
+            purchases: List<Purchase>,
+            payments: List<SupplierPayment>,
+            period: StatementPeriod,
+            zone: ZoneId = ZoneId.systemDefault()
+        ): Statement = make(
+            party = supplier.party,
+            entries = purchases.map { Entry.ForPurchase(it) } + payments.map { Entry.ForSupplierPayment(it) },
+            period = period,
+            zone = zone
+        )
+
+        /**
+         * The arithmetic, once.
+         *
+         * Everything above hands this the same three things: who the account is,
+         * everything that ever happened on it, and the period to report. A voided
+         * bill or delivery did not happen and contributes nothing — it is still
+         * listed, because history is marked here rather than hidden.
+         */
+        private fun make(
+            party: StatementParty,
+            entries: List<Entry>,
+            period: StatementPeriod,
+            zone: ZoneId
         ): Statement {
             val range = period.range(zone)
+            val ordered = entries.sortedBy { it.date }
 
-            // A voided bill did not happen: it contributes nothing to any figure.
-            // It is still listed, because history is marked here rather than
-            // hidden.
-            // The customer's carried-over balance predates every bill, so it is
-            // part of the brought-forward figure whatever period is being shown.
-            val opening = customer.openingBalance +
-                bills.filter { !it.voided && it.createdAt < range.start }.sumOf { it.balance } -
-                payments.filter { it.receivedAt < range.start }.sumOf { it.amount }
+            // What was carried over predates every entry, so it is part of the
+            // brought-forward figure whatever period is being shown.
+            val opening = party.openingBalance +
+                ordered.filter { it.date < range.start }.sumOf { it.charge - it.settledAtOnce }
 
-            val billsInRange = bills.filter { it.createdAt in range }
-            val paymentsInRange = payments.filter { it.receivedAt in range }
-
-            val live = billsInRange.filterNot { it.voided }
-            val billed = live.sumOf { it.total }
-            // What the bill itself collected: its total less what is still owed.
-            val atCounter = live.sumOf { it.total - it.balance }
-            val received = atCounter + paymentsInRange.sumOf { it.amount }
-
-            val entries = (billsInRange.map { Entry.ForBill(it) } + paymentsInRange.map { Entry.ForPayment(it) })
-                .sortedBy { it.date }
+            val inRange = ordered.filter { it.date in range }
+            val billed = inRange.sumOf { it.charge }
+            val received = inRange.sumOf { it.settledAtOnce }
 
             val running = mutableListOf<Double>()
             var balance = opening
-            for (entry in entries) {
-                when (entry) {
-                    // A voided bill moves nothing, which is exactly what makes
-                    // the running column readable beside it.
-                    is Entry.ForBill -> if (!entry.bill.voided) balance += entry.bill.balance
-                    is Entry.ForPayment -> balance -= entry.payment.amount
-                }
+            for (entry in inRange) {
+                // A voided entry moves nothing, which is exactly what makes the
+                // running column readable beside it.
+                balance += entry.charge - entry.settledAtOnce
                 running.add(balance)
             }
 
             return Statement(
-                customer = customer,
+                party = party,
                 period = period,
                 range = range,
                 openingBalance = opening,
-                entries = entries,
+                entries = inRange,
                 billed = billed,
                 received = received,
                 closingBalance = opening + billed - received,

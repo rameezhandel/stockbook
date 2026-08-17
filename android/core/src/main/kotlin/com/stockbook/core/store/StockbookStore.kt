@@ -8,6 +8,10 @@ import com.stockbook.core.model.Customer
 import com.stockbook.core.model.CustomerRecord
 import com.stockbook.core.model.Payment
 import com.stockbook.core.model.Product
+import com.stockbook.core.model.SupplierRecord
+import com.stockbook.core.model.SupplierPayment
+import com.stockbook.core.model.Supplier
+import com.stockbook.core.model.Purchase
 import com.stockbook.core.model.Settings
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.Statement
@@ -69,6 +73,17 @@ class StockbookStore(private val repository: StockbookRepository) {
 
     /** Money received after the bill, newest first. */
     val payments: List<Payment> get() = _state.value.payments
+
+    val supplierRecords: List<SupplierRecord> get() = _state.value.suppliers
+
+    /** Stock that arrived, newest first. */
+    val purchases: List<Purchase> get() = _state.value.purchases
+
+    /** Money paid out after the delivery, newest first. */
+    val supplierPayments: List<SupplierPayment> get() = _state.value.supplierPayments
+
+    /** Deliveries that actually happened. Voided ones are history, not stock. */
+    val livePurchases: List<Purchase> get() = purchases.filterNot { it.voided }
 
     val settings: Settings get() = _state.value.settings
 
@@ -533,6 +548,268 @@ class StockbookStore(private val repository: StockbookRepository) {
         return owing.map { it.name } to owing.sumOf { it.owed }
     }
 
+    // --- Suppliers
+
+    /**
+     * Every supplier, roster and history merged — the mirror of [customers], and
+     * the same three-step order for the same hard-won reason.
+     *
+     * Purchases first, then roster entries, then carried-over balances, and
+     * **payments last**. On the customer side the payments loop once ran second,
+     * which silently dropped every payment from somebody who had never been
+     * billed. On a fresh shop that is the ordinary case, not an edge one: a
+     * supplier is entered with what the paper book says is owed, and the first
+     * thing that ever happens to them is being paid.
+     */
+    fun suppliers(): List<Supplier> {
+        data class Tally(val name: String, var count: Int, var total: Double, var owed: Double)
+
+        val book = LinkedHashMap<String, Tally>()
+        for (purchase in purchases) {
+            if (purchase.voided || purchase.supplierKey.isBlank()) continue
+            val tally = book.getOrPut(purchase.supplierKey) { Tally(purchase.supplierKey, 0, 0.0, 0.0) }
+            tally.count += 1
+            tally.total += purchase.total
+            tally.owed += purchase.balance
+        }
+
+        val roster = supplierRecords.associateBy { it.key }
+        for (record in roster.values) {
+            book.getOrPut(record.key) { Tally(record.name, 0, 0.0, 0.0) }
+        }
+
+        for (record in roster.values) {
+            book[record.key]?.let { it.owed += record.openingBalance }
+        }
+
+        for (payment in supplierPayments) {
+            book[payment.supplierKey]?.let { it.owed -= payment.amount }
+        }
+
+        return book.map { (key, tally) ->
+            val record = roster[key]
+            Supplier(
+                // A purchase stores only the key, so a supplier who is somehow not
+                // on the roster shows as the key itself rather than as nothing.
+                name = record?.name ?: tally.name,
+                key = key,
+                purchaseCount = tally.count,
+                total = tally.total,
+                // Rounded for the same reason customers are: netting payments off
+                // balances in binary floating point otherwise leaves 0.000000001
+                // owed and a screen saying money is outstanding.
+                owed = Math.round(tally.owed * 100) / 100.0,
+                phone = record?.phone,
+                place = record?.place,
+                openingBalance = record?.openingBalance ?: 0.0,
+                isOnRoster = record != null
+            )
+        }.sortedWith(compareByDescending<Supplier> { it.owed }.thenByDescending { it.purchaseCount })
+    }
+
+    fun supplier(key: String): Supplier? = suppliers().firstOrNull { it.key == key }
+
+    /**
+     * Adds a supplier to the roster. A key already there is corrected rather than
+     * duplicated. Returns null for a blank name.
+     */
+    fun addSupplier(
+        name: String,
+        phone: String? = null,
+        place: String? = null,
+        openingBalance: Double = 0.0
+    ): SupplierRecord? {
+        if (name.isBlank()) return null
+        val fresh = SupplierRecord.of(name, phone, place, openingBalance)
+        val existing = supplierRecords.firstOrNull { it.key == fresh.key }
+        val record = existing?.copy(
+            name = fresh.name,
+            phone = fresh.phone,
+            place = fresh.place,
+            openingBalance = fresh.openingBalance
+        ) ?: fresh
+        _state.value = _state.value.copy(
+            suppliers = if (existing == null) {
+                supplierRecords + record
+            } else {
+                supplierRecords.map { if (it.key == record.key) record else it }
+            }
+        )
+        attempt { repository.upsert(record) }
+        return record
+    }
+
+    /**
+     * Corrects a supplier. A changed name that produces a different key is a
+     * **rename**, and the purchases move with it — they carry the key, so unlike a
+     * bill there is no spelling to rewrite, which makes this the simpler half of
+     * the pair.
+     */
+    fun updateSupplier(
+        key: String,
+        name: String,
+        phone: String?,
+        place: String?,
+        openingBalance: Double = 0.0
+    ) {
+        if (name.isBlank()) return
+        val existing = supplierRecords.firstOrNull { it.key == key } ?: return
+        val newKey = Supplier.key(name)
+        val record = existing.copy(
+            key = newKey,
+            name = name.trim(),
+            phone = CustomerRecord.tidied(phone),
+            place = CustomerRecord.tidied(place),
+            openingBalance = maxOf(0.0, openingBalance)
+        )
+
+        val others = supplierRecords.filterNot { it.key == key || it.key == newKey }
+        _state.value = _state.value.copy(
+            suppliers = others + record,
+            purchases = purchases.map { if (it.supplierKey == key) it.copy(supplierKey = newKey) else it },
+            supplierPayments = supplierPayments.map {
+                if (it.supplierKey == key) it.copy(supplierKey = newKey) else it
+            }
+        )
+        // Disk follows memory, in the same order: the old roster entry goes, the
+        // corrected one lands, and every moved purchase and payment is rewritten
+        // under the new key. A rename onto somebody already there merges — one
+        // supplier, not two — which is why the old key is deleted either way.
+        attempt {
+            repository.deleteSupplier(key)
+            repository.deleteSupplier(newKey)
+            repository.upsert(record)
+            purchases.filter { it.supplierKey == newKey }.forEach { repository.update(it) }
+            supplierPayments.filter { it.supplierKey == newKey }.forEach { payment ->
+                repository.deleteSupplierPayment(payment.id)
+                repository.append(payment)
+            }
+        }
+    }
+
+    fun removeSupplier(key: String) {
+        _state.value = _state.value.copy(suppliers = supplierRecords.filterNot { it.key == key })
+        attempt { repository.deleteSupplier(key) }
+    }
+
+    // --- Purchases
+
+    /**
+     * Records a delivery: stock goes on the shelf, the buying price becomes what
+     * was just paid, and what is still owed lands on the supplier's account.
+     *
+     * `paid == null` means settled on the spot. A quantity of zero or less is a
+     * no-op, exactly as [restock] treats one.
+     */
+    fun recordPurchase(
+        product: Product,
+        supplierKey: String,
+        quantity: Int,
+        unitCost: Double,
+        paid: Double? = null,
+        createdAt: Instant = Timestamps.now()
+    ): Purchase? {
+        if (quantity <= 0 || supplierKey.isBlank()) return null
+        val current = this.product(product.uid) ?: return null
+        val cost = if (unitCost > 0) unitCost else current.cost
+        val purchase = Purchase(
+            supplierKey = supplierKey,
+            productUid = current.uid,
+            name = current.name,
+            qty = quantity,
+            unitCost = cost,
+            total = quantity * cost,
+            // Clamped to the total: a delivery cannot be overpaid, and a typo
+            // that says so would put the shop permanently in credit.
+            paid = paid?.let { maxOf(0.0, minOf(it, quantity * cost)) },
+            createdAt = createdAt
+        )
+        _state.value = _state.value.copy(purchases = listOf(purchase) + purchases)
+        attempt { repository.append(purchase) }
+        // Cost is "latest paid", not a weighted average: the new figure simply
+        // takes over, which is the rule `restock` has always followed.
+        replace(current.copy(stock = current.stock + quantity, cost = cost))
+        return purchase
+    }
+
+    /**
+     * Voids a delivery and takes its stock back off the shelf.
+     *
+     * The mirror of voiding a bill, which puts stock back on. Idempotent: voiding
+     * twice must not remove the stock twice, which is the bug this rule exists to
+     * prevent on both sides.
+     */
+    fun voidPurchase(id: String) {
+        val purchase = purchases.firstOrNull { it.id == id } ?: return
+        if (purchase.voided) return
+        val voided = purchase.copy(voided = true)
+        _state.value = _state.value.copy(
+            purchases = purchases.map { if (it.id == id) voided else it }
+        )
+        attempt { repository.update(voided) }
+
+        purchase.productUid?.let { uid ->
+            product(uid)?.let { product ->
+                // Floored at zero. The stock may already have been sold, and a
+                // negative shelf count is a worse lie than an optimistic one.
+                replace(product.copy(stock = maxOf(0, product.stock - purchase.qty)))
+            }
+        }
+    }
+
+    fun purchasesForSupplier(key: String): List<Purchase> = purchases.filter { it.supplierKey == key }
+
+    fun purchasesForProduct(uid: String): List<Purchase> = purchases.filter { it.productUid == uid }
+
+    // --- Money out
+
+    fun recordSupplierPayment(
+        supplierKey: String,
+        amount: Double,
+        paidAt: Instant = Timestamps.now(),
+        note: String? = null
+    ): SupplierPayment? {
+        if (amount <= 0 || supplierKey.isEmpty()) return null
+        val payment = SupplierPayment(
+            supplierKey = supplierKey,
+            amount = amount,
+            paidAt = paidAt,
+            note = CustomerRecord.tidied(note)
+        )
+        _state.value = _state.value.copy(supplierPayments = listOf(payment) + supplierPayments)
+        attempt { repository.append(payment) }
+        return payment
+    }
+
+    fun deleteSupplierPayment(id: String) {
+        _state.value = _state.value.copy(supplierPayments = supplierPayments.filterNot { it.id == id })
+        attempt { repository.deleteSupplierPayment(id) }
+    }
+
+    fun supplierPaymentsFor(key: String): List<SupplierPayment> =
+        supplierPayments.filter { it.supplierKey == key }
+
+    /** One supplier's account over a period. */
+    fun statementForSupplier(key: String, period: StatementPeriod): Statement? {
+        val supplier = supplier(key) ?: return null
+        return Statement.make(
+            supplier = supplier,
+            purchases = purchasesForSupplier(key),
+            payments = supplierPaymentsFor(key),
+            period = period
+        )
+    }
+
+    /**
+     * The other side of [outstanding]: who the shop owes, and how much in total.
+     * Derived from [suppliers] for the same reason — walking purchases alone would
+     * ignore both payments made and balances carried over from the paper book.
+     */
+    fun payable(): Pair<List<String>, Double> {
+        val owing = suppliers().filter { it.owed > 0 }
+        return owing.map { it.name } to owing.sumOf { it.owed }
+    }
+
     // --- Restock
 
     /**
@@ -637,6 +914,39 @@ class StockbookStore(private val repository: StockbookRepository) {
                     note = it.note
                 )
             }.sortedByDescending { it.receivedAt },
+            suppliers = document.suppliers.map {
+                SupplierRecord(
+                    key = it.key,
+                    name = it.name,
+                    phone = it.phone,
+                    place = it.place,
+                    openingBalance = it.openingBalance,
+                    createdAt = it.createdAt
+                )
+            }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }),
+            purchases = document.purchases.map {
+                Purchase(
+                    id = it.id,
+                    supplierKey = it.supplierKey,
+                    productUid = it.productUid,
+                    name = it.name,
+                    qty = it.qty,
+                    unitCost = it.unitCost,
+                    total = it.total,
+                    paid = it.paid,
+                    createdAt = it.createdAt,
+                    voided = it.voided
+                )
+            }.sortedByDescending { it.createdAt },
+            supplierPayments = document.supplierPayments.map {
+                SupplierPayment(
+                    id = it.id,
+                    supplierKey = it.supplierKey,
+                    amount = it.amount,
+                    paidAt = it.paidAt,
+                    note = it.note
+                )
+            }.sortedByDescending { it.paidAt },
             settings = restored
         )
 
@@ -681,6 +991,39 @@ class StockbookStore(private val repository: StockbookRepository) {
                 customerKey = it.customerKey,
                 amount = it.amount,
                 receivedAt = it.receivedAt,
+                note = it.note
+            )
+        },
+        suppliers = supplierRecords.map {
+            BackupDocument.SupplierRecordRow(
+                key = it.key,
+                name = it.name,
+                phone = it.phone,
+                place = it.place,
+                openingBalance = it.openingBalance,
+                createdAt = it.createdAt
+            )
+        },
+        purchases = purchases.map {
+            BackupDocument.PurchaseRow(
+                id = it.id,
+                supplierKey = it.supplierKey,
+                productUid = it.productUid,
+                name = it.name,
+                qty = it.qty,
+                unitCost = it.unitCost,
+                total = it.total,
+                paid = it.paid,
+                createdAt = it.createdAt,
+                voided = it.voided
+            )
+        },
+        supplierPayments = supplierPayments.map {
+            BackupDocument.SupplierPaymentRow(
+                id = it.id,
+                supplierKey = it.supplierKey,
+                amount = it.amount,
+                paidAt = it.paidAt,
                 note = it.note
             )
         }

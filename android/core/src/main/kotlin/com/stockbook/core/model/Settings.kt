@@ -84,6 +84,12 @@ data class ShopState(
     val customers: List<CustomerRecord> = emptyList(),
     /** Money received after the bill was written. */
     val payments: List<Payment> = emptyList(),
+    /** The supplier roster: the customer roster's mirror, for money going out. */
+    val suppliers: List<SupplierRecord> = emptyList(),
+    /** Stock arriving, one product at a time. */
+    val purchases: List<Purchase> = emptyList(),
+    /** Money paid to a supplier after the delivery. */
+    val supplierPayments: List<SupplierPayment> = emptyList(),
     val settings: Settings = Settings()
 ) {
     companion object {

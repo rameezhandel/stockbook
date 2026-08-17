@@ -40,7 +40,11 @@ data class BackupDocument(
      * knowing about the day one of them stops.
      */
     val customers: List<CustomerRecordRow> = emptyList(),
-    val payments: List<PaymentRow> = emptyList()
+    val payments: List<PaymentRow> = emptyList(),
+    /** The supplier roster, and the money going the other way. */
+    val suppliers: List<SupplierRecordRow> = emptyList(),
+    val purchases: List<PurchaseRow> = emptyList(),
+    val supplierPayments: List<SupplierPaymentRow> = emptyList()
 ) {
     @Serializable
     data class CustomerRecordRow(
@@ -65,6 +69,44 @@ data class BackupDocument(
         val amount: Double,
         @Serializable(with = InstantSerializer::class)
         val receivedAt: Instant,
+        val note: String? = null
+    )
+
+    @Serializable
+    data class SupplierRecordRow(
+        val key: String,
+        val name: String,
+        val phone: String? = null,
+        val place: String? = null,
+        val openingBalance: Double = 0.0,
+        @Serializable(with = InstantSerializer::class)
+        val createdAt: Instant
+    )
+
+    @Serializable
+    data class PurchaseRow(
+        val id: String,
+        val supplierKey: String,
+        @SerialName("productUID")
+        val productUid: String? = null,
+        val name: String,
+        val qty: Int,
+        val unitCost: Double,
+        val total: Double,
+        /** Absent for a delivery settled on the spot, exactly as on a bill. */
+        val paid: Double? = null,
+        @Serializable(with = InstantSerializer::class)
+        val createdAt: Instant,
+        val voided: Boolean = false
+    )
+
+    @Serializable
+    data class SupplierPaymentRow(
+        val id: String,
+        val supplierKey: String,
+        val amount: Double,
+        @Serializable(with = InstantSerializer::class)
+        val paidAt: Instant,
         val note: String? = null
     )
 
@@ -121,11 +163,14 @@ data class BackupDocument(
          * described files that exist nowhere. Carrying them forward would have
          * meant three shapes of history to keep readable, all imaginary.
          *
-         * It is still a version, and rule 2 still stands: the moment a shop
-         * exists on somebody's phone, the next field that changes what an older
-         * reader *believes* — rather than merely what it knows — makes this 2.
+         * It is still a version, and rule 2 still stands — and **2 is the rule
+         * being applied**, not abandoned. Suppliers, purchases and money paid out
+         * arrived after 1, and a reader that ignored them would not merely lose an
+         * address book: it would read this file and tell the owner the shop owes
+         * nobody anything. That is the payments case again, and the answer is the
+         * same. Better that build refuses the file and says so.
          */
-        const val currentVersion = 1
+        const val currentVersion = 2
     }
 }
 

@@ -76,6 +76,17 @@ data class Customer(
      */
     val hasHistory: Boolean get() = billCount > 0
 
+    /** For a statement, a customer is an account like any other. */
+    val party: StatementParty
+        get() = StatementParty(
+            name = name,
+            key = key,
+            phone = phone,
+            place = place,
+            openingBalance = openingBalance,
+            kind = StatementParty.Kind.CUSTOMER
+        )
+
     companion object {
         /**
          * The one place a name becomes an identity. Everything that groups,

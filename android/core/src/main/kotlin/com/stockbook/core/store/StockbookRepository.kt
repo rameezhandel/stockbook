@@ -4,8 +4,11 @@ import com.stockbook.core.model.Bill
 import com.stockbook.core.model.CustomerRecord
 import com.stockbook.core.model.Payment
 import com.stockbook.core.model.Product
+import com.stockbook.core.model.Purchase
 import com.stockbook.core.model.Settings
 import com.stockbook.core.model.ShopState
+import com.stockbook.core.model.SupplierPayment
+import com.stockbook.core.model.SupplierRecord
 
 /**
  * The one seam between the shop's rules and the disk.
@@ -36,6 +39,21 @@ interface StockbookRepository {
 
     fun append(payment: Payment)
     fun deletePayment(id: String)
+
+    /** Insert or update, matched on [SupplierRecord.key]. */
+    fun upsert(supplier: SupplierRecord)
+
+    /**
+     * Removes the roster entry only. The purchases are history and stay where
+     * they are, for the same reason a customer's bills do.
+     */
+    fun deleteSupplier(key: String)
+
+    fun append(purchase: Purchase)
+    fun update(purchase: Purchase)
+
+    fun append(payment: SupplierPayment)
+    fun deleteSupplierPayment(id: String)
 
     fun save(settings: Settings)
     fun replaceAll(state: ShopState)

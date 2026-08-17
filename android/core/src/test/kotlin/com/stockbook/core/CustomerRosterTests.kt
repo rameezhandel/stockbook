@@ -12,6 +12,7 @@ import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.store.DraftLine
 import com.stockbook.core.store.InMemoryRepository
 import com.stockbook.core.store.StockbookStore
+import com.stockbook.core.transfer.BackupDocument
 import com.stockbook.core.transfer.BackupService
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -259,7 +260,7 @@ class PaymentTests {
         store.recordPayment("ahmed", 100.0)
 
         val statement = assertNotNull(store.statementForCustomer("ahmed", StatementPeriod.thisYear()))
-        assertEquals("ahmed", statement.customer.key)
+        assertEquals("ahmed", statement.party.key)
         assertEquals(300.0, statement.closingBalance)
 
         assertNull(store.statementForCustomer("nobody", StatementPeriod.thisYear()))
@@ -339,7 +340,7 @@ class RosterMigrationTests {
 
         val document = BackupService.decode(BackupService.encode(store.makeBackupDocument()))
 
-        assertEquals(1, document.version)
+        assertEquals(BackupDocument.currentVersion, document.version)
         assertEquals(1, document.customers?.size)
         assertEquals(1, document.payments?.size)
 
@@ -585,7 +586,7 @@ class OpeningBalanceTests {
         store.addCustomer("Ahmed", openingBalance = 5000.0)
 
         val document = BackupService.decode(BackupService.encode(store.makeBackupDocument()))
-        assertEquals(1, document.version)
+        assertEquals(BackupDocument.currentVersion, document.version)
         assertEquals(5000.0, assertNotNull(document.customers.firstOrNull()).openingBalance)
 
         val restored = store()

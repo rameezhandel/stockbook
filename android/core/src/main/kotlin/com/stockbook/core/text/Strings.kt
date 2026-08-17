@@ -43,6 +43,9 @@ class Strings(val language: AppLanguage) {
     fun items(n: Int): String =
             pick(if (n == 1) "1 item" else "$n items", "$n ಸಾಮಾನು")
 
+    fun purchases(n: Int): String =
+            pick(if (n == 1) "1 purchase" else "$n purchases", "$n ಖರೀದಿ")
+
     fun pieces(n: Int): String =
             pick(if (n == 1) "1 piece" else "$n pieces", "$n ನಗ")
 
@@ -187,6 +190,44 @@ class Strings(val language: AppLanguage) {
     fun addAsCustomer(name: String): String =
             pick("Add “$name” as a customer", "“$name” ಅನ್ನು ಗ್ರಾಹಕರಾಗಿ ಸೇರಿಸಿ")
 
+    // --- Suppliers
+    //
+    // The customer block above, pointing the other way. Every line here has a
+    // counterpart there, and the words differ only where the direction of the
+    // money does: a supplier is somebody *the shop* owes.
+
+    val suppliersTitle: String get() = pick("Suppliers", "ಪೂರೈಕೆದಾರರು")
+    val allSuppliers: String get() = pick("All suppliers", "ಎಲ್ಲಾ ಪೂರೈಕೆದಾರರು")
+    val addASupplier: String get() = pick("Add a supplier", "ಪೂರೈಕೆದಾರರನ್ನು ಸೇರಿಸಿ")
+    val newSupplier: String get() = pick("New supplier", "ಹೊಸ ಪೂರೈಕೆದಾರ")
+    val editSupplier: String get() = pick("Edit supplier", "ಪೂರೈಕೆದಾರರ ವಿವರ ಬದಲಿಸಿ")
+    val saveSupplier: String get() = pick("Save supplier", "ಪೂರೈಕೆದಾರರನ್ನು ಉಳಿಸಿ")
+    val removeFromSuppliers: String get() = pick("Remove from suppliers", "ಪೂರೈಕೆದಾರರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಿರಿ")
+    val supplierNameExample: String get() = pick("Al Faisal Hardware", "ಅಲ್ ಫೈಸಲ್ ಹಾರ್ಡ್‌ವೇರ್")
+    val noPurchasesYet: String get() = pick("No purchases yet", "ಇನ್ನೂ ಖರೀದಿ ಇಲ್ಲ")
+    val purchaseLabel: String get() = pick("Purchase", "ಖರೀದಿ")
+    val boughtFromThem: String get() = pick("Bought", "ಖರೀದಿಸಿದ್ದು")
+
+    // What the shop owes, as opposed to what it is owed. Deliberately not the
+    // same word as a customer's "Pending", because a shop owner reading a screen
+    // fast needs the two totals to be tellable apart at a glance.
+    val youOwe: String get() = pick("You owe", "ನೀವು ಕೊಡಬೇಕು")
+    val owedToSuppliers: String get() = pick("Owed to suppliers", "ಪೂರೈಕೆದಾರರಿಗೆ ಬಾಕಿ")
+    val nothingOwedOut: String get() = pick("Nothing owed out", "ಕೊಡಬೇಕಾದ್ದು ಏನೂ ಇಲ್ಲ")
+
+    val chooseSupplierFromTheList: String
+        get() = pick("Choose a supplier from the list", "ಪಟ್ಟಿಯಿಂದ ಪೂರೈಕೆದಾರರನ್ನು ಆರಿಸಿ")
+
+    fun addAsSupplier(name: String): String =
+            pick("Add “$name” as a supplier", "“$name” ಅನ್ನು ಪೂರೈಕೆದಾರರಾಗಿ ಸೇರಿಸಿ")
+
+    // A delivery entered wrongly is voided rather than edited, exactly as a bill
+    // is — and voiding it takes the stock back off the shelf, which the button
+    // says out loud because it is the part that surprises people.
+    val voidAndRemoveStock: String get() = pick("Void and remove stock", "ರದ್ದು ಮಾಡಿ ದಾಸ್ತಾನು ಹಿಂತೆಗೆಯಿರಿ")
+    val purchaseVoidedNote: String
+        get() = pick("Voided. The stock went back off the shelf.", "ರದ್ದಾಗಿದೆ. ದಾಸ್ತಾನು ಹಿಂತೆಗೆಯಲಾಗಿದೆ.")
+
     // Says which balance this is, because the statement has one of its own with a
     // different meaning — that one is derived, this one is typed in once.
     val openingBalanceNote: String
@@ -235,6 +276,11 @@ class Strings(val language: AppLanguage) {
     val openingBalance: String get() = pick("Brought forward", "ಹಿಂದಿನ ಬಾಕಿ")
     val billedInPeriod: String get() = pick("Billed", "ಬಿಲ್ ಮಾಡಿದ್ದು")
     val receivedInPeriod: String get() = pick("Received", "ಸ್ವೀಕರಿಸಿದ್ದು")
+
+    // The same two figures on a supplier's statement. "Billed" and "Received" are
+    // the customer's words and read backwards on a delivery note.
+    val purchasedInPeriod: String get() = pick("Purchased", "ಖರೀದಿಸಿದ್ದು")
+    val paidOutInPeriod: String get() = pick("Paid", "ಪಾವತಿಸಿದ್ದು")
     val closingBalance: String get() = pick("Balance due", "ಉಳಿದ ಬಾಕಿ")
     val nothingInThisPeriod: String get() = pick("Nothing in this period", "ಈ ಅವಧಿಯಲ್ಲಿ ಏನೂ ಇಲ್ಲ")
     val settledUp: String get() = pick("Settled up", "ಎಲ್ಲಾ ಪಾವತಿ ಆಗಿದೆ")

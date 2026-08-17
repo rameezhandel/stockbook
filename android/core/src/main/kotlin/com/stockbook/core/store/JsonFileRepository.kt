@@ -4,7 +4,10 @@ import com.stockbook.core.model.Bill
 import com.stockbook.core.model.CustomerRecord
 import com.stockbook.core.model.Payment
 import com.stockbook.core.model.Product
+import com.stockbook.core.model.Purchase
 import com.stockbook.core.model.Settings
+import com.stockbook.core.model.SupplierPayment
+import com.stockbook.core.model.SupplierRecord
 import com.stockbook.core.model.ShopState
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -81,6 +84,37 @@ class JsonFileRepository(private val file: File) : StockbookRepository {
         state.copy(payments = state.payments + payment)
     }
 
+    override fun upsert(supplier: SupplierRecord) = mutate { state ->
+        val index = state.suppliers.indexOfFirst { it.key == supplier.key }
+        if (index >= 0) {
+            state.copy(suppliers = state.suppliers.toMutableList().also { it[index] = supplier })
+        } else {
+            state.copy(suppliers = state.suppliers + supplier)
+        }
+    }
+
+    override fun deleteSupplier(key: String) = mutate { state ->
+        state.copy(suppliers = state.suppliers.filterNot { it.key == key })
+    }
+
+    override fun append(purchase: Purchase) = mutate { state ->
+        state.copy(purchases = state.purchases + purchase)
+    }
+
+    override fun update(purchase: Purchase) = mutate { state ->
+        val index = state.purchases.indexOfFirst { it.id == purchase.id }
+        if (index < 0) state
+        else state.copy(purchases = state.purchases.toMutableList().also { it[index] = purchase })
+    }
+
+    override fun append(payment: SupplierPayment) = mutate { state ->
+        state.copy(supplierPayments = state.supplierPayments + payment)
+    }
+
+    override fun deleteSupplierPayment(id: String) = mutate { state ->
+        state.copy(supplierPayments = state.supplierPayments.filterNot { it.id == id })
+    }
+
     override fun deletePayment(id: String) = mutate { state ->
         state.copy(payments = state.payments.filterNot { it.id == id })
     }
@@ -145,6 +179,36 @@ class InMemoryRepository(initial: ShopState = ShopState.EMPTY) : StockbookReposi
     }
 
     override fun append(payment: Payment) { state = state.copy(payments = state.payments + payment) }
+
+    override fun upsert(supplier: SupplierRecord) {
+        val index = state.suppliers.indexOfFirst { it.key == supplier.key }
+        state = if (index >= 0) {
+            state.copy(suppliers = state.suppliers.toMutableList().also { it[index] = supplier })
+        } else {
+            state.copy(suppliers = state.suppliers + supplier)
+        }
+    }
+
+    override fun deleteSupplier(key: String) {
+        state = state.copy(suppliers = state.suppliers.filterNot { it.key == key })
+    }
+
+    override fun append(purchase: Purchase) { state = state.copy(purchases = state.purchases + purchase) }
+
+    override fun update(purchase: Purchase) {
+        val index = state.purchases.indexOfFirst { it.id == purchase.id }
+        if (index >= 0) {
+            state = state.copy(purchases = state.purchases.toMutableList().also { it[index] = purchase })
+        }
+    }
+
+    override fun append(payment: SupplierPayment) {
+        state = state.copy(supplierPayments = state.supplierPayments + payment)
+    }
+
+    override fun deleteSupplierPayment(id: String) {
+        state = state.copy(supplierPayments = state.supplierPayments.filterNot { it.id == id })
+    }
 
     override fun deletePayment(id: String) {
         state = state.copy(payments = state.payments.filterNot { it.id == id })
