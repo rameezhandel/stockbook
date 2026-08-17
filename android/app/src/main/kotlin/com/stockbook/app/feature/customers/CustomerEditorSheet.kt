@@ -25,6 +25,7 @@ import com.stockbook.app.design.PrimaryButton
 import com.stockbook.app.design.SheetHeader
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
+import com.stockbook.core.model.Supplier
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
@@ -48,13 +49,137 @@ fun CustomerEditorSheet(
     strings: Strings,
     onClose: () -> Unit
 ) {
+    PartyEditorSheet(
+        party = existing?.let {
+            EditableParty(
+                key = it.key,
+                name = it.name,
+                phone = it.phone,
+                place = it.place,
+                openingBalance = it.openingBalance,
+                isOnRoster = it.isOnRoster,
+                subtitle = if (it.hasHistory) it.meta(currency, strings) else strings.noBillsYet
+            )
+        },
+        words = PartyWords(
+            newTitle = strings.newCustomer,
+            editTitle = strings.editCustomer,
+            nameLabel = strings.customerName,
+            nameExample = strings.customerNameExample,
+            saveTitle = strings.saveCustomer,
+            nameFirst = strings.enterCustomerNameFirst,
+            removeTitle = strings.removeFromCustomers,
+            removeNote = strings.removeCustomerNote
+        ),
+        currency = currency,
+        strings = strings,
+        onSave = { name, phone, place, opening, key ->
+            if (key != null) {
+                store.updateCustomer(key, name, phone, place, opening)
+            } else {
+                // A name that has only ever appeared on bills lands here too:
+                // adding it is what puts it on the roster, and `addCustomer` keys
+                // it the same way, so their history comes with them.
+                store.addCustomer(name, phone, place, opening)
+            }
+        },
+        onRemove = { store.removeCustomer(it) },
+        onClose = onClose
+    )
+}
+
+/**
+ * The same sheet, for a supplier.
+ *
+ * One body, two entry points. The fields, the gate and the two-tap removal are
+ * identical on both sides of the book; what differs is the words and where the
+ * save lands, and those are the two things passed in.
+ */
+@Composable
+fun SupplierEditorSheet(
+    existing: Supplier?,
+    store: StockbookStore,
+    currency: Currency,
+    strings: Strings,
+    onClose: () -> Unit
+) {
+    PartyEditorSheet(
+        party = existing?.let {
+            EditableParty(
+                key = it.key,
+                name = it.name,
+                phone = it.phone,
+                place = it.place,
+                openingBalance = it.openingBalance,
+                isOnRoster = it.isOnRoster,
+                subtitle = if (it.hasHistory) it.meta(currency, strings) else strings.noPurchasesYet
+            )
+        },
+        words = PartyWords(
+            newTitle = strings.newSupplier,
+            editTitle = strings.editSupplier,
+            nameLabel = strings.supplier,
+            nameExample = strings.supplierNameExample,
+            saveTitle = strings.saveSupplier,
+            nameFirst = strings.enterCustomerNameFirst,
+            removeTitle = strings.removeFromSuppliers,
+            removeNote = strings.removeSupplierNote
+        ),
+        currency = currency,
+        strings = strings,
+        onSave = { name, phone, place, opening, key ->
+            if (key != null) {
+                store.updateSupplier(key, name, phone, place, opening)
+            } else {
+                store.addSupplier(name, phone, place, opening)
+            }
+        },
+        onRemove = { store.removeSupplier(it) },
+        onClose = onClose
+    )
+}
+
+/** Whatever is being corrected, reduced to what this sheet actually edits. */
+data class EditableParty(
+    val key: String,
+    val name: String,
+    val phone: String?,
+    val place: String?,
+    val openingBalance: Double,
+    val isOnRoster: Boolean,
+    val subtitle: String
+)
+
+/** The half-dozen sentences that differ between the two sides. */
+data class PartyWords(
+    val newTitle: String,
+    val editTitle: String,
+    val nameLabel: String,
+    val nameExample: String,
+    val saveTitle: String,
+    val nameFirst: String,
+    val removeTitle: String,
+    val removeNote: String
+)
+
+@Composable
+private fun PartyEditorSheet(
+    party: EditableParty?,
+    words: PartyWords,
+    currency: Currency,
+    strings: Strings,
+    onSave: (name: String, phone: String, place: String, opening: Double, key: String?) -> Unit,
+    onRemove: (String) -> Unit,
+    onClose: () -> Unit
+) {
+    val existing = party
     var name by remember(existing?.key) { mutableStateOf(existing?.name ?: "") }
     var phone by remember(existing?.key) { mutableStateOf(existing?.phone ?: "") }
     var place by remember(existing?.key) { mutableStateOf(existing?.place ?: "") }
     var opening by remember(existing?.key) {
         mutableStateOf(
-            // Blank rather than "0" for a customer who owes nothing from before:
-            // a zero in the box reads as a figure somebody checked.
+            // Blank rather than "0" for somebody who owes nothing from before: a
+            // zero in the box reads as a figure somebody checked.
             existing?.openingBalance?.takeIf { it > 0 }?.let { Money.amount(it, currency) } ?: ""
         )
     }
@@ -65,18 +190,16 @@ fun CustomerEditorSheet(
 
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(
-            title = if (isEditing) strings.editCustomer else strings.newCustomer,
-            subtitle = existing?.let {
-                if (it.hasHistory) it.meta(currency, strings) else strings.noBillsYet
-            },
+            title = if (isEditing) words.editTitle else words.newTitle,
+            subtitle = existing?.subtitle,
             onClose = onClose
         )
 
         NocturneField(
             value = name,
             onValueChange = { name = it },
-            label = strings.customerName,
-            placeholder = strings.customerNameExample,
+            label = words.nameLabel,
+            placeholder = words.nameExample,
             height = Metrics.tallInputHeight,
             isRequiredAndEmpty = name.isBlank(),
             fontSize = 15.0,
@@ -125,18 +248,10 @@ fun CustomerEditorSheet(
         Spacer(Modifier.height(16.dp))
 
         PrimaryButton(
-            title = if (canSave) strings.saveCustomer else strings.enterCustomerNameFirst,
+            title = if (canSave) words.saveTitle else words.nameFirst,
             onClick = {
                 if (!canSave) return@PrimaryButton
-                val openingValue = Money.parse(opening) ?: 0.0
-                if (isEditing && existing != null) {
-                    store.updateCustomer(existing.key, name, phone, place, openingValue)
-                } else {
-                    // A name that has only ever appeared on bills lands here too:
-                    // adding it is what puts it on the roster, and `addCustomer`
-                    // keys it the same way, so their history comes with them.
-                    store.addCustomer(name, phone, place, openingValue)
-                }
+                onSave(name, phone, place, Money.parse(opening) ?: 0.0, existing?.key?.takeIf { isEditing })
                 onClose()
             },
             enabled = canSave,
@@ -151,10 +266,10 @@ fun CustomerEditorSheet(
             // does not do that.
             Column(modifier = Modifier.fillMaxWidth().padding(top = 18.dp)) {
                 GhostButton(
-                    if (confirmingRemoval) strings.tapAgainToRemove else strings.removeFromCustomers,
+                    if (confirmingRemoval) strings.tapAgainToRemove else words.removeTitle,
                     onClick = {
                         if (confirmingRemoval) {
-                            store.removeCustomer(existing.key)
+                            onRemove(existing.key)
                             onClose()
                         } else {
                             confirmingRemoval = true
@@ -164,7 +279,7 @@ fun CustomerEditorSheet(
                     tint = Nocturne.neutral500
                 )
                 Text(
-                    strings.removeCustomerNote,
+                    words.removeNote,
                     style = NocturneType.meta,
                     color = Nocturne.neutral500,
                     modifier = Modifier.padding(top = 6.dp)

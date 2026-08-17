@@ -203,9 +203,23 @@ class Strings(val language: AppLanguage) {
     val editSupplier: String get() = pick("Edit supplier", "ಪೂರೈಕೆದಾರರ ವಿವರ ಬದಲಿಸಿ")
     val saveSupplier: String get() = pick("Save supplier", "ಪೂರೈಕೆದಾರರನ್ನು ಉಳಿಸಿ")
     val removeFromSuppliers: String get() = pick("Remove from suppliers", "ಪೂರೈಕೆದಾರರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಿರಿ")
+
+    // Says what removal does *not* do, because "remove" beside a name reads like
+    // deleting the deliveries too — and it does not.
+    val removeSupplierNote: String
+        get() = pick(
+            "Their purchases stay. Only the saved details go.",
+            "ಅವರ ಖರೀದಿಗಳು ಉಳಿಯುತ್ತವೆ. ಉಳಿಸಿದ ವಿವರಗಳಷ್ಟೇ ಹೋಗುತ್ತವೆ."
+        )
     val supplierNameExample: String get() = pick("Al Faisal Hardware", "ಅಲ್ ಫೈಸಲ್ ಹಾರ್ಡ್‌ವೇರ್")
     val noPurchasesYet: String get() = pick("No purchases yet", "ಇನ್ನೂ ಖರೀದಿ ಇಲ್ಲ")
     val purchaseLabel: String get() = pick("Purchase", "ಖರೀದಿ")
+    val paidOn: String get() = pick("Paid on", "ಪಾವತಿಸಿದ ದಿನ")
+    val paymentNotAgainstOnePurchase: String
+        get() = pick(
+            "Paid against the account, not one delivery.",
+            "ಒಂದು ಡೆಲಿವರಿಗೆ ಅಲ್ಲ, ಖಾತೆಗೆ ಪಾವತಿ."
+        )
     val boughtFromThem: String get() = pick("Bought", "ಖರೀದಿಸಿದ್ದು")
 
     // What the shop owes, as opposed to what it is owed. Deliberately not the
@@ -213,6 +227,13 @@ class Strings(val language: AppLanguage) {
     // fast needs the two totals to be tellable apart at a glance.
     val youOwe: String get() = pick("You owe", "ನೀವು ಕೊಡಬೇಕು")
     val owedToSuppliers: String get() = pick("Owed to suppliers", "ಪೂರೈಕೆದಾರರಿಗೆ ಬಾಕಿ")
+
+    // The Today banner, pointing outwards. Named like `stillOwes` beside it, so
+    // the two lines read as a pair rather than as two unrelated notices.
+    fun youOweOne(name: String): String = pick("You owe $name", "$name ಅವರಿಗೆ ನೀವು ಕೊಡಬೇಕು")
+
+    fun youOweMany(n: Int): String =
+            pick("You owe $n suppliers", "$n ಪೂರೈಕೆದಾರರಿಗೆ ನೀವು ಕೊಡಬೇಕು")
     val nothingOwedOut: String get() = pick("Nothing owed out", "ಕೊಡಬೇಕಾದ್ದು ಏನೂ ಇಲ್ಲ")
 
     val chooseSupplierFromTheList: String

@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import com.stockbook.core.model.Bill
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Product
+import com.stockbook.core.model.Supplier
 import com.stockbook.core.text.AppTab
 
 /**
@@ -57,6 +58,43 @@ class AppRouter {
      * copy taken when it opened.
      */
     var statementFor by mutableStateOf<String?>(null)
+
+    /**
+     * The supplier editor sheet. The customer editor's mirror, kept as its own
+     * pair of fields rather than one editor with a direction on it: the two
+     * sheets say different words and gate on different figures.
+     */
+    var supplierEditor by mutableStateOf<Supplier?>(null)
+    var creatingSupplier by mutableStateOf(false)
+
+    /** The pay-a-supplier sheet. */
+    var supplierPaymentFor by mutableStateOf<Supplier?>(null)
+
+    /**
+     * A supplier's statement, full screen — a key for the same reason
+     * [statementFor] is one, and a separate field so the screen knows which side
+     * of the book it is drawing without being told twice.
+     */
+    var supplierStatementFor by mutableStateOf<String?>(null)
+
+    fun openNewSupplier() {
+        supplierEditor = null
+        creatingSupplier = true
+    }
+
+    fun openSupplier(supplier: Supplier) {
+        creatingSupplier = false
+        supplierEditor = supplier
+    }
+
+    fun openSupplierStatement(supplier: Supplier) {
+        supplierStatementFor = supplier.key
+    }
+
+    fun closeSupplierEditor() {
+        supplierEditor = null
+        creatingSupplier = false
+    }
 
     fun openNewCustomer() {
         customerEditor = null
@@ -112,5 +150,9 @@ class AppRouter {
         creatingCustomer = false
         paymentFor = null
         statementFor = null
+        supplierEditor = null
+        creatingSupplier = false
+        supplierPaymentFor = null
+        supplierStatementFor = null
     }
 }

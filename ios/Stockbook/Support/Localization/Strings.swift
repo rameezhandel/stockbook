@@ -229,9 +229,22 @@ struct Strings {
     var editSupplier: String { pick("Edit supplier", "ಪೂರೈಕೆದಾರರ ವಿವರ ಬದಲಿಸಿ") }
     var saveSupplier: String { pick("Save supplier", "ಪೂರೈಕೆದಾರರನ್ನು ಉಳಿಸಿ") }
     var removeFromSuppliers: String { pick("Remove from suppliers", "ಪೂರೈಕೆದಾರರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಿರಿ") }
+
+    /// Says what removal does *not* do, because "remove" beside a name reads like
+    /// deleting the deliveries too — and it does not.
+    var removeSupplierNote: String {
+        pick(
+            "Their purchases stay. Only the saved details go.",
+            "ಅವರ ಖರೀದಿಗಳು ಉಳಿಯುತ್ತವೆ. ಉಳಿಸಿದ ವಿವರಗಳಷ್ಟೇ ಹೋಗುತ್ತವೆ."
+        )
+    }
     var supplierNameExample: String { pick("Al Faisal Hardware", "ಅಲ್ ಫೈಸಲ್ ಹಾರ್ಡ್‌ವೇರ್") }
     var noPurchasesYet: String { pick("No purchases yet", "ಇನ್ನೂ ಖರೀದಿ ಇಲ್ಲ") }
     var purchaseLabel: String { pick("Purchase", "ಖರೀದಿ") }
+    var paidOn: String { pick("Paid on", "ಪಾವತಿಸಿದ ದಿನ") }
+    var paymentNotAgainstOnePurchase: String {
+        pick("Paid against the account, not one delivery.", "ಒಂದು ಡೆಲಿವರಿಗೆ ಅಲ್ಲ, ಖಾತೆಗೆ ಪಾವತಿ.")
+    }
     var boughtFromThem: String { pick("Bought", "ಖರೀದಿಸಿದ್ದು") }
 
     /// What the shop owes, as opposed to what it is owed. Deliberately not the
@@ -239,6 +252,16 @@ struct Strings {
     /// fast needs the two totals to be tellable apart at a glance.
     var youOwe: String { pick("You owe", "ನೀವು ಕೊಡಬೇಕು") }
     var owedToSuppliers: String { pick("Owed to suppliers", "ಪೂರೈಕೆದಾರರಿಗೆ ಬಾಕಿ") }
+
+    /// The Today banner, pointing outwards. Named like `stillOwes` beside it, so
+    /// the two lines read as a pair rather than as two unrelated notices.
+    func youOweOne(_ name: String) -> String {
+        pick("You owe \(name)", "\(name) ಅವರಿಗೆ ನೀವು ಕೊಡಬೇಕು")
+    }
+
+    func youOweMany(_ n: Int) -> String {
+        pick("You owe \(n) suppliers", "\(n) ಪೂರೈಕೆದಾರರಿಗೆ ನೀವು ಕೊಡಬೇಕು")
+    }
     var nothingOwedOut: String { pick("Nothing owed out", "ಕೊಡಬೇಕಾದ್ದು ಏನೂ ಇಲ್ಲ") }
 
     var chooseSupplierFromTheList: String {

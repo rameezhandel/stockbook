@@ -33,6 +33,8 @@ import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.bills.BillsScreen
 import com.stockbook.app.feature.customers.CustomerEditorSheet
 import com.stockbook.app.feature.customers.RecordPaymentSheet
+import com.stockbook.app.feature.customers.PaySupplierSheet
+import com.stockbook.app.feature.customers.SupplierEditorSheet
 import com.stockbook.app.feature.customers.StatementScreen
 import com.stockbook.app.feature.items.AddStockSheet
 import com.stockbook.app.feature.items.ItemsScreen
@@ -209,12 +211,24 @@ private fun Shell(store: StockbookStore) {
         // screen here the owner may turn round and show a customer.
         router.statementFor?.let { key ->
             StatementScreen(
-                customerKey = key,
+                partyKey = key,
                 store = store,
                 currency = state.settings.currency,
                 strings = strings,
                 onShare = { text -> shareText(context, text) },
                 onClose = { router.statementFor = null }
+            )
+        }
+
+        router.supplierStatementFor?.let { key ->
+            StatementScreen(
+                partyKey = key,
+                isSupplier = true,
+                store = store,
+                currency = state.settings.currency,
+                strings = strings,
+                onShare = { text -> shareText(context, text) },
+                onClose = { router.supplierStatementFor = null }
             )
         }
 
@@ -292,6 +306,36 @@ private fun Shell(store: StockbookStore) {
                     currency = state.settings.currency,
                     strings = strings,
                     onClose = { router.paymentFor = null }
+                )
+            }
+        }
+
+        BottomSheet(
+            visible = router.creatingSupplier || router.supplierEditor != null,
+            onDismiss = { router.closeSupplierEditor() }
+        ) {
+            SupplierEditorSheet(
+                existing = router.supplierEditor,
+                store = store,
+                currency = state.settings.currency,
+                strings = strings,
+                onClose = { router.closeSupplierEditor() }
+            )
+        }
+
+        BottomSheet(
+            visible = router.supplierPaymentFor != null,
+            onDismiss = { router.supplierPaymentFor = null }
+        ) {
+            router.supplierPaymentFor?.let { supplier ->
+                PaySupplierSheet(
+                    // Re-read from the store so the sheet's "what will be left"
+                    // line is not a stale copy taken when it opened.
+                    supplier = store.supplier(supplier.key) ?: supplier,
+                    store = store,
+                    currency = state.settings.currency,
+                    strings = strings,
+                    onClose = { router.supplierPaymentFor = null }
                 )
             }
         }

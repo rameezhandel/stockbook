@@ -33,6 +33,7 @@ import com.stockbook.app.design.PrimaryButton
 import com.stockbook.app.design.SheetHeader
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
+import com.stockbook.core.model.Supplier
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
@@ -65,18 +66,72 @@ fun RecordPaymentSheet(
     strings: Strings,
     onClose: () -> Unit
 ) {
-    var amount by remember(customer.key) { mutableStateOf("") }
-    var note by remember(customer.key) { mutableStateOf("") }
-    var receivedAt by remember(customer.key) { mutableStateOf(Timestamps.now()) }
+    PaymentSheet(
+        name = customer.name,
+        key = customer.key,
+        owed = customer.owed,
+        dateLabel = strings.receivedOn,
+        footnote = strings.paymentNotAgainstOneBill,
+        currency = currency,
+        strings = strings,
+        onSave = { amount, at, note -> store.recordPayment(customer.key, amount, at, note) },
+        onClose = onClose
+    )
+}
+
+/**
+ * The same sheet, for money going the other way.
+ *
+ * One body, two entry points, exactly as with the editor: what a payment *is*
+ * does not change with its direction — an amount, a date, a note, and a balance
+ * that has to come down by it.
+ */
+@Composable
+fun PaySupplierSheet(
+    supplier: Supplier,
+    store: StockbookStore,
+    currency: Currency,
+    strings: Strings,
+    onClose: () -> Unit
+) {
+    PaymentSheet(
+        name = supplier.name,
+        key = supplier.key,
+        owed = supplier.owed,
+        dateLabel = strings.paidOn,
+        footnote = strings.paymentNotAgainstOnePurchase,
+        currency = currency,
+        strings = strings,
+        onSave = { amount, at, note -> store.recordSupplierPayment(supplier.key, amount, at, note) },
+        onClose = onClose
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PaymentSheet(
+    name: String,
+    key: String,
+    owed: Double,
+    dateLabel: String,
+    footnote: String,
+    currency: Currency,
+    strings: Strings,
+    onSave: (amount: Double, at: Instant, note: String) -> Unit,
+    onClose: () -> Unit
+) {
+    var amount by remember(key) { mutableStateOf("") }
+    var note by remember(key) { mutableStateOf("") }
+    var receivedAt by remember(key) { mutableStateOf(Timestamps.now()) }
     var pickingDate by remember { mutableStateOf(false) }
 
     val typed = Money.parse(amount) ?: 0.0
     val canSave = typed > 0
-    /** What they will still owe once this is saved — usually the target is zero. */
-    val remaining = customer.owed - typed
+    /** What will still be owed once this is saved — usually the target is zero. */
+    val remaining = owed - typed
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        SheetHeader(title = strings.recordAPayment, subtitle = customer.name, onClose = onClose)
+        SheetHeader(title = strings.recordAPayment, subtitle = name, onClose = onClose)
 
         NocturneField(
             value = amount,
@@ -114,7 +169,7 @@ fun RecordPaymentSheet(
 
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Text(
-                strings.receivedOn,
+                dateLabel,
                 style = NocturneType.meta,
                 color = Nocturne.neutral500,
                 modifier = Modifier.weight(1f)
@@ -166,7 +221,7 @@ fun RecordPaymentSheet(
         Spacer(Modifier.height(8.dp))
 
         Text(
-            strings.paymentNotAgainstOneBill,
+            footnote,
             style = NocturneType.meta,
             color = Nocturne.neutral500,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -176,12 +231,7 @@ fun RecordPaymentSheet(
             title = if (canSave) strings.savePayment else strings.enterAnAmount,
             onClick = {
                 if (!canSave) return@PrimaryButton
-                store.recordPayment(
-                    customerKey = customer.key,
-                    amount = typed,
-                    receivedAt = receivedAt,
-                    note = note
-                )
+                onSave(typed, receivedAt, note)
                 onClose()
             },
             enabled = canSave,

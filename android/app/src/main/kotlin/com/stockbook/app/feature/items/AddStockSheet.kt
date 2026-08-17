@@ -22,6 +22,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.style.TextOverflow
+import com.stockbook.app.design.ChoicePill
+import com.stockbook.app.design.Glyph
+import com.stockbook.app.design.Icon
+import com.stockbook.app.design.card
+import com.stockbook.core.model.Supplier
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneField
@@ -55,9 +64,20 @@ fun AddStockSheet(
     var purchase by remember { mutableStateOf(false) }
     var quantity by remember { mutableStateOf("") }
     var unitCost by remember { mutableStateOf("") }
+    /** What was typed into the supplier box, and who was actually chosen. */
     var supplier by remember { mutableStateOf("") }
+    var supplierKey by remember { mutableStateOf<String?>(null) }
+    var settledNow by remember { mutableStateOf(true) }
+    var paidText by remember { mutableStateOf("") }
 
     val quantityValue = quantity.trim().toIntOrNull() ?: (Money.parse(quantity) ?: 0.0).toInt()
+    val costValue = Money.parse(unitCost) ?: 0.0
+    val totalValue = maxOf(0, quantityValue) * costValue
+
+    // A purchase is a record against an account, so it needs the account. Quick
+    // add is not: it is a correction to a number on a shelf, and demanding a
+    // supplier for it would be asking who delivered the bag you just tipped in.
+    val canSave = if (purchase) quantityValue > 0 && supplierKey != null else quantityValue > 0
 
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(
@@ -74,11 +94,14 @@ fun AddStockSheet(
         Spacer(Modifier.height(Metrics.cardGap))
 
         if (purchase) {
-            NocturneField(
-                value = supplier,
-                onValueChange = { supplier = it },
-                label = strings.supplier,
-                placeholder = strings.whoDeliveredIt
+            SupplierPicker(
+                typed = supplier,
+                chosenKey = supplierKey,
+                store = store,
+                currency = currency,
+                strings = strings,
+                onType = { supplier = it; supplierKey = null },
+                onChoose = { supplier = it.name; supplierKey = it.key }
             )
             Spacer(Modifier.height(Metrics.cardGap))
         }
@@ -103,12 +126,45 @@ fun AddStockSheet(
             }
         }
 
+        // Was it paid for at the door? Usually yes — the driver waits — so that is
+        // the default, and the alternative is one tap away rather than a number
+        // the owner has to type to mean "nothing owed".
+        if (purchase) {
+            Spacer(Modifier.height(Metrics.cardGap))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                ChoicePill(
+                    title = strings.paidInFull,
+                    icon = Icon.confirm,
+                    selected = settledNow,
+                    onClick = { settledNow = true },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(6.dp))
+                ChoicePill(
+                    title = strings.partPayment,
+                    icon = Icon.edit,
+                    selected = !settledNow,
+                    onClick = { settledNow = false },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            if (!settledNow) {
+                Spacer(Modifier.height(Metrics.cardGap))
+                NocturneField(
+                    value = paidText,
+                    onValueChange = { paidText = it },
+                    label = strings.paidNow,
+                    numeric = true,
+                    prefix = currency.symbol.trim()
+                )
+            }
+        }
+
         // The note is the only place the two modes explain themselves, so it
         // states the consequence rather than restating the mode.
         Text(
             if (purchase) {
-                val cost = Money.parse(unitCost) ?: 0.0
-                strings.purchaseNote(Money.text(maxOf(0, quantityValue) * cost, currency))
+                strings.purchaseNote(Money.text(totalValue, currency))
             } else {
                 strings.quickAddNote(Money.text(product.cost, currency))
             },
@@ -119,19 +175,34 @@ fun AddStockSheet(
 
         Spacer(Modifier.height(14.dp))
         PrimaryButton(
-            title = if (purchase) strings.recordPurchase else strings.addToStock(maxOf(0, quantityValue)),
+            title = when {
+                !purchase -> strings.addToStock(maxOf(0, quantityValue))
+                supplierKey == null && supplier.isNotBlank() -> strings.chooseSupplierFromTheList
+                supplierKey == null -> strings.whoDeliveredIt
+                else -> strings.recordPurchase
+            },
             onClick = {
-                // Zero or empty quantity just closes the sheet — the owner
-                // opened it, then thought better of it, and that should not
-                // need a Cancel button.
-                store.restock(
-                    product,
-                    quantity = quantityValue,
-                    mode = if (purchase) RestockMode.PURCHASE else RestockMode.QUICK_ADD,
-                    unitCost = if (purchase) Money.parse(unitCost) else null
-                )
+                if (purchase) {
+                    val key = supplierKey ?: return@PrimaryButton
+                    // A delivery is a record with an account behind it, not a
+                    // number added to a shelf — which is why this is no longer
+                    // `restock` with a supplier string that went nowhere.
+                    store.recordPurchase(
+                        product = product,
+                        supplierKey = key,
+                        quantity = quantityValue,
+                        unitCost = costValue,
+                        paid = if (settledNow) null else (Money.parse(paidText) ?: 0.0)
+                    )
+                } else {
+                    // Zero or empty quantity just closes the sheet — the owner
+                    // opened it, then thought better of it, and that should not
+                    // need a Cancel button.
+                    store.restock(product, quantity = quantityValue, mode = RestockMode.QUICK_ADD)
+                }
                 onClose()
             },
+            enabled = canSave,
             fullWidth = true
         )
     }
@@ -160,3 +231,111 @@ private fun ModePill(
         )
     }
 }
+
+/**
+ * Who delivered it: type to filter the roster, then **choose**.
+ *
+ * The cart's customer picker, on the other side of the counter and for the same
+ * reason — a typed name is not an account, and a delivery filed against one that
+ * does not exist is money the shop cannot see it owes. It cannot block the work
+ * either: a name matching nobody offers to become a supplier in the same tap.
+ *
+ * The list is drawn **below** the field here, unlike the cart's. This sheet grows
+ * downwards from the top of a bottom sheet with room under it; the cart's field
+ * sits on the bottom edge of the screen with the keyboard beneath it.
+ */
+@Composable
+private fun SupplierPicker(
+    typed: String,
+    chosenKey: String?,
+    store: StockbookStore,
+    currency: Currency,
+    strings: Strings,
+    onType: (String) -> Unit,
+    onChoose: (Supplier) -> Unit
+) {
+    val query = Supplier.key(typed)
+    val everyone = store.suppliers()
+    val matches = if (chosenKey != null) emptyList() else everyone.filter { query.isEmpty() || it.key.contains(query) }
+    val canCreate = chosenKey == null && query.isNotEmpty() && everyone.none { it.key == query }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        NocturneField(
+            value = typed,
+            onValueChange = onType,
+            label = strings.supplier,
+            placeholder = strings.whoDeliveredIt,
+            // Marked until somebody is actually chosen, not merely until the box
+            // has characters in it.
+            isRequiredAndEmpty = chosenKey == null
+        )
+
+        if (matches.isNotEmpty() || canCreate) {
+            Spacer(Modifier.height(6.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .card(Metrics.controlRadius)
+                    .hairline(Nocturne.accent, Metrics.controlRadius)
+                    .padding(vertical = 3.dp)
+            ) {
+                LazyColumn(modifier = Modifier.heightIn(max = SUPPLIER_LIST_MAX_HEIGHT)) {
+                    items(matches, key = { it.key }) { candidate ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onChoose(candidate) }
+                                .padding(horizontal = 11.dp, vertical = 9.dp)
+                        ) {
+                            Glyph(Icon.customer, size = 12.dp, tint = Nocturne.neutral500)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                candidate.name,
+                                style = NocturneType.inter(13.5),
+                                color = Nocturne.text,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                candidate.meta(currency, strings),
+                                style = NocturneType.meta,
+                                color = if (candidate.owed > 0) Nocturne.accent400 else Nocturne.neutral500
+                            )
+                        }
+                    }
+                }
+
+                // Outside the scrolling part: it is the way out when nobody
+                // matches, and must never be something to scroll for.
+                if (canCreate) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                store.addSupplier(typed)?.let { record ->
+                                    store.supplier(record.key)?.let { onChoose(it) }
+                                }
+                            }
+                            .padding(horizontal = 11.dp, vertical = 9.dp)
+                    ) {
+                        Glyph(Icon.add, size = 12.dp, tint = Nocturne.accent)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            strings.addAsSupplier(typed),
+                            style = NocturneType.inter(13.5),
+                            color = Nocturne.accent,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Four rows and a sliver of the fifth, the same as the cart's list. */
+private val SUPPLIER_LIST_MAX_HEIGHT = 150.dp

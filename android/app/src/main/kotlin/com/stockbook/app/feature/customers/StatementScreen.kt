@@ -70,7 +70,14 @@ import java.time.ZoneOffset
  */
 @Composable
 fun StatementScreen(
-    customerKey: String,
+    /** Whose account: a customer key, or a supplier key with [isSupplier] set. */
+    partyKey: String,
+    /**
+     * Which side of the book. One screen for both, because a statement is a
+     * statement — see `Statement.make`, where the same arithmetic serves both —
+     * and two screens would drift the moment either was corrected.
+     */
+    isSupplier: Boolean = false,
     store: StockbookStore,
     currency: Currency,
     strings: Strings,
@@ -111,7 +118,11 @@ fun StatementScreen(
         Choice.DATES -> StatementPeriod.Custom(from, to)
     }
 
-    val statement = store.statementForCustomer(customerKey, period)
+    val statement = if (isSupplier) {
+        store.statementForSupplier(partyKey, period)
+    } else {
+        store.statementForCustomer(partyKey, period)
+    }
 
     // A period change re-draws the whole document; a row still armed for deletion
     // in the old one would be armed against a row that has moved.
@@ -158,7 +169,7 @@ fun StatementScreen(
                     deleting = deleting,
                     onArm = { deleting = it },
                     onDelete = { id ->
-                        store.deletePayment(id)
+                        if (isSupplier) store.deleteSupplierPayment(id) else store.deletePayment(id)
                         deleting = null
                     }
                 )
@@ -384,7 +395,13 @@ private fun EntryRow(
     onArm: (String?) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    val payment = (entry as? Statement.Entry.ForPayment)?.payment
+    // Either kind of payment can be deleted; a bill or a delivery is voided
+    // instead, and that lives where the document itself is opened.
+    val paymentId = when (entry) {
+        is Statement.Entry.ForPayment -> entry.payment.id
+        is Statement.Entry.ForSupplierPayment -> entry.payment.id
+        else -> null
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -392,9 +409,9 @@ private fun EntryRow(
             // lives inside the opened bill where it belongs — offering deletion
             // beside it here would be a second, worse route to the same history.
             .then(
-                if (payment == null) Modifier
+                if (paymentId == null) Modifier
                 else Modifier.clickable {
-                    onArm(if (deleting == payment.id) null else payment.id)
+                    onArm(if (deleting == paymentId) null else paymentId)
                 }
             )
     ) {
@@ -477,11 +494,11 @@ private fun EntryRow(
             }
         }
 
-        if (payment != null && deleting == payment.id) {
+        if (paymentId != null && deleting == paymentId) {
             Spacer(Modifier.height(7.dp))
             GhostButton(
                 strings.deleteThisPayment,
-                onClick = { onDelete(payment.id) },
+                onClick = { onDelete(paymentId) },
                 fontSize = 12.0,
                 tint = Nocturne.neutral500
             )

@@ -18,6 +18,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
 import com.stockbook.app.design.EmptyStateBox
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.stockbook.app.design.Glyph
 import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Icon
@@ -54,6 +55,7 @@ fun TodayScreen(
     val currency = state.settings.currency
     val liveBills = state.bills.filterNot { it.voided }
     val (owedNames, owedTotal) = store.outstanding()
+    val (payableNames, payableTotal) = store.payable()
     val greetingName = state.settings.ownerName.firstName
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -105,6 +107,24 @@ fun TodayScreen(
                         },
                         amount = Money.text(owedTotal, currency)
                     )
+                    Spacer(Modifier.height(if (payableNames.isEmpty()) 18.dp else 6.dp))
+                }
+            }
+
+            // The other direction, and only when there is one. A shop owner's own
+            // bills matter as much as the ones owed to them, but a banner saying
+            // "you owe nothing" every day teaches people to stop reading banners.
+            if (payableNames.isNotEmpty()) {
+                item {
+                    OwedBanner(
+                        note = if (payableNames.size == 1) {
+                            strings.youOweOne(payableNames.first())
+                        } else {
+                            strings.youOweMany(payableNames.size)
+                        },
+                        amount = Money.text(payableTotal, currency),
+                        icon = Icon.items
+                    )
                     Spacer(Modifier.height(18.dp))
                 }
             }
@@ -153,7 +173,7 @@ fun TodayScreen(
 }
 
 @Composable
-private fun OwedBanner(note: String, amount: String) {
+private fun OwedBanner(note: String, amount: String, icon: ImageVector = Icon.customer) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -161,7 +181,7 @@ private fun OwedBanner(note: String, amount: String) {
             .owedBannerBackground()
             .padding(horizontal = 13.dp, vertical = 12.dp)
     ) {
-        Glyph(Icon.customer, size = 19.dp, tint = Nocturne.accent400)
+        Glyph(icon, size = 19.dp, tint = Nocturne.accent400)
         Spacer(Modifier.width(10.dp))
         Text(
             note,
