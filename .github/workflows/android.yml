@@ -70,11 +70,29 @@ jobs:
       - name: Report the errors where they can be read
         if: failure()
         run: |
+          ERRORS=$(grep -E "^e: |FAILURE:|Caused by:" ../build.log | head -40 || true)
+
+          # As annotations, one per line, not only into the step summary.
+          #
+          # Learnt twice on this workflow: the summary is rendered by client-side
+          # script, so it is invisible to anything reading the page without a
+          # browser session. Annotations are served with the run itself, which
+          # makes them the only part of a failure readable from outside. A build
+          # that fails and will not say why costs a five-minute round trip to
+          # find out.
+          if [ -n "$ERRORS" ]; then
+            echo "$ERRORS" | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          else
+            echo "::error::Build failed with no compiler error in the log — see the Gradle output."
+          fi
+
           {
             echo "### Build failed"
             echo ""
             echo '```'
-            grep -E "^e: |^w: .*error|FAILURE:|Caused by:" ../build.log | head -60 || echo "no compiler errors found in the log"
+            echo "${ERRORS:-no compiler errors found in the log}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 

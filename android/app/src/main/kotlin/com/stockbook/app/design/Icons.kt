@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.outlined.Home
@@ -51,6 +52,7 @@ object Icon {
     val confirm: ImageVector = Icons.Filled.Check
     val openRow: ImageVector = Icons.Filled.KeyboardArrowRight
     val chooseFromList: ImageVector = Icons.Filled.UnfoldMore
+    val share: ImageVector = Icons.Filled.Share            // phosphor: share-network
 
     // People
     val customer: ImageVector = Icons.Filled.Person
