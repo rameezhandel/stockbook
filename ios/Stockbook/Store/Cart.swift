@@ -121,7 +121,7 @@ final class Cart {
     }
 
     /// True while anything on the bill still has figures nobody has checked.
-    var hasUnconfirmedLines: Bool { lines.contains(\.isUnconfirmed) }
+    var hasUnconfirmedLines: Bool { lines.contains { $0.isUnconfirmed } }
 
     func setQuantity(_ quantity: Int, for uid: UUID) {
         guard let index = lines.firstIndex(where: { $0.id == uid }) else { return }

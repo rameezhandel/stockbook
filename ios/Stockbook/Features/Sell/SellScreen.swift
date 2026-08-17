@@ -79,7 +79,8 @@ struct SellScreen: View {
                         query: query.trimmed,
                         onPick: add(_:),
                         onAddProduct: { router.openNewProduct() },
-                        onDoneAdding: closePicker
+                        onDoneAdding: closePicker,
+                        onScan: { scan.start() }
                     )
                 } else {
                     CartView(
@@ -186,6 +187,8 @@ private struct ProductPicker: View {
     let onPick: (Product) -> Void
     let onAddProduct: () -> Void
     let onDoneAdding: () -> Void
+    /// Offered only on an empty cart: a paper bill replaces what is in it.
+    let onScan: () -> Void
 
     @Environment(Cart.self) private var cart
     @Environment(\.currency) private var currency
@@ -206,7 +209,7 @@ private struct ProductPicker: View {
 
                     if cart.isEmpty {
                         Button {
-                            scan.start()
+                            onScan()
                         } label: {
                             Label(Loc.scanABill, systemImage: Icon.scan)
                         }
