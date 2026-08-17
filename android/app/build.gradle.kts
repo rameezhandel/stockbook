@@ -20,7 +20,35 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        // A committed, stable key — not a secret, and not pretending to be one.
+        //
+        // Without this, AGP generates a debug keystore on whatever machine is
+        // building, and every CI runner is a fresh machine. Each build would be
+        // signed by a different key, so installing a new APK over an older one
+        // fails with a signature mismatch and the only way through is to
+        // uninstall — which, in an app whose whole premise is that the shop
+        // lives on this phone and nowhere else, means throwing the shop away to
+        // take an update.
+        //
+        // A debug key protects nothing; Android's own default one is public.
+        // What this one buys is that build 12 installs over build 11 and the
+        // owner keeps their bills.
+        getByName("debug") {
+            storeFile = rootProject.file("keystore/stockbook-debug.jks")
+            storePassword = "stockbook"
+            keyAlias = "stockbook"
+            keyPassword = "stockbook"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+            // So a debug build can sit beside a future release one rather than
+            // fighting it for the same package name.
+            versionNameSuffix = "-debug"
+        }
         release {
             isMinifyEnabled = false
         }
