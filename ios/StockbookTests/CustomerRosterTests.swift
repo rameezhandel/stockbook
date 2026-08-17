@@ -263,7 +263,7 @@ struct PaymentTests {
         store.recordPayment(customerKey: "ahmed", amount: 100)
 
         let statement = try #require(store.statement(forCustomer: "ahmed", period: .thisYear()))
-        #expect(statement.customer.key == "ahmed")
+        #expect(statement.party.key == "ahmed")
         #expect(statement.closingBalance == 300)
 
         #expect(store.statement(forCustomer: "nobody", period: .thisYear()) == nil)
