@@ -140,7 +140,7 @@ struct BillScanTests {
     @Test("Totals and headings are not items")
     func noise() {
         for row in ["Total 480", "GRAND TOTAL", "Qty", "Rate", "Date: 11/08/26", "Bill No 42", "Signature"] {
-            #expect(BillScanParser.isNotAnItem(row), row)
+            #expect(BillScanParser.isNotAnItem(row), "\(row)")
         }
         for row in ["Cisa lock", "Total lock set", "Padlock 4"] {
             #expect(!BillScanParser.isNotAnItem(row), "“\(row)” is a product, not a heading")
