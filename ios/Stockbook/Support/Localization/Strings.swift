@@ -175,6 +175,78 @@ struct Strings {
     var pendingPayment: String { pick("Pending", "ಬಾಕಿ") }
     var nothingPending: String { pick("Nothing", "ಏನೂ ಇಲ್ಲ") }
 
+    /// Somebody who has paid ahead. The mirror of `owes`, and worth saying
+    /// plainly rather than showing a negative amount the owner has to interpret.
+    func inAdvance(_ amount: String) -> String {
+        pick("\(amount) in advance", "\(amount) ಮುಂಗಡ")
+    }
+
+    // MARK: - Customers
+
+    var customersTitle: String { pick("Customers", "ಗ್ರಾಹಕರು") }
+    var addACustomer: String { pick("Add a customer", "ಗ್ರಾಹಕರನ್ನು ಸೇರಿಸಿ") }
+    var newCustomer: String { pick("New customer", "ಹೊಸ ಗ್ರಾಹಕ") }
+    var editCustomer: String { pick("Edit customer", "ಗ್ರಾಹಕರ ವಿವರ ಬದಲಿಸಿ") }
+    var customerPhone: String { pick("Phone", "ಫೋನ್") }
+    var customerPlace: String { pick("Place", "ಸ್ಥಳ") }
+    var optionalField: String { pick("Optional", "ಬೇಕಿದ್ದರೆ") }
+    var saveCustomer: String { pick("Save customer", "ಗ್ರಾಹಕರನ್ನು ಉಳಿಸಿ") }
+    var removeFromCustomers: String { pick("Remove from customers", "ಗ್ರಾಹಕರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಿರಿ") }
+    var noBillsYet: String { pick("No bills yet", "ಇನ್ನೂ ಬಿಲ್ ಇಲ್ಲ") }
+    var enterCustomerNameFirst: String { pick("Enter a name", "ಹೆಸರು ಬರೆಯಿರಿ") }
+
+    /// Said when removing a roster entry, because "remove" beside somebody's
+    /// name reads like deleting them and their history.
+    var removeCustomerNote: String {
+        pick(
+            "Their bills stay. This only takes them off the customer list.",
+            "ಅವರ ಬಿಲ್‌ಗಳು ಹಾಗೇ ಉಳಿಯುತ್ತವೆ. ಇದು ಅವರನ್ನು ಗ್ರಾಹಕರ ಪಟ್ಟಿಯಿಂದ ಮಾತ್ರ ತೆಗೆಯುತ್ತದೆ."
+        )
+    }
+
+    // MARK: - Payments
+
+    var recordAPayment: String { pick("Record a payment", "ಪಾವತಿ ದಾಖಲಿಸಿ") }
+    var amountReceived: String { pick("Amount received", "ಸ್ವೀಕರಿಸಿದ ಮೊತ್ತ") }
+    var receivedOn: String { pick("Received on", "ಸ್ವೀಕರಿಸಿದ ದಿನ") }
+    var paymentNote: String { pick("Note", "ಟಿಪ್ಪಣಿ") }
+    var paymentNoteExample: String { pick("cash, cheque…", "ನಗದು, ಚೆಕ್…") }
+    var savePayment: String { pick("Save payment", "ಪಾವತಿ ಉಳಿಸಿ") }
+    var paymentLabel: String { pick("Payment", "ಪಾವತಿ") }
+    var deleteThisPayment: String { pick("Delete this payment", "ಈ ಪಾವತಿಯನ್ನು ಅಳಿಸಿ") }
+    var enterAnAmount: String { pick("Enter an amount", "ಮೊತ್ತ ಬರೆಯಿರಿ") }
+
+    /// The one thing to know about payments in this app.
+    var paymentNotAgainstOneBill: String {
+        pick(
+            "Recorded against the customer, not one bill — the way money actually arrives at a counter.",
+            "ಒಂದು ಬಿಲ್‌ಗೆ ಅಲ್ಲ, ಗ್ರಾಹಕರ ಖಾತೆಗೆ ದಾಖಲಾಗುತ್ತದೆ — ಕೌಂಟರಿನಲ್ಲಿ ಹಣ ಬರುವುದು ಹಾಗೆಯೇ."
+        )
+    }
+
+    // MARK: - Statement
+
+    var statement: String { pick("Statement", "ಖಾತೆ ವಿವರ") }
+    var thisMonth: String { pick("This month", "ಈ ತಿಂಗಳು") }
+    var lastMonth: String { pick("Last month", "ಕಳೆದ ತಿಂಗಳು") }
+    var thisYear: String { pick("This year", "ಈ ವರ್ಷ") }
+    var chooseDates: String { pick("Choose dates", "ದಿನಾಂಕ ಆರಿಸಿ") }
+    var fromDate: String { pick("From", "ಇಂದ") }
+    var toDate: String { pick("To", "ವರೆಗೆ") }
+    var openingBalance: String { pick("Brought forward", "ಹಿಂದಿನ ಬಾಕಿ") }
+    var billedInPeriod: String { pick("Billed", "ಬಿಲ್ ಮಾಡಿದ್ದು") }
+    var receivedInPeriod: String { pick("Received", "ಸ್ವೀಕರಿಸಿದ್ದು") }
+    var closingBalance: String { pick("Balance due", "ಉಳಿದ ಬಾಕಿ") }
+    var nothingInThisPeriod: String { pick("Nothing in this period", "ಈ ಅವಧಿಯಲ್ಲಿ ಏನೂ ಇಲ್ಲ") }
+    var settledUp: String { pick("Settled up", "ಎಲ್ಲಾ ಪಾವತಿ ಆಗಿದೆ") }
+
+    /// `28 July 2026 to 27 August 2026` — the span a statement covers, written
+    /// out because a date range abbreviated with a dash is read wrong often
+    /// enough to matter on a document somebody may hand to a customer.
+    func dateSpan(from: String, to: String) -> String {
+        pick("\(from) to \(to)", "\(from) ಇಂದ \(to) ವರೆಗೆ")
+    }
+
     // MARK: - Sell
 
     var newBill: String { pick("New bill", "ಹೊಸ ಬಿಲ್") }
@@ -372,6 +444,22 @@ struct Strings {
 
     var youPay: String { pick("You pay", "ನೀವು ಕೊಡುವುದು") }
     var youSell: String { pick("You sell", "ನೀವು ಮಾರುವುದು") }
+    var nextCustomers: String { pick("Next — your customers", "ಮುಂದೆ — ನಿಮ್ಮ ಗ್ರಾಹಕರು") }
+    var yourCustomers: String { pick("Your customers", "ನಿಮ್ಮ ಗ್ರಾಹಕರು") }
+    var whoDoYouSellTo: String { pick("Who buys on account?", "ಯಾರು ಖಾತೆಯಲ್ಲಿ ಖರೀದಿಸುತ್ತಾರೆ?") }
+
+    /// Says out loud that this step is skippable, because a setup screen that
+    /// looks compulsory is where an owner gives up and types nonsense.
+    var customersSetupBody: String {
+        pick(
+            "The regulars who pay later, so their names are ready at the counter and you can print a statement. Skip this — you can add anybody while writing a bill.",
+            "ನಂತರ ಪಾವತಿಸುವ ನಿಯಮಿತ ಗ್ರಾಹಕರು — ಕೌಂಟರಿನಲ್ಲಿ ಹೆಸರು ಸಿದ್ಧವಿರುತ್ತದೆ ಮತ್ತು ಖಾತೆ ವಿವರ ತೆಗೆಯಬಹುದು. ಇದನ್ನು ಬಿಟ್ಟುಬಿಡಬಹುದು — ಬಿಲ್ ಬರೆಯುವಾಗಲೂ ಯಾರನ್ನಾದರೂ ಸೇರಿಸಬಹುದು."
+        )
+    }
+
+    var customerNameExample: String { pick("Ahmed Contracting", "ಅಹ್ಮದ್ ಕಂಟ್ರಾಕ್ಟಿಂಗ್") }
+    var noCustomersYetKicker: String { pick("Nobody added yet", "ಇನ್ನೂ ಯಾರನ್ನೂ ಸೇರಿಸಿಲ್ಲ") }
+
     var openTheShop: String { pick("Open the shop", "ಅಂಗಡಿ ತೆರೆಯಿರಿ") }
 
     var allSet: String {

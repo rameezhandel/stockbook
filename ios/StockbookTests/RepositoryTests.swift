@@ -146,6 +146,57 @@ struct RepositoryTests {
         }
     }
 
+    @Test("A customer is stored once per key, however many times it is written")
+    func customerUpsert() throws {
+        try eachRepository { repository, name in
+            try repository.upsert(CustomerRecord(name: "Ahmed", phone: "0500 111 222"))
+            // Same key, better phone number: a correction, not a second person.
+            try repository.upsert(CustomerRecord(name: "  ahmed ", phone: "0500 999 888"))
+
+            let stored = try repository.loadAll().customers
+            #expect(stored.count == 1, "\(name)")
+            #expect(stored.first?.phone == "0500 999 888", "\(name)")
+
+            try repository.delete(customerKey: "ahmed")
+            let afterDelete = try repository.loadAll().customers
+            #expect(afterDelete.isEmpty, "\(name)")
+        }
+    }
+
+    @Test("Payments append and delete by id")
+    func paymentsAppendAndDelete() throws {
+        try eachRepository { repository, name in
+            let first = Payment(customerKey: "ahmed", amount: 100)
+            let second = Payment(customerKey: "ahmed", amount: 50)
+            try repository.append(first)
+            try repository.append(second)
+
+            let both = try repository.loadAll().payments
+            #expect(both.count == 2, "\(name)")
+
+            try repository.delete(paymentID: first.id)
+            let left = try repository.loadAll().payments
+            #expect(left.map(\.amount) == [50], "\(name)")
+        }
+    }
+
+    @Test("replaceAll takes the roster and the payments with it")
+    func replaceAllCoversTheRoster() throws {
+        try eachRepository { repository, name in
+            try repository.upsert(CustomerRecord(name: "Old Customer"))
+            try repository.append(Payment(customerKey: "old customer", amount: 10))
+
+            try repository.replaceAll(with: ShopState(
+                customers: [CustomerRecord(name: "New Customer")],
+                payments: []
+            ))
+
+            let state = try repository.loadAll()
+            #expect(state.customers.map(\.name) == ["New Customer"], "\(name)")
+            #expect(state.payments.isEmpty, "\(name): the old payments must not survive")
+        }
+    }
+
     // MARK: File-backed specifics
 
     @Test("The JSON file survives being reopened")

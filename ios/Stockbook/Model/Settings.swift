@@ -89,7 +89,46 @@ struct Settings: Codable, Equatable {
 struct ShopState: Codable, Equatable {
     var products: [Product] = []
     var bills: [Bill] = []
+
+    /// The customer roster: typed-in facts only. Figures are derived from
+    /// `bills` and `payments` every time they are asked for.
+    var customers: [CustomerRecord] = []
+
+    /// Money received after the bill was written.
+    var payments: [Payment] = []
+
     var settings: Settings = Settings()
 
     static let empty = ShopState()
+
+    init(
+        products: [Product] = [],
+        bills: [Bill] = [],
+        customers: [CustomerRecord] = [],
+        payments: [Payment] = [],
+        settings: Settings = Settings()
+    ) {
+        self.products = products
+        self.bills = bills
+        self.customers = customers
+        self.payments = payments
+        self.settings = settings
+    }
+
+    /// Written by hand for the same reason `Settings` is, and it matters more
+    /// here: this is the whole shop.
+    ///
+    /// A default value does **not** make the synthesised decoder tolerate a
+    /// missing key — it throws. `customers` and `payments` arrived after v1
+    /// shipped, so without this every shop already on a phone would fail to load
+    /// the moment the owner took the update, and the app would come up empty
+    /// beside an intact file it had decided it could not read.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        products = try container.decodeIfPresent([Product].self, forKey: .products) ?? []
+        bills = try container.decodeIfPresent([Bill].self, forKey: .bills) ?? []
+        customers = try container.decodeIfPresent([CustomerRecord].self, forKey: .customers) ?? []
+        payments = try container.decodeIfPresent([Payment].self, forKey: .payments) ?? []
+        settings = try container.decodeIfPresent(Settings.self, forKey: .settings) ?? Settings()
+    }
 }

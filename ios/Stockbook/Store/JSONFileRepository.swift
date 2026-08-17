@@ -98,6 +98,30 @@ final class JSONFileRepository: StockbookRepository {
         try persist()
     }
 
+    func upsert(_ customer: CustomerRecord) throws {
+        if let index = state.customers.firstIndex(where: { $0.key == customer.key }) {
+            state.customers[index] = customer
+        } else {
+            state.customers.append(customer)
+        }
+        try persist()
+    }
+
+    func delete(customerKey: String) throws {
+        state.customers.removeAll { $0.key == customerKey }
+        try persist()
+    }
+
+    func append(_ payment: Payment) throws {
+        state.payments.append(payment)
+        try persist()
+    }
+
+    func delete(paymentID: UUID) throws {
+        state.payments.removeAll { $0.id == paymentID }
+        try persist()
+    }
+
     func save(_ settings: Settings) throws {
         state.settings = settings
         try persist()
@@ -155,6 +179,24 @@ final class InMemoryRepository: StockbookRepository {
     func update(_ bill: Bill) throws {
         guard let index = state.bills.firstIndex(where: { $0.number == bill.number }) else { return }
         state.bills[index] = bill
+    }
+
+    func upsert(_ customer: CustomerRecord) throws {
+        if let index = state.customers.firstIndex(where: { $0.key == customer.key }) {
+            state.customers[index] = customer
+        } else {
+            state.customers.append(customer)
+        }
+    }
+
+    func delete(customerKey: String) throws {
+        state.customers.removeAll { $0.key == customerKey }
+    }
+
+    func append(_ payment: Payment) throws { state.payments.append(payment) }
+
+    func delete(paymentID: UUID) throws {
+        state.payments.removeAll { $0.id == paymentID }
     }
 
     func save(_ settings: Settings) throws { state.settings = settings }

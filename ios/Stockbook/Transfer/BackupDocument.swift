@@ -15,7 +15,14 @@ import Foundation
 struct BackupDocument: Codable, Equatable {
 
     /// The format this build writes.
-    static let currentVersion = 1
+    ///
+    /// Bumped to 2 when payments arrived, and that bump is the point of rule 2
+    /// above. `customers` a v1 reader could safely ignore — it would lose an
+    /// address book. `payments` it could not: money received after a bill is what
+    /// makes an outstanding balance go down, so a build that ignored them would
+    /// read this file and confidently tell the owner that customers who have
+    /// settled up still owe. Better that build refuses the file and says so.
+    static let currentVersion = 2
 
     var version: Int = BackupDocument.currentVersion
     var exportedAt: Date
@@ -28,6 +35,29 @@ struct BackupDocument: Codable, Equatable {
     var currencyCode: String? = nil
     var products: [ProductRecord]
     var bills: [BillRecord]
+
+    /// Optional so a v1 file — which has neither key — still decodes. Absent and
+    /// empty mean the same thing here, which is why nothing distinguishes them.
+    var customers: [CustomerRecordRow]? = nil
+    var payments: [PaymentRow]? = nil
+
+    struct CustomerRecordRow: Codable, Equatable {
+        /// Written out rather than re-derived on import, so a future change to the
+        /// keying rule cannot silently re-file everybody's history.
+        var key: String
+        var name: String
+        var phone: String?
+        var place: String?
+        var createdAt: Date
+    }
+
+    struct PaymentRow: Codable, Equatable {
+        var id: UUID
+        var customerKey: String
+        var amount: Double
+        var receivedAt: Date
+        var note: String?
+    }
 
     struct ProductRecord: Codable, Equatable {
         var uid: UUID

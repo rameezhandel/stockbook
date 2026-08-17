@@ -32,8 +32,24 @@ protocol StockbookRepository {
     /// Bills are only ever appended. Nothing rewrites history.
     func append(_ bill: Bill) throws
 
-    /// Matched on `number`. In practice only voiding uses this.
+    /// Matched on `number`. In practice voiding uses this, and so does renaming a
+    /// customer — which is the one other thing allowed to touch a saved bill.
     func update(_ bill: Bill) throws
+
+    // MARK: Customers
+
+    /// Insert or update, matched on `key`.
+    func upsert(_ customer: CustomerRecord) throws
+
+    /// Removes the roster entry only. The customer's bills are history and stay
+    /// exactly where they are, which is why this takes a key rather than
+    /// pretending to delete a person.
+    func delete(customerKey: String) throws
+
+    // MARK: Payments
+
+    func append(_ payment: Payment) throws
+    func delete(paymentID: UUID) throws
 
     // MARK: Settings
 

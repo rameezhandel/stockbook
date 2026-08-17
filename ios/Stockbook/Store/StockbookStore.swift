@@ -17,6 +17,15 @@ final class StockbookStore {
 
     private(set) var products: [Product] = []
     private(set) var bills: [Bill] = []
+
+    /// The roster: typed-in facts about customers. Named for the record rather
+    /// than the person because `customers()` is the thing views want — that one
+    /// merges these with what history says.
+    private(set) var customerRecords: [CustomerRecord] = []
+
+    /// Money received after the bill, newest first.
+    private(set) var payments: [Payment] = []
+
     private(set) var settings: Settings = Settings()
 
     /// Set when the disk refuses a write. Nothing in the UI surfaces it yet;
@@ -35,6 +44,8 @@ final class StockbookStore {
             let state = try repository.loadAll()
             products = state.products.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
             bills = state.bills.sorted { $0.createdAt > $1.createdAt }
+            customerRecords = state.customers.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+            payments = state.payments.sorted { $0.receivedAt > $1.receivedAt }
             settings = state.settings
             L10n.use(settings.language)
         } catch {
@@ -222,6 +233,14 @@ final class StockbookStore {
     /// Grouped by `Customer.key`, so case and stray spaces do not split one
     /// person into two. `bills` is newest-first, so the first spelling seen is
     /// the most recent one and that is the one shown.
+    ///
+    /// **The roster and history are merged, not chosen between.** Somebody
+    /// entered during setup who has never bought anything is a customer with no
+    /// bills; a name typed at the counter that nobody ever added to the roster is
+    /// a customer too. Losing either would be worse than showing both.
+    ///
+    /// Where a roster entry exists its spelling wins, because it was typed on
+    /// purpose rather than in a hurry with a customer waiting.
     func customers() -> [Customer] {
         var order: [String] = []
         var book: [String: (name: String, count: Int, total: Double, owed: Double)] = [:]
@@ -239,13 +258,189 @@ final class StockbookStore {
             }
         }
 
+        // Payments come off what is owed. Without this the Bills filter, the
+        // Today banner and every statement would go on claiming money that is
+        // already in the till.
+        for payment in payments {
+            if var entry = book[payment.customerKey] {
+                entry.owed -= payment.amount
+                book[payment.customerKey] = entry
+            }
+        }
+
+        let roster = Dictionary(uniqueKeysWithValues: customerRecords.map { ($0.key, $0) })
+        for record in customerRecords where book[record.key] == nil {
+            order.append(record.key)
+            book[record.key] = (record.name, 0, 0, 0)
+        }
+
         return order
-            .compactMap { key in
-                book[key].map {
-                    Customer(name: $0.name, key: key, billCount: $0.count, total: $0.total, owed: $0.owed)
-                }
+            .compactMap { key -> Customer? in
+                guard let entry = book[key] else { return nil }
+                let record = roster[key]
+                return Customer(
+                    name: record?.name ?? entry.name,
+                    key: key,
+                    billCount: entry.count,
+                    total: entry.total,
+                    // Rounded because netting payments off balances in binary
+                    // floating point otherwise leaves a customer owing
+                    // 0.000000001 and the UI saying they owe money.
+                    owed: (entry.owed * 100).rounded() / 100,
+                    phone: record?.phone,
+                    place: record?.place,
+                    isOnRoster: record != nil
+                )
             }
             .sorted { $0.owed != $1.owed ? $0.owed > $1.owed : $0.billCount > $1.billCount }
+    }
+
+    /// One customer by key, roster figures and all.
+    func customer(key: String) -> Customer? {
+        customers().first { $0.key == key }
+    }
+
+    /// Adds a customer to the roster. A key already present is updated rather
+    /// than duplicated — typing a name that is already there is a correction, not
+    /// a second person.
+    ///
+    /// Returns nil for a blank name, the way the product editor treats an empty
+    /// form: nothing typed means nothing to do.
+    @discardableResult
+    func addCustomer(name: String, phone: String? = nil, place: String? = nil) -> CustomerRecord? {
+        guard !name.isBlank else { return nil }
+        let record = CustomerRecord(name: name, phone: phone, place: place)
+        if let index = customerRecords.firstIndex(where: { $0.key == record.key }) {
+            var existing = customerRecords[index]
+            existing.name = record.name
+            existing.phone = record.phone
+            existing.place = record.place
+            customerRecords[index] = existing
+            attempt { try repository.upsert(existing) }
+            return existing
+        }
+        customerRecords.append(record)
+        attempt { try repository.upsert(record) }
+        return record
+    }
+
+    /// Corrects the facts about a customer already on the roster.
+    ///
+    /// A name changed enough to change its key is a **rename**, and a rename
+    /// rewrites `who` on that customer's bills. That is the one case where a
+    /// saved bill is edited, and it is right: the alternative is the roster
+    /// saying "Ahmed Contracting" while their bills are filed under "ahmed" and
+    /// the two never meeting again. What a bill records about *money* is still
+    /// untouchable.
+    func updateCustomer(key: String, name: String, phone: String?, place: String?) {
+        guard !name.isBlank, let index = customerRecords.firstIndex(where: { $0.key == key }) else { return }
+        let newKey = Customer.key(for: name)
+
+        var record = customerRecords[index]
+        record.name = name.trimmed
+        record.phone = CustomerRecord.tidied(phone)
+        record.place = CustomerRecord.tidied(place)
+
+        guard newKey != key else {
+            customerRecords[index] = record
+            attempt { try repository.upsert(record) }
+            return
+        }
+
+        // Renamed. Move the roster entry, then bring the bills and payments with
+        // it so nothing is left filed under a name that no longer exists.
+        record.key = newKey
+        customerRecords.remove(at: index)
+        if let clash = customerRecords.firstIndex(where: { $0.key == newKey }) {
+            // Renamed onto somebody who is already there: one person, not two.
+            customerRecords.remove(at: clash)
+            attempt { try repository.delete(customerKey: newKey) }
+        }
+        customerRecords.append(record)
+        attempt {
+            try repository.delete(customerKey: key)
+            try repository.upsert(record)
+        }
+
+        for (index, bill) in bills.enumerated() where Customer.key(for: bill.who) == key {
+            var moved = bill
+            moved.who = record.name
+            bills[index] = moved
+            attempt { try repository.update(moved) }
+        }
+
+        for (index, payment) in payments.enumerated() where payment.customerKey == key {
+            var moved = payment
+            moved.customerKey = newKey
+            payments[index] = moved
+            // Payments are appended, not updated, so the move is a delete and a
+            // re-append of the same record — its `id` is unchanged either way.
+            attempt {
+                try repository.delete(paymentID: payment.id)
+                try repository.append(moved)
+            }
+        }
+    }
+
+    /// Takes a customer off the roster. Their bills and payments stay: this
+    /// forgets the address book entry, not the trading history.
+    func removeCustomer(key: String) {
+        customerRecords.removeAll { $0.key == key }
+        attempt { try repository.delete(customerKey: key) }
+    }
+
+    // MARK: - Payments
+
+    /// Records money handed over after the bill.
+    ///
+    /// Not allocated to a particular bill, because that is not how a counter
+    /// works: somebody pays what they can against what they owe. A zero or
+    /// negative amount is a no-op rather than an error — the sheet treats an
+    /// empty box as "close without doing anything", the same as restock.
+    @discardableResult
+    func recordPayment(
+        customerKey: String,
+        amount: Double,
+        receivedAt: Date = .now,
+        note: String? = nil
+    ) -> Payment? {
+        guard amount > 0, !customerKey.isEmpty else { return nil }
+        let payment = Payment(
+            customerKey: customerKey,
+            amount: amount,
+            receivedAt: receivedAt,
+            note: note
+        )
+        payments.append(payment)
+        payments.sort { $0.receivedAt > $1.receivedAt }
+        attempt { try repository.append(payment) }
+        return payment
+    }
+
+    func deletePayment(id: UUID) {
+        payments.removeAll { $0.id == id }
+        attempt { try repository.delete(paymentID: id) }
+    }
+
+    func payments(forCustomer key: String) -> [Payment] {
+        self.payments.filter { $0.customerKey == key }
+    }
+
+    // MARK: - Statements
+
+    /// One customer's account over a period.
+    ///
+    /// The arithmetic is in `Statement.make`, which takes plain arrays — this only
+    /// decides which arrays. That is what keeps the figures testable without a
+    /// store, a repository or a screen.
+    func statement(forCustomer key: String, period: StatementPeriod) -> Statement? {
+        guard let customer = customer(key: key) else { return nil }
+        return Statement.make(
+            customer: customer,
+            bills: bills(forCustomer: key),
+            payments: payments(forCustomer: key),
+            period: period
+        )
     }
 
     /// Every bill for one customer, voided ones included — history is never
@@ -302,6 +497,8 @@ final class StockbookStore {
     func startOver() {
         products = []
         bills = []
+        customerRecords = []
+        payments = []
         // Everything goes except the language. Wiping the shop is a data
         // decision; being handed setup in a language you cannot read is not one
         // the owner asked for.
@@ -348,12 +545,32 @@ final class StockbookStore {
                     voided: record.voided
                 )
             },
+            customers: document.customers?.map {
+                CustomerRecord(
+                    key: $0.key,
+                    name: $0.name,
+                    phone: $0.phone,
+                    place: $0.place,
+                    createdAt: $0.createdAt
+                )
+            } ?? [],
+            payments: document.payments?.map {
+                Payment(
+                    id: $0.id,
+                    customerKey: $0.customerKey,
+                    amount: $0.amount,
+                    receivedAt: $0.receivedAt,
+                    note: $0.note
+                )
+            } ?? [],
             settings: restored
         )
 
         attempt { try repository.replaceAll(with: state) }
         products = state.products.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
         bills = state.bills.sorted { $0.createdAt > $1.createdAt }
+        customerRecords = state.customers.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+        payments = state.payments.sorted { $0.receivedAt > $1.receivedAt }
         settings = restored
     }
 
@@ -378,6 +595,24 @@ final class StockbookStore {
                     lines: bill.lines.map {
                         BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price)
                     }
+                )
+            },
+            customers: customerRecords.map {
+                BackupDocument.CustomerRecordRow(
+                    key: $0.key,
+                    name: $0.name,
+                    phone: $0.phone,
+                    place: $0.place,
+                    createdAt: $0.createdAt
+                )
+            },
+            payments: payments.map {
+                BackupDocument.PaymentRow(
+                    id: $0.id,
+                    customerKey: $0.customerKey,
+                    amount: $0.amount,
+                    receivedAt: $0.receivedAt,
+                    note: $0.note
                 )
             }
         )

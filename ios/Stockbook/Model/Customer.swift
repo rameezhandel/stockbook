@@ -31,8 +31,21 @@ struct Customer: Identifiable, Hashable, Sendable {
     /// What they have bought, across live bills.
     let total: Double
 
-    /// What they still owe, across live bills.
+    /// What they still owe: unpaid balances on live bills, **less every payment
+    /// received since**. Can go negative when somebody pays ahead, and is left
+    /// signed rather than floored — an advance is real money and hiding it would
+    /// make the next statement look wrong.
     let owed: Double
+
+    /// Typed-in facts, present only for a customer on the roster. A name that
+    /// only ever appeared on a bill has none, and is still a customer.
+    let phone: String?
+    let place: String?
+
+    /// On the roster rather than merely seen on a bill. The two are shown
+    /// identically; this exists so the editor knows whether it is adding or
+    /// correcting.
+    let isOnRoster: Bool
 
     var id: String { key }
 
@@ -42,8 +55,16 @@ struct Customer: Identifiable, Hashable, Sendable {
         name.trimmed.lowercased()
     }
 
-    /// `owes SAR 40` when they owe, otherwise `3 bills`.
+    /// `owes SAR 40` when they owe, `SAR 40 in advance` when they have paid ahead,
+    /// otherwise `3 bills`.
     func meta(in currency: Currency, strings: Strings) -> String {
-        owed > 0 ? strings.owes(Money.text(owed, in: currency)) : strings.bills(billCount)
+        if owed > 0 { return strings.owes(Money.text(owed, in: currency)) }
+        if owed < 0 { return strings.inAdvance(Money.text(-owed, in: currency)) }
+        return strings.bills(billCount)
     }
+
+    /// A customer entered on the roster who has never been billed. Not an error
+    /// — that is what the setup screen exists to create — but the difference
+    /// between "no bills yet" and "nothing outstanding" is worth drawing.
+    var hasHistory: Bool { billCount > 0 }
 }
