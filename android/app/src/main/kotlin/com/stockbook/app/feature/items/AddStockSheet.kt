@@ -40,6 +40,7 @@ import com.stockbook.app.design.SheetHeader
 import com.stockbook.app.design.hairline
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Product
+import com.stockbook.core.model.ShopState
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.RestockMode
 import com.stockbook.core.store.StockbookStore
@@ -56,6 +57,8 @@ import com.stockbook.core.text.Strings
 @Composable
 fun AddStockSheet(
     product: Product,
+    /** Passed so the supplier list below recomposes when one is added. */
+    state: ShopState,
     store: StockbookStore,
     currency: Currency,
     strings: Strings,
@@ -97,6 +100,7 @@ fun AddStockSheet(
             SupplierPicker(
                 typed = supplier,
                 chosenKey = supplierKey,
+                state = state,
                 store = store,
                 currency = currency,
                 strings = strings,
@@ -248,6 +252,7 @@ private fun ModePill(
 private fun SupplierPicker(
     typed: String,
     chosenKey: String?,
+    state: ShopState,
     store: StockbookStore,
     currency: Currency,
     strings: Strings,
@@ -255,7 +260,9 @@ private fun SupplierPicker(
     onChoose: (Supplier) -> Unit
 ) {
     val query = Supplier.key(typed)
-    val everyone = store.suppliers()
+    // Keyed on the state, not read off the store bare: `suppliers()` is a plain
+    // function over a StateFlow's current value and subscribes to nothing.
+    val everyone = remember(state) { store.suppliers() }
     val matches = if (chosenKey != null) emptyList() else everyone.filter { query.isEmpty() || it.key.contains(query) }
     val canCreate = chosenKey == null && query.isNotEmpty() && everyone.none { it.key == query }
 

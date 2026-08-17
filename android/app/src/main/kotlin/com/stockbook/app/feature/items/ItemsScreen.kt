@@ -126,6 +126,12 @@ fun ItemsScreen(
             // up. The customer half sits under Bills for the same reason.
             item {
                 SupplierSection(
+                    // Passed rather than read off the store inside: `suppliers()`
+                    // is a plain function over a StateFlow's current value, so it
+                    // subscribes to nothing. Taking the state as a parameter is
+                    // what makes this recompose when a delivery is recorded — the
+                    // same mistake the cart's customer list made once.
+                    state = state,
                     store = store,
                     router = router,
                     currency = currency,
@@ -196,13 +202,14 @@ private fun ProductRow(
  */
 @Composable
 private fun SupplierSection(
+    state: ShopState,
     store: StockbookStore,
     router: AppRouter,
     currency: Currency,
     strings: Strings,
     modifier: Modifier = Modifier
 ) {
-    val suppliers = store.suppliers()
+    val suppliers = remember(state) { store.suppliers() }
     var chosen by remember { mutableStateOf<String?>(null) }
     val selected = chosen?.let { key -> suppliers.firstOrNull { it.key == key } }
 
@@ -236,7 +243,7 @@ private fun SupplierSection(
 
         if (selected == null) {
             Spacer(Modifier.height(8.dp))
-            val (names, total) = store.payable()
+            val (names, total) = remember(state) { store.payable() }
             Text(
                 if (names.isEmpty()) strings.nothingOwedOut
                 else "${strings.owedToSuppliers}: ${Money.text(total, currency)}",

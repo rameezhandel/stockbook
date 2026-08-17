@@ -272,6 +272,7 @@ private fun Shell(store: StockbookStore) {
             router.addStock?.let { product ->
                 AddStockSheet(
                     product = product,
+                    state = state,
                     store = store,
                     currency = state.settings.currency,
                     strings = strings,
