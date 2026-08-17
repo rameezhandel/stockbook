@@ -379,8 +379,24 @@ both it and setup step 3.
 - **Bills** — full history newest-first, with the muted treatment on voided
   ones, and a customer filter. Tapping any bill on Bills or Today opens it as a
   document.
-- **Customers** — derived from bills, never stored. Filtering Bills to one
-  shows what they have bought and what they still owe.
+- **Customers** — a stored roster of the typed-in facts (name, phone, place)
+  merged with the figures derived from history, keyed case-insensitively so
+  `"ahmed "` and `"Ahmed"` are one person. Entered during setup's optional fourth
+  step or added from the Bills filter, and never required: a name typed at the
+  counter is a customer too. Filtering Bills to one shows what they have bought
+  and what they still owe.
+- **Payments received after the bill** — their own records, attached to a
+  customer rather than to an invoice, because that is how a counter settles.
+  They come off what is owed, so the Bills filter and the Today banner stop
+  claiming money already in the till. A mistyped one is deleted from the
+  statement in two taps; unlike a bill there is nothing to void, since a payment
+  is one number and one date.
+- **Statements** — a full-screen document per customer: quick chips for this
+  month, last month and this year plus a date range, the balance brought forward
+  from everything earlier, every bill and payment in date order with a running
+  balance beside each line, and the period's totals. Shareable as plain text.
+  `Statement.make` is a pure function of bills and payments, so the arithmetic is
+  checked against literal figures rather than by reading a screen.
 - **The bill itself** — `BillTemplate`: letterhead, number, date, customer,
   every line with its arithmetic, total and what is owed. One view, used both
   by the confirmation after saving and by the sheet that opens from history, so
@@ -420,10 +436,18 @@ construction:
   any SwiftUI body renders — the screenshots are for looking at, not for failing
   a build.
 
-**Not built, and not to be built without asking:** low-stock alerts, a customer
-ledger, returns, bill editing beyond void, printable receipts, barcode scanning,
-product photos, multi-user, VAT, reporting, and weighted-average costing. All
-were considered and deliberately cut.
+- **Payments are not allocated to particular bills.** They land against the
+  customer's account, which is how somebody paying what they can against what
+  they owe actually behaves — but it means "which invoices has Ahmed cleared" is
+  not answerable. Allocation would be a fiction the owner then has to maintain.
+
+**Not built, and not to be built without asking:** low-stock alerts, returns,
+bill editing beyond void, printable receipts, barcode scanning, product photos,
+multi-user, VAT, reporting, and weighted-average costing. All were considered and
+deliberately cut. *(A customer ledger was on this list and has since been built —
+see Customers, Payments and Statements above. Reading a paper bill with the
+camera was built and then removed; the diagnosis is in the `Remove bill scanning`
+commit.)*
 
 ## Tests
 

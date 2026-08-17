@@ -98,13 +98,17 @@ live here.
 
 Everything the iOS app does.
 
-- **The whole domain**, with 66 tests: products, bills, voiding, restock,
-  customers and their case-insensitive identity, money in fourteen currencies,
+- **The whole domain**, with 108 tests: products, bills, voiding, restock,
+  customers and their case-insensitive identity, the stored roster and the
+  payments that come off what is owed, statement periods and their arithmetic,
+  money in fourteen currencies,
   English and Kannada, the storage seam with two implementations run against one
   contract suite, and the backup format including its compatibility with iOS.
-- **All four tabs** — Today, Items, Sell and Bills — plus first-run setup, the
-  product editor and add-stock sheets, the receipt, the bill document, the
-  customer filter, Settings and the backup handoff.
+- **All four tabs** — Today, Items, Sell and Bills — plus first-run setup and
+  its optional fourth step for customers, the product editor and add-stock
+  sheets, the customer editor, the record-a-payment sheet, the statement
+  document, the receipt, the bill document, the customer filter, Settings and the
+  backup handoff.
 - The design system: palette, named type roles, metrics, motion, and the
   Phosphor-to-Material icon map.
 - CI that runs the domain tests and ships an installable APK.
@@ -119,6 +123,7 @@ difference is worth recording rather than quietly enjoying:
 | Keyboard must not move the layout | four screen-level declarations, found one bug at a time | `windowSoftInputMode="adjustNothing"`, once, in the manifest |
 | Next/Done between fields | a screen-level focus router and a hand-built toolbar, because a numeric keypad has no return key | `ImeAction.Next` on the field |
 | Getting it on the phone | developer account, API key, signing, TestFlight, ~20 minutes | download the CI artifact and tap it |
+| A new field on a stored type | the synthesised decoder throws on a missing key even with a default, so every shop already on a phone fails to load — `ShopState` decodes by hand | kotlinx.serialization applies the default; nothing to write |
 
 The bottom sheet is hand-drawn on both, for the same reason: the design
 specifies a scrim, top-corner-only rounding, a 38×4 handle and an 84% maximum
@@ -128,5 +133,11 @@ height, and neither platform's stock sheet exposes those.
 
 - **Nothing asserts what a screen renders.** The domain is covered; the Compose
   layer is checked by compiling and by looking at it. Same position as iOS.
+- **The date picker is Material's own dialog** — the one place in this app where
+  stock chrome shows through. iOS has a compact inline picker that sits in the
+  design; Compose does not, and reimplementing a calendar to avoid one dialog is
+  not a trade worth making.
+- **Payments are not allocated to particular bills**, the same deliberate
+  limitation the iOS README explains.
 - **The launcher icon is a placeholder** — a mark, not the iOS icon redrawn for
   Android's adaptive shapes.

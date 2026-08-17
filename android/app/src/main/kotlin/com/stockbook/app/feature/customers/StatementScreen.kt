@@ -23,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -94,6 +95,15 @@ fun StatementScreen(
     }
     var to by remember { mutableStateOf(Timestamps.now()) }
 
+    /**
+     * The payment the owner has tapped, waiting for a second tap to remove.
+     *
+     * A mistyped payment would otherwise misstate a customer's balance for good —
+     * and unlike a bill, a payment has nothing to void: it is one number and one
+     * date, so the honest correction is to delete it and enter it again.
+     */
+    var deleting by remember { mutableStateOf<String?>(null) }
+
     val period = when (choice) {
         Choice.THIS_MONTH -> StatementPeriod.thisMonth()
         Choice.LAST_MONTH -> StatementPeriod.lastMonth()
@@ -102,6 +112,10 @@ fun StatementScreen(
     }
 
     val statement = store.statementForCustomer(customerKey, period)
+
+    // A period change re-draws the whole document; a row still armed for deletion
+    // in the old one would be armed against a row that has moved.
+    LaunchedEffect(choice) { deleting = null }
 
     Column(
         modifier = Modifier
@@ -137,7 +151,17 @@ fun StatementScreen(
             if (statement != null) {
                 Spacer(Modifier.height(10.dp))
                 ContactLine(statement.customer)
-                Document(statement, currency, strings)
+                Document(
+                    statement = statement,
+                    currency = currency,
+                    strings = strings,
+                    deleting = deleting,
+                    onArm = { deleting = it },
+                    onDelete = { id ->
+                        store.deletePayment(id)
+                        deleting = null
+                    }
+                )
                 Spacer(Modifier.height(10.dp))
                 SecondaryButton(
                     strings.share,
@@ -259,7 +283,14 @@ private fun ContactLine(customer: Customer) {
 }
 
 @Composable
-private fun Document(statement: Statement, currency: Currency, strings: Strings) {
+private fun Document(
+    statement: Statement,
+    currency: Currency,
+    strings: Strings,
+    deleting: String?,
+    onArm: (String?) -> Unit,
+    onDelete: (String) -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -288,7 +319,15 @@ private fun Document(statement: Statement, currency: Currency, strings: Strings)
             )
         } else {
             statement.entries.forEachIndexed { index, entry ->
-                EntryRow(entry, statement.runningBalances[index], currency, strings)
+                EntryRow(
+                    entry = entry,
+                    balance = statement.runningBalances[index],
+                    currency = currency,
+                    strings = strings,
+                    deleting = deleting,
+                    onArm = onArm,
+                    onDelete = onDelete
+                )
                 if (index < statement.entries.lastIndex) Spacer(Modifier.height(10.dp))
             }
         }
@@ -336,53 +375,86 @@ private fun Figure(label: String, value: String, muted: Boolean = false) {
 }
 
 @Composable
-private fun EntryRow(entry: Statement.Entry, balance: Double, currency: Currency, strings: Strings) {
-    Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.weight(1f)) {
-            when (entry) {
-                is Statement.Entry.ForBill -> {
-                    Text(
-                        strings.billNumber(entry.bill.number),
-                        style = NocturneType.inter(13.0),
-                        color = if (entry.bill.voided) Nocturne.neutral500 else Nocturne.text
-                    )
-                    Text(
-                        if (entry.bill.voided) strings.voided else entry.bill.summary,
-                        style = NocturneType.meta,
-                        color = Nocturne.neutral500,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                is Statement.Entry.ForPayment -> {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Glyph(Icon.confirm, size = 10.dp, tint = Nocturne.accent400)
-                        Spacer(Modifier.width(5.dp))
-                        Text(strings.paymentLabel, style = NocturneType.inter(13.0), color = Nocturne.accent400)
-                    }
-                    entry.payment.note?.let {
-                        Text(it, style = NocturneType.meta, color = Nocturne.neutral500)
-                    }
-                }
-            }
-            Text(strings.longDate(entry.date), style = NocturneType.meta, color = Nocturne.neutral500)
-        }
-
-        Spacer(Modifier.width(6.dp))
-
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                amountText(entry, currency),
-                style = NocturneType.inter(13.0),
-                color = when (entry) {
-                    is Statement.Entry.ForBill ->
-                        if (entry.bill.voided) Nocturne.neutral500 else Nocturne.text
-                    is Statement.Entry.ForPayment -> Nocturne.accent400
+private fun EntryRow(
+    entry: Statement.Entry,
+    balance: Double,
+    currency: Currency,
+    strings: Strings,
+    deleting: String?,
+    onArm: (String?) -> Unit,
+    onDelete: (String) -> Unit
+) {
+    val payment = (entry as? Statement.Entry.ForPayment)?.payment
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            // Only a payment. A bill is **voided**, never deleted, and voiding
+            // lives inside the opened bill where it belongs — offering deletion
+            // beside it here would be a second, worse route to the same history.
+            .then(
+                if (payment == null) Modifier
+                else Modifier.clickable {
+                    onArm(if (deleting == payment.id) null else payment.id)
                 }
             )
-            // The running balance beside every line: the column that turns a list
-            // into a statement somebody can check.
-            Text(Money.text(balance, currency), style = NocturneType.meta, color = Nocturne.neutral500)
+    ) {
+        Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.weight(1f)) {
+                when (entry) {
+                    is Statement.Entry.ForBill -> {
+                        Text(
+                            strings.billNumber(entry.bill.number),
+                            style = NocturneType.inter(13.0),
+                            color = if (entry.bill.voided) Nocturne.neutral500 else Nocturne.text
+                        )
+                        Text(
+                            if (entry.bill.voided) strings.voided else entry.bill.summary,
+                            style = NocturneType.meta,
+                            color = Nocturne.neutral500,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    is Statement.Entry.ForPayment -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Glyph(Icon.confirm, size = 10.dp, tint = Nocturne.accent400)
+                            Spacer(Modifier.width(5.dp))
+                            Text(strings.paymentLabel, style = NocturneType.inter(13.0), color = Nocturne.accent400)
+                        }
+                        entry.payment.note?.let {
+                            Text(it, style = NocturneType.meta, color = Nocturne.neutral500)
+                        }
+                    }
+                }
+                Text(strings.longDate(entry.date), style = NocturneType.meta, color = Nocturne.neutral500)
+            }
+
+            Spacer(Modifier.width(6.dp))
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    amountText(entry, currency),
+                    style = NocturneType.inter(13.0),
+                    color = when (entry) {
+                        is Statement.Entry.ForBill ->
+                            if (entry.bill.voided) Nocturne.neutral500 else Nocturne.text
+                        is Statement.Entry.ForPayment -> Nocturne.accent400
+                    }
+                )
+                // The running balance beside every line: the column that turns a list
+                // into a statement somebody can check.
+                Text(Money.text(balance, currency), style = NocturneType.meta, color = Nocturne.neutral500)
+            }
+        }
+
+        if (payment != null && deleting == payment.id) {
+            Spacer(Modifier.height(7.dp))
+            GhostButton(
+                strings.deleteThisPayment,
+                onClick = { onDelete(payment.id) },
+                fontSize = 12.0,
+                tint = Nocturne.neutral500
+            )
         }
     }
 }

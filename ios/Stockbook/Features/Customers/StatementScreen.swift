@@ -26,6 +26,13 @@ struct StatementScreen: View {
     }
 
     @State private var choice: Choice = .thisMonth
+
+    /// The payment the owner has tapped, waiting for a second tap to remove.
+    ///
+    /// A mistyped payment would otherwise misstate a customer's balance for good
+    /// — and unlike a bill, a payment has nothing to void: it is one number and
+    /// one date, so the honest correction is to delete it and enter it again.
+    @State private var deleting: UUID?
     @State private var from = Calendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now
     @State private var to = Date.now
 
@@ -70,6 +77,9 @@ struct StatementScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Nocturne.bg.ignoresSafeArea())
         .motion(Motion.list, value: choice)
+        // A period change re-draws the whole document; a row still armed for
+        // deletion in the old one would be armed against a row that has moved.
+        .onChange(of: choice) { _, _ in deleting = nil }
     }
 
     // MARK: Period
@@ -198,6 +208,31 @@ struct StatementScreen: View {
 
     @ViewBuilder
     private func entryRow(_ entry: Statement.Entry, balance: Double) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            entryLine(entry, balance: balance)
+
+            // Only a payment. A bill is **voided**, never deleted, and voiding
+            // lives inside the opened bill where it belongs — offering deletion
+            // beside it here would be a second, worse route to the same history.
+            if case .payment(let payment) = entry, deleting == payment.id {
+                Button(Loc.deleteThisPayment) {
+                    store.deletePayment(id: payment.id)
+                    deleting = nil
+                }
+                .buttonStyle(.ghostMuted)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard case .payment(let payment) = entry else { return }
+            withAnimation(Metrics.quick) {
+                deleting = deleting == payment.id ? nil : payment.id
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func entryLine(_ entry: Statement.Entry, balance: Double) -> some View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 switch entry {
