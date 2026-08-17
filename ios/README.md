@@ -80,7 +80,7 @@ a relaunch.
 
 **Required-empty marking has two modes.** A handful of fields marked at once
 reads as a checklist; twelve do not. The product editor marks immediately, as
-specified. Setup step 3 waits until a field has been visited and left empty —
+specified. Setup step 4 waits until a field has been visited and left empty —
 otherwise four products means twelve accent outlines on arrival, which reads as
 twelve errors before the owner has done anything. The footer's gate line carries
 the message until then.
@@ -91,7 +91,7 @@ be asserted without a simulator. Its one guarantee: a document only ever comes
 out of `confirm()`, and only from `picked` — so a corrupt file, a cancel, or a
 second tap cannot reach `replaceEverything`.
 
-**Setup is a draft, not a partial shop.** Nothing entered during the three
+**Setup is a draft, not a partial shop.** Nothing entered during the four
 steps touches the database until "Open the shop" — a half-finished setup should
 leave nothing behind to reconcile. `RootView` shows the flow whenever
 `ShopSettings.setupCompleted` is false, which is also what "Start over" clears,
@@ -120,26 +120,37 @@ rather than a navigation one.
 
 ### Customers
 
-There is no customer record. A bill carries a name, and `Customer` is assembled
-from history whenever it is asked for — which at this size is free, and means a
-customer can never go stale or be orphaned from their bills.
+A customer is **assembled, not stored whole.** `CustomerRecord` holds only the
+facts somebody typed on purpose — spelling, phone, place, and the balance carried
+over from the paper book. Everything else is derived from bills and payments each
+time `StockbookStore.customers()` is asked, which at this size is free and means
+the figures can never go stale or be orphaned from the history behind them.
+
+The roster and history are **merged, not chosen between**: somebody entered during
+setup who has never bought anything is a customer with no bills, and a name on a
+bill that nobody ever added to the roster is a customer too.
 
 **Identity is `Customer.key`: trimmed and lowercased.** `"ahmed "` and `"Ahmed"`
-are one person, which is the only workable rule for a name typed fresh at a
-counter for every bill. Everything that groups, matches or filters customers
-goes through that one function — the debtors banner, the cart's suggestions, and
-the Bills filter.
+are one person. Everything that groups, matches or filters customers goes through
+that one function — the debtors banner, the cart's picker, the Bills filter, and
+every payment.
 
-The **display** name is the spelling from the customer's most recent bill, so
-correcting the capitalisation on a new bill corrects it everywhere it is shown,
-without rewriting what older bills record. Bills keep what was actually typed on
-them; history does not move.
+**The bill's customer is chosen from that roster, never typed.** Free text is how
+"Ahmed", "ahmed " and "Ahmd" become three people with three balances, which
+stopped being cosmetic once statements, payments and opening balances started
+hanging off a customer. `Cart` carries the chosen `customerKey` beside the name
+and typing clears it, so a name that was edited after being picked cannot be
+saved against the account it no longer names. It still cannot block a sale: a name
+matching nobody offers to become a customer in the same tap that picks them.
 
-When there is more to know about a customer than a name — a phone number, an
-address, a credit limit — the shape that fits is a stored record keyed by `key`
-and merged onto `Customer` in `StockbookStore.customers()`. The derived figures
-stay derived; only the typed-in facts get stored. That is why callers are handed
-a `Customer` today rather than a bare name string.
+The **display** name is the roster's spelling where there is one, and otherwise
+the spelling from the customer's most recent bill. Bills keep what was actually
+typed on them; history does not move.
+
+That split is what the next stored fact should follow too — a credit limit, a tax
+number, a delivery address. The derived figures stay derived; only the typed-in
+facts get stored, and callers are handed a `Customer` rather than a bare name
+string so the two arrive together.
 
 ### Data model notes
 
@@ -282,10 +293,10 @@ of the spec, both about physical screens rather than the design canvas:
 
 A numeric keypad has no return key, so every screen with one carries a single
 toolbar button. It is declared **once per screen and unconditionally** — an
-early version gave each field its own conditional toolbar and setup step 3, with
+early version gave each field its own conditional toolbar and setup step 4, with
 three boxes per product, hung as focus moved between them.
 
-On setup step 3 that button says **Next** until the last box, then **Done**. A
+On setup step 4 that button says **Next** until the last box, then **Done**. A
 field cannot know what comes after it, so the screen holds one `FocusState` for
 all of them and hands each field its tag through `NocturneField.focusTag`.
 Fields that need nothing of the sort keep their own focus and pass neither.
@@ -307,7 +318,7 @@ nothing slides up to make room for it.
 
 This was arrived at the hard way. Letting the layout move produced a different
 bug on every screen it touched: fields vanishing from a squeezed scroll view on
-setup step 3, a footer floating up over content as it bounced, and finally the
+setup step 4, a footer floating up over content as it bounced, and finally the
 tab bar itself travelling to the top of the display when a search field took
 focus. Each was fixed locally and the next one appeared somewhere else, because
 the cause was one rule, not several bugs.
@@ -358,7 +369,7 @@ Never a toast, never red text. A required-but-empty input carries an accent
 border, and the primary action goes disabled with a label that says what is
 missing ("Enter a customer name"). `ProductEditorSheet` is the reference
 implementation; `StockbookStore.isProductDraftComplete` is the shared rule behind
-both it and setup step 3.
+both it and setup step 4.
 
 ## What is built
 
@@ -373,8 +384,9 @@ both it and setup step 3.
   recent bills, and a backup nudge that writes a real file.
 - **Items** — search, rows with margin and stock colouring, empty states.
 - **Sell** — product picker and cart: per-line stepper with live stock, the
-  editable price with its override treatment and Reset, the required customer
-  field with an upward suggestion dropdown, full/part payment, and save.
+  editable price with its override treatment and Reset, the customer chosen from
+  the roster through an upward scrolling picker that can also create one on the
+  spot, full/part payment, and save.
 - **Receipt** — the full-screen confirmation, including the faded rule.
 - **Bills** — full history newest-first, with the muted treatment on voided
   ones, and a customer filter. Tapping any bill on Bills or Today opens it as a
@@ -413,8 +425,9 @@ both it and setup step 3.
   Settings on the phone holding the only copy of the shop. The store's
   `startOver` rule is not conditional and stays tested in both configurations —
   it just has no button in a release build.
-- **First-run setup** — all three steps: name, product names with the four
-  suggestion capsules, then the stock-and-prices grid with its completeness gate.
+- **First-run setup** — all four steps: name and currency, product names with
+  the four suggestion capsules, the customer roster with opening balances, then
+  the stock-and-prices grid with its completeness gate.
 - **English and Kannada**, with the switcher in Settings.
 - **Currency selection** — fourteen currencies, picked in setup and changeable
   in Settings.

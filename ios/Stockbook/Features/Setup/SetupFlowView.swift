@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// First-run setup: name, then product names, then stock and prices, then the
-/// regulars who buy on account.
+/// First-run setup: name, then product names, then the regulars who buy on
+/// account, then stock and prices.
 ///
 /// Nothing here is persisted until "Open the shop". The whole flow is a draft
 /// held in this view — a half-finished setup is not a shop, and abandoning it
@@ -21,7 +21,7 @@ struct SetupFlowView: View {
     @State private var draftOpening = ""
     @State private var customerDrafts: [CustomerDraft] = []
 
-    /// Step 3's twelve-or-so boxes, focused from here rather than each one
+    /// Step 4's twelve-or-so boxes, focused from here rather than each one
     /// managing itself, so the keyboard toolbar knows what comes next.
     @FocusState private var priceFocus: String?
 
@@ -29,7 +29,7 @@ struct SetupFlowView: View {
     @Environment(\.bottomSafeInset) private var bottomInset
 
     private enum Step: Int, CaseIterable {
-        case name, products, prices, customers
+        case name, products, customers, prices
     }
 
     /// The exact set the owner asked for — a lock shop's four common lines, and
@@ -70,8 +70,8 @@ struct SetupFlowView: View {
             switch step {
             case .name: nameStep
             case .products: productsStep
-            case .prices: pricesStep
             case .customers: customersStep
+            case .prices: pricesStep
             }
         }
         .padding(.horizontal, Metrics.screenPadding)
@@ -171,7 +171,7 @@ struct SetupFlowView: View {
                 )
                 .padding(.bottom, 14)
 
-                // Asked here rather than beside the prices, because by step 3
+                // Asked here rather than beside the prices, because by step 4
                 // the owner is typing numbers and should already know which
                 // ones they are.
                 CurrencyField(label: Loc.currencySection, currency: $currency)
@@ -282,7 +282,7 @@ struct SetupFlowView: View {
             footer {
                 HStack(spacing: 8) {
                     backButton(to: .name)
-                    Button(Loc.nextStockAndPrices) { advance(to: .prices) }
+                    Button(Loc.nextCustomers) { advance(to: .customers) }
                         .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                         .disabled(drafts.isEmpty)
                 }
@@ -290,7 +290,7 @@ struct SetupFlowView: View {
         }
     }
 
-    // MARK: Step 3 — how much
+    // MARK: Step 4 — how much
 
     private var pricesStep: some View {
         // Content scrolls; the footer is a plain sibling beneath it. A
@@ -336,8 +336,10 @@ struct SetupFlowView: View {
                         .frame(maxWidth: .infinity)
 
                     HStack(spacing: 8) {
-                        backButton(to: .products)
-                        Button(Loc.nextCustomers) { advance(to: .customers) }
+                        backButton(to: .customers)
+                        // Prices are the last thing between here and an open shop,
+                        // and the line above says which product is still short.
+                        Button(Loc.openTheShop, action: finish)
                             .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                             .disabled(!isComplete)
                     }
@@ -388,14 +390,20 @@ struct SetupFlowView: View {
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
     }
 
-    // MARK: Step 4 — who buys on account
+    // MARK: Step 3 — who buys on account
 
     /// The only optional step in setup, and it says so.
     ///
-    /// A shop can open without knowing a single customer — names can be typed at
-    /// the counter, which is what happened before this screen existed. What this
-    /// buys is the regulars being ready, and a statement being possible for them
-    /// from the first bill rather than the second.
+    /// It comes before the prices now, which is the longest step and the one that
+    /// gates opening the shop. Left until last, an optional screen standing
+    /// between the owner and a finished setup is a screen that gets skipped — and
+    /// this is the one whose output the counter needs, since a bill's customer is
+    /// chosen from this roster rather than typed.
+    ///
+    /// Skipping it still opens the shop. A name that is nobody yet can be added
+    /// from the Sell screen in the same tap that picks it; what setup buys is the
+    /// regulars being ready, with their carried-over balances, before the first
+    /// customer is standing there.
     private var customersStep: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -478,10 +486,10 @@ struct SetupFlowView: View {
 
             footer {
                 HStack(spacing: 8) {
-                    backButton(to: .prices)
+                    backButton(to: .products)
                     // Never disabled. Nobody is required here, and a dead button
                     // on an optional step reads as a wall.
-                    Button(Loc.openTheShop, action: finish)
+                    Button(Loc.nextStockAndPrices) { advance(to: .prices) }
                         .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                 }
             }
@@ -561,8 +569,7 @@ struct SetupFlowView: View {
     private func advance(to destination: Step) {
         switch destination {
         case .products where ownerName.isBlank: return
-        case .prices where drafts.isEmpty: return
-        case .customers where !isComplete: return
+        case .customers where drafts.isEmpty: return
         default: withAnimation(Metrics.quick) { step = destination }
         }
     }

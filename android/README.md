@@ -105,7 +105,7 @@ Everything the iOS app does.
   English and Kannada, the storage seam with two implementations run against one
   contract suite, and the backup format including its compatibility with iOS.
 - **All four tabs** — Today, Items, Sell and Bills — plus first-run setup and
-  its optional fourth step for customers, the product editor and add-stock
+  its optional third step for customers, the product editor and add-stock
   sheets, the customer editor, the record-a-payment sheet, the statement
   document, the receipt, the bill document, the customer filter, Settings and the
   backup handoff.

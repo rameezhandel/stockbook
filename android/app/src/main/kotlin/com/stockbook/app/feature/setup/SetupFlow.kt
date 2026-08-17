@@ -61,8 +61,8 @@ private class Draft(val name: String) {
 }
 
 /**
- * First-run setup: name and currency, then product names, then stock and prices,
- * then the regulars who buy on account.
+ * First-run setup: name and currency, then product names, then the regulars who
+ * buy on account, then stock and prices.
  *
  * **Nothing here is persisted until "Open the shop."** The whole flow is a draft
  * held in this composable — a half-finished setup is not a shop, and abandoning
@@ -154,7 +154,7 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                     fontSize = 15.0
                 )
                 Spacer(Modifier.height(14.dp))
-                // Asked here rather than beside the prices, because by step 3
+                // Asked here rather than beside the prices, because by step 4
                 // the owner is typing numbers and should know which ones.
                 CurrencyDropdown(
                     selected = currency,
@@ -243,7 +243,102 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                 }
             }
 
+            // Step 3 — who buys on account. The only optional step, and it says
+            // so: a setup screen that looks compulsory is where an owner gives up
+            // and types nonsense.
+            //
+            // It sits before the prices because an optional step left until last —
+            // between the owner and a finished setup — is one that gets skipped,
+            // and this is the one the counter needs: a bill's customer is chosen
+            // from this roster, not typed.
             2 -> Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                Kicker(strings.yourCustomers, modifier = Modifier.padding(bottom = 6.dp))
+                Text(strings.whoDoYouSellTo, style = NocturneType.setupTitle, color = Nocturne.text)
+                Text(
+                    strings.customersSetupBody,
+                    style = NocturneType.body,
+                    color = Nocturne.neutral500,
+                    modifier = Modifier.padding(top = 5.dp, bottom = 16.dp)
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    NocturneField(
+                        value = draftCustomer,
+                        onValueChange = { draftCustomer = it },
+                        placeholder = strings.customerNameExample,
+                        height = Metrics.tallInputHeight,
+                        fontSize = 15.0,
+                        imeAction = ImeAction.Next,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    NocturneField(
+                        value = draftOpening,
+                        onValueChange = { draftOpening = it },
+                        placeholder = strings.openingBalanceField,
+                        height = Metrics.tallInputHeight,
+                        numeric = true,
+                        prefix = currency.symbol.trim(),
+                        fontSize = 15.0,
+                        onImeAction = { addCustomerDraft(draftCustomer) },
+                        modifier = Modifier.width(120.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    PrimaryButton("+", onClick = { addCustomerDraft(draftCustomer) }, height = Metrics.tallInputHeight)
+                }
+                Text(
+                    strings.openingBalanceNote,
+                    style = NocturneType.meta,
+                    color = Nocturne.neutral500,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+
+                Kicker(
+                    if (customerDrafts.isEmpty()) strings.noCustomersYetKicker
+                    else strings.addedCount(customerDrafts.size),
+                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                )
+
+                customerDrafts.forEach { draft ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = Metrics.rowGap)
+                            .card(Metrics.controlRadius)
+                            .padding(start = 13.dp, end = 4.dp)
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Glyph(Icon.customer, size = 13.dp, tint = Nocturne.neutral500)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            draft.name,
+                            style = NocturneType.rowPrimary,
+                            color = Nocturne.text,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (draft.openingBalance > 0) {
+                            Text(
+                                strings.owes(Money.text(draft.openingBalance, currency)),
+                                style = NocturneType.meta,
+                                color = Nocturne.accent400
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        IconButton(
+                            Icon.close,
+                            onClick = { customerDrafts.remove(draft) },
+                            size = 15.dp,
+                            tint = Nocturne.neutral500,
+                            contentDescription = strings.remove(draft.name)
+                        )
+                    }
+                }
+            }
+
+            3 -> Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 Text(strings.stockAndPrices, style = NocturneType.setupTitle, color = Nocturne.text)
                 Text(
                     strings.stockAndPricesBody,
@@ -302,7 +397,7 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
 
         // The footer is a sibling of the content, never floating over it.
         Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp).navigationBarsPadding().padding(bottom = 24.dp)) {
-            if (step == 2) {
+            if (step == 3) {
                 // The gate explains itself rather than leaving a dead button.
                 Text(
                     if (isComplete) strings.allSet else strings.stillNeedPrices(incomplete),
@@ -310,98 +405,6 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                     color = if (isComplete) Nocturne.accent400 else Nocturne.neutral500,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-            }
-
-            // Step 4 — who buys on account. The only optional step, and it says
-            // so: a setup screen that looks compulsory is where an owner gives up
-            // and types nonsense.
-            if (step == 3) {
-                Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                    Kicker(strings.yourCustomers, modifier = Modifier.padding(bottom = 6.dp))
-                    Text(strings.whoDoYouSellTo, style = NocturneType.setupTitle, color = Nocturne.text)
-                    Text(
-                        strings.customersSetupBody,
-                        style = NocturneType.body,
-                        color = Nocturne.neutral500,
-                        modifier = Modifier.padding(top = 5.dp, bottom = 16.dp)
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        NocturneField(
-                            value = draftCustomer,
-                            onValueChange = { draftCustomer = it },
-                            placeholder = strings.customerNameExample,
-                            height = Metrics.tallInputHeight,
-                            fontSize = 15.0,
-                            imeAction = ImeAction.Next,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        NocturneField(
-                            value = draftOpening,
-                            onValueChange = { draftOpening = it },
-                            placeholder = strings.openingBalanceField,
-                            height = Metrics.tallInputHeight,
-                            numeric = true,
-                            prefix = currency.symbol.trim(),
-                            fontSize = 15.0,
-                            onImeAction = { addCustomerDraft(draftCustomer) },
-                            modifier = Modifier.width(120.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        PrimaryButton("+", onClick = { addCustomerDraft(draftCustomer) }, height = Metrics.tallInputHeight)
-                    }
-                    Text(
-                        strings.openingBalanceNote,
-                        style = NocturneType.meta,
-                        color = Nocturne.neutral500,
-                        modifier = Modifier.padding(top = 6.dp)
-                    )
-
-                    Kicker(
-                        if (customerDrafts.isEmpty()) strings.noCustomersYetKicker
-                        else strings.addedCount(customerDrafts.size),
-                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                    )
-
-                    customerDrafts.forEach { draft ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = Metrics.rowGap)
-                                .card(Metrics.controlRadius)
-                                .padding(start = 13.dp, end = 4.dp)
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Glyph(Icon.customer, size = 13.dp, tint = Nocturne.neutral500)
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                draft.name,
-                                style = NocturneType.rowPrimary,
-                                color = Nocturne.text,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (draft.openingBalance > 0) {
-                                Text(
-                                    strings.owes(Money.text(draft.openingBalance, currency)),
-                                    style = NocturneType.meta,
-                                    color = Nocturne.accent400
-                                )
-                                Spacer(Modifier.width(6.dp))
-                            }
-                            IconButton(
-                                Icon.close,
-                                onClick = { customerDrafts.remove(draft) },
-                                size = 15.dp,
-                                tint = Nocturne.neutral500,
-                                contentDescription = strings.remove(draft.name)
-                            )
-                        }
-                    }
-                }
             }
 
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -420,7 +423,7 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                         modifier = Modifier.weight(1f)
                     )
                     1 -> PrimaryButton(
-                        strings.nextStockAndPrices,
+                        strings.nextCustomers,
                         onClick = { if (drafts.isNotEmpty()) step = 2 },
                         enabled = drafts.isNotEmpty(),
                         fullWidth = true,
@@ -428,17 +431,16 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                         fontSize = 15.0,
                         modifier = Modifier.weight(1f)
                     )
+                    // Never disabled. Nobody is required here, and a dead button
+                    // on an optional step reads as a wall.
                     2 -> PrimaryButton(
-                        strings.nextCustomers,
-                        onClick = { if (isComplete) step = 3 },
-                        enabled = isComplete,
+                        strings.nextStockAndPrices,
+                        onClick = { step = 3 },
                         fullWidth = true,
                         height = 48.dp,
                         fontSize = 15.0,
                         modifier = Modifier.weight(1f)
                     )
-                    // Never disabled. Nobody is required here, and a dead button
-                    // on an optional step reads as a wall.
                     else -> PrimaryButton(
                         strings.openTheShop,
                         onClick = {
@@ -459,7 +461,9 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                             }
                             store.completeSetup()
                         },
-                        enabled = true,
+                        // Prices are the last thing between here and an open shop,
+                        // and the line above says which product is still short.
+                        enabled = isComplete,
                         fullWidth = true,
                         height = 48.dp,
                         fontSize = 15.0,
