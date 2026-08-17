@@ -15,6 +15,7 @@ struct SellScreen: View {
     private var products: [Product] { store.products }
 
     @State private var query = ""
+    @State private var scan = ScanFlow()
     /// Set by "Add another item" — the one case where the picker is showing even
     /// though the cart is full and nothing has been typed.
     @State private var browsing = false
@@ -47,6 +48,27 @@ struct SellScreen: View {
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.bottom, 10)
 
+            if case .done(let unmatched) = scan.stage {
+                ScanLeftoversCard(
+                    unmatched: unmatched,
+                    hasUnconfirmed: cart.hasUnconfirmedLines,
+                    onSearch: { name in
+                        scan.dismissResult()
+                        openPicker()
+                        query = name
+                    },
+                    onDismiss: {
+                        // Dismissing this card is the confirmation. It says
+                        // "check every figure"; putting it away says they have.
+                        cart.confirmAll()
+                        scan.dismissResult()
+                    }
+                )
+                .padding(.horizontal, Metrics.screenPadding)
+                .padding(.bottom, 10)
+                .transition(.opacity)
+            }
+
             // Which of the two is showing is derived, so the swap is the only
             // signal that a tap changed anything. It fades rather than cuts.
             Group {
@@ -69,7 +91,49 @@ struct SellScreen: View {
             .transition(.opacity)
             .motion(Motion.screen, value: showsPicker)
         }
+        .motion(Motion.list, value: scan.stage)
+        .fullScreenCover(isPresented: scanning) {
+            DocumentScanner(
+                onFinish: { pages in
+                    Task { await scan.finish(pages: pages, cart: cart, products: products) }
+                },
+                onCancel: { scan.cancel() }
+            )
+            .ignoresSafeArea()
+        }
+        .overlay {
+            if scan.stage == .reading {
+                ScanProgressOverlay()
+            }
+        }
+        .nocturneSheet(item: unreadableSheet) { _ in
+            ScanUnreadableSheet(
+                rawText: scan.rawText,
+                onRetry: { scan.start() },
+                onClose: { scan.cancel() }
+            )
+        }
     }
+
+    /// The failure case gets a sheet rather than an alert, because the useful
+    /// thing to show is what the camera *did* read — which is the first question
+    /// anybody asks about a bad scan, and an alert has nowhere to put it.
+    private var unreadableSheet: Binding<ScanFailure?> {
+        Binding(
+            get: { scan.stage == .unreadable ? ScanFailure() : nil },
+            set: { if $0 == nil { scan.cancel() } }
+        )
+    }
+
+    /// The camera is up exactly while the flow says so. A binding rather than a
+    /// separate flag, so there is only ever one answer to "is it scanning".
+    private var scanning: Binding<Bool> {
+        Binding(
+            get: { scan.stage == .capturing },
+            set: { if !$0, scan.stage == .capturing { scan.cancel() } }
+        )
+    }
+
 
     private var cartCountLabel: String {
         cart.isEmpty ? Loc.cartEmpty : Loc.lines(cart.lines.count)
@@ -138,6 +202,16 @@ private struct ProductPicker: View {
                             action: onAddProduct
                         )
                         .padding(.top, 8)
+                    }
+
+                    if cart.isEmpty {
+                        Button {
+                            scan.start()
+                        } label: {
+                            Label(Loc.scanABill, systemImage: Icon.scan)
+                        }
+                        .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
+                        .padding(.bottom, 5)
                     }
 
                     ForEach(products) { product in

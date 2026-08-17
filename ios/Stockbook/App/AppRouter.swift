@@ -32,6 +32,9 @@ final class AppRouter {
     /// The add-stock sheet.
     var addStock: AddStockTarget?
 
+    /// The paper-bill scanner, over the Sell screen.
+    var showingScanner = false
+
     /// The receipt, shown full-screen after a bill is saved.
     var receipt: Bill?
 
@@ -71,6 +74,7 @@ final class AppRouter {
         receipt = nil
         billDetail = nil
         showingBackup = false
+        showingScanner = false
     }
 }
 

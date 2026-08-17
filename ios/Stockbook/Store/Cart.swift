@@ -22,6 +22,13 @@ final class Cart {
         /// The prefill, kept so the screen can tell an override from a match and
         /// offer "Reset". The product's own price is never touched by an override.
         let basePrice: Double
+        /// True while this line's figures came from a camera and no human has
+        /// looked at them yet.
+        ///
+        /// A misread 7 as a 1 on a price is a silently wrong bill, so the screen
+        /// marks what it has not been told is right. Touching the line clears it —
+        /// see `confirm(_:)`.
+        var isUnconfirmed: Bool = false
 
         var id: UUID { productUID }
         var lineTotal: Double { Double(qty) * price }
@@ -70,19 +77,62 @@ final class Cart {
     func add(_ product: Product) {
         if let index = lines.firstIndex(where: { $0.productUID == product.uid }) {
             lines[index].qty += 1
+            lines[index].isUnconfirmed = false
         } else {
             lines.append(Line(productUID: product.uid, name: product.name, qty: 1, price: product.price, basePrice: product.price))
         }
     }
 
+    /// Fills the cart from a scanned bill.
+    ///
+    /// Replaces rather than appends: the owner pointed a camera at one piece of
+    /// paper and expects to be looking at that piece of paper, not at it mixed
+    /// into whatever was half-typed before.
+    ///
+    /// Every line arrives **unconfirmed**, and the customer name only if the cart
+    /// has none — a name already typed by hand outranks one read off a photo.
+    func fill(from outcome: ScanOutcome) {
+        lines = outcome.matched.map { match in
+            Line(
+                productUID: match.product.uid,
+                name: match.product.name,
+                qty: match.quantity,
+                price: match.price(fallback: match.product.price),
+                basePrice: match.product.price,
+                isUnconfirmed: true
+            )
+        }
+        if customer.isBlank, let scanned = outcome.customer {
+            customer = scanned
+        }
+    }
+
+    /// The owner has looked at this line. Called by every edit on the cart screen,
+    /// so the mark comes off the moment a human touches the figures.
+    func confirm(_ uid: UUID) {
+        guard let index = lines.firstIndex(where: { $0.id == uid }) else { return }
+        lines[index].isUnconfirmed = false
+    }
+
+    /// The owner has read the paper and the bill matches it. Called when the scan
+    /// card is dismissed, which is what dismissing it means.
+    func confirmAll() {
+        for index in lines.indices { lines[index].isUnconfirmed = false }
+    }
+
+    /// True while anything on the bill still has figures nobody has checked.
+    var hasUnconfirmedLines: Bool { lines.contains(\.isUnconfirmed) }
+
     func setQuantity(_ quantity: Int, for uid: UUID) {
         guard let index = lines.firstIndex(where: { $0.id == uid }) else { return }
         lines[index].qty = max(1, quantity)
+        lines[index].isUnconfirmed = false
     }
 
     func setPrice(_ price: Double, for uid: UUID) {
         guard let index = lines.firstIndex(where: { $0.id == uid }) else { return }
         lines[index].price = max(0, price)
+        lines[index].isUnconfirmed = false
     }
 
     func resetPrice(for uid: UUID) {

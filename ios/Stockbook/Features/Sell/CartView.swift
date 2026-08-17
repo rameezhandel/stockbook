@@ -21,6 +21,7 @@ struct CartView: View {
                         CartLineCard(
                             line: line,
                             stock: cart.stock(for: line, in: store),
+                            onConfirm: { cart.confirm(line.id) },
                             onQuantity: { cart.setQuantity($0, for: line.id) },
                             onPrice: { cart.setPrice($0, for: line.id) },
                             onResetPrice: { cart.resetPrice(for: line.id) },
@@ -124,6 +125,8 @@ private struct CartLineCard: View {
     /// Read from the store rather than carried on the line, so adding stock from
     /// another screen shows here immediately.
     let stock: Int
+    /// The owner has looked at this line and it is right as read.
+    let onConfirm: () -> Void
     let onQuantity: (Int) -> Void
     let onPrice: (Double) -> Void
     let onResetPrice: () -> Void
@@ -171,6 +174,19 @@ private struct CartLineCard: View {
                 priceBox
             }
 
+            if line.isUnconfirmed {
+                HStack(spacing: 5) {
+                    Glyph(Icon.scan, size: 11)
+                    Text(Loc.scanFromTheBill)
+                        .font(NocturneType.inter(11))
+                    Spacer(minLength: 6)
+                    Button(Loc.scanLineIsRight, action: onConfirm)
+                        .buttonStyle(GhostButtonStyle(fontSize: 11))
+                }
+                .foregroundStyle(Nocturne.accent)
+                .padding(.top, 8)
+            }
+
             if line.isPriceOverridden {
                 HStack(spacing: 5) {
                     Glyph(Icon.edit, size: 11)
@@ -191,6 +207,11 @@ private struct CartLineCard: View {
         .padding(.vertical, 11)
         .frame(maxWidth: .infinity)
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        // A line read off a photograph wears the accent edge until somebody has
+        // agreed with it. A misread 7 for a 1 on a price is a silently wrong
+        // bill, and the owner has the paper in their other hand.
+        .hairline(line.isUnconfirmed ? Nocturne.accent : .clear, radius: Metrics.cardRadius)
+        .motion(Motion.screen, value: line.isUnconfirmed)
         .onAppear {
             qtyText = String(line.qty)
             priceText = Money.amount(line.price, in: currency)

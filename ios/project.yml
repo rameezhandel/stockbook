@@ -47,6 +47,7 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        INFOPLIST_KEY_NSCameraUsageDescription: "Stockbook reads a paper bill with the camera so you do not have to type it in again. The photo is never saved and never leaves this phone."
 
   StockbookTests:
     type: bundle.unit-test
