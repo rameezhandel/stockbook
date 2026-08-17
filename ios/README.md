@@ -397,9 +397,13 @@ both it and setup step 4.
 - `Cart` — line management, price override, payment mode, the save gate.
 - The backup format, its validation, file export via `.fileExporter`, and the
   destructive-replace import path.
-- **Today** — stats, the owed banner (counting distinct people, not bills),
-  recent bills, and a backup nudge that writes a real file.
-- **Items** — search, rows with margin and stock colouring, empty states.
+- **Today** — stats, the owed banner (counting distinct people, not bills), the
+  payables banner beside it, recent bills, and a backup nudge that writes a real
+  file.
+- **Items** — search, rows with margin and stock colouring, empty states, and the
+  supplier panel folded underneath: this is where stock comes from, and where
+  somebody is standing when "who did we get these from, and have we paid them?"
+  comes up.
 - **Sell** — product picker and cart: per-line stepper with live stock, the
   editable price with its override treatment and Reset, the customer chosen from
   the roster through an upward scrolling picker that can also create one on the
@@ -420,7 +424,20 @@ both it and setup step 4.
   claiming money already in the till. A mistyped one is deleted from the
   statement in two taps; unlike a bill there is nothing to void, since a payment
   is one number and one date.
-- **Statements** — a full-screen document per customer: quick chips for this
+- **Suppliers and purchases** — the customer half of the book, pointing the other
+  way. A delivery is entered from the add-stock sheet against a supplier **chosen
+  from the roster**, never a typed name, and it puts the stock on the shelf, takes
+  the new buying price and lands what is still owed on that supplier's account.
+  One product per purchase, deliberately: the screen it is entered from puts one
+  product back on the shelf, and five lines entered as five purchases are five
+  true records rather than one convenient fiction.
+
+  A wrong delivery is **voided**, which takes the stock back off the shelf —
+  idempotent, and floored at zero, since it may already have been sold. Money paid
+  to a supplier is its own record, exactly as a customer's payment is, and the same
+  two sheets serve both directions: `PartyEditorSheet` and `PaymentSheet`, each
+  with two entry points. What a payment *is* does not change with its direction.
+- **Statements** — a full-screen document per customer or supplier: quick chips for this
   month, last month and this year plus a date range, the balance brought forward
   from everything earlier, every bill and payment in date order with a running
   balance beside each line, and the period's totals. Shareable as plain text.
@@ -475,12 +492,14 @@ construction:
   not answerable. Allocation would be a fiction the owner then has to maintain.
 
 **Not built, and not to be built without asking:** low-stock alerts, returns,
-bill editing beyond void, printable receipts, barcode scanning, product photos,
-multi-user, VAT, reporting, and weighted-average costing. All were considered and
-deliberately cut. *(A customer ledger was on this list and has since been built —
-see Customers, Payments and Statements above. Reading a paper bill with the
-camera was built and then removed; the diagnosis is in the `Remove bill scanning`
-commit.)*
+bill editing beyond void, **purchase** editing beyond void, printable receipts,
+barcode scanning, product photos, multi-user, VAT, reporting, profit reporting,
+multi-line delivery notes, and weighted-average costing — `Product.cost` stays
+"latest paid". All were considered and deliberately cut. *(A customer ledger was
+on this list and has since been built, and so has its supplier mirror — see
+Customers, Payments, Suppliers and Statements above. Reading a paper bill with
+the camera was built and then removed; the diagnosis is in the `Remove bill
+scanning` commit.)*
 
 ## Tests
 

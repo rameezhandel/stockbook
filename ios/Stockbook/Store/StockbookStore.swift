@@ -876,6 +876,15 @@ final class StockbookStore {
                     createdAt: $0.createdAt
                 )
             },
+            payments: document.payments.map {
+                Payment(
+                    id: $0.id,
+                    customerKey: $0.customerKey,
+                    amount: $0.amount,
+                    receivedAt: $0.receivedAt,
+                    note: $0.note
+                )
+            },
             suppliers: document.suppliers.map {
                 SupplierRecord(
                     key: $0.key,
@@ -909,15 +918,6 @@ final class StockbookStore {
                     note: $0.note
                 )
             },
-            payments: document.payments.map {
-                Payment(
-                    id: $0.id,
-                    customerKey: $0.customerKey,
-                    amount: $0.amount,
-                    receivedAt: $0.receivedAt,
-                    note: $0.note
-                )
-            },
             settings: restored
         )
 
@@ -926,6 +926,9 @@ final class StockbookStore {
         bills = state.bills.sorted { $0.createdAt > $1.createdAt }
         customerRecords = state.customers.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
         payments = state.payments.sorted { $0.receivedAt > $1.receivedAt }
+        supplierRecords = state.suppliers.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+        purchases = state.purchases.sorted { $0.createdAt > $1.createdAt }
+        supplierPayments = state.supplierPayments.sorted { $0.paidAt > $1.paidAt }
         settings = restored
     }
 
@@ -961,6 +964,15 @@ final class StockbookStore {
                     createdAt: $0.createdAt
                 )
             },
+            payments: payments.map {
+                BackupDocument.PaymentRow(
+                    id: $0.id,
+                    customerKey: $0.customerKey,
+                    amount: $0.amount,
+                    receivedAt: $0.receivedAt,
+                    note: $0.note
+                )
+            },
             suppliers: supplierRecords.map {
                 BackupDocument.SupplierRecordRow(
                     key: $0.key,
@@ -991,15 +1003,6 @@ final class StockbookStore {
                     supplierKey: $0.supplierKey,
                     amount: $0.amount,
                     paidAt: $0.paidAt,
-                    note: $0.note
-                )
-            },
-            payments: payments.map {
-                BackupDocument.PaymentRow(
-                    id: $0.id,
-                    customerKey: $0.customerKey,
-                    amount: $0.amount,
-                    receivedAt: $0.receivedAt,
                     note: $0.note
                 )
             }
