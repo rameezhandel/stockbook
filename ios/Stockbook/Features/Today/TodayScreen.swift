@@ -34,6 +34,7 @@ struct TodayScreen: View {
                 VStack(spacing: 0) {
                     statCards
                     owedBanner
+                    payableBanner
                     recentBills
                     backupNudge
                 }
@@ -92,6 +93,44 @@ struct TodayScreen: View {
                     .font(NocturneType.inter(16))
                     .foregroundStyle(Nocturne.accent400)
                     .rollingNumber(owed.total)
+            }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 12)
+            .background(Nocturne.surface)
+            .clipShape(.rect(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: Metrics.cardRadius, topTrailingRadius: Metrics.cardRadius))
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(Nocturne.accent)
+                    .frame(width: 2)
+            }
+            .padding(.bottom, 18)
+        }
+    }
+
+    /// The other direction, and only when there is one.
+    ///
+    /// A shop owner's own bills matter as much as the ones owed to them, but a
+    /// banner saying "you owe nothing" every day teaches people to stop reading
+    /// banners.
+    @ViewBuilder
+    private var payableBanner: some View {
+        let payable = store.payable()
+        if !payable.names.isEmpty {
+            HStack(spacing: 10) {
+                Glyph(Icon.items, size: 19)
+                    .foregroundStyle(Nocturne.accent400)
+                Text(
+                    payable.names.count == 1
+                        ? Loc.youOweOne(payable.names[0])
+                        : Loc.youOweMany(payable.names.count)
+                )
+                .font(NocturneType.inter(12.5))
+                .foregroundStyle(Nocturne.neutral400)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(Money.text(payable.total, in: currency))
+                    .font(NocturneType.inter(16))
+                    .foregroundStyle(Nocturne.accent400)
+                    .rollingNumber(payable.total)
             }
             .padding(.horizontal, 13)
             .padding(.vertical, 12)

@@ -126,7 +126,13 @@ private struct AppShell: View {
             // A document rather than a sheet: it runs to a page, and it is the
             // one screen here the owner may turn round and show a customer.
             if let key = router.statementFor {
-                StatementScreen(customerKey: key) { router.statementFor = nil }
+                StatementScreen(partyKey: key) { router.statementFor = nil }
+                    .transition(.move(edge: .trailing))
+                    .zIndex(4)
+            }
+
+            if let key = router.supplierStatementFor {
+                StatementScreen(partyKey: key, isSupplier: true) { router.supplierStatementFor = nil }
                     .transition(.move(edge: .trailing))
                     .zIndex(4)
             }
@@ -135,6 +141,7 @@ private struct AppShell: View {
         .animation(Metrics.quick, value: router.showingBackup)
         .animation(Metrics.quick, value: router.receipt?.number)
         .animation(Metrics.quick, value: router.statementFor)
+        .animation(Metrics.quick, value: router.supplierStatementFor)
         .nocturneSheet(item: $router.productEditor) { target in
             ProductEditorSheet(product: target.product)
         }
@@ -149,6 +156,12 @@ private struct AppShell: View {
         }
         .nocturneSheet(item: $router.paymentFor) { customer in
             RecordPaymentSheet(customer: customer) { router.paymentFor = nil }
+        }
+        .nocturneSheet(item: $router.supplierEditor) { target in
+            SupplierEditorSheet(existing: target.supplier) { router.supplierEditor = nil }
+        }
+        .nocturneSheet(item: $router.supplierPaymentFor) { supplier in
+            PaySupplierSheet(supplier: supplier) { router.supplierPaymentFor = nil }
         }
     }
 

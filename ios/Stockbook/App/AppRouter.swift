@@ -53,6 +53,19 @@ final class AppRouter {
     /// copy taken when it opened.
     var statementFor: String?
 
+    /// The supplier editor sheet. The customer editor's mirror, kept as its own
+    /// pair of fields rather than one editor with a direction on it: the two
+    /// sheets say different words and gate on different figures.
+    var supplierEditor: SupplierEditorTarget?
+
+    /// The pay-a-supplier sheet.
+    var supplierPaymentFor: Supplier?
+
+    /// A supplier's statement, full screen — a key for the same reason
+    /// `statementFor` is one, and a separate field so the screen knows which side
+    /// of the book it is drawing without being told twice.
+    var supplierStatementFor: String?
+
     // MARK: Intents
     //
     // Named for what the owner is doing, so call sites read as the design does.
@@ -71,6 +84,18 @@ final class AppRouter {
 
     func openStatement(for customer: Customer) {
         statementFor = customer.key
+    }
+
+    func openNewSupplier() {
+        supplierEditor = SupplierEditorTarget(supplier: nil)
+    }
+
+    func openSupplier(_ supplier: Supplier) {
+        supplierEditor = SupplierEditorTarget(supplier: supplier)
+    }
+
+    func openStatement(forSupplier supplier: Supplier) {
+        supplierStatementFor = supplier.key
     }
 
     func openProduct(_ product: Product) {
@@ -99,7 +124,16 @@ final class AppRouter {
         customerEditor = nil
         paymentFor = nil
         statementFor = nil
+        supplierEditor = nil
+        supplierPaymentFor = nil
+        supplierStatementFor = nil
     }
+}
+
+/// Identifies the supplier editor sheet. `nil` supplier means "New supplier".
+struct SupplierEditorTarget: Identifiable {
+    let supplier: Supplier?
+    var id: String { supplier?.key ?? "new" }
 }
 
 /// Identifies the product editor sheet. `nil` product means "New product".

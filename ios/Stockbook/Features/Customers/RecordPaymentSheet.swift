@@ -12,6 +12,58 @@ struct RecordPaymentSheet: View {
     let customer: Customer
     let onClose: () -> Void
 
+    var body: some View {
+        PaymentSheet(
+            name: customer.name,
+            key: customer.key,
+            owed: customer.owed,
+            dateLabel: Loc.receivedOn,
+            footnote: Loc.paymentNotAgainstOneBill,
+            onSave: { amount, at, note in
+                store.recordPayment(customerKey: customer.key, amount: amount, receivedAt: at, note: note)
+            },
+            onClose: onClose
+        )
+    }
+}
+
+/// The same sheet, for money going the other way.
+///
+/// One body, two entry points, exactly as with the editor: what a payment *is*
+/// does not change with its direction — an amount, a date, a note, and a balance
+/// that has to come down by it.
+struct PaySupplierSheet: View {
+    @Environment(StockbookStore.self) private var store
+
+    let supplier: Supplier
+    let onClose: () -> Void
+
+    var body: some View {
+        PaymentSheet(
+            name: supplier.name,
+            key: supplier.key,
+            owed: supplier.owed,
+            dateLabel: Loc.paidOn,
+            footnote: Loc.paymentNotAgainstOnePurchase,
+            onSave: { amount, at, note in
+                store.recordSupplierPayment(supplierKey: supplier.key, amount: amount, paidAt: at, note: note)
+            },
+            onClose: onClose
+        )
+    }
+}
+
+private struct PaymentSheet: View {
+    @Environment(\.currency) private var currency
+
+    let name: String
+    let key: String
+    let owed: Double
+    let dateLabel: String
+    let footnote: String
+    let onSave: (Double, Date, String) -> Void
+    let onClose: () -> Void
+
     @State private var amount = ""
     @State private var receivedAt = Date.now
     @State private var note = ""
@@ -19,15 +71,15 @@ struct RecordPaymentSheet: View {
     private var typed: Double { Money.parse(amount) ?? 0 }
     private var canSave: Bool { typed > 0 }
 
-    /// What they will still owe once this is saved. Shown live, because it is the
+    /// What will still be owed once this is saved. Shown live, because it is the
     /// number the owner is actually trying to reach — usually zero.
-    private var remaining: Double { customer.owed - typed }
+    private var remaining: Double { owed - typed }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SheetHeader(
                 title: Loc.recordAPayment,
-                subtitle: customer.name,
+                subtitle: name,
                 onClose: onClose
             )
 
@@ -56,7 +108,7 @@ struct RecordPaymentSheet: View {
             .motion(Motion.numbers, value: remaining)
             .padding(.bottom, 14)
 
-            DatePicker(Loc.receivedOn, selection: $receivedAt, displayedComponents: .date)
+            DatePicker(dateLabel, selection: $receivedAt, displayedComponents: .date)
                 .datePickerStyle(.compact)
                 .font(NocturneType.inter(13))
                 .tint(Nocturne.accent)
@@ -70,7 +122,7 @@ struct RecordPaymentSheet: View {
             )
             .padding(.bottom, 8)
 
-            Text(Loc.paymentNotAgainstOneBill)
+            Text(footnote)
                 .nocturneText(.meta)
                 .padding(.bottom, 16)
 
@@ -89,12 +141,7 @@ struct RecordPaymentSheet: View {
 
     private func save() {
         guard canSave else { return }
-        store.recordPayment(
-            customerKey: customer.key,
-            amount: typed,
-            receivedAt: receivedAt,
-            note: note
-        )
+        onSave(typed, receivedAt, note)
         onClose()
     }
 }

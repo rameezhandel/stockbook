@@ -16,36 +16,162 @@ struct CustomerEditorSheet: View {
     let existing: Customer?
     let onClose: () -> Void
 
+    var body: some View {
+        PartyEditorSheet(
+            party: existing.map { customer in
+                EditableParty(
+                    key: customer.key,
+                    name: customer.name,
+                    phone: customer.phone,
+                    place: customer.place,
+                    openingBalance: customer.openingBalance,
+                    isOnRoster: customer.isOnRoster,
+                    subtitle: customer.hasHistory
+                        ? customer.meta(in: currency, strings: Loc)
+                        : Loc.noBillsYet
+                )
+            },
+            words: PartyWords(
+                newTitle: Loc.newCustomer,
+                editTitle: Loc.editCustomer,
+                nameLabel: Loc.customerName,
+                nameExample: Loc.customerNameExample,
+                saveTitle: Loc.saveCustomer,
+                nameFirst: Loc.enterCustomerNameFirst,
+                removeTitle: Loc.removeFromCustomers,
+                removeNote: Loc.removeCustomerNote,
+                identifier: "customer"
+            ),
+            onSave: { name, phone, place, opening, key in
+                if let key {
+                    store.updateCustomer(key: key, name: name, phone: phone, place: place, openingBalance: opening)
+                } else {
+                    // A name that has only ever appeared on bills lands here too:
+                    // adding it is what puts it on the roster, and `addCustomer`
+                    // keys it the same way, so their history comes with them.
+                    store.addCustomer(name: name, phone: phone, place: place, openingBalance: opening)
+                }
+            },
+            onRemove: { store.removeCustomer(key: $0) },
+            onClose: onClose
+        )
+    }
+}
+
+/// The same sheet, for a supplier.
+///
+/// One body, two entry points. The fields, the gate and the two-tap removal are
+/// identical on both sides of the book; what differs is the words and where the
+/// save lands, and those are the two things passed in.
+struct SupplierEditorSheet: View {
+    @Environment(StockbookStore.self) private var store
+    @Environment(\.currency) private var currency
+
+    let existing: Supplier?
+    let onClose: () -> Void
+
+    var body: some View {
+        PartyEditorSheet(
+            party: existing.map { supplier in
+                EditableParty(
+                    key: supplier.key,
+                    name: supplier.name,
+                    phone: supplier.phone,
+                    place: supplier.place,
+                    openingBalance: supplier.openingBalance,
+                    isOnRoster: supplier.isOnRoster,
+                    subtitle: supplier.hasHistory
+                        ? supplier.meta(in: currency, strings: Loc)
+                        : Loc.noPurchasesYet
+                )
+            },
+            words: PartyWords(
+                newTitle: Loc.newSupplier,
+                editTitle: Loc.editSupplier,
+                nameLabel: Loc.supplier,
+                nameExample: Loc.supplierNameExample,
+                saveTitle: Loc.saveSupplier,
+                nameFirst: Loc.enterCustomerNameFirst,
+                removeTitle: Loc.removeFromSuppliers,
+                removeNote: Loc.removeSupplierNote,
+                identifier: "supplier"
+            ),
+            onSave: { name, phone, place, opening, key in
+                if let key {
+                    store.updateSupplier(key: key, name: name, phone: phone, place: place, openingBalance: opening)
+                } else {
+                    store.addSupplier(name: name, phone: phone, place: place, openingBalance: opening)
+                }
+            },
+            onRemove: { store.removeSupplier(key: $0) },
+            onClose: onClose
+        )
+    }
+}
+
+/// Whatever is being corrected, reduced to what this sheet actually edits.
+struct EditableParty {
+    let key: String
+    let name: String
+    let phone: String?
+    let place: String?
+    let openingBalance: Double
+    let isOnRoster: Bool
+    let subtitle: String
+}
+
+/// The half-dozen sentences that differ between the two sides.
+struct PartyWords {
+    let newTitle: String
+    let editTitle: String
+    let nameLabel: String
+    let nameExample: String
+    let saveTitle: String
+    let nameFirst: String
+    let removeTitle: String
+    let removeNote: String
+    /// Prefix for the accessibility identifiers, so a UI test can tell the two
+    /// sheets apart even though they are one view.
+    let identifier: String
+}
+
+private struct PartyEditorSheet: View {
+    @Environment(\.currency) private var currency
+
+    let party: EditableParty?
+    let words: PartyWords
+    let onSave: (String, String, String, Double, String?) -> Void
+    let onRemove: (String) -> Void
+    let onClose: () -> Void
+
     @State private var name = ""
     @State private var phone = ""
     @State private var place = ""
     @State private var opening = ""
     @State private var confirmingRemoval = false
 
-    private var isEditing: Bool { existing?.isOnRoster == true }
+    private var existing: EditableParty? { party }
+
+    private var isEditing: Bool { party?.isOnRoster == true }
 
     private var canSave: Bool { !name.isBlank }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SheetHeader(
-                title: isEditing ? Loc.editCustomer : Loc.newCustomer,
-                subtitle: existing.map { customer in
-                    customer.hasHistory
-                        ? customer.meta(in: currency, strings: Loc)
-                        : Loc.noBillsYet
-                },
+                title: isEditing ? words.editTitle : words.newTitle,
+                subtitle: existing?.subtitle,
                 onClose: onClose
             )
 
             NocturneField(
-                label: Loc.customerName,
-                placeholder: Loc.customerNameExample,
+                label: words.nameLabel,
+                placeholder: words.nameExample,
                 text: $name,
                 height: Metrics.tallInputHeight,
                 isRequiredAndEmpty: name.isBlank,
                 fontSize: 15,
-                identifier: "customer.name"
+                identifier: "\(words.identifier).name"
             )
             .padding(.bottom, 12)
 
@@ -55,13 +181,13 @@ struct CustomerEditorSheet: View {
                     placeholder: Loc.optionalField,
                     text: $phone,
                     keyboard: .phonePad,
-                    identifier: "customer.phone"
+                    identifier: "\(words.identifier).phone"
                 )
                 NocturneField(
                     label: Loc.customerPlace,
                     placeholder: Loc.optionalField,
                     text: $place,
-                    identifier: "customer.place"
+                    identifier: "\(words.identifier).place"
                 )
             }
             .padding(.bottom, 12)
@@ -71,7 +197,7 @@ struct CustomerEditorSheet: View {
                 placeholder: Loc.optionalField,
                 text: $opening,
                 prefix: currency.symbol.trimmed,
-                identifier: "customer.openingBalance"
+                identifier: "\(words.identifier).openingBalance"
             )
 
             Text(Loc.openingBalanceNote)
@@ -79,12 +205,12 @@ struct CustomerEditorSheet: View {
                 .padding(.top, 6)
                 .padding(.bottom, 16)
 
-            Button(Loc.saveCustomer) { save() }
+            Button(words.saveTitle) { save() }
                 .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                 .disabled(!canSave)
 
             if !canSave {
-                Text(Loc.enterCustomerNameFirst)
+                Text(words.nameFirst)
                     .nocturneText(.meta)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 6)
@@ -95,9 +221,9 @@ struct CustomerEditorSheet: View {
                 // somebody's name reads like deleting them and their history,
                 // and it does not do that.
                 VStack(alignment: .leading, spacing: 6) {
-                    Button(confirmingRemoval ? Loc.tapAgainToRemove : Loc.removeFromCustomers) {
+                    Button(confirmingRemoval ? Loc.tapAgainToRemove : words.removeTitle) {
                         if confirmingRemoval {
-                            store.removeCustomer(key: existing.key)
+                            onRemove(existing.key)
                             onClose()
                         } else {
                             withAnimation(Metrics.quick) { confirmingRemoval = true }
@@ -105,7 +231,7 @@ struct CustomerEditorSheet: View {
                     }
                     .buttonStyle(.ghostMuted)
 
-                    Text(Loc.removeCustomerNote).nocturneText(.meta)
+                    Text(words.removeNote).nocturneText(.meta)
                 }
                 .padding(.top, 18)
             }
@@ -125,21 +251,7 @@ struct CustomerEditorSheet: View {
 
     private func save() {
         guard canSave else { return }
-        let carried = Money.parse(opening) ?? 0
-        if let existing, existing.isOnRoster {
-            store.updateCustomer(
-                key: existing.key,
-                name: name,
-                phone: phone,
-                place: place,
-                openingBalance: carried
-            )
-        } else {
-            // A name that has only ever appeared on bills lands here too: adding
-            // it is what puts it on the roster, and `addCustomer` keys it the
-            // same way, so their history comes with them.
-            store.addCustomer(name: name, phone: phone, place: place, openingBalance: carried)
-        }
+        onSave(name, phone, place, Money.parse(opening) ?? 0, isEditing ? existing?.key : nil)
         onClose()
     }
 }

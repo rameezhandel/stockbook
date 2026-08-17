@@ -33,6 +33,7 @@ import com.stockbook.app.design.IconButton
 import com.stockbook.app.design.Kicker
 import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.hairline
+import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Supplier
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne

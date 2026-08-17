@@ -10,7 +10,13 @@ struct StatementScreen: View {
     @Environment(StockbookStore.self) private var store
     @Environment(\.currency) private var currency
 
-    let customerKey: String
+    /// Whose account: a customer key, or a supplier key with `isSupplier` set.
+    let partyKey: String
+
+    /// Which side of the book. One screen for both, because a statement is a
+    /// statement — see `Statement.make`, where the same arithmetic serves both —
+    /// and two screens would drift the moment either was corrected.
+    var isSupplier = false
     let onClose: () -> Void
 
     /// Which chip is on.
@@ -46,7 +52,9 @@ struct StatementScreen: View {
     }
 
     private var statement: Statement? {
-        store.statement(forCustomer: customerKey, period: period)
+        isSupplier
+            ? store.statementForSupplier(key: partyKey, period: period)
+            : store.statement(forCustomer: partyKey, period: period)
     }
 
     var body: some View {
@@ -211,12 +219,17 @@ struct StatementScreen: View {
         VStack(alignment: .leading, spacing: 7) {
             entryLine(entry, balance: balance)
 
-            // Only a payment. A bill is **voided**, never deleted, and voiding
-            // lives inside the opened bill where it belongs — offering deletion
-            // beside it here would be a second, worse route to the same history.
-            if case .payment(let payment) = entry, deleting == payment.id {
+            // Only a payment. A bill or a delivery is **voided**, never deleted,
+            // and voiding lives inside the opened document where it belongs —
+            // offering deletion beside it here would be a second, worse route to
+            // the same history.
+            if let id = paymentID(entry), deleting == id {
                 Button(Loc.deleteThisPayment) {
-                    store.deletePayment(id: payment.id)
+                    if isSupplier {
+                        store.deleteSupplierPayment(id: id)
+                    } else {
+                        store.deletePayment(id: id)
+                    }
                     deleting = nil
                 }
                 .buttonStyle(.ghostMuted)
@@ -224,10 +237,19 @@ struct StatementScreen: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            guard case .payment(let payment) = entry else { return }
+            guard let id = paymentID(entry) else { return }
             withAnimation(Metrics.quick) {
-                deleting = deleting == payment.id ? nil : payment.id
+                deleting = deleting == id ? nil : id
             }
+        }
+    }
+
+    /// Either kind of payment can be armed for deletion; nothing else can.
+    private func paymentID(_ entry: Statement.Entry) -> UUID? {
+        switch entry {
+        case .payment(let payment): payment.id
+        case .supplierPayment(let payment): payment.id
+        case .bill, .purchase: nil
         }
     }
 
