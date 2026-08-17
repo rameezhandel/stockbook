@@ -178,6 +178,15 @@ class Strings(val language: AppLanguage) {
     val noBillsYet: String get() = pick("No bills yet", "ಇನ್ನೂ ಬಿಲ್ ಇಲ್ಲ")
     val openingBalanceField: String get() = pick("Opening balance", "ಪ್ರಾರಂಭಿಕ ಬಾಕಿ")
 
+    // The save gate when a name has been typed but nobody picked. Says what to do,
+    // not what went wrong.
+    val chooseFromTheList: String get() = pick("Choose a customer from the list", "ಪಟ್ಟಿಯಿಂದ ಗ್ರಾಹಕರನ್ನು ಆರಿಸಿ")
+
+    // The way a customer who is not on the roster yet gets onto it, without
+    // leaving the bill.
+    fun addAsCustomer(name: String): String =
+            pick("Add “$name” as a customer", "“$name” ಅನ್ನು ಗ್ರಾಹಕರಾಗಿ ಸೇರಿಸಿ")
+
     // Says which balance this is, because the statement has one of its own with a
     // different meaning — that one is derived, this one is typed in once.
     val openingBalanceNote: String

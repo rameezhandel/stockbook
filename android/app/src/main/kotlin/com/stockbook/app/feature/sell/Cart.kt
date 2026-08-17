@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Product
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.DraftLine
@@ -36,7 +37,25 @@ class Cart {
     private val _lines = mutableStateListOf<Line>()
     val lines: List<Line> get() = _lines
 
+    /**
+     * The customer's name as it will be written on the bill.
+     *
+     * Set either by typing or by choosing from the list, but only a *choice*
+     * counts — see [customerKey]. Assigned through [typeCustomer] and
+     * [selectCustomer] rather than directly, so the two can never disagree.
+     */
     var customer by mutableStateOf("")
+        private set
+
+    /**
+     * The chosen customer's key, or null when nobody has been chosen yet.
+     *
+     * This is what gates saving. A typed name that matches nobody is not a
+     * customer, and letting it through is how "Ahmed", "ahmed " and "Ahmd" became
+     * three people with three balances — the thing the roster exists to stop.
+     */
+    var customerKey by mutableStateOf<String?>(null)
+        private set
     var payMode by mutableStateOf(PayMode.FULL)
     var paidText by mutableStateOf("")
 
@@ -52,8 +71,28 @@ class Cart {
     /** What gets stored: null for paid in full. */
     val paidForStorage: Double? get() = if (payMode == PayMode.FULL) null else paidValue
 
-    /** A bill needs something on it and somebody to give it to. */
-    val canSave: Boolean get() = !isEmpty && customer.isNotBlank()
+    /**
+     * A bill needs something on it, and somebody **chosen** to give it to.
+     *
+     * Not merely a non-blank name: a name nobody picked from the list is a name
+     * with no account behind it, so nothing could be owed to it or settled against
+     * it later.
+     */
+    val canSave: Boolean get() = !isEmpty && customerKey != null
+
+    /** Typed into the field. Invalidates any earlier choice, deliberately. */
+    fun typeCustomer(text: String) {
+        customer = text
+        // Choosing Ahmed and then editing the text must not save a bill against
+        // Ahmed's account under a name that is no longer his.
+        customerKey = null
+    }
+
+    /** Chosen from the list. Takes the roster's spelling, not whatever was typed. */
+    fun selectCustomer(chosen: Customer) {
+        customer = chosen.name
+        customerKey = chosen.key
+    }
 
     val draftLines: List<DraftLine>
         get() = _lines.map { DraftLine(it.productUid, it.qty, it.price) }
@@ -106,6 +145,7 @@ class Cart {
     fun clear() {
         _lines.clear()
         customer = ""
+        customerKey = null
         payMode = PayMode.FULL
         paidText = ""
     }

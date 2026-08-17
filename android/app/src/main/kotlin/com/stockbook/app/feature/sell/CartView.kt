@@ -39,6 +39,10 @@ import com.stockbook.app.design.PrimaryButton
 import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import com.stockbook.core.model.Customer
+import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.money.Money
@@ -52,6 +56,7 @@ import com.stockbook.core.text.Strings
 fun CartView(
     cart: Cart,
     state: ShopState,
+    store: StockbookStore,
     currency: Currency,
     strings: Strings,
     onBrowse: () -> Unit,
@@ -90,12 +95,19 @@ fun CartView(
             }
         }
 
-        Footer(cart = cart, currency = currency, strings = strings, onSave = onSave)
+        Footer(cart = cart, state = state, store = store, currency = currency, strings = strings, onSave = onSave)
     }
 }
 
 @Composable
-private fun Footer(cart: Cart, currency: Currency, strings: Strings, onSave: () -> Unit) {
+private fun Footer(
+    cart: Cart,
+    state: ShopState,
+    store: StockbookStore,
+    currency: Currency,
+    strings: Strings,
+    onSave: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxWidth().background(Nocturne.surface)) {
         Box(Modifier.fillMaxWidth().height(Metrics.hairline).background(Nocturne.neutral800))
 
@@ -107,13 +119,7 @@ private fun Footer(cart: Cart, currency: Currency, strings: Strings, onSave: () 
                 .navigationBarsPadding()
                 .padding(bottom = 12.dp)
         ) {
-            NocturneField(
-                value = cart.customer,
-                onValueChange = { cart.customer = it },
-                placeholder = strings.customerName,
-                height = 40.dp,
-                isRequiredAndEmpty = cart.customer.isBlank()
-            )
+            CustomerPicker(cart = cart, state = state, store = store, currency = currency, strings = strings)
             Spacer(Modifier.height(10.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -176,7 +182,13 @@ private fun Footer(cart: Cart, currency: Currency, strings: Strings, onSave: () 
             // Validation is the button's label, never a toast: it says what is
             // missing and stays disabled until it isn't.
             PrimaryButton(
-                title = if (cart.canSave) strings.saveBill else strings.enterCustomerName,
+                title = when {
+                    cart.canSave -> strings.saveBill
+                    // Two different things are missing, and the button says which:
+                    // an empty box needs a name, a typed one needs a choice.
+                    cart.customer.isBlank() -> strings.enterCustomerName
+                    else -> strings.chooseFromTheList
+                },
                 onClick = onSave,
                 enabled = cart.canSave,
                 fullWidth = true,
@@ -339,6 +351,136 @@ private fun PaymentPill(
             title,
             style = NocturneType.inter(13.0, FontWeight.Medium),
             color = if (selected) Nocturne.accent else Nocturne.neutral500
+        )
+    }
+}
+
+/**
+ * The customer on the bill: type to filter, then **choose**.
+ *
+ * A typed name is not a customer. Free text is how "Ahmed", "ahmed " and "Ahmd"
+ * become three people with three balances, and once statements and payments hang
+ * off a customer that stops being cosmetic. So the field filters the roster and
+ * nothing is settled until a row is tapped — `Cart.canSave` refuses until then.
+ *
+ * It must never be able to block a sale, though, so a name matching nobody offers
+ * to become a customer on the spot. That is one tap more than typing used to be,
+ * and it leaves a real account behind rather than a string.
+ *
+ * The list is drawn **above** the field, not below it. This footer sits at the
+ * bottom of the screen with the keyboard under it; a dropdown below the field
+ * would open off-screen. The iOS build learned this the hard way.
+ */
+@Composable
+private fun CustomerPicker(
+    cart: Cart,
+    state: ShopState,
+    store: StockbookStore,
+    currency: Currency,
+    strings: Strings
+) {
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val typed = cart.customer.trim()
+
+    // Keyed on `state`, which is the observable value: reading the store's own
+    // getters during composition subscribes to nothing, so the list would go stale
+    // the moment a customer was added from inside it.
+    val everyone = remember(state) { store.customers() }
+    val query = Customer.key(typed)
+
+    // Not `store.customerSuggestions`, which deliberately drops an exact match —
+    // sensible when the field also accepted free text, fatal now that a choice is
+    // compulsory: typing a name in full would remove the only row that could be
+    // tapped, and offer no way to create it either, because it already exists.
+    val matches = remember(everyone, query, cart.customerKey) {
+        if (cart.customerKey != null) emptyList()
+        else everyone.filter { query.isEmpty() || it.key.contains(query) }.take(4)
+    }
+
+    // Offered when what was typed is nobody yet.
+    val canCreate = cart.customerKey == null &&
+        typed.isNotEmpty() &&
+        everyone.none { it.key == query }
+
+    fun choose(customer: Customer) {
+        cart.selectCustomer(customer)
+        keyboard?.hide()
+        focusManager.clearFocus()
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (matches.isNotEmpty() || canCreate) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .card(Metrics.controlRadius)
+                    .hairline(Nocturne.accent, Metrics.controlRadius)
+                    .padding(vertical = 3.dp)
+            ) {
+                matches.forEach { candidate ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { choose(candidate) }
+                            .padding(horizontal = 11.dp, vertical = 9.dp)
+                    ) {
+                        Glyph(Icon.customer, size = 12.dp, tint = Nocturne.neutral500)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            candidate.name,
+                            style = NocturneType.inter(13.5),
+                            color = Nocturne.text,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            candidate.meta(currency, strings),
+                            style = NocturneType.meta,
+                            color = if (candidate.owed > 0) Nocturne.accent400 else Nocturne.neutral500
+                        )
+                    }
+                }
+
+                if (canCreate) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                store.addCustomer(typed)?.let { record ->
+                                    store.customer(record.key)?.let { choose(it) }
+                                }
+                            }
+                            .padding(horizontal = 11.dp, vertical = 9.dp)
+                    ) {
+                        Glyph(Icon.add, size = 12.dp, tint = Nocturne.accent)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            strings.addAsCustomer(typed),
+                            style = NocturneType.inter(13.5),
+                            color = Nocturne.accent,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+        }
+
+        NocturneField(
+            value = cart.customer,
+            onValueChange = { cart.typeCustomer(it) },
+            placeholder = strings.customerName,
+            height = 40.dp,
+            // Marked until somebody is actually chosen, not merely until the box
+            // has characters in it. Accent means "this still needs something", so a
+            // chosen customer drops back to the neutral border — the two states
+            // have to look different or the gate is invisible.
+            isRequiredAndEmpty = cart.customerKey == null
         )
     }
 }

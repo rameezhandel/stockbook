@@ -28,7 +28,7 @@ struct LocalizationTests {
         \.customersTitle, \.addACustomer, \.newCustomer, \.editCustomer,
         \.customerPhone, \.customerPlace, \.optionalField, \.saveCustomer,
         \.removeFromCustomers, \.tapAgainToRemove, \.noBillsYet,
-        \.openingBalanceField, \.openingBalanceNote, \.enterCustomerNameFirst, \.removeCustomerNote,
+        \.openingBalanceField, \.openingBalanceNote, \.chooseFromTheList, \.enterCustomerNameFirst, \.removeCustomerNote,
         \.recordAPayment, \.amountReceived, \.receivedOn, \.paymentNote,
         \.paymentNoteExample, \.savePayment, \.paymentLabel, \.deleteThisPayment,
         \.enterAnAmount, \.paymentNotAgainstOneBill,

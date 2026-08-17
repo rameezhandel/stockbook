@@ -125,6 +125,7 @@ fun SellScreen(
                 CartView(
                     cart = cart,
                     state = state,
+                    store = store,
                     currency = currency,
                     strings = strings,
                     onBrowse = {

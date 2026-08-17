@@ -196,6 +196,20 @@ struct Strings {
     var noBillsYet: String { pick("No bills yet", "ಇನ್ನೂ ಬಿಲ್ ಇಲ್ಲ") }
     var openingBalanceField: String { pick("Opening balance", "ಪ್ರಾರಂಭಿಕ ಬಾಕಿ") }
 
+    /// The save gate when a name has been typed but nobody picked. Says what to
+    /// do, not what went wrong.
+    ///
+    /// Added alongside the Android picker so the two tables stay identical. The
+    /// iOS cart still takes free text and will use these when the picker is
+    /// brought over.
+    var chooseFromTheList: String { pick("Choose a customer from the list", "ಪಟ್ಟಿಯಿಂದ ಗ್ರಾಹಕರನ್ನು ಆರಿಸಿ") }
+
+    /// The way a customer who is not on the roster yet gets onto it, without
+    /// leaving the bill.
+    func addAsCustomer(_ name: String) -> String {
+        pick("Add “\(name)” as a customer", "“\(name)” ಅನ್ನು ಗ್ರಾಹಕರಾಗಿ ಸೇರಿಸಿ")
+    }
+
     /// Says which balance this is, because the statement has one of its own with
     /// a different meaning — that one is derived, this one is typed in once.
     var openingBalanceNote: String {
