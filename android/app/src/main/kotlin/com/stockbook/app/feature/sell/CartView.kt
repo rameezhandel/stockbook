@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -393,9 +394,12 @@ private fun CustomerPicker(
     // sensible when the field also accepted free text, fatal now that a choice is
     // compulsory: typing a name in full would remove the only row that could be
     // tapped, and offer no way to create it either, because it already exists.
+    // Every match, not the first four. The list scrolls instead — a cap looks
+    // identical to "no such customer" for anyone who happens to sort fifth, and on
+    // a roster of any size that is a name the owner cannot reach at all.
     val matches = remember(everyone, query, cart.customerKey) {
         if (cart.customerKey != null) emptyList()
-        else everyone.filter { query.isEmpty() || it.key.contains(query) }.take(4)
+        else everyone.filter { query.isEmpty() || it.key.contains(query) }
     }
 
     // Offered when what was typed is nobody yet.
@@ -418,32 +422,39 @@ private fun CustomerPicker(
                     .hairline(Nocturne.accent, Metrics.controlRadius)
                     .padding(vertical = 3.dp)
             ) {
-                matches.forEach { candidate ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { choose(candidate) }
-                            .padding(horizontal = 11.dp, vertical = 9.dp)
-                    ) {
-                        Glyph(Icon.customer, size = 12.dp, tint = Nocturne.neutral500)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            candidate.name,
-                            style = NocturneType.inter(13.5),
-                            color = Nocturne.text,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            candidate.meta(currency, strings),
-                            style = NocturneType.meta,
-                            color = if (candidate.owed > 0) Nocturne.accent400 else Nocturne.neutral500
-                        )
+                // Lazy and bounded. The maximum is deliberately not a whole number
+                // of rows: a sliver of the next one showing is what tells the
+                // owner there is more below, without a scrollbar to draw.
+                LazyColumn(modifier = Modifier.heightIn(max = CUSTOMER_LIST_MAX_HEIGHT)) {
+                    items(matches, key = { it.key }) { candidate ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { choose(candidate) }
+                                .padding(horizontal = 11.dp, vertical = 9.dp)
+                        ) {
+                            Glyph(Icon.customer, size = 12.dp, tint = Nocturne.neutral500)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                candidate.name,
+                                style = NocturneType.inter(13.5),
+                                color = Nocturne.text,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                candidate.meta(currency, strings),
+                                style = NocturneType.meta,
+                                color = if (candidate.owed > 0) Nocturne.accent400 else Nocturne.neutral500
+                            )
+                        }
                     }
                 }
 
+                // Outside the scrolling part on purpose: this is the way out when
+                // nobody matches, and it must never be something to scroll for.
                 if (canCreate) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -484,3 +495,12 @@ private fun CustomerPicker(
         )
     }
 }
+
+/**
+ * How tall the customer list may grow before it scrolls.
+ *
+ * Rows are about 34dp, so this shows four and a sliver of the fifth — enough to
+ * read as "there is more" while leaving the footer's own controls on screen with
+ * the keyboard up.
+ */
+private val CUSTOMER_LIST_MAX_HEIGHT = 150.dp
