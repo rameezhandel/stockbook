@@ -19,73 +19,79 @@ struct CartView: View {
     var body: some View {
         @Bindable var cart = cart
 
-        VStack(spacing: 0) {
-            // Read top to bottom it is the order the owner already has the
-            // answers in: the number on the paper, the day, who it is for, what
-            // it came to. What was sold comes after all of that, because on most
-            // bills here it never comes at all.
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    paperRow
+        // Read top to bottom it is the order the owner already has the answers
+        // in: the number on the paper, the day, who it is for, what it came to.
+        // What was sold comes after all of that, because on most bills here it
+        // never comes at all.
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                paperRow
 
-                    CustomerPicker()
-                        .padding(.top, 12)
-
-                    // The figure, however it was arrived at. Never both at once:
-                    // a typed amount beside a line sum is two answers to one
-                    // question, and no way to tell which is about to be saved.
-                    Group {
-                        if cart.lines.isEmpty {
-                            NocturneField.number(
-                                label: Loc.amountField,
-                                text: $cart.amountText,
-                                height: Metrics.tallInputHeight,
-                                isRequiredAndEmpty: cart.total <= 0,
-                                emphasis: .sellingPrice,
-                                prefix: currency.symbol.trimmed,
-                                fontSize: 17,
-                                identifier: "cart.amount"
-                            )
-                        } else {
-                            itemisedTotal
-                        }
-                    }
+                CustomerPicker()
                     .padding(.top, 12)
 
-                    ForEach(cart.lines) { line in
-                        CartLineCard(
-                            line: line,
-                            stock: cart.stock(for: line, in: store),
-                            onQuantity: { cart.setQuantity($0, for: line.id) },
-                            onPrice: { cart.setPrice($0, for: line.id) },
-                            onResetPrice: { cart.resetPrice(for: line.id) },
-                            onRemove: { cart.remove(line.id) }
+                // The figure, however it was arrived at. Never both at once:
+                // a typed amount beside a line sum is two answers to one
+                // question, and no way to tell which is about to be saved.
+                Group {
+                    if cart.lines.isEmpty {
+                        NocturneField.number(
+                            label: Loc.amountField,
+                            text: $cart.amountText,
+                            height: Metrics.tallInputHeight,
+                            isRequiredAndEmpty: cart.total <= 0,
+                            emphasis: .sellingPrice,
+                            prefix: currency.symbol.trimmed,
+                            fontSize: 17,
+                            identifier: "cart.amount"
                         )
-                        .padding(.top, 8)
-                        .transition(.opacity)
+                    } else {
+                        itemisedTotal
                     }
-
-                    // Quiet on purpose. Most bills here never touch it, and a
-                    // button that shouts is a button an owner in a hurry taps by
-                    // mistake.
-                    Button(action: onBrowse) {
-                        Label(cart.isEmpty ? Loc.addItems : Loc.addAnotherItem, systemImage: Icon.browseAll)
-                    }
-                    .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
-                    .padding(.top, 12)
-
-                    paymentBlock
-                        .padding(.top, 14)
                 }
-                .padding(.horizontal, Metrics.screenPadding)
-                .padding(.bottom, 12)
-                .motion(Motion.list, value: cart.lines.count)
-            }
-            .scrollBounceBehavior(.basedOnSize)
+                .padding(.top, 12)
 
-            saveBar
+                ForEach(cart.lines) { line in
+                    CartLineCard(
+                        line: line,
+                        stock: cart.stock(for: line, in: store),
+                        onQuantity: { cart.setQuantity($0, for: line.id) },
+                        onPrice: { cart.setPrice($0, for: line.id) },
+                        onResetPrice: { cart.resetPrice(for: line.id) },
+                        onRemove: { cart.remove(line.id) }
+                    )
+                    .padding(.top, 8)
+                    .transition(.opacity)
+                }
+
+                // Quiet on purpose. Most bills here never touch it, and a
+                // button that shouts is a button an owner in a hurry taps by
+                // mistake.
+                Button(action: onBrowse) {
+                    Label(cart.isEmpty ? Loc.addItems : Loc.addAnotherItem, systemImage: Icon.browseAll)
+                }
+                .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
+                .padding(.top, 12)
+
+                paymentBlock
+                    .padding(.top, 14)
+            }
+            .padding(.horizontal, Metrics.screenPadding)
+            .padding(.bottom, 12)
+            .motion(Motion.list, value: cart.lines.count)
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
+        .scrollBounceBehavior(.basedOnSize)
+        // The save bar is part of the scroll view's **safe area**, not a sibling
+        // in a stack with it.
+        //
+        // As a sibling it was a fixed-height view competing for space with a
+        // flexible one, inside a shell that has already told the system to ignore
+        // the keyboard — so whichever way the keyboard inset resolved, one of the
+        // two got the wrong height: either the bar climbed the screen or the form
+        // was squeezed out of existence. `safeAreaInset` is the mechanism made for
+        // this: the bar sits at the bottom, the content is inset by exactly its
+        // height, and when the keyboard opens the pair moves as one.
+        .safeAreaInset(edge: .bottom, spacing: 0) { saveBar }
         .keyboardDoneButton()
         // One past the last number the shop wrote, put in the box so the usual
         // bill needs no typing at all. Watched rather than done once: the flag is
