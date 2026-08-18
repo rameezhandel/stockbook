@@ -173,6 +173,12 @@ private struct AppShell: View {
         .nocturneSheet(item: $router.supplierPaymentFor) { supplier in
             PaySupplierSheet(supplier: supplier) { router.supplierPaymentFor = nil }
         }
+        .nocturneSheet(isPresented: $router.showingDebtors) {
+            WhoOwesYouSheet { router.showingDebtors = false }
+        }
+        .nocturneSheet(isPresented: $router.showingCreditors) {
+            WhoYouOweSheet { router.showingCreditors = false }
+        }
     }
 
     /// Hidden only under Sell's product picker, which carries its own bottom

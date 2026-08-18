@@ -75,6 +75,13 @@ final class AppRouter {
     /// The pay-a-supplier sheet.
     var supplierPaymentFor: Supplier?
 
+    /// The two lists behind Today's banners: everyone who owes the shop, and
+    /// everyone the shop owes. Booleans rather than carried values — the sheets
+    /// read the whole list off the store, and settling one debtor from inside one
+    /// must not close it.
+    var showingDebtors = false
+    var showingCreditors = false
+
     /// A supplier's statement, full screen — a key for the same reason
     /// `statementFor` is one, and a separate field so the screen knows which side
     /// of the book it is drawing without being told twice.
@@ -170,6 +177,8 @@ final class AppRouter {
         supplierStatementFor = nil
         purchaseDetail = nil
         startingPurchase = false
+        showingDebtors = false
+        showingCreditors = false
     }
 }
 

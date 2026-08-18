@@ -30,10 +30,16 @@ struct TodayScreen: View {
             }
 
             ScrollView {
+                // Both sides read once here rather than inside the banners: each
+                // is a walk over every bill or delivery, and the first banner's
+                // spacing depends on whether the second one is there.
+                let owed = store.outstanding()
+                let payable = store.payable()
+
                 VStack(spacing: 0) {
                     statCards
-                    owedBanner
-                    payableBanner
+                    owedBanner(owed, followedByPayable: !payable.names.isEmpty)
+                    payableBanner(payable)
                     recentBills
                     backupNudge
                 }
@@ -78,31 +84,20 @@ struct TodayScreen: View {
     // MARK: Owed
 
     @ViewBuilder
-    private var owedBanner: some View {
-        let owed = store.outstanding()
+    private func owedBanner(_ owed: (names: [String], total: Double), followedByPayable: Bool) -> some View {
         if !owed.names.isEmpty {
-            HStack(spacing: 10) {
-                Glyph(Icon.owed, size: 19)
-                    .foregroundStyle(Nocturne.accent400)
-                Text(owedNote(names: owed.names))
-                    .font(NocturneType.inter(12.5))
-                    .foregroundStyle(Nocturne.neutral400)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Text(Money.text(owed.total, in: currency))
-                    .font(NocturneType.inter(16))
-                    .foregroundStyle(Nocturne.accent400)
-                    .rollingNumber(owed.total)
-            }
-            .padding(.horizontal, 13)
-            .padding(.vertical, 12)
-            .background(Nocturne.surface)
-            .clipShape(.rect(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: Metrics.cardRadius, topTrailingRadius: Metrics.cardRadius))
-            .overlay(alignment: .leading) {
-                Rectangle()
-                    .fill(Nocturne.accent)
-                    .frame(width: 2)
-            }
-            .padding(.bottom, 18)
+            banner(
+                note: owedNote(names: owed.names),
+                amount: owed.total,
+                icon: Icon.owed,
+                // The banner is where the debt gets noticed; the list behind it is
+                // where it gets collected. Without this tap the only route to
+                // Ahmed's cash was to remember to go and find Ahmed in the Book.
+                action: { router.showingDebtors = true }
+            )
+            // Tightened when the second banner follows, so the pair reads as one
+            // block of money rather than two unrelated notices.
+            .padding(.bottom, followedByPayable ? 6 : 18)
         }
     }
 
@@ -112,24 +107,35 @@ struct TodayScreen: View {
     /// banner saying "you owe nothing" every day teaches people to stop reading
     /// banners.
     @ViewBuilder
-    private var payableBanner: some View {
-        let payable = store.payable()
+    private func payableBanner(_ payable: (names: [String], total: Double)) -> some View {
         if !payable.names.isEmpty {
+            banner(
+                note: payable.names.count == 1
+                    ? Loc.youOweOne(payable.names[0])
+                    : Loc.youOweMany(payable.names.count),
+                amount: payable.total,
+                icon: Icon.items,
+                action: { router.showingCreditors = true }
+            )
+            .padding(.bottom, 18)
+        }
+    }
+
+    /// One banner body, both directions — what a debt looks like does not change
+    /// with who owes it.
+    private func banner(note: String, amount: Double, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack(spacing: 10) {
-                Glyph(Icon.items, size: 19)
+                Glyph(icon, size: 19)
                     .foregroundStyle(Nocturne.accent400)
-                Text(
-                    payable.names.count == 1
-                        ? Loc.youOweOne(payable.names[0])
-                        : Loc.youOweMany(payable.names.count)
-                )
-                .font(NocturneType.inter(12.5))
-                .foregroundStyle(Nocturne.neutral400)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Text(Money.text(payable.total, in: currency))
+                Text(note)
+                    .font(NocturneType.inter(12.5))
+                    .foregroundStyle(Nocturne.neutral400)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(Money.text(amount, in: currency))
                     .font(NocturneType.inter(16))
                     .foregroundStyle(Nocturne.accent400)
-                    .rollingNumber(payable.total)
+                    .rollingNumber(amount)
             }
             .padding(.horizontal, 13)
             .padding(.vertical, 12)
@@ -140,8 +146,9 @@ struct TodayScreen: View {
                     .fill(Nocturne.accent)
                     .frame(width: 2)
             }
-            .padding(.bottom, 18)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 
     /// One name reads as a name; several read as a count of **people**, not bills.
