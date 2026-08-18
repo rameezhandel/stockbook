@@ -26,6 +26,18 @@ enum Copy {
         formatter("d MMMM yyyy", locale).string(from: date)
     }
 
+    /// `19/05/2026` — the compact form a table column has room for.
+    ///
+    /// Numeric and fixed-width rather than localised word order, because it sits
+    /// in a narrow column beside a hundred others and has to line up. Day-first,
+    /// which is what this shop's own paper uses.
+    static func shortDate(_ date: Date) -> String {
+        // POSIX, like the time formatter above: the pattern already fixes the
+        // order, and a locale that might swap in its own numerals would break
+        // the column alignment this format exists for.
+        formatter("dd/MM/yyyy", Locale(identifier: "en_US_POSIX")).string(from: date)
+    }
+
     /// `2026-08-11` — used to build the backup filename, so it is deliberately
     /// **not** localised: the file has to sort and parse the same everywhere.
     static func fileDate(_ date: Date) -> String {

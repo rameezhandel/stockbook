@@ -34,6 +34,19 @@ object Dates {
         formatter("d MMMM yyyy", locale).format(at.atZone(ZoneId.systemDefault()))
 
     /**
+     * `19/05/2026` — the compact form a table column has room for.
+     *
+     * Numeric and fixed-width rather than localised word order, because it sits
+     * in a narrow column beside a hundred others and has to line up. Day-first,
+     * which is what this shop's own paper uses.
+     */
+    fun shortDate(at: Instant): String =
+        // `Locale.US` like [fileDate], not the interface language: the pattern
+        // already fixes the order, and a locale that might swap in its own
+        // numerals would break the column alignment this format exists for.
+        formatter("dd/MM/yyyy", Locale.US).format(at.atZone(ZoneId.systemDefault()))
+
+    /**
      * `2026-08-11` — used to build the backup filename, so it is deliberately
      * **not** localised: the file has to sort and parse the same everywhere, and
      * be readable by the iPhone it might be carried to.

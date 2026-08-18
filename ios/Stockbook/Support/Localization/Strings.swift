@@ -733,6 +733,26 @@ struct Strings {
     }
 
 
+    // MARK: - The printed statement
+    //
+    // Its own words rather than the screen's. A document somebody files beside
+    // their supplier statements should read like one.
+
+    var accountStatementFor: String { pick("Account statement for:", "ಖಾತೆ ವಿವರ — ಇವರಿಗೆ:") }
+    var accountActivity: String { pick("Account Activity", "ಖಾತೆ ವ್ಯವಹಾರ") }
+    var balanceDue: String { pick("Balance Due", "ಕೊಡಬೇಕಾದ ಬಾಕಿ") }
+    var columnDate: String { pick("Date", "ದಿನಾಂಕ") }
+    var columnTransaction: String { pick("Transaction", "ವ್ಯವಹಾರ") }
+    var columnAmount: String { pick("Amount", "ಮೊತ್ತ") }
+    var columnBalance: String { pick("Balance", "ಉಳಿಕೆ") }
+    var sharePdf: String { pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ") }
+
+    func accountSummaryTill(_ date: String) -> String {
+        pick("Account summary till \(date)", "\(date) ವರೆಗಿನ ಖಾತೆ ಸಾರಾಂಶ")
+    }
+
+    func statementFileName(name: String, date: String) -> String { "statement-\(name)-\(date).pdf" }
+
     var shopAddress: String { pick("Shop address", "ಅಂಗಡಿ ವಿಳಾಸ") }
     var shopAddressHint: String { pick("Street, district, city", "ರಸ್ತೆ, ಬಡಾವಣೆ, ಊರು") }
     var shopAddressNote: String {
@@ -841,6 +861,9 @@ struct Strings {
     }
 
     /// `28 July 2026`
+    /// `19/05/2026`, for the statement table's narrow date column.
+    func shortDate(_ date: Date) -> String { Copy.shortDate(date) }
+
     func longDate(_ date: Date) -> String {
         Copy.longDate(date, locale: language.locale)
     }

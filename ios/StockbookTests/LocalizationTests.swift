@@ -74,6 +74,8 @@ struct LocalizationTests {
         \.owedToSuppliers, \.nothingOwedOut, \.chooseSupplierFromTheList,
         \.removeSupplierBill, \.removeSupplierBillNote, \.purchasedInPeriod, \.paidOutInPeriod,
         \.shopAddress, \.shopAddressHint, \.shopAddressNote,
+        \.accountStatementFor, \.accountActivity, \.balanceDue, \.columnDate,
+        \.columnTransaction, \.columnAmount, \.columnBalance, \.sharePdf,
         \.currencySection, \.currencyNote, \.setupCurrencyNote, \.moveToAnotherPhone,
         \.moveToAnotherPhoneNote, \.exportEverything, \.exportNoteFirstTime, \.exportNoteAfterBackup,
         \.writeAFreshFile, \.createBackupFile, \.importABackupFile, \.chooseAFile,

@@ -663,6 +663,25 @@ class Strings(val language: AppLanguage) {
             )
 
 
+    // --- The printed statement
+    //
+    // Its own words rather than the screen's. A document somebody files beside
+    // their supplier statements should read like one.
+
+    val accountStatementFor: String get() = pick("Account statement for:", "ಖಾತೆ ವಿವರ — ಇವರಿಗೆ:")
+    val accountActivity: String get() = pick("Account Activity", "ಖಾತೆ ವ್ಯವಹಾರ")
+    val balanceDue: String get() = pick("Balance Due", "ಕೊಡಬೇಕಾದ ಬಾಕಿ")
+    val columnDate: String get() = pick("Date", "ದಿನಾಂಕ")
+    val columnTransaction: String get() = pick("Transaction", "ವ್ಯವಹಾರ")
+    val columnAmount: String get() = pick("Amount", "ಮೊತ್ತ")
+    val columnBalance: String get() = pick("Balance", "ಉಳಿಕೆ")
+    val sharePdf: String get() = pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ")
+
+    fun accountSummaryTill(date: String): String =
+            pick("Account summary till $date", "$date ವರೆಗಿನ ಖಾತೆ ಸಾರಾಂಶ")
+
+    fun statementFileName(name: String, date: String): String = "statement-$name-$date.pdf"
+
     val shopAddress: String get() = pick("Shop address", "ಅಂಗಡಿ ವಿಳಾಸ")
     val shopAddressHint: String
         get() = pick("Street, district, city", "ರಸ್ತೆ, ಬಡಾವಣೆ, ಊರು")
@@ -758,5 +777,8 @@ class Strings(val language: AppLanguage) {
 
     // `28 July 2026`
     fun longDate(date: java.time.Instant): String = Dates.longDate(date, language.locale)
+
+    /** `19/05/2026`, for the statement table's narrow date column. */
+    fun shortDate(date: java.time.Instant): String = Dates.shortDate(date)
 
 }
