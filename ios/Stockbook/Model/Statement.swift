@@ -12,6 +12,20 @@ struct StatementRange: Equatable, Sendable {
     let end: Date
 
     func contains(_ date: Date) -> Bool { date >= start && date < end }
+
+    /// The last day this statement can honestly say it covers.
+    ///
+    /// For a finished month that is the month's own last day. For the month
+    /// running now it is **today**: a statement printed on the 18th and headed
+    /// "till 31 August" claims a fortnight that has not happened, and the
+    /// customer reading it would take the balance as final when a week of
+    /// deliveries is still to come.
+    ///
+    /// Clamped at both ends, so a period picked entirely in the future is dated
+    /// from its own first day rather than from a moment before it began.
+    func asOf(_ now: Date = .now) -> Date {
+        min(max(now, start), end.addingTimeInterval(-1))
+    }
 }
 
 /// What span a statement covers.

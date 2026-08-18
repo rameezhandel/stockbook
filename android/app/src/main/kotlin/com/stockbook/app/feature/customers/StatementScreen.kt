@@ -575,29 +575,14 @@ private fun Detail(text: String?) {
 }
 
 /**
- * What a row is called on screen: the kind of document, then its number.
+ * What a row is called on screen — the printed statement's own rule, borrowed
+ * rather than restated.
  *
- * Deliberately the same rule the printed statement follows — the two are read
- * side by side when somebody checks a PDF against the app, and a row named two
- * different ways is a row they have to reconcile by eye.
+ * The two are read side by side when somebody checks a PDF against the app, and
+ * a row named two different ways is a row they reconcile by eye.
  */
-private fun reference(entry: Statement.Entry, strings: Strings): String = when (entry) {
-    is Statement.Entry.ForBill ->
-        entry.bill.invoiceNo?.takeIf { it.isNotBlank() }
-            ?.let { strings.invoiceRef(it) } ?: strings.billNumber(entry.bill.number)
-    is Statement.Entry.ForPurchase ->
-        entry.purchase.invoiceNo?.takeIf { it.isNotBlank() }
-            ?.let { strings.deliveryRef(it) } ?: strings.purchaseLabel
-    is Statement.Entry.ForCreditNote ->
-        entry.note.noteNo?.takeIf { it.isNotBlank() }
-            ?.let { strings.creditNoteRef(it) } ?: strings.creditNoteLabel
-    is Statement.Entry.ForPayment ->
-        entry.payment.paymentNo?.takeIf { it.isNotBlank() }
-            ?.let { strings.paymentRef(it) } ?: strings.paymentLabel
-    is Statement.Entry.ForSupplierPayment ->
-        entry.payment.paymentNo?.takeIf { it.isNotBlank() }
-            ?.let { strings.paymentRef(it) } ?: strings.paymentLabel
-}
+private fun reference(entry: Statement.Entry, strings: Strings): String =
+    StatementDocument.reference(entry, strings)
 
 private fun amountText(entry: Statement.Entry, currency: Currency): String = when (entry) {
     is Statement.Entry.ForBill -> Money.text(entry.bill.total, currency)
@@ -628,10 +613,10 @@ private fun closingText(statement: Statement, currency: Currency, strings: Strin
     }
 
 /**
- * The last day the range covers, for display. `range.end` is exclusive, so showing
- * it would claim a day the statement does not include.
+ * The last day this statement can honestly say it covers — the range's own rule,
+ * so the screen and the PDF are headed with the same date.
  */
-private fun lastDay(range: StatementRange): Instant = range.end.minusSeconds(1)
+private fun lastDay(range: StatementRange): Instant = range.asOf()
 
 /**
  * Plain text for the share sheet, which is how a statement actually reaches a

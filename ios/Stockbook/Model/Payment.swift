@@ -22,6 +22,14 @@ struct Payment: Codable, Equatable, Identifiable, Sendable {
     /// payment, because that is a refund and this app has no notion of one.
     var amount: Double
 
+    /// The number on the receipt the shop wrote when it took the money.
+    ///
+    /// Its own series, like a credit note's and unlike a bill's — a receipt book
+    /// is numbered separately from an invoice book, and "876" in one has nothing
+    /// to do with "876" in the other. Typed rather than suggested, as every
+    /// number in this app is.
+    var paymentNo: String?
+
     var receivedAt: Date
 
     /// "cash", "cheque 4471", "part settlement" — whatever the owner wants to
@@ -32,12 +40,14 @@ struct Payment: Codable, Equatable, Identifiable, Sendable {
         id: UUID = UUID(),
         customerKey: String,
         amount: Double,
+        paymentNo: String? = nil,
         receivedAt: Date = .now,
         note: String? = nil
     ) {
         self.id = id
         self.customerKey = customerKey
         self.amount = max(0, amount)
+        self.paymentNo = paymentNo
         self.receivedAt = receivedAt
         self.note = CustomerRecord.tidied(note)
     }

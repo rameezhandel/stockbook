@@ -14,6 +14,21 @@ import java.time.ZoneId
  */
 data class StatementRange(val start: Instant, val end: Instant) {
     operator fun contains(moment: Instant): Boolean = moment >= start && moment < end
+
+    /**
+     * The last day this statement can honestly say it covers.
+     *
+     * For a finished month that is the month's own last day. For the month
+     * running now it is **today**: a statement printed on the 18th and headed
+     * "till 31 August" claims a fortnight that has not happened, and the
+     * customer reading it would take the balance as final when a week of
+     * deliveries is still to come.
+     *
+     * Clamped at both ends, so a period picked entirely in the future is dated
+     * from its own first day rather than from a moment before it began.
+     */
+    fun asOf(now: Instant = Timestamps.now()): Instant =
+        now.coerceIn(start, end.minusSeconds(1))
 }
 
 /**

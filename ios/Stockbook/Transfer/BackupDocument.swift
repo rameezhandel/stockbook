@@ -107,6 +107,13 @@ struct BackupDocument: Codable, Equatable {
         var id: UUID
         var customerKey: String
         var amount: Double
+        /// The number on the receipt, absent where the shop wrote none.
+        ///
+        /// Optional, so the synthesised decoder reaches for `decodeIfPresent`
+        /// and a file written before receipts were numbered still reads. That
+        /// is *only* true of optionals — a defaulted non-optional would throw,
+        /// which is how the credit-note array once broke every older file.
+        var paymentNo: String?
         var receivedAt: Date
         var note: String?
     }
@@ -200,6 +207,8 @@ struct BackupDocument: Codable, Equatable {
         var id: UUID
         var supplierKey: String
         var amount: Double
+        /// The number on the receipt, absent where the shop wrote none.
+        var paymentNo: String?
         var paidAt: Date
         var note: String?
     }

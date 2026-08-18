@@ -63,7 +63,8 @@ struct StatementDocument: Equatable {
         statement: Statement,
         settings: Settings,
         strings: Strings,
-        currency: Currency? = nil
+        currency: Currency? = nil,
+        now: Date = .now
     ) -> StatementDocument {
         let money = currency ?? settings.currency
         let isSupplier = statement.party.isSupplier
@@ -104,9 +105,7 @@ struct StatementDocument: Equatable {
             partyLines: [statement.party.place, statement.party.phone]
                 .compactMap { $0 }
                 .filter { !$0.isBlank },
-            summaryTitle: strings.accountSummaryTill(
-                strings.longDate(statement.range.end.addingTimeInterval(-1))
-            ),
+            summaryTitle: strings.accountSummaryTill(strings.longDate(statement.range.asOf(now))),
             summaryRows: summary,
             activityTitle: strings.accountActivity,
             columnHeadings: [
@@ -119,7 +118,7 @@ struct StatementDocument: Equatable {
                 let settles = entry.charge == 0
                 return ActivityRow(
                     date: strings.shortDate(entry.date),
-                    transaction: describe(entry, strings),
+                    transaction: reference(entry, strings),
                     amount: Money.text(settles ? entry.settledAtOnce : entry.charge, in: money),
                     balance: Money.text(statement.runningBalances[index], in: money),
                     deduction: settles
@@ -130,16 +129,35 @@ struct StatementDocument: Equatable {
         )
     }
 
-    /// What the Transaction column calls each row.
+    /// What the Transaction column calls each row: **the kind of document, then
+    /// its number**.
     ///
-    /// The paper's own number wherever there is one — that is the whole point of
-    /// a statement somebody is checking against their file of invoices.
-    private static func describe(_ entry: Statement.Entry, _ strings: Strings) -> String {
+    /// "06011" alone tells somebody checking against their own file nothing
+    /// about what 06011 *is*, and the books are numbered separately — invoice
+    /// 130 and credit note 130 are different pieces of paper. Where a record
+    /// carries no number of its own the type is still named, which is the honest
+    /// answer rather than a blank cell.
+    ///
+    /// Not private: the on-screen statement calls it too. The two are read side
+    /// by side when somebody checks a PDF against the app, and a row named two
+    /// different ways is a row they reconcile by eye.
+    static func reference(_ entry: Statement.Entry, _ strings: Strings) -> String {
         switch entry {
-        case .bill(let bill): bill.reference(strings)
-        case .purchase(let purchase): purchase.reference(strings)
-        case .creditNote(let note): note.reference(strings)
-        case .payment, .supplierPayment: strings.paymentLabel
+        case .bill(let bill):
+            if let no = bill.invoiceNo, !no.isBlank { return strings.invoiceRef(no) }
+            return strings.billNumber(bill.number)
+        case .purchase(let purchase):
+            if let no = purchase.invoiceNo, !no.isBlank { return strings.deliveryRef(no) }
+            return strings.purchaseLabel
+        case .creditNote(let note):
+            if let no = note.noteNo, !no.isBlank { return strings.creditNoteRef(no) }
+            return strings.creditNoteLabel
+        case .payment(let payment):
+            if let no = payment.paymentNo, !no.isBlank { return strings.paymentRef(no) }
+            return strings.paymentLabel
+        case .supplierPayment(let payment):
+            if let no = payment.paymentNo, !no.isBlank { return strings.paymentRef(no) }
+            return strings.paymentLabel
         }
     }
 }

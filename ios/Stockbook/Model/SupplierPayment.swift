@@ -18,6 +18,8 @@ struct SupplierPayment: Codable, Equatable, Identifiable, Sendable {
     /// Always positive; the initialiser clamps it. A negative payment is a
     /// refund, and there is no such thing here.
     var amount: Double
+    /// The number on the receipt, on its own series — see `Payment.paymentNo`.
+    var paymentNo: String?
     var paidAt: Date
     /// "cash", "cheque 4471", "against last month" — absent rather than empty
     /// when skipped.
@@ -27,12 +29,14 @@ struct SupplierPayment: Codable, Equatable, Identifiable, Sendable {
         id: UUID = UUID(),
         supplierKey: String,
         amount: Double,
+        paymentNo: String? = nil,
         paidAt: Date = .now,
         note: String? = nil
     ) {
         self.id = id
         self.supplierKey = supplierKey
         self.amount = max(0, amount)
+        self.paymentNo = paymentNo
         self.paidAt = paidAt
         self.note = CustomerRecord.tidied(note)
     }

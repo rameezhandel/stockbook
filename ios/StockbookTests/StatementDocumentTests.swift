@@ -189,7 +189,12 @@ struct StatementDocumentTests {
             createdAt: date(2026, 8, 1),
             invoiceNo: "06011"
         )
-        store.recordPayment(customerKey: "ahmed", amount: 300, receivedAt: date(2026, 8, 3))
+        store.recordPayment(
+            customerKey: "ahmed",
+            amount: 300,
+            receivedAt: date(2026, 8, 3),
+            paymentNo: "R-1"
+        )
         store.addCreditNote(
             customerKey: "ahmed",
             amount: 200,
@@ -200,7 +205,10 @@ struct StatementDocumentTests {
         let statement = try #require(store.statement(forCustomer: "ahmed", period: .month(date(2026, 8, 10))))
         let document = StatementDocument.make(statement: statement, settings: store.settings, strings: english)
 
-        #expect(document.activityRows.map(\.transaction) == ["06011", english.paymentLabel, "00130"])
+        // The kind of document, then its number. "06011" alone tells somebody
+        // checking against their own file nothing about what 06011 *is*, and the
+        // three books are numbered separately.
+        #expect(document.activityRows.map(\.transaction) == ["Invoice #06011", "Payment #R-1", "Credit Note #00130"])
         // The running balance reads down, which is the column's whole job.
         #expect(document.activityRows.map(\.balance) == ["SAR 1,000", "SAR 700", "SAR 500"])
         #expect(document.activityRows.map(\.deduction) == [false, true, true])
@@ -224,8 +232,25 @@ struct StatementDocumentTests {
         let document = try document(store)
 
         #expect(document.activityRows.count == 1)
-        #expect(document.activityRows.first?.transaction == "06011")
+        #expect(document.activityRows.first?.transaction == "Invoice #06011")
         #expect(document.activityRows.first?.amount == "SAR 190")
+    }
+
+    @Test("A record with no number of its own is still named")
+    func unnumberedRecordsAreStillNamed() throws {
+        // A blank cell in the Transaction column is unreadable. The type is the
+        // honest answer where the shop wrote no number.
+        let store = makeStore()
+        aShop(store)
+        store.addCustomer(name: "Ahmed")
+        store.saveBill(customer: "Ahmed", paid: 0, amount: 500, invoiceNo: "06011")
+        store.recordPayment(customerKey: "ahmed", amount: 100)
+        store.addCreditNote(customerKey: "ahmed", amount: 50)
+
+        let transactions = try document(store).activityRows.map(\.transaction)
+
+        #expect(transactions.contains(english.paymentLabel), "\(transactions)")
+        #expect(transactions.contains(english.creditNoteLabel), "\(transactions)")
     }
 
     @Test("Dates in the table are numeric so the column lines up")
@@ -262,10 +287,36 @@ struct StatementDocumentTests {
         ])
     }
 
-    @Test("The summary is titled with the last day the period covers")
-    func summaryTitleUsesLastDay() throws {
+    @Test("A finished month is titled with its own last day")
+    func finishedMonthTitle() throws {
         // Not the exclusive end. Saying "till 1 September" on an August statement
         // claims a day it does not include.
+        let document = try august(printedOn: date(2026, 11, 2))
+
+        #expect(document.summaryTitle.contains("31 August 2026"), "\(document.summaryTitle)")
+    }
+
+    @Test("The month running now is titled with today")
+    func runningMonthTitle() throws {
+        // A statement printed on the 18th and headed "till 31 August" claims a
+        // fortnight that has not happened, and the customer reading it would
+        // take the balance as final with a week of deliveries still to come.
+        let document = try august(printedOn: date(2026, 8, 18))
+
+        #expect(document.summaryTitle.contains("18 August 2026"), "\(document.summaryTitle)")
+    }
+
+    @Test("A period picked ahead of today is dated from its own first day")
+    func futureMonthTitle() throws {
+        // Rather than from a moment before it began. Nothing can be in it yet,
+        // and "till 2 August" on a September statement reads as a bug.
+        let document = try august(printedOn: date(2026, 6, 2))
+
+        #expect(document.summaryTitle.contains("1 August 2026"), "\(document.summaryTitle)")
+    }
+
+    /// One August bill, and a statement for August printed on whatever day.
+    private func august(printedOn: Date) throws -> StatementDocument {
         let store = makeStore()
         aShop(store)
         store.addCustomer(name: "Ahmed")
@@ -278,8 +329,11 @@ struct StatementDocumentTests {
         )
 
         let statement = try #require(store.statement(forCustomer: "ahmed", period: .month(date(2026, 8, 10))))
-        let document = StatementDocument.make(statement: statement, settings: store.settings, strings: english)
-
-        #expect(document.summaryTitle.contains("31 August 2026"), "\(document.summaryTitle)")
+        return StatementDocument.make(
+            statement: statement,
+            settings: store.settings,
+            strings: english,
+            now: printedOn
+        )
     }
 }

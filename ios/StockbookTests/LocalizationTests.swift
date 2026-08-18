@@ -37,6 +37,7 @@ struct LocalizationTests {
         \.recordAPayment, \.amountReceived, \.receivedOn, \.paymentNote,
         \.paymentNoteExample, \.savePayment, \.paymentLabel, \.deleteThisPayment,
         \.enterAnAmount, \.paymentNotAgainstOneBill,
+        \.paymentNoField, \.paymentNoHint, \.enterPaymentNumber, \.changeThePaymentNo,
         \.statement, \.thisMonth, \.lastMonth, \.thisYear,
         \.chooseDates, \.fromDate, \.toDate, \.openingBalance,
         \.billedInPeriod, \.receivedInPeriod, \.closingBalance, \.nothingInThisPeriod,

@@ -601,12 +601,14 @@ final class StockbookStore {
         customerKey: String,
         amount: Double,
         receivedAt: Date = .now,
-        note: String? = nil
+        note: String? = nil,
+        paymentNo: String? = nil
     ) -> Payment? {
         guard amount > 0, !customerKey.isEmpty else { return nil }
         let payment = Payment(
             customerKey: customerKey,
             amount: amount,
+            paymentNo: paymentNo?.trimmed.isBlank == false ? paymentNo?.trimmed : nil,
             receivedAt: receivedAt,
             note: note
         )
@@ -619,6 +621,18 @@ final class StockbookStore {
     func deletePayment(id: UUID) {
         payments.removeAll { $0.id == id }
         attempt { try repository.delete(paymentID: id) }
+    }
+
+    /// The receipt already carrying this number, if any.
+    ///
+    /// Its own series: a receipt numbered 1024 does not clash with invoice 1024,
+    /// and refusing it would be the app inventing a rule the shop's paper does
+    /// not have. The same question `billWithInvoiceNo` and `creditNoteWithNo`
+    /// ask of theirs.
+    func paymentWithNo(_ paymentNo: String?, exceptId: UUID? = nil) -> Payment? {
+        let key = InvoiceNo.key(paymentNo)
+        guard !key.isEmpty else { return nil }
+        return payments.first { $0.id != exceptId && InvoiceNo.key($0.paymentNo) == key }
     }
 
     func payments(forCustomer key: String) -> [Payment] {
@@ -1180,10 +1194,17 @@ final class StockbookStore {
         supplierKey: String,
         amount: Double,
         paidAt: Date = .now,
-        note: String? = nil
+        note: String? = nil,
+        paymentNo: String? = nil
     ) -> SupplierPayment? {
         guard amount > 0, !supplierKey.isEmpty else { return nil }
-        let payment = SupplierPayment(supplierKey: supplierKey, amount: amount, paidAt: paidAt, note: note)
+        let payment = SupplierPayment(
+            supplierKey: supplierKey,
+            amount: amount,
+            paymentNo: paymentNo?.trimmed.isBlank == false ? paymentNo?.trimmed : nil,
+            paidAt: paidAt,
+            note: note
+        )
         supplierPayments.insert(payment, at: 0)
         attempt { try repository.append(payment) }
         return payment
@@ -1192,6 +1213,13 @@ final class StockbookStore {
     func deleteSupplierPayment(id: UUID) {
         supplierPayments.removeAll { $0.id == id }
         attempt { try repository.delete(supplierPaymentID: id) }
+    }
+
+    /// The same question `paymentWithNo` asks, on the money-out receipt book.
+    func supplierPaymentWithNo(_ paymentNo: String?, exceptId: UUID? = nil) -> SupplierPayment? {
+        let key = InvoiceNo.key(paymentNo)
+        guard !key.isEmpty else { return nil }
+        return supplierPayments.first { $0.id != exceptId && InvoiceNo.key($0.paymentNo) == key }
     }
 
     func supplierPayments(for key: String) -> [SupplierPayment] {
@@ -1293,6 +1321,7 @@ final class StockbookStore {
                     id: $0.id,
                     customerKey: $0.customerKey,
                     amount: $0.amount,
+                    paymentNo: $0.paymentNo,
                     receivedAt: $0.receivedAt,
                     note: $0.note
                 )
@@ -1326,6 +1355,7 @@ final class StockbookStore {
                     id: $0.id,
                     supplierKey: $0.supplierKey,
                     amount: $0.amount,
+                    paymentNo: $0.paymentNo,
                     paidAt: $0.paidAt,
                     note: $0.note
                 )
@@ -1418,6 +1448,7 @@ final class StockbookStore {
                     id: $0.id,
                     customerKey: $0.customerKey,
                     amount: $0.amount,
+                    paymentNo: $0.paymentNo,
                     receivedAt: $0.receivedAt,
                     note: $0.note
                 )
@@ -1451,6 +1482,7 @@ final class StockbookStore {
                     id: $0.id,
                     supplierKey: $0.supplierKey,
                     amount: $0.amount,
+                    paymentNo: $0.paymentNo,
                     paidAt: $0.paidAt,
                     note: $0.note
                 )

@@ -322,6 +322,15 @@ struct Strings {
     var receivedOn: String { pick("Received on", "ಸ್ವೀಕರಿಸಿದ ದಿನ") }
     var paymentNote: String { pick("Note", "ಟಿಪ್ಪಣಿ") }
     var paymentNoteExample: String { pick("cash, cheque…", "ನಗದು, ಚೆಕ್…") }
+    var paymentNoField: String { pick("Receipt no.", "ರಸೀದಿ ಸಂಖ್ಯೆ") }
+    var paymentNoHint: String { pick("e.g. 008455", "ಉದಾ. 008455") }
+    var enterPaymentNumber: String { pick("Enter a receipt number", "ರಸೀದಿ ಸಂಖ್ಯೆ ಬರೆಯಿರಿ") }
+    var changeThePaymentNo: String { pick("Change the receipt number", "ರಸೀದಿ ಸಂಖ್ಯೆ ಬದಲಾಯಿಸಿ") }
+
+    func paymentNoAlreadyUsed(date: String) -> String {
+        pick("Already used on \(date)", "\(date) ರಂದು ಬಳಸಲಾಗಿದೆ")
+    }
+
     var savePayment: String { pick("Save payment", "ಪಾವತಿ ಉಳಿಸಿ") }
     var paymentLabel: String { pick("Payment", "ಪಾವತಿ") }
     var deleteThisPayment: String { pick("Delete this payment", "ಈ ಪಾವತಿಯನ್ನು ಅಳಿಸಿ") }
@@ -738,6 +747,19 @@ struct Strings {
     //
     // Its own words rather than the screen's. A document somebody files beside
     // their supplier statements should read like one.
+
+    /// What a row in the Transaction column is called: the kind of document,
+    /// then its number.
+    ///
+    /// A bare "06011" tells somebody checking their own file nothing about
+    /// *what* 06011 is, and the three books are numbered separately — invoice
+    /// 130 and credit note 130 are different pieces of paper. The `#` goes in
+    /// here rather than into the stored number, so what the owner typed stays
+    /// what they typed.
+    func invoiceRef(_ no: String) -> String { pick("Invoice #\(no)", "ಬಿಲ್ #\(no)") }
+    func creditNoteRef(_ no: String) -> String { pick("Credit Note #\(no)", "ಕ್ರೆಡಿಟ್ ನೋಟ್ #\(no)") }
+    func paymentRef(_ no: String) -> String { pick("Payment #\(no)", "ಪಾವತಿ #\(no)") }
+    func deliveryRef(_ no: String) -> String { pick("Delivery #\(no)", "ಡೆಲಿವರಿ #\(no)") }
 
     var accountStatementFor: String { pick("Account statement for:", "ಖಾತೆ ವಿವರ — ಇವರಿಗೆ:") }
     var accountActivity: String { pick("Account Activity", "ಖಾತೆ ವ್ಯವಹಾರ") }

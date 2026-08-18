@@ -19,8 +19,15 @@ struct RecordPaymentSheet: View {
             owed: customer.owed,
             dateLabel: Loc.receivedOn,
             footnote: Loc.paymentNotAgainstOneBill,
-            onSave: { amount, at, note in
-                store.recordPayment(customerKey: customer.key, amount: amount, receivedAt: at, note: note)
+            clashDate: { store.paymentWithNo($0)?.receivedAt },
+            onSave: { amount, at, note, no in
+                store.recordPayment(
+                    customerKey: customer.key,
+                    amount: amount,
+                    receivedAt: at,
+                    note: note,
+                    paymentNo: no
+                )
             },
             onClose: onClose
         )
@@ -45,8 +52,15 @@ struct PaySupplierSheet: View {
             owed: supplier.owed,
             dateLabel: Loc.paidOn,
             footnote: Loc.paymentNotAgainstOnePurchase,
-            onSave: { amount, at, note in
-                store.recordSupplierPayment(supplierKey: supplier.key, amount: amount, paidAt: at, note: note)
+            clashDate: { store.supplierPaymentWithNo($0)?.paidAt },
+            onSave: { amount, at, note, no in
+                store.recordSupplierPayment(
+                    supplierKey: supplier.key,
+                    amount: amount,
+                    paidAt: at,
+                    note: note,
+                    paymentNo: no
+                )
             },
             onClose: onClose
         )
@@ -61,15 +75,19 @@ private struct PaymentSheet: View {
     let owed: Double
     let dateLabel: String
     let footnote: String
-    let onSave: (Double, Date, String) -> Void
+    /// When the receipt book already holds this number, the day it was used.
+    let clashDate: (String) -> Date?
+    let onSave: (Double, Date, String, String) -> Void
     let onClose: () -> Void
 
+    @State private var paymentNo = ""
     @State private var amount = ""
     @State private var receivedAt = Date.now
     @State private var note = ""
 
     private var typed: Double { Money.parse(amount) ?? 0 }
-    private var canSave: Bool { typed > 0 }
+    private var clash: Date? { clashDate(paymentNo) }
+    private var canSave: Bool { typed > 0 && !paymentNo.isBlank && clash == nil }
 
     /// What will still be owed once this is saved. Shown live, because it is the
     /// number the owner is actually trying to reach — usually zero.
@@ -82,6 +100,16 @@ private struct PaymentSheet: View {
                 subtitle: name,
                 onClose: onClose
             )
+
+            paperRow
+                .padding(.bottom, clash == nil ? 12 : 6)
+
+            if let clash {
+                Text(Loc.paymentNoAlreadyUsed(date: Loc.longDate(clash)))
+                    .nocturneText(.meta)
+                    .foregroundStyle(Nocturne.accent400)
+                    .padding(.bottom, 12)
+            }
 
             NocturneField.number(
                 label: Loc.amountReceived,
@@ -108,12 +136,6 @@ private struct PaymentSheet: View {
             .motion(Motion.numbers, value: remaining)
             .padding(.bottom, 14)
 
-            DatePicker(dateLabel, selection: $receivedAt, displayedComponents: .date)
-                .datePickerStyle(.compact)
-                .font(NocturneType.inter(13))
-                .tint(Nocturne.accent)
-                .padding(.bottom, 14)
-
             NocturneField(
                 label: Loc.paymentNote,
                 placeholder: Loc.paymentNoteExample,
@@ -126,11 +148,44 @@ private struct PaymentSheet: View {
                 .nocturneText(.meta)
                 .padding(.bottom, 16)
 
-            Button(canSave ? Loc.savePayment : Loc.enterAnAmount) { save() }
+            Button(saveTitle) { save() }
                 .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                 .disabled(!canSave)
         }
         .keyboardDoneButton()
+    }
+
+    /// The paper's number and the day it was written, side by side — the credit
+    /// note's own first row, for the same reason: they describe the document
+    /// rather than the money.
+    private var paperRow: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            NocturneField(
+                label: Loc.paymentNoField,
+                placeholder: Loc.paymentNoHint,
+                text: $paymentNo,
+                height: 40,
+                isRequiredAndEmpty: paymentNo.isBlank,
+                fontSize: 13.5,
+                identifier: "payment.no"
+            )
+            VStack(alignment: .leading, spacing: 5) {
+                Text(dateLabel).nocturneText(.fieldLabel)
+                DatePicker("", selection: $receivedAt, displayedComponents: .date)
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .font(NocturneType.inter(13))
+                    .tint(Nocturne.accent)
+                    .frame(height: 40)
+            }
+        }
+    }
+
+    private var saveTitle: String {
+        if clash != nil { return Loc.changeThePaymentNo }
+        if paymentNo.isBlank { return Loc.enterPaymentNumber }
+        if typed <= 0 { return Loc.enterAnAmount }
+        return Loc.savePayment
     }
 
     private var remainingText: String {
@@ -141,7 +196,7 @@ private struct PaymentSheet: View {
 
     private func save() {
         guard canSave else { return }
-        onSave(typed, receivedAt, note)
+        onSave(typed, receivedAt, note, paymentNo)
         onClose()
     }
 }

@@ -266,9 +266,35 @@ class StatementDocumentTests {
     }
 
     @Test
-    fun `the summary is titled with the last day the period covers`() {
+    fun `a finished month is titled with its own last day`() {
         // Not the exclusive end. Saying "till 1 September" on an August statement
         // claims a day it does not include.
+        val document = august(printedOn = Instant.parse("2026-11-02T09:00:00Z"))
+
+        assertTrue(document.summaryTitle.contains("31 August 2026"), document.summaryTitle)
+    }
+
+    @Test
+    fun `the month running now is titled with today`() {
+        // A statement printed on the 18th and headed "till 31 August" claims a
+        // fortnight that has not happened, and the customer reading it would
+        // take the balance as final with a week of deliveries still to come.
+        val document = august(printedOn = Instant.parse("2026-08-18T09:00:00Z"))
+
+        assertTrue(document.summaryTitle.contains("18 August 2026"), document.summaryTitle)
+    }
+
+    @Test
+    fun `a period picked ahead of today is dated from its own first day`() {
+        // Rather than from a moment before it began. Nothing can be in it yet,
+        // and "till 2 August" on a September statement reads as a bug.
+        val document = august(printedOn = Instant.parse("2026-06-02T09:00:00Z"))
+
+        assertTrue(document.summaryTitle.contains("1 August 2026"), document.summaryTitle)
+    }
+
+    /** One August bill, and a statement for August printed on whatever day. */
+    private fun august(printedOn: Instant): StatementDocument {
         val store = store().aShop()
         store.addCustomer("Ahmed")
         store.saveBill(
@@ -282,8 +308,6 @@ class StatementDocumentTests {
         val statement = assertNotNull(
             store.statementForCustomer("ahmed", StatementPeriod.Month(Instant.parse("2026-08-10T00:00:00Z")))
         )
-        val document = StatementDocument.make(statement, store.settings, english)
-
-        assertTrue(document.summaryTitle.contains("31 August 2026"), document.summaryTitle)
+        return StatementDocument.make(statement, store.settings, english, now = printedOn)
     }
 }

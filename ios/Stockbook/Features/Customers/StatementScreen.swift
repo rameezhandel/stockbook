@@ -296,7 +296,7 @@ struct StatementScreen: View {
             VStack(alignment: .leading, spacing: 2) {
                 switch entry {
                 case .bill(let bill):
-                    Text(bill.reference(Loc))
+                    Text(reference(entry))
                         .font(NocturneType.inter(13))
                     Text(bill.summary)
                         .nocturneText(.meta)
@@ -304,7 +304,7 @@ struct StatementScreen: View {
                 case .payment(let payment):
                     HStack(spacing: 5) {
                         Glyph(Icon.confirm, size: 10).foregroundStyle(Nocturne.accent400)
-                        Text(Loc.paymentLabel)
+                        Text(reference(entry))
                             .font(NocturneType.inter(13))
                             .foregroundStyle(Nocturne.accent400)
                     }
@@ -312,7 +312,7 @@ struct StatementScreen: View {
                         Text(note).nocturneText(.meta)
                     }
                 case .creditNote(let note):
-                    Text(note.reference(Loc))
+                    Text(reference(entry))
                         .font(NocturneType.inter(13))
                         .foregroundStyle(Nocturne.accent400)
                     // Why it was written, where the owner said. On a document
@@ -323,7 +323,7 @@ struct StatementScreen: View {
                         Text(reason).nocturneText(.meta).lineLimit(2)
                     }
                 case .purchase(let purchase):
-                    Text(purchase.reference(Loc))
+                    Text(reference(entry))
                         .font(NocturneType.inter(13))
                     // The product and how many of it: a delivery note's whole
                     // content, on one line, since a purchase carries one product.
@@ -333,7 +333,7 @@ struct StatementScreen: View {
                 case .supplierPayment(let payment):
                     HStack(spacing: 5) {
                         Glyph(Icon.confirm, size: 10).foregroundStyle(Nocturne.accent400)
-                        Text(Loc.paymentLabel)
+                        Text(reference(entry))
                             .font(NocturneType.inter(13))
                             .foregroundStyle(Nocturne.accent400)
                     }
@@ -388,10 +388,16 @@ struct StatementScreen: View {
         }
     }
 
-    /// The last day the range covers, for display. `range.end` is exclusive, so
-    /// showing it would claim a day the statement does not include.
+    /// What a row is called on screen — the printed statement's own rule,
+    /// borrowed rather than restated.
+    private func reference(_ entry: Statement.Entry) -> String {
+        StatementDocument.reference(entry, Loc)
+    }
+
+    /// The last day this statement can honestly say it covers — the range's own
+    /// rule, so the screen and the PDF are headed with the same date.
     private func lastDay(of range: StatementRange) -> Date {
-        range.end.addingTimeInterval(-1)
+        range.asOf()
     }
 
     // MARK: Sharing
@@ -449,15 +455,15 @@ struct StatementScreen: View {
             let balance = Money.text(statement.runningBalances[index], in: currency)
             switch entry {
             case .bill(let bill):
-                lines.append("\(Loc.longDate(bill.createdAt))  \(bill.reference(Loc))  \(Money.text(bill.total, in: currency))  →  \(balance)")
+                lines.append("\(Loc.longDate(bill.createdAt))  \(reference(entry))  \(Money.text(bill.total, in: currency))  →  \(balance)")
             case .payment(let payment):
-                lines.append("\(Loc.longDate(payment.receivedAt))  \(Loc.paymentLabel)  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
+                lines.append("\(Loc.longDate(payment.receivedAt))  \(reference(entry))  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
             case .creditNote(let note):
-                lines.append("\(Loc.longDate(note.issuedAt))  \(note.reference(Loc))  − \(Money.text(note.total, in: currency))  →  \(balance)")
+                lines.append("\(Loc.longDate(note.issuedAt))  \(reference(entry))  − \(Money.text(note.total, in: currency))  →  \(balance)")
             case .purchase(let purchase):
-                lines.append("\(Loc.longDate(purchase.createdAt))  \(purchase.reference(Loc))  \(deliveryDetail(purchase))  \(Money.text(purchase.total, in: currency))  →  \(balance)")
+                lines.append("\(Loc.longDate(purchase.createdAt))  \(reference(entry))  \(deliveryDetail(purchase))  \(Money.text(purchase.total, in: currency))  →  \(balance)")
             case .supplierPayment(let payment):
-                lines.append("\(Loc.longDate(payment.paidAt))  \(Loc.paymentLabel)  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
+                lines.append("\(Loc.longDate(payment.paidAt))  \(reference(entry))  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
             }
         }
 

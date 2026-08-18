@@ -3,7 +3,9 @@ package com.stockbook.core.text
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Settings
 import com.stockbook.core.model.Statement
+import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
+import java.time.Instant
 
 /**
  * A statement laid out as a printable document: every label and every figure,
@@ -63,7 +65,8 @@ data class StatementDocument(
             statement: Statement,
             settings: Settings,
             strings: Strings,
-            currency: Currency = settings.currency
+            currency: Currency = settings.currency,
+            now: Instant = Timestamps.now()
         ): StatementDocument {
             val isSupplier = statement.party.isSupplier
 
@@ -99,7 +102,7 @@ data class StatementDocument(
                     statement.party.place?.takeIf { it.isNotBlank() },
                     statement.party.phone?.takeIf { it.isNotBlank() }
                 ),
-                summaryTitle = strings.accountSummaryTill(strings.longDate(statement.range.end.minusSeconds(1))),
+                summaryTitle = strings.accountSummaryTill(strings.longDate(statement.range.asOf(now))),
                 summaryRows = summary,
                 activityTitle = strings.accountActivity,
                 columnHeadings = listOf(
@@ -112,7 +115,7 @@ data class StatementDocument(
                     val settles = entry.charge == 0.0
                     ActivityRow(
                         date = strings.shortDate(entry.date),
-                        transaction = describe(entry, strings),
+                        transaction = reference(entry, strings),
                         amount = Money.text(
                             if (settles) entry.settledAtOnce else entry.charge,
                             currency
@@ -135,8 +138,12 @@ data class StatementDocument(
          * 130 and credit note 130 are different pieces of paper. Where a record
          * carries no number of its own the type is still named, which is the
          * honest answer rather than a blank cell.
+         *
+         * Public, and called by the on-screen statement too. The two are read
+         * side by side when somebody checks a PDF against the app, and a row
+         * named two different ways is a row they reconcile by eye.
          */
-        private fun describe(entry: Statement.Entry, strings: Strings): String = when (entry) {
+        fun reference(entry: Statement.Entry, strings: Strings): String = when (entry) {
             is Statement.Entry.ForBill ->
                 entry.bill.invoiceNo?.takeIf { it.isNotBlank() }
                     ?.let { strings.invoiceRef(it) }
