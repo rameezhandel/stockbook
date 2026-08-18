@@ -385,6 +385,23 @@ class Strings(val language: AppLanguage) {
     val seeBills: String get() = pick("See bills", "ಬಿಲ್‌ಗಳನ್ನು ನೋಡಿ")
     val nextCustomer: String get() = pick("Next customer", "ಮುಂದಿನ ಗ್ರಾಹಕರು")
 
+    // --- The paper behind the record
+
+    // Said the same way on both sides of the book: the number written on the
+    // piece of paper, whoever wrote it.
+    val invoiceNoField: String get() = pick("Invoice no.", "ಬಿಲ್ ಸಂಖ್ಯೆ")
+    val invoiceNoOptional: String get() = pick("From the book", "ಪುಸ್ತಕದಿಂದ")
+    val billDate: String get() = pick("Date", "ದಿನಾಂಕ")
+
+    // The date a sale is *entered* is not always the date it happened. Said out
+    // loud on the cart, because a shop catching up at closing time would
+    // otherwise stamp the whole day at once and never notice.
+    val billDateNote: String
+        get() = pick(
+            "Today unless you change it.",
+            "ಬದಲಾಯಿಸದಿದ್ದರೆ ಇಂದಿನ ದಿನಾಂಕ."
+        )
+
     fun billNumber(number: Int): String =
             pick("Bill #$number", "ಬಿಲ್ #$number")
 

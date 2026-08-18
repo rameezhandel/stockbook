@@ -29,6 +29,16 @@ import androidx.compose.ui.unit.dp
 import com.stockbook.app.design.FieldEmphasis
 import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Glyph
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.ui.draw.clip
+import com.stockbook.core.model.Timestamps
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import com.stockbook.app.design.Icon
 import com.stockbook.app.design.IconButton
 import com.stockbook.app.design.Metrics
@@ -53,6 +63,7 @@ import com.stockbook.core.text.Strings
  * The bill being built. The most important screen in the app: it is what the
  * owner is looking at while a customer waits.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartView(
     cart: Cart,
@@ -64,6 +75,34 @@ fun CartView(
     onSave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var pickingDate by remember { mutableStateOf(false) }
+
+    if (pickingDate) {
+        val picker = rememberDatePickerState(initialSelectedDateMillis = cart.soldAt.toEpochMilli())
+        DatePickerDialog(
+            onDismissRequest = { pickingDate = false },
+            confirmButton = {
+                GhostButton(strings.done, onClick = {
+                    picker.selectedDateMillis?.let { millis ->
+                        // The picker hands back midnight UTC. Re-anchoring to
+                        // midday in the phone's own zone keeps the bill on the day
+                        // the owner tapped, whatever the offset — which is what the
+                        // statement buckets by.
+                        cart.soldAt = Instant.ofEpochMilli(millis)
+                            .atZone(ZoneOffset.UTC)
+                            .toLocalDate()
+                            .atTime(12, 0)
+                            .atZone(ZoneId.systemDefault())
+                            .toInstant()
+                    }
+                    pickingDate = false
+                })
+            }
+        ) {
+            DatePicker(state = picker)
+        }
+    }
+
     Column(modifier = modifier.fillMaxWidth()) {
         LazyColumn(
             modifier = Modifier.weight(1f),
@@ -121,6 +160,46 @@ private fun Footer(
                 .padding(bottom = 12.dp)
         ) {
             CustomerPicker(cart = cart, state = state, store = store, currency = currency, strings = strings)
+            Spacer(Modifier.height(10.dp))
+
+            // The paper's number and the day it happened, side by side and both
+            // optional. They sit above the payment pills because they describe
+            // *the bill*, not the money — and because a shop entering yesterday's
+            // book needs the date before it thinks about what was paid.
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                NocturneField(
+                    value = cart.invoiceNo,
+                    onValueChange = { cart.invoiceNo = it },
+                    placeholder = strings.invoiceNoOptional,
+                    label = strings.invoiceNoField,
+                    height = 40.dp,
+                    fontSize = 13.5,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(strings.billDate, style = NocturneType.fieldLabel, color = Nocturne.neutral500)
+                    Spacer(Modifier.height(5.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
+                            .clip(RoundedCornerShape(Metrics.controlRadius))
+                            .hairline(Nocturne.neutral800, Metrics.controlRadius)
+                            .clickable { pickingDate = true }
+                            .padding(horizontal = 10.dp)
+                    ) {
+                        Text(
+                            strings.longDate(cart.soldAt),
+                            style = NocturneType.inter(13.0),
+                            color = Nocturne.text,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
             Spacer(Modifier.height(10.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {

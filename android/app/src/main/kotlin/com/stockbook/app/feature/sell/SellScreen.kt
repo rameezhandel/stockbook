@@ -133,7 +133,13 @@ fun SellScreen(
                         query = ""
                     },
                     onSave = {
-                        val bill = store.saveBill(cart.draftLines, cart.customer, cart.paidForStorage)
+                        val bill = store.saveBill(
+                            lines = cart.draftLines,
+                            customer = cart.customer,
+                            paid = cart.paidForStorage,
+                            createdAt = cart.soldAt,
+                            invoiceNo = cart.invoiceNo
+                        )
                         if (bill != null) {
                             cart.clear()
                             browsing = false

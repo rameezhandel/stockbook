@@ -226,7 +226,21 @@ class StockbookStore(private val repository: StockbookRepository) {
      * customer is standing there and the count may simply be wrong, but the
      * shelf never goes negative.
      */
-    fun saveBill(lines: List<DraftLine>, customer: String, paid: Double?): Bill? {
+    fun saveBill(
+        lines: List<DraftLine>,
+        customer: String,
+        paid: Double?,
+        /**
+         * When the sale happened, which is not always when it was typed. A shop
+         * that writes bills in the paper book all day and enters them at closing
+         * time would otherwise have every one of them stamped 9pm — and the
+         * customer statements, which are the documents somebody settles up
+         * against, would inherit that.
+         */
+        createdAt: Instant = Timestamps.now(),
+        /** The number on the paper bill, when the shop wrote one. */
+        invoiceNo: String? = null
+    ): Bill? {
         val name = customer.trim()
         if (lines.isEmpty() || name.isEmpty()) return null
 
@@ -254,7 +268,9 @@ class StockbookStore(private val repository: StockbookRepository) {
             // Paying the whole amount is paid in full, not a part payment of the
             // total — otherwise the receipt says somebody owes zero.
             paid = paid?.takeIf { it < total }?.coerceIn(0.0, total),
-            who = name
+            who = name,
+            invoiceNo = CustomerRecord.tidied(invoiceNo),
+            createdAt = createdAt
         )
 
         val nextSettings = settings.copy(nextBillNumber = settings.nextBillNumber + 1)
@@ -707,7 +723,9 @@ class StockbookStore(private val repository: StockbookRepository) {
         quantity: Int,
         unitCost: Double,
         paid: Double? = null,
-        createdAt: Instant = Timestamps.now()
+        createdAt: Instant = Timestamps.now(),
+        /** The number on the supplier's invoice, when it came with one. */
+        invoiceNo: String? = null
     ): Purchase? {
         if (quantity <= 0 || supplierKey.isBlank()) return null
         val current = this.product(product.uid) ?: return null
@@ -722,6 +740,7 @@ class StockbookStore(private val repository: StockbookRepository) {
             // Clamped to the total: a delivery cannot be overpaid, and a typo
             // that says so would put the shop permanently in credit.
             paid = paid?.let { maxOf(0.0, minOf(it, quantity * cost)) },
+            invoiceNo = CustomerRecord.tidied(invoiceNo),
             createdAt = createdAt
         )
         _state.value = _state.value.copy(purchases = listOf(purchase) + purchases)
@@ -889,6 +908,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                     total = record.total,
                     paid = record.paid,
                     who = record.who,
+                    invoiceNo = record.invoiceNo,
                     createdAt = record.createdAt,
                     voided = record.voided
                 )
@@ -934,6 +954,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                     unitCost = it.unitCost,
                     total = it.total,
                     paid = it.paid,
+                    invoiceNo = it.invoiceNo,
                     createdAt = it.createdAt,
                     voided = it.voided
                 )
@@ -969,6 +990,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 total = bill.total,
                 paid = bill.paid,
                 who = bill.who,
+                invoiceNo = bill.invoiceNo,
                 voided = bill.voided,
                 lines = bill.lines.map {
                     BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price)
@@ -1014,6 +1036,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 unitCost = it.unitCost,
                 total = it.total,
                 paid = it.paid,
+                invoiceNo = it.invoiceNo,
                 createdAt = it.createdAt,
                 voided = it.voided
             )

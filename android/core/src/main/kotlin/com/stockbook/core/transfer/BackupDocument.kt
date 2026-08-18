@@ -95,6 +95,8 @@ data class BackupDocument(
         val total: Double,
         /** Absent for a delivery settled on the spot, exactly as on a bill. */
         val paid: Double? = null,
+        /** The number on the supplier's invoice. */
+        val invoiceNo: String? = null,
         @Serializable(with = InstantSerializer::class)
         val createdAt: Instant,
         val voided: Boolean = false
@@ -128,6 +130,8 @@ data class BackupDocument(
         /** Absent for a bill paid in full. */
         val paid: Double? = null,
         val who: String,
+        /** The number on the paper bill. Absent when the shop wrote none. */
+        val invoiceNo: String? = null,
         val voided: Boolean = false,
         val lines: List<LineRecord> = emptyList()
     )
@@ -171,6 +175,10 @@ data class BackupDocument(
          * same. Better that build refuses the file and says so.
          */
         const val currentVersion = 2
+
+        // The invoice numbers added after 2 do **not** bump it. A reader that
+        // ignores them shows "Bill #7" where the owner wrote "1024" on the paper:
+        // a label lost, not a figure misread. The rule is about meaning.
     }
 }
 

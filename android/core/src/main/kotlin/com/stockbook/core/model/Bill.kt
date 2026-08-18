@@ -32,6 +32,16 @@ data class Bill(
     val paid: Double? = null,
     /** Customer name, trimmed. Required on every bill. */
     val who: String,
+    /**
+     * The number printed on the paper bill, when the shop writes one.
+     *
+     * A string, not an int: bill books are numbered "1024" in some shops and
+     * "A-1024" in others, and neither is arithmetic. Distinct from [number],
+     * which is this app's own counter and its identity — that one has to stay
+     * unique and machine-assigned, or voiding and history lookups lose their
+     * handle. This is a label the owner recognises; that is a key.
+     */
+    val invoiceNo: String? = null,
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant = Timestamps.now(),
     val voided: Boolean = false
@@ -48,6 +58,14 @@ data class Bill(
 
     /** The row's first line: the names on the bill, joined. */
     val summary: String get() = lines.joinToString(", ") { it.name }
+
+    /**
+     * What to call this bill on screen: the paper's number where there is one,
+     * and the app's own otherwise. One number, never both — two numbers on a
+     * document is how somebody reads out the wrong one over the phone.
+     */
+    fun reference(strings: com.stockbook.core.text.Strings): String =
+        invoiceNo?.takeIf { it.isNotBlank() } ?: strings.billNumber(number)
 }
 
 /**

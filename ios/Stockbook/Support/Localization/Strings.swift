@@ -425,6 +425,20 @@ struct Strings {
     var seeBills: String { pick("See bills", "ಬಿಲ್‌ಗಳನ್ನು ನೋಡಿ") }
     var nextCustomer: String { pick("Next customer", "ಮುಂದಿನ ಗ್ರಾಹಕರು") }
 
+    // MARK: The paper behind the record
+    //
+    // Said the same way on both sides of the book: the number written on the
+    // piece of paper, whoever wrote it.
+
+    var invoiceNoField: String { pick("Invoice no.", "ಬಿಲ್ ಸಂಖ್ಯೆ") }
+    var invoiceNoOptional: String { pick("From the book", "ಪುಸ್ತಕದಿಂದ") }
+    var billDate: String { pick("Date", "ದಿನಾಂಕ") }
+
+    /// The date a sale is *entered* is not always the date it happened. Said out
+    /// loud on the cart, because a shop catching up at closing time would
+    /// otherwise stamp the whole day at once and never notice.
+    var billDateNote: String { pick("Today unless you change it.", "ಬದಲಾಯಿಸದಿದ್ದರೆ ಇಂದಿನ ದಿನಾಂಕ.") }
+
     func billNumber(_ number: Int) -> String {
         pick("Bill #\(number)", "ಬಿಲ್ #\(number)")
     }

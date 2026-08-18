@@ -420,7 +420,7 @@ private fun EntryRow(
                 when (entry) {
                     is Statement.Entry.ForBill -> {
                         Text(
-                            strings.billNumber(entry.bill.number),
+                            entry.bill.reference(strings),
                             style = NocturneType.inter(13.0),
                             color = if (entry.bill.voided) Nocturne.neutral500 else Nocturne.text
                         )
@@ -568,7 +568,7 @@ private fun plainText(
             is Statement.Entry.ForBill -> {
                 val marker = if (entry.bill.voided) " (${strings.voided})" else ""
                 lines.add(
-                    "${strings.longDate(entry.bill.createdAt)}  ${strings.billNumber(entry.bill.number)}$marker  " +
+                    "${strings.longDate(entry.bill.createdAt)}  ${entry.bill.reference(strings)}$marker  " +
                         "${Money.text(entry.bill.total, currency)}  →  $balance"
                 )
             }

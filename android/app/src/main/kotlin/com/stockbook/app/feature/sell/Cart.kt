@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Product
+import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.DraftLine
 
@@ -58,6 +59,21 @@ class Cart {
         private set
     var payMode by mutableStateOf(PayMode.FULL)
     var paidText by mutableStateOf("")
+
+    /**
+     * The number written on the paper bill, when the shop wrote one. Free text:
+     * bill books are numbered "1024" in some shops and "A-1024" in others.
+     */
+    var invoiceNo by mutableStateOf("")
+
+    /**
+     * When the sale happened, which is not always when it is being typed.
+     *
+     * A shop that writes bills in the book all day and enters them at closing
+     * time would otherwise stamp the whole day at once — and the statements, which
+     * are what somebody settles up against, would inherit that.
+     */
+    var soldAt by mutableStateOf(Timestamps.now())
 
     val isEmpty: Boolean get() = _lines.isEmpty()
 
@@ -144,6 +160,8 @@ class Cart {
 
     fun clear() {
         _lines.clear()
+        invoiceNo = ""
+        soldAt = Timestamps.now()
         customer = ""
         customerKey = null
         payMode = PayMode.FULL

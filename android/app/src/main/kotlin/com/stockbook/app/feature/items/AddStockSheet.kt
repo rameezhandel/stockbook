@@ -28,6 +28,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.text.style.TextOverflow
 import com.stockbook.app.design.ChoicePill
 import com.stockbook.app.design.Glyph
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberDatePickerState
+import com.stockbook.app.design.GhostButton
+import com.stockbook.core.model.Timestamps
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import com.stockbook.app.design.Icon
 import com.stockbook.app.design.card
 import com.stockbook.core.model.Supplier
@@ -54,6 +63,7 @@ import com.stockbook.core.text.Strings
  * path that changes the buying price: cost here is "latest paid", not a weighted
  * average, so the new figure simply takes over.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddStockSheet(
     product: Product,
@@ -74,6 +84,10 @@ fun AddStockSheet(
     var supplierKey by remember { mutableStateOf<String?>(null) }
     var settledNow by remember { mutableStateOf(true) }
     var paidText by remember { mutableStateOf("") }
+    /** The number on the supplier's invoice, and the day it arrived. */
+    var invoiceNo by remember { mutableStateOf("") }
+    var arrivedAt by remember { mutableStateOf(Timestamps.now()) }
+    var pickingDate by remember { mutableStateOf(false) }
 
     val quantityValue = quantity.trim().toIntOrNull() ?: (Money.parse(quantity) ?: 0.0).toInt()
     val costValue = Money.parse(unitCost) ?: 0.0
@@ -110,6 +124,66 @@ fun AddStockSheet(
                 onChoose = { supplier = it.name; supplierKey = it.key }
             )
             Spacer(Modifier.height(Metrics.cardGap))
+        }
+
+        if (purchase) {
+            // The paper that came with the stock, and the day it came. Both
+            // optional: a delivery with no invoice is still a delivery.
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                NocturneField(
+                    value = invoiceNo,
+                    onValueChange = { invoiceNo = it },
+                    label = strings.invoiceNoField,
+                    placeholder = strings.invoiceNoOptional,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(strings.billDate, style = NocturneType.fieldLabel, color = Nocturne.neutral500)
+                    Spacer(Modifier.height(5.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(Metrics.inputHeight)
+                            .clip(RoundedCornerShape(Metrics.controlRadius))
+                            .hairline(Nocturne.neutral800, Metrics.controlRadius)
+                            .clickable { pickingDate = true }
+                            .padding(horizontal = 10.dp)
+                    ) {
+                        Text(
+                            strings.longDate(arrivedAt),
+                            style = NocturneType.inter(13.0),
+                            color = Nocturne.text,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(Metrics.cardGap))
+        }
+
+        if (pickingDate) {
+            val picker = rememberDatePickerState(initialSelectedDateMillis = arrivedAt.toEpochMilli())
+            DatePickerDialog(
+                onDismissRequest = { pickingDate = false },
+                confirmButton = {
+                    GhostButton(strings.done, onClick = {
+                        picker.selectedDateMillis?.let { millis ->
+                            arrivedAt = Instant.ofEpochMilli(millis)
+                                .atZone(ZoneOffset.UTC)
+                                .toLocalDate()
+                                .atTime(12, 0)
+                                .atZone(ZoneId.systemDefault())
+                                .toInstant()
+                        }
+                        pickingDate = false
+                    })
+                }
+            ) {
+                DatePicker(state = picker)
+            }
         }
 
         Row(modifier = Modifier.fillMaxWidth()) {
@@ -198,7 +272,9 @@ fun AddStockSheet(
                         supplierKey = key,
                         quantity = quantityValue,
                         unitCost = costValue,
-                        paid = if (settledNow) null else (Money.parse(paidText) ?: 0.0)
+                        paid = if (settledNow) null else (Money.parse(paidText) ?: 0.0),
+                        createdAt = arrivedAt,
+                        invoiceNo = invoiceNo
                     )
                 } else {
                     // Zero or empty quantity just closes the sheet — the owner

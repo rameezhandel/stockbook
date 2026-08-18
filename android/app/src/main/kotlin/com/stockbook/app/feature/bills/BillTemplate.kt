@@ -55,7 +55,7 @@ fun BillTemplate(
 
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Text(
-                strings.billNumber(bill.number),
+                bill.reference(strings),
                 style = NocturneType.inter(20.0, FontWeight.Medium),
                 color = Nocturne.text,
                 modifier = Modifier.weight(1f)

@@ -42,6 +42,14 @@ data class Purchase(
      * `total − paid`.
      */
     val paid: Double? = null,
+    /**
+     * The number on the supplier's invoice, when it came with one.
+     *
+     * The same field as a bill's, pointing the other way: what is written on the
+     * paper that arrived with the stock, so the pile in the drawer can be matched
+     * against what the app says was delivered.
+     */
+    val invoiceNo: String? = null,
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant = Timestamps.now(),
     val voided: Boolean = false
