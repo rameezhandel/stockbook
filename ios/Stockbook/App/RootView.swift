@@ -18,11 +18,24 @@ struct RootView: View {
                     Nocturne.bg
                 }
             }
-            // Measured once, at the root, and read by anything that needs to
-            // position against the physical screen edge rather than the safe area.
+            // Read by anything that needs to position against the physical
+            // screen edge rather than the safe area.
+            //
+            // **Clamped, because this is not a constant.** SwiftUI folds the
+            // keyboard into the bottom safe area, so the moment a field takes
+            // focus this reading jumps from the home indicator's ~34pt to the
+            // keyboard's ~330. Every bar in the app pads itself by it, so an
+            // unclamped value made the save bar, the picker's footer and the tab
+            // bar each grow by a keyboard's height — which is what put them at
+            // the top of the screen with the form squeezed out behind them.
             .environment(\.topSafeInset, proxy.safeAreaInsets.top)
-            .environment(\.bottomSafeInset, proxy.safeAreaInsets.bottom)
+            .environment(\.bottomSafeInset, min(proxy.safeAreaInsets.bottom, Metrics.maxPhysicalInset))
         }
+        // The window itself must not shrink when the keyboard opens either, or
+        // the whole app — tab bar included — is lifted above it. The shell says
+        // this too, but it can only escape a safe area, never the frame this
+        // reader hands it.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .background(Nocturne.bg)
         .task {
             guard store == nil else { return }

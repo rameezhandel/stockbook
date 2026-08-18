@@ -42,6 +42,11 @@ enum Metrics {
     static let minimumTouchTarget: CGFloat = 44
     /// Search fields, setup grid cells.
     static let inputHeight: CGFloat = 42
+
+    /// The largest inset the physical screen edge can ask for — a home indicator
+    /// is 34pt, and nothing else down there is bigger. Anything above this is the
+    /// keyboard folded into the safe area, which is not an edge to pad against.
+    static let maxPhysicalInset: CGFloat = 44
     /// Setup name field, product-name field in the editor.
     static let tallInputHeight: CGFloat = 46
     static let primaryButtonHeight: CGFloat = 46
