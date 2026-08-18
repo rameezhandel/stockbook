@@ -193,15 +193,26 @@ final class StockbookStore {
 
     // MARK: - Billing
 
-    /// Saves a bill.
+    /// Saves a bill and moves the stock.
     ///
-    /// Snapshots each line's name and price, decrements stock (floored at zero),
-    /// clamps a part payment to the total, and allocates the next bill number.
+    /// Line names and prices are **snapshotted** here: the product may be
+    /// renamed, repriced or deleted tomorrow, and what somebody paid today must
+    /// not move with it. Stock floors at zero — overselling is allowed, because
+    /// the customer is standing there and the count may simply be wrong, but the
+    /// shelf never goes negative.
     @discardableResult
     func saveBill(
-        lines: [DraftLine],
+        /// What was sold, when the owner said. Empty is the ordinary case for a
+        /// shop entering a paper bill it has already written: the total is
+        /// known, and rebuilding it product by product to arrive at it is work
+        /// for nothing. An itemised bill moves the shelf; a total does not.
+        lines: [DraftLine] = [],
         customer: String,
         paid: Double?,
+        /// What the bill came to, for a bill with no lines on it. Ignored when
+        /// there are lines — their sum is the total, and a typed figure beside
+        /// it is a second answer to a question that already has one.
+        amount: Double? = nil,
         /// When the sale happened, which is not always when it was typed. A shop
         /// that writes bills in the paper book all day and enters them at closing
         /// time would otherwise have every one stamped 9pm — and the statements,
@@ -211,7 +222,7 @@ final class StockbookStore {
         invoiceNo: String? = nil
     ) -> Bill? {
         let name = customer.trimmed
-        guard !lines.isEmpty, !name.isEmpty else { return nil }
+        guard !name.isEmpty else { return nil }
 
         var snapshots: [BillLine] = []
         for line in lines {
@@ -220,17 +231,29 @@ final class StockbookStore {
             snapshots.append(
                 BillLine(productUID: product.uid, name: product.name, qty: quantity, price: line.price)
             )
+            // Only an itemised bill moves the shelf. Nothing else in the app can
+            // take stock off it, which is why a shop that types totals is told
+            // the count is its own to keep straight.
             product.stock = max(0, product.stock - quantity)
             replace(product)
         }
-        guard !snapshots.isEmpty else { return nil }
 
-        let total = snapshots.reduce(0) { $0 + $1.lineTotal }
+        // Two answers to "what did it come to" is one too many. The lines are the
+        // ones with arithmetic behind them, so where there are any they win and
+        // the typed figure is ignored.
+        let itemised = snapshots.reduce(0) { $0 + $1.lineTotal }
+        let total = snapshots.isEmpty ? (amount ?? 0) : itemised
+        // A bill for nothing is not a bill. Either something was sold or a figure
+        // was typed; neither is the same as a blank saved by accident.
+        guard total > 0 else { return nil }
         let bill = Bill(
             number: settings.nextBillNumber,
             lines: snapshots,
             total: total,
-            paid: paid.map { min(max(0, $0), total) },
+            // Paying the whole amount is paid in full, not a part payment of the
+            // total — otherwise the receipt says somebody owes zero. Clamped as
+            // well, since a figure above the total is a typo, not a credit.
+            paid: paid.flatMap { $0 < total ? min(max(0, $0), total) : nil },
             who: name,
             invoiceNo: invoiceNo,
             createdAt: createdAt
@@ -573,6 +596,20 @@ final class StockbookStore {
 
     // MARK: - Restock
 
+    /// Sets the shelf count to what was actually counted.
+    ///
+    /// The honest half of keeping stock at all: bills move the count only where
+    /// they were itemised, so the figure is a running tally rather than a
+    /// measurement, and this is how the owner tells it the truth after looking
+    /// at the shelf. A count is *set*, never added to — "there are twelve" is
+    /// what somebody says after counting, and asking them to work out the
+    /// difference is asking them to do arithmetic the app can do.
+    func setStock(_ product: Product, count: Int) {
+        guard var current = self.product(uid: product.uid) else { return }
+        current.stock = max(0, count)
+        replace(current)
+    }
+
     /// Adds stock. A zero or negative quantity is a no-op — the sheet treats
     /// "nothing typed" as "close without doing anything".
     func restock(_ product: Product, quantity: Int, mode: RestockMode, unitCost: Double? = nil) {
@@ -751,23 +788,42 @@ final class StockbookStore {
     /// no-op, exactly as `restock` treats one.
     @discardableResult
     func recordPurchase(
-        product: Product,
+        /// What arrived, where the shop keeps a count of it. `nil` for a
+        /// supplier bill entered as a figure — a mixed load, or something that
+        /// never sits on a shelf. Only a named product moves stock.
+        product: Product?,
         supplierKey: String,
-        quantity: Int,
-        unitCost: Double,
+        quantity: Int = 0,
+        unitCost: Double = 0,
         paid: Double? = nil,
+        /// What the bill came to, where no product was named.
+        amount: Double? = nil,
         createdAt: Date = .now,
         /// The number on the supplier's invoice, when it came with one.
         invoiceNo: String? = nil
     ) -> Purchase? {
-        guard quantity > 0, !supplierKey.isBlank, var current = self.product(uid: product.uid) else { return nil }
-        let cost = unitCost > 0 ? unitCost : current.cost
-        let total = Double(quantity) * cost
+        guard !supplierKey.isBlank else { return nil }
+
+        // Itemised only when a product was named *and* a count came with it: a
+        // product with no quantity is half an answer, and guessing the other
+        // half would put stock on the shelf nobody said arrived.
+        let resolved = product.flatMap { self.product(uid: $0.uid) }
+        let current = quantity > 0 ? resolved : nil
+
+        // A cost above zero is what was just paid; otherwise the price the shop
+        // already had stands. Nothing at all where no product was named.
+        var cost = 0.0
+        if let current {
+            cost = unitCost > 0 ? unitCost : current.cost
+        }
+        let total = current == nil ? (amount ?? 0) : Double(quantity) * cost
+        guard total > 0 else { return nil }
+
         let purchase = Purchase(
             supplierKey: supplierKey,
-            productUID: current.uid,
-            name: current.name,
-            qty: quantity,
+            productUID: current?.uid,
+            name: current?.name,
+            qty: current == nil ? 0 : quantity,
             unitCost: cost,
             total: total,
             // Clamped to the total: a delivery cannot be overpaid, and a typo
@@ -779,11 +835,37 @@ final class StockbookStore {
         purchases.insert(purchase, at: 0)
         attempt { try repository.append(purchase) }
         // Cost is "latest paid", not a weighted average: the new figure simply
-        // takes over, which is the rule `restock` has always followed.
-        current.stock += quantity
-        current.cost = cost
-        replace(current)
+        // takes over, which is the rule `restock` has always followed. Nothing to
+        // take over when no product was named.
+        if var updated = current {
+            updated.stock += quantity
+            updated.cost = cost
+            replace(updated)
+        }
         return purchase
+    }
+
+    /// A supplier's bill with no stock on it: a figure, a date and a number.
+    ///
+    /// The same record as a delivery, and deliberately so — it is money owed to
+    /// the same account, and a statement should not care which way it was
+    /// entered.
+    @discardableResult
+    func recordSupplierBill(
+        supplierKey: String,
+        amount: Double,
+        paid: Double? = nil,
+        createdAt: Date = .now,
+        invoiceNo: String? = nil
+    ) -> Purchase? {
+        recordPurchase(
+            product: nil,
+            supplierKey: supplierKey,
+            paid: paid,
+            amount: amount,
+            createdAt: createdAt,
+            invoiceNo: invoiceNo
+        )
     }
 
     /// Voids a delivery and takes its stock back off the shelf.
@@ -797,7 +879,9 @@ final class StockbookStore {
         purchases[index].voided = true
         attempt { try repository.update(purchases[index]) }
 
-        if let uid = purchase.productUID, var product = self.product(uid: uid) {
+        // Only an itemised delivery put stock on the shelf, so only that one has
+        // any to take back off.
+        if purchase.isItemised, let uid = purchase.productUID, var product = self.product(uid: uid) {
             // Floored at zero. The stock may already have been sold, and a
             // negative shelf count is a worse lie than an optimistic one.
             product.stock = max(0, product.stock - purchase.qty)

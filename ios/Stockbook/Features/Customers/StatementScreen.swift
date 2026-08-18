@@ -1,5 +1,17 @@
 import SwiftUI
 
+/// What a delivery reads as on a statement, on screen and in the text copy alike.
+///
+/// `Purchase.name` became optional when a supplier's bill stopped having to name
+/// a product, and "× 0" of nothing is not a line anybody can read. It lives here
+/// rather than on `Purchase` because the model has a Kotlin twin that carries no
+/// such property, and the two are not allowed to drift.
+@MainActor
+private func deliveryDetail(_ purchase: Purchase) -> String {
+    guard purchase.isItemised, let name = purchase.name else { return Loc.supplierBillTitle }
+    return "\(name) × \(purchase.qty)"
+}
+
 /// One customer's account over a period, as a document.
 ///
 /// Full screen rather than a sheet, for two reasons: it can run to a page, and it
@@ -283,7 +295,7 @@ struct StatementScreen: View {
                         .strikethrough(purchase.voided)
                     // The product and how many of it: a delivery note's whole
                     // content, on one line, since a purchase carries one product.
-                    Text(purchase.voided ? Loc.voided : "\(purchase.name) × \(purchase.qty)")
+                    Text(purchase.voided ? Loc.voided : deliveryDetail(purchase))
                         .nocturneText(.meta)
                         .lineLimit(2)
                 case .supplierPayment(let payment):
@@ -382,7 +394,7 @@ struct StatementScreen: View {
                 lines.append("\(Loc.longDate(payment.receivedAt))  \(Loc.paymentLabel)  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
             case .purchase(let purchase):
                 let marker = purchase.voided ? " (\(Loc.voided))" : ""
-                lines.append("\(Loc.longDate(purchase.createdAt))  \(purchase.reference(Loc))  \(purchase.name) × \(purchase.qty)\(marker)  \(Money.text(purchase.total, in: currency))  →  \(balance)")
+                lines.append("\(Loc.longDate(purchase.createdAt))  \(purchase.reference(Loc))  \(deliveryDetail(purchase))\(marker)  \(Money.text(purchase.total, in: currency))  →  \(balance)")
             case .supplierPayment(let payment):
                 lines.append("\(Loc.longDate(payment.paidAt))  \(Loc.paymentLabel)  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
             }

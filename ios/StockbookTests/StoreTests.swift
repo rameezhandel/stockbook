@@ -98,8 +98,13 @@ struct StoreTests {
         #expect(store.product(uid: product.uid)?.stock == 0)
     }
 
-    @Test("A part payment is clamped to the total")
-    func partPaymentClamp() throws {
+    @Test("Paying the whole total is paid in full, not a part payment")
+    func payingTheWholeTotal() throws {
+        // The twin of `paying the whole total is paid in full` in StoreTests.kt.
+        // This suite asserted the opposite for months: a figure equal to the
+        // total was stored as a part payment, so iOS wrote "Paid SAR 12 · Sami
+        // owes SAR 0" on a receipt Android called paid in full — and the two
+        // platforms wrote different backup files for the same bill.
         let store = makeStore()
         let product = store.addProduct(name: "Hinge", stock: 10, cost: 3, price: 6)
 
@@ -107,8 +112,23 @@ struct StoreTests {
             store.saveBill(lines: [.init(productUID: product.uid, qty: 2, price: 6)], customer: "Sami", paid: 500)
         )
 
-        #expect(bill.paid == 12)
+        #expect(bill.paid == nil, "otherwise the receipt says somebody owes zero")
+        #expect(!bill.isPartPaid)
         #expect(bill.balance == 0)
+    }
+
+    @Test("A part payment below the total is kept as one")
+    func partPaymentClamp() throws {
+        let store = makeStore()
+        let product = store.addProduct(name: "Hinge", stock: 10, cost: 3, price: 6)
+
+        let bill = try #require(
+            store.saveBill(lines: [.init(productUID: product.uid, qty: 2, price: 6)], customer: "Sami", paid: 5)
+        )
+
+        #expect(bill.paid == 5)
+        #expect(bill.isPartPaid)
+        #expect(bill.balance == 7)
     }
 
     @Test("A bill without a customer name is refused")

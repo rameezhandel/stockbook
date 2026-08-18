@@ -161,7 +161,8 @@ The handoff's deliberate modelling decisions, and where they are enforced:
 | Everything sells by the piece — no units, no packs, no fractions | `Product` |
 | Bill lines snapshot name and price; editing a product never rewrites history | `StockbookStore.saveBill`, tested in `StoreTests.historyIsImmutable` |
 | Cost is *latest paid*, not a weighted average | `StockbookStore.restock(mode: .purchase)` |
-| Stock changes in exactly five places, and nowhere else | setup · product editor · save bill (floor 0) · void (restore) · restock |
+| Stock changes in exactly seven places, and nowhere else | setup · product editor · **itemised** bill (floor 0) · void (restore) · restock · delivery with a product on it · `setStock` after a count |
+| A bill or supplier bill entered as a figure moves no stock at all | `Bill.isItemised`, `Purchase.isItemised`, pinned in `AmountFirstTests` |
 | Bills are voided, never deleted | `StockbookStore.void` |
 
 Products carry a `uid: UUID` and nothing else identifies them. A row id or an

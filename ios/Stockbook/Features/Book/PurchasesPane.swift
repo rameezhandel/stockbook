@@ -65,7 +65,10 @@ private struct DeliveryRow: View {
     var body: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(purchase.name)
+                // A supplier bill entered as a figure names no product, so the
+                // row says what it is rather than showing a blank line where a
+                // product name would be.
+                Text(purchase.name ?? Loc.supplierBillTitle)
                     .nocturneText(.rowPrimary)
                     .foregroundStyle(muted ? Nocturne.neutral500 : Nocturne.text)
                     .lineLimit(1)

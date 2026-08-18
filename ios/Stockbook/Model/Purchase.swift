@@ -18,14 +18,21 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
     /// Whose delivery, by the key suppliers group under.
     var supplierKey: String
     /// Which product this restocked. `nil` once that product has been deleted —
-    /// a purchase can outlive what it bought, as a bill line can.
+    /// a purchase can outlive what it bought, as a bill line can — and `nil`
+    /// from the start on a supplier bill that names no product at all.
     var productUID: UUID?
     /// The product's name **at the time of delivery**. History must not move.
-    var name: String
+    ///
+    /// `nil` when the supplier's bill was entered as a figure rather than as
+    /// stock arriving: a bill for a mixed load, or for something the shop does
+    /// not keep a count of. `isItemised` is how the rest of the app tells them
+    /// apart, because only one of the two moves the shelf.
+    var name: String?
     var qty: Int
-    /// What the shop paid per piece, as entered.
+    /// What the shop paid per piece, as entered. Zero when no product was named.
     var unitCost: Double
-    /// `qty × unitCost` at the time, stored rather than recomputed.
+    /// What the delivery came to — `qty × unitCost` where a product was named,
+    /// and simply what was typed where one was not. Stored either way.
     var total: Double
     /// `nil` means settled on the spot — the common case at a counter where the
     /// driver waits for cash. A number means part paid, and the shop owes
@@ -44,10 +51,10 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
     init(
         id: UUID = UUID(),
         supplierKey: String,
-        productUID: UUID?,
-        name: String,
-        qty: Int,
-        unitCost: Double,
+        productUID: UUID? = nil,
+        name: String? = nil,
+        qty: Int = 0,
+        unitCost: Double = 0,
         total: Double,
         paid: Double? = nil,
         invoiceNo: String? = nil,
@@ -67,6 +74,31 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
         self.voided = voided
     }
 
+    /// Written by hand for the reason `Settings`, `ShopState`, `CustomerRecord`,
+    /// `SupplierRecord` and `Bill` all have one: a default value does **not**
+    /// make Swift's synthesised decoder tolerate a missing key — it throws.
+    ///
+    /// This became load-bearing the moment a purchase stopped having to name a
+    /// product. `name` is absent from every supplier bill entered as a figure,
+    /// and `qty` and `unitCost` are meaningless on one; the Kotlin side needed
+    /// nothing because kotlinx.serialization falls back to the declared default,
+    /// which is exactly the asymmetry that has cost this repo a broken load four
+    /// times already.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        supplierKey = try container.decode(String.self, forKey: .supplierKey)
+        productUID = try container.decodeIfPresent(UUID.self, forKey: .productUID)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        qty = try container.decodeIfPresent(Int.self, forKey: .qty) ?? 0
+        unitCost = try container.decodeIfPresent(Double.self, forKey: .unitCost) ?? 0
+        total = try container.decode(Double.self, forKey: .total)
+        paid = try container.decodeIfPresent(Double.self, forKey: .paid)
+        invoiceNo = try container.decodeIfPresent(String.self, forKey: .invoiceNo)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        voided = try container.decodeIfPresent(Bool.self, forKey: .voided) ?? false
+    }
+
     /// What the shop still owes on this delivery. Zero when settled or voided.
     var balance: Double {
         guard !voided, let paid else { return 0 }
@@ -74,6 +106,12 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
     }
 
     var isPartPaid: Bool { !voided && paid != nil }
+
+    /// Whether this says what arrived, or only what it cost.
+    ///
+    /// Stock moves for the first and not the second, and voiding has to reverse
+    /// exactly what recording it did.
+    var isItemised: Bool { !(name ?? "").isBlank }
 
     /// What to call this delivery on a list or a statement.
     ///

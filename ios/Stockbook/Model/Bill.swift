@@ -12,11 +12,19 @@ struct Bill: Identifiable, Codable, Equatable {
     /// can say to a customer.
     let number: Int
 
+    /// What was on the bill, when the owner said.
+    ///
+    /// **May be empty.** A shop writing bills in a paper book already knows the
+    /// total, and rebuilding it line by line to arrive at a figure it can read
+    /// off the paper is work for nothing. An itemised bill moves the shelf
+    /// count; one entered as a total does not, and `isItemised` is how
+    /// everything downstream tells the two apart.
     var lines: [BillLine]
 
-    /// Sum of `qty × price` at the moment of sale — **stored**, never recomputed
-    /// from current product prices. Editing a product tomorrow must not rewrite
-    /// what somebody paid today.
+    /// What the bill came to — **stored**, never recomputed. On an itemised bill
+    /// it is the sum of `qty × price` at the moment of sale, so editing a
+    /// product tomorrow cannot rewrite what somebody paid today. On a bill
+    /// entered as a total it is simply what was typed.
     var total: Double
 
     /// `nil` means paid in full. A number means part paid, and the customer owes
@@ -43,7 +51,7 @@ struct Bill: Identifiable, Codable, Equatable {
 
     init(
         number: Int,
-        lines: [BillLine],
+        lines: [BillLine] = [],
         total: Double,
         paid: Double?,
         who: String,
@@ -64,10 +72,16 @@ struct Bill: Identifiable, Codable, Equatable {
     /// Written by hand for the same reason `Settings` is: a default does not make
     /// the synthesised decoder tolerate a missing key, and every bill already
     /// stored was written before `invoiceNo` existed.
+    ///
+    /// `lines` is read the same tolerant way now that a bill may have none. A
+    /// bill entered as a figure has an empty list, and a writer that omits an
+    /// empty list — which kotlinx.serialization would do the moment somebody
+    /// turned `encodeDefaults` off on the other side — must not cost this shop
+    /// its sales history.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         number = try container.decode(Int.self, forKey: .number)
-        lines = try container.decode([BillLine].self, forKey: .lines)
+        lines = try container.decodeIfPresent([BillLine].self, forKey: .lines) ?? []
         total = try container.decode(Double.self, forKey: .total)
         paid = try container.decodeIfPresent(Double.self, forKey: .paid)
         who = try container.decode(String.self, forKey: .who)
@@ -84,6 +98,13 @@ struct Bill: Identifiable, Codable, Equatable {
 
     var isPartPaid: Bool { !voided && paid != nil }
 
+    /// Whether this bill says what was sold, or only what it came to.
+    ///
+    /// The one question the rest of the app asks about a bill's lines: stock
+    /// moves for an itemised bill and not for a typed total, and a document with
+    /// nothing to list has to say so rather than print an empty table.
+    var isItemised: Bool { !lines.isEmpty }
+
     /// What to call this bill on screen: the paper's number where there is one,
     /// and the app's own otherwise. One number, never both — two numbers on a
     /// document is how somebody reads out the wrong one over the phone.
@@ -92,7 +113,8 @@ struct Bill: Identifiable, Codable, Equatable {
         return strings.billNumber(number)
     }
 
-    /// The row's first line: the names on the bill, joined.
+    /// The row's first line: the names on the bill, joined. Blank when there are
+    /// none.
     var summary: String { lines.map(\.name).joined(separator: ", ") }
 }
 

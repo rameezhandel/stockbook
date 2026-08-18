@@ -39,7 +39,13 @@ struct PurchaseSheet: View {
             if let invoiceNo = live.invoiceNo {
                 line(Loc.invoiceNoField, invoiceNo)
             }
-            line(live.name, Loc.perPiece(qty: live.qty, cost: Money.text(live.unitCost, in: currency)))
+            // Only when a product was named, for the same reason as the row above:
+            // a supplier bill entered as a figure has no product and no count, and
+            // a row reading "× 0" is one the app lost rather than one the delivery
+            // never had.
+            if let name = live.name, live.isItemised {
+                line(name, Loc.perPiece(qty: live.qty, cost: Money.text(live.unitCost, in: currency)))
+            }
 
             FadedRule().padding(.vertical, 10)
 

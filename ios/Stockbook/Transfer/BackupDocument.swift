@@ -91,7 +91,8 @@ struct BackupDocument: Codable, Equatable {
         var id: UUID
         var supplierKey: String
         var productUID: UUID?
-        var name: String
+        /// Absent on a supplier bill that named no product.
+        var name: String?
         var qty: Int
         var unitCost: Double
         var total: Double
@@ -101,6 +102,65 @@ struct BackupDocument: Codable, Equatable {
         var invoiceNo: String?
         var createdAt: Date
         var voided: Bool
+
+        /// Spelled out, unlike its five sibling rows, only because the decoder
+        /// below is: any initialiser written in a struct's own body suppresses
+        /// the memberwise one, and `makeBackupDocument` builds these by hand.
+        init(
+            id: UUID,
+            supplierKey: String,
+            productUID: UUID? = nil,
+            name: String? = nil,
+            qty: Int = 0,
+            unitCost: Double = 0,
+            total: Double,
+            paid: Double? = nil,
+            invoiceNo: String? = nil,
+            createdAt: Date,
+            voided: Bool = false
+        ) {
+            self.id = id
+            self.supplierKey = supplierKey
+            self.productUID = productUID
+            self.name = name
+            self.qty = qty
+            self.unitCost = unitCost
+            self.total = total
+            self.paid = paid
+            self.invoiceNo = invoiceNo
+            self.createdAt = createdAt
+            self.voided = voided
+        }
+
+        /// The one row that reads its own keys, because it is the one row whose
+        /// keys can be missing from a file this app did not write.
+        ///
+        /// A supplier bill entered as a figure carries no product, so `name` is
+        /// absent and `qty` and `unitCost` are nothing. Kotlin's decoder falls
+        /// back to the declared default for each; Swift's synthesised one throws
+        /// on the missing key however the property is defaulted. A throw here
+        /// does not lose a field, it loses the file: `BackupService.decode`
+        /// turns any decoding failure into `.notStockbookData`, and the owner is
+        /// told the backup they are holding is not a Stockbook file.
+        ///
+        /// The rest of the document is deliberately *not* tolerant: a missing
+        /// `customers` or `purchases` array means a file this app did not write,
+        /// and refusing it is the right answer. This is about keys inside a row
+        /// that is genuinely there.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(UUID.self, forKey: .id)
+            supplierKey = try container.decode(String.self, forKey: .supplierKey)
+            productUID = try container.decodeIfPresent(UUID.self, forKey: .productUID)
+            name = try container.decodeIfPresent(String.self, forKey: .name)
+            qty = try container.decodeIfPresent(Int.self, forKey: .qty) ?? 0
+            unitCost = try container.decodeIfPresent(Double.self, forKey: .unitCost) ?? 0
+            total = try container.decode(Double.self, forKey: .total)
+            paid = try container.decodeIfPresent(Double.self, forKey: .paid)
+            invoiceNo = try container.decodeIfPresent(String.self, forKey: .invoiceNo)
+            createdAt = try container.decode(Date.self, forKey: .createdAt)
+            voided = try container.decodeIfPresent(Bool.self, forKey: .voided) ?? false
+        }
     }
 
     struct SupplierPaymentRow: Codable, Equatable {

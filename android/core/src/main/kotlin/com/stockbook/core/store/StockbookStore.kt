@@ -929,10 +929,6 @@ class StockbookStore(private val repository: StockbookRepository) {
     // --- Restock
 
     /**
-     * Adds stock. A zero or negative quantity is a no-op — the sheet treats
-     * "nothing typed" as "close without doing anything".
-     */
-    /**
      * Sets the shelf count to what was actually counted.
      *
      * The honest half of keeping stock at all: bills move the count only where
@@ -947,6 +943,10 @@ class StockbookStore(private val repository: StockbookRepository) {
         replace(current.copy(stock = maxOf(0, count)))
     }
 
+    /**
+     * Adds stock. A zero or negative quantity is a no-op — the sheet treats
+     * "nothing typed" as "close without doing anything".
+     */
     fun restock(product: Product, quantity: Int, mode: RestockMode, unitCost: Double? = null) {
         if (quantity <= 0) return
         val current = this.product(product.uid) ?: return
