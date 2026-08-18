@@ -52,6 +52,29 @@ final class Cart {
     /// Held as text so a half-typed amount is representable.
     var paidText: String = ""
 
+    /// The number written on the paper bill, when the shop wrote one. Free text:
+    /// bill books are numbered "1024" in some shops and "A-1024" in others.
+    var invoiceNo: String = ""
+
+    /// Whether the suggested next number has been put in the box yet.
+    ///
+    /// The suggestion has to happen once per bill, not once per screen: refilling
+    /// on every redraw would fight an owner who cleared the field, and seeding
+    /// only on first appearance would leave the box empty for every bill after
+    /// the first.
+    private(set) var invoiceNoSeeded = false
+
+    /// Puts the suggested number in the box. A nil suggestion leaves it empty.
+    func seedInvoiceNo(_ suggestion: String?) {
+        invoiceNo = suggestion ?? ""
+        invoiceNoSeeded = true
+    }
+
+    /// When the sale happened, which is not always when it is being typed. A shop
+    /// entering the day's book at closing time would otherwise stamp the lot at
+    /// once, and the statements would inherit it.
+    var soldAt: Date = .now
+
     var isEmpty: Bool { lines.isEmpty }
 
     var total: Double {
@@ -144,6 +167,11 @@ final class Cart {
         customerKey = nil
         payMode = .full
         paidText = ""
+        invoiceNo = ""
+        // Cleared, not merely emptied: the next bill wants the next number, and
+        // the screen seeds it the moment it sees this go false.
+        invoiceNoSeeded = false
+        soldAt = .now
     }
 
     /// How many of a product are on the bill already. Zero when it is not.

@@ -91,6 +91,85 @@ class InvoiceNumberTests {
         assertEquals("1024", second.invoiceNo)
     }
 
+    // --- Typed, not generated
+
+    @Test
+    fun `the next number carries on from the last one written`() {
+        val store = store()
+        val product = store.aProduct()
+        assertNull(store.nextInvoiceNo(), "nothing to go on before the first bill")
+
+        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Ahmed", null, invoiceNo = "A-1024")
+        assertEquals("A-1025", store.nextInvoiceNo(), "the prefix is the book's, only the digits move")
+
+        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Sami", null, invoiceNo = "0099")
+        assertEquals("0100", store.nextInvoiceNo(), "and the width the shop writes is kept")
+    }
+
+    @Test
+    fun `a number with no digits in it suggests nothing`() {
+        val store = store()
+        val product = store.aProduct()
+        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Ahmed", null, invoiceNo = "INV")
+
+        // Better an empty box than a wrong guess: the owner types what the paper
+        // says, and the run continues from there.
+        assertNull(store.nextInvoiceNo())
+    }
+
+    @Test
+    fun `a number already used is found, whatever case it was typed in`() {
+        val store = store()
+        val product = store.aProduct()
+        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Ahmed", null, invoiceNo = "A-1024")
+
+        assertEquals("Ahmed", store.billWithInvoiceNo(" a-1024 ")?.who)
+        assertNull(store.billWithInvoiceNo("A-1025"))
+        assertNull(store.billWithInvoiceNo(""), "an empty box is not a clash with every blank bill")
+    }
+
+    @Test
+    fun `voiding a bill frees its number`() {
+        // The correction path: a bill typed wrong is voided and entered again,
+        // and the wrong one must not keep the paper's number to itself.
+        val store = store()
+        val product = store.aProduct()
+        val bill = assertNotNull(
+            store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Ahmed", null, invoiceNo = "1024")
+        )
+
+        store.void(bill)
+
+        assertNull(store.billWithInvoiceNo("1024"))
+    }
+
+    @Test
+    fun `a delivery already filed under a number is found across suppliers`() {
+        val store = store()
+        val product = store.aProduct()
+        val first = assertNotNull(store.addSupplier("Al Faisal"))
+        assertNotNull(store.addSupplier("Rashid Trading"))
+        store.recordPurchase(product, first.key, quantity = 5, unitCost = 60.0, invoiceNo = "INV-88")
+
+        assertEquals(first.key, store.purchaseWithInvoiceNo("inv-88")?.supplierKey)
+        assertNull(store.purchaseWithInvoiceNo("INV-89"))
+    }
+
+    @Test
+    fun `the store still records what it is told`() {
+        // The refusal is the screen's: it can put the number back in front of the
+        // person who typed it. The store cannot, and a backup being restored — or
+        // a file written by an older build — must never lose a bill because two
+        // of them share a label.
+        val store = store()
+        val product = store.aProduct()
+
+        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Ahmed", null, invoiceNo = "1024")
+        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Sami", null, invoiceNo = "1024")
+
+        assertEquals(2, store.bills.size)
+    }
+
     // --- The day it happened
 
     @Test
@@ -146,6 +225,21 @@ class InvoiceNumberTests {
         )
 
         assertEquals("INV-88", purchase.invoiceNo)
+        assertEquals("INV-88", purchase.reference(english), "which is what a statement calls it")
+    }
+
+    @Test
+    fun `a delivery with no paper is called what it is`() {
+        val store = store()
+        val product = store.aProduct()
+        val supplier = assertNotNull(store.addSupplier("Al Faisal"))
+
+        val purchase = assertNotNull(
+            store.recordPurchase(product, supplier.key, quantity = 10, unitCost = 60.0)
+        )
+
+        assertNull(purchase.invoiceNo)
+        assertEquals(english.purchaseLabel, purchase.reference(english))
     }
 
     // --- The file

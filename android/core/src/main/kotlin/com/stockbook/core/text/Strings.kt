@@ -393,6 +393,13 @@ class Strings(val language: AppLanguage) {
     val invoiceNoOptional: String get() = pick("From the book", "ಪುಸ್ತಕದಿಂದ")
     val billDate: String get() = pick("Date", "ದಿನಾಂಕ")
 
+    // Two numbers the same is two records the shop cannot tell apart later, so
+    // the clash is named — whose it is and when — rather than merely reported.
+    fun invoiceNoAlreadyUsed(who: String, date: String): String =
+        pick("Already used — $who, $date", "ಈಗಾಗಲೇ ಬಳಸಲಾಗಿದೆ — $who, $date")
+
+    val changeTheInvoiceNo: String get() = pick("Change the number", "ಸಂಖ್ಯೆ ಬದಲಿಸಿ")
+
     // The date a sale is *entered* is not always the date it happened. Said out
     // loud on the cart, because a shop catching up at closing time would
     // otherwise stamp the whole day at once and never notice.

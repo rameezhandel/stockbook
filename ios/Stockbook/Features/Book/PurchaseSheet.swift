@@ -34,6 +34,11 @@ struct PurchaseSheet: View {
             )
 
             line(Loc.supplier, supplierName)
+            // Only when there was one. An empty row headed "Invoice no." reads as
+            // a number the app lost rather than one the delivery never had.
+            if let invoiceNo = live.invoiceNo {
+                line(Loc.invoiceNoField, invoiceNo)
+            }
             line(live.name, Loc.perPiece(qty: live.qty, cost: Money.text(live.unitCost, in: currency)))
 
             FadedRule().padding(.vertical, 10)

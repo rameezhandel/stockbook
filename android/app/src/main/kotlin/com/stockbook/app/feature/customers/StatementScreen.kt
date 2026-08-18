@@ -444,7 +444,7 @@ private fun EntryRow(
                     }
                     is Statement.Entry.ForPurchase -> {
                         Text(
-                            strings.purchaseLabel,
+                            entry.purchase.reference(strings),
                             style = NocturneType.inter(13.0),
                             color = if (entry.purchase.voided) Nocturne.neutral500 else Nocturne.text
                         )
@@ -580,6 +580,7 @@ private fun plainText(
                 val marker = if (entry.purchase.voided) " (${strings.voided})" else ""
                 lines.add(
                     "${strings.longDate(entry.purchase.createdAt)}  " +
+                        "${entry.purchase.reference(strings)}  " +
                         "${entry.purchase.name} × ${entry.purchase.qty}$marker  " +
                         "${Money.text(entry.purchase.total, currency)}  →  $balance"
                 )

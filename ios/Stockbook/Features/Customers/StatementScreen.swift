@@ -259,7 +259,7 @@ struct StatementScreen: View {
             VStack(alignment: .leading, spacing: 2) {
                 switch entry {
                 case .bill(let bill):
-                    Text(Loc.billNumber(bill.number))
+                    Text(bill.reference(Loc))
                         .font(NocturneType.inter(13))
                         .foregroundStyle(bill.voided ? Nocturne.neutral500 : Nocturne.text)
                         .strikethrough(bill.voided)
@@ -277,7 +277,7 @@ struct StatementScreen: View {
                         Text(note).nocturneText(.meta)
                     }
                 case .purchase(let purchase):
-                    Text(Loc.purchaseLabel)
+                    Text(purchase.reference(Loc))
                         .font(NocturneType.inter(13))
                         .foregroundStyle(purchase.voided ? Nocturne.neutral500 : Nocturne.text)
                         .strikethrough(purchase.voided)
@@ -377,12 +377,12 @@ struct StatementScreen: View {
             switch entry {
             case .bill(let bill):
                 let marker = bill.voided ? " (\(Loc.voided))" : ""
-                lines.append("\(Loc.longDate(bill.createdAt))  \(Loc.billNumber(bill.number))\(marker)  \(Money.text(bill.total, in: currency))  →  \(balance)")
+                lines.append("\(Loc.longDate(bill.createdAt))  \(bill.reference(Loc))\(marker)  \(Money.text(bill.total, in: currency))  →  \(balance)")
             case .payment(let payment):
                 lines.append("\(Loc.longDate(payment.receivedAt))  \(Loc.paymentLabel)  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
             case .purchase(let purchase):
                 let marker = purchase.voided ? " (\(Loc.voided))" : ""
-                lines.append("\(Loc.longDate(purchase.createdAt))  \(purchase.name) × \(purchase.qty)\(marker)  \(Money.text(purchase.total, in: currency))  →  \(balance)")
+                lines.append("\(Loc.longDate(purchase.createdAt))  \(purchase.reference(Loc))  \(purchase.name) × \(purchase.qty)\(marker)  \(Money.text(purchase.total, in: currency))  →  \(balance)")
             case .supplierPayment(let payment):
                 lines.append("\(Loc.longDate(payment.paidAt))  \(Loc.paymentLabel)  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
             }

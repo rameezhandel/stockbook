@@ -63,4 +63,14 @@ data class Purchase(
         }
 
     val isPartPaid: Boolean get() = !voided && paid != null
+
+    /**
+     * What to call this delivery on a list or a statement.
+     *
+     * The supplier's number when it came with one, because that is what the
+     * supplier will say on the phone — otherwise the plain word, since a purchase
+     * has no counter of its own the way a bill does.
+     */
+    fun reference(strings: com.stockbook.core.text.Strings): String =
+        invoiceNo?.takeIf { it.isNotBlank() } ?: strings.purchaseLabel
 }

@@ -6,6 +6,7 @@ import com.stockbook.core.model.BillLine
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.CustomerRecord
+import com.stockbook.core.model.InvoiceNo
 import com.stockbook.core.model.Payment
 import com.stockbook.core.model.Product
 import com.stockbook.core.model.SupplierRecord
@@ -284,6 +285,42 @@ class StockbookStore(private val repository: StockbookRepository) {
         }
         return bill
     }
+
+    /**
+     * The bill already carrying this number, if any.
+     *
+     * The check behind the screen's refusal to save a second bill on the same
+     * number. It lives here rather than on the screen because the delivery side
+     * asks the same question, and one answer means one rule.
+     *
+     * **Voided bills are ignored.** Voiding and re-entering is how a bill typed
+     * wrong gets corrected, and the wrong one must not hold the paper's number
+     * hostage afterwards.
+     */
+    fun billWithInvoiceNo(invoiceNo: String?): Bill? {
+        val key = InvoiceNo.key(invoiceNo)
+        if (key.isEmpty()) return null
+        return bills.firstOrNull { !it.voided && InvoiceNo.key(it.invoiceNo) == key }
+    }
+
+    /** The same question on the other side of the book. */
+    fun purchaseWithInvoiceNo(invoiceNo: String?): Purchase? {
+        val key = InvoiceNo.key(invoiceNo)
+        if (key.isEmpty()) return null
+        return purchases.firstOrNull { !it.voided && InvoiceNo.key(it.invoiceNo) == key }
+    }
+
+    /**
+     * What to put in the bill-number field before anything is typed: one past the
+     * last number the shop wrote.
+     *
+     * Null when there is nothing to go on — no bills yet, or the last number has
+     * no digits in it. Blank is the honest answer there: the first number belongs
+     * to the shop's own bill book, and guessing "1" would be the app inventing a
+     * run the paper does not have.
+     */
+    fun nextInvoiceNo(): String? =
+        InvoiceNo.next(bills.firstOrNull { !it.voided && !it.invoiceNo.isNullOrBlank() }?.invoiceNo)
 
     /** Voids a bill and puts its stock back. Bills are never deleted. */
     fun void(bill: Bill) {

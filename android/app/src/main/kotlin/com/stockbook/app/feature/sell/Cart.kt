@@ -67,6 +67,23 @@ class Cart {
     var invoiceNo by mutableStateOf("")
 
     /**
+     * Whether the suggested next number has been put in the box yet.
+     *
+     * The suggestion has to happen once per bill, not once per screen: refilling
+     * on every recomposition would fight an owner who cleared the field, and
+     * seeding only on first appearance would leave the box empty for every bill
+     * after the first.
+     */
+    var invoiceNoSeeded by mutableStateOf(false)
+        private set
+
+    /** Puts the suggested number in the box. Null suggestion leaves it empty. */
+    fun seedInvoiceNo(suggestion: String?) {
+        invoiceNo = suggestion.orEmpty()
+        invoiceNoSeeded = true
+    }
+
+    /**
      * When the sale happened, which is not always when it is being typed.
      *
      * A shop that writes bills in the book all day and enters them at closing
@@ -161,6 +178,9 @@ class Cart {
     fun clear() {
         _lines.clear()
         invoiceNo = ""
+        // Cleared, not merely emptied: the next bill wants the next number, and
+        // the screen seeds it the moment it sees this go false.
+        invoiceNoSeeded = false
         soldAt = Timestamps.now()
         customer = ""
         customerKey = null

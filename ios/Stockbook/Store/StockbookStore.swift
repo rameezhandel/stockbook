@@ -198,7 +198,18 @@ final class StockbookStore {
     /// Snapshots each line's name and price, decrements stock (floored at zero),
     /// clamps a part payment to the total, and allocates the next bill number.
     @discardableResult
-    func saveBill(lines: [DraftLine], customer: String, paid: Double?) -> Bill? {
+    func saveBill(
+        lines: [DraftLine],
+        customer: String,
+        paid: Double?,
+        /// When the sale happened, which is not always when it was typed. A shop
+        /// that writes bills in the paper book all day and enters them at closing
+        /// time would otherwise have every one stamped 9pm — and the statements,
+        /// which are what somebody settles up against, would inherit that.
+        createdAt: Date = .now,
+        /// The number on the paper bill, when the shop wrote one.
+        invoiceNo: String? = nil
+    ) -> Bill? {
         let name = customer.trimmed
         guard !lines.isEmpty, !name.isEmpty else { return nil }
 
@@ -220,7 +231,9 @@ final class StockbookStore {
             lines: snapshots,
             total: total,
             paid: paid.map { min(max(0, $0), total) },
-            who: name
+            who: name,
+            invoiceNo: invoiceNo,
+            createdAt: createdAt
         )
 
         bills.insert(bill, at: 0)
@@ -230,6 +243,39 @@ final class StockbookStore {
             try repository.save(settings)
         }
         return bill
+    }
+
+    /// The bill already carrying this number, if any.
+    ///
+    /// The check behind the screen's refusal to save a second bill on the same
+    /// number. It lives here rather than on the screen because the delivery side
+    /// asks the same question, and one answer means one rule.
+    ///
+    /// **Voided bills are ignored.** Voiding and re-entering is how a bill typed
+    /// wrong gets corrected, and the wrong one must not hold the paper's number
+    /// hostage afterwards.
+    func billWithInvoiceNo(_ invoiceNo: String?) -> Bill? {
+        let key = InvoiceNo.key(invoiceNo)
+        guard !key.isEmpty else { return nil }
+        return bills.first { !$0.voided && InvoiceNo.key($0.invoiceNo) == key }
+    }
+
+    /// The same question on the other side of the book.
+    func purchaseWithInvoiceNo(_ invoiceNo: String?) -> Purchase? {
+        let key = InvoiceNo.key(invoiceNo)
+        guard !key.isEmpty else { return nil }
+        return purchases.first { !$0.voided && InvoiceNo.key($0.invoiceNo) == key }
+    }
+
+    /// What to put in the bill-number field before anything is typed: one past
+    /// the last number the shop wrote.
+    ///
+    /// Nil when there is nothing to go on — no bills yet, or the last number has
+    /// no digits in it. Blank is the honest answer there: the first number belongs
+    /// to the shop's own bill book, and guessing "1" would be the app inventing a
+    /// run the paper does not have.
+    func nextInvoiceNo() -> String? {
+        InvoiceNo.next(after: bills.first { !$0.voided && !($0.invoiceNo ?? "").isBlank }?.invoiceNo)
     }
 
     /// Voids a bill and puts its stock back. Bills are never deleted.
@@ -710,7 +756,9 @@ final class StockbookStore {
         quantity: Int,
         unitCost: Double,
         paid: Double? = nil,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        /// The number on the supplier's invoice, when it came with one.
+        invoiceNo: String? = nil
     ) -> Purchase? {
         guard quantity > 0, !supplierKey.isBlank, var current = self.product(uid: product.uid) else { return nil }
         let cost = unitCost > 0 ? unitCost : current.cost
@@ -725,6 +773,7 @@ final class StockbookStore {
             // Clamped to the total: a delivery cannot be overpaid, and a typo
             // that says so would put the shop permanently in credit.
             paid: paid.map { min(max(0, $0), total) },
+            invoiceNo: invoiceNo,
             createdAt: createdAt
         )
         purchases.insert(purchase, at: 0)
@@ -862,6 +911,7 @@ final class StockbookStore {
                     total: record.total,
                     paid: record.paid,
                     who: record.who,
+                    invoiceNo: record.invoiceNo,
                     createdAt: record.createdAt,
                     voided: record.voided
                 )
@@ -905,6 +955,7 @@ final class StockbookStore {
                     unitCost: $0.unitCost,
                     total: $0.total,
                     paid: $0.paid,
+                    invoiceNo: $0.invoiceNo,
                     createdAt: $0.createdAt,
                     voided: $0.voided
                 )
@@ -948,6 +999,7 @@ final class StockbookStore {
                     total: bill.total,
                     paid: bill.paid,
                     who: bill.who,
+                    invoiceNo: bill.invoiceNo,
                     voided: bill.voided,
                     lines: bill.lines.map {
                         BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price)
@@ -993,6 +1045,7 @@ final class StockbookStore {
                     unitCost: $0.unitCost,
                     total: $0.total,
                     paid: $0.paid,
+                    invoiceNo: $0.invoiceNo,
                     createdAt: $0.createdAt,
                     voided: $0.voided
                 )

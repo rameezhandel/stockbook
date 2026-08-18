@@ -23,6 +23,15 @@ struct Bill: Identifiable, Codable, Equatable {
     /// `total − paid`.
     var paid: Double?
 
+    /// The number printed on the paper bill, when the shop writes one.
+    ///
+    /// A string, not an int: bill books are numbered "1024" in some shops and
+    /// "A-1024" in others, and neither is arithmetic. Distinct from `number`,
+    /// which is this app's own counter and its identity — that one has to stay
+    /// unique and machine-assigned, or voiding and history lookups lose their
+    /// handle. This is a label the owner recognises; that is a key.
+    var invoiceNo: String?
+
     /// Customer name, trimmed. Required on every bill.
     var who: String
 
@@ -38,6 +47,7 @@ struct Bill: Identifiable, Codable, Equatable {
         total: Double,
         paid: Double?,
         who: String,
+        invoiceNo: String? = nil,
         createdAt: Date = .now,
         voided: Bool = false
     ) {
@@ -46,8 +56,24 @@ struct Bill: Identifiable, Codable, Equatable {
         self.total = total
         self.paid = paid
         self.who = who
+        self.invoiceNo = CustomerRecord.tidied(invoiceNo)
         self.createdAt = createdAt
         self.voided = voided
+    }
+
+    /// Written by hand for the same reason `Settings` is: a default does not make
+    /// the synthesised decoder tolerate a missing key, and every bill already
+    /// stored was written before `invoiceNo` existed.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        number = try container.decode(Int.self, forKey: .number)
+        lines = try container.decode([BillLine].self, forKey: .lines)
+        total = try container.decode(Double.self, forKey: .total)
+        paid = try container.decodeIfPresent(Double.self, forKey: .paid)
+        who = try container.decode(String.self, forKey: .who)
+        invoiceNo = try container.decodeIfPresent(String.self, forKey: .invoiceNo)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        voided = try container.decodeIfPresent(Bool.self, forKey: .voided) ?? false
     }
 
     /// What is still owed on this bill. Zero when paid in full or voided.
@@ -57,6 +83,14 @@ struct Bill: Identifiable, Codable, Equatable {
     }
 
     var isPartPaid: Bool { !voided && paid != nil }
+
+    /// What to call this bill on screen: the paper's number where there is one,
+    /// and the app's own otherwise. One number, never both — two numbers on a
+    /// document is how somebody reads out the wrong one over the phone.
+    func reference(_ strings: Strings) -> String {
+        if let invoiceNo, !invoiceNo.isBlank { return invoiceNo }
+        return strings.billNumber(number)
+    }
 
     /// The row's first line: the names on the bill, joined.
     var summary: String { lines.map(\.name).joined(separator: ", ") }

@@ -104,7 +104,9 @@ struct SellScreen: View {
         guard let bill = store.saveBill(
             lines: cart.draftLines,
             customer: cart.customer,
-            paid: cart.paidForStorage
+            paid: cart.paidForStorage,
+            createdAt: cart.soldAt,
+            invoiceNo: cart.invoiceNo
         ) else { return }
 
         cart.clear()

@@ -96,7 +96,12 @@ fun AddStockSheet(
     // A purchase is a record against an account, so it needs the account. Quick
     // add is not: it is a correction to a number on a shelf, and demanding a
     // supplier for it would be asking who delivered the bag you just tipped in.
-    val canSave = if (purchase) quantityValue > 0 && supplierKey != null else quantityValue > 0
+    // The delivery already filed under this number, whoever it came from. Across
+    // the whole book rather than per supplier: one number, one piece of paper.
+    val clash = remember(state, invoiceNo) { store.purchaseWithInvoiceNo(invoiceNo) }
+
+    val canSave =
+        if (purchase) quantityValue > 0 && supplierKey != null && clash == null else quantityValue > 0
 
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(
@@ -160,6 +165,17 @@ fun AddStockSheet(
                         )
                     }
                 }
+            }
+            if (clash != null) {
+                Text(
+                    strings.invoiceNoAlreadyUsed(
+                        store.supplier(clash.supplierKey)?.name ?: clash.supplierKey,
+                        strings.longDate(clash.createdAt)
+                    ),
+                    style = NocturneType.meta,
+                    color = Nocturne.accent400,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
             }
             Spacer(Modifier.height(Metrics.cardGap))
         }
@@ -257,6 +273,7 @@ fun AddStockSheet(
         PrimaryButton(
             title = when {
                 !purchase -> strings.addToStock(maxOf(0, quantityValue))
+                clash != null -> strings.changeTheInvoiceNo
                 supplierKey == null && supplier.isNotBlank() -> strings.chooseSupplierFromTheList
                 supplierKey == null -> strings.whoDeliveredIt
                 else -> strings.recordPurchase

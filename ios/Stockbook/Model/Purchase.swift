@@ -31,6 +31,9 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
     /// driver waits for cash. A number means part paid, and the shop owes
     /// `total − paid`.
     var paid: Double?
+    /// The number on the supplier's invoice, when it came with one — the same
+    /// field as a bill's, pointing the other way.
+    var invoiceNo: String?
     var createdAt: Date
     var voided: Bool
 
@@ -43,6 +46,7 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
         unitCost: Double,
         total: Double,
         paid: Double? = nil,
+        invoiceNo: String? = nil,
         createdAt: Date = .now,
         voided: Bool = false
     ) {
@@ -54,6 +58,7 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
         self.unitCost = unitCost
         self.total = total
         self.paid = paid
+        self.invoiceNo = CustomerRecord.tidied(invoiceNo)
         self.createdAt = createdAt
         self.voided = voided
     }
@@ -65,4 +70,14 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
     }
 
     var isPartPaid: Bool { !voided && paid != nil }
+
+    /// What to call this delivery on a list or a statement.
+    ///
+    /// The supplier's number when it came with one, because that is what the
+    /// supplier will say on the phone — otherwise the plain word, since a purchase
+    /// has no counter of its own the way a bill does.
+    func reference(_ strings: Strings) -> String {
+        if let invoiceNo, !invoiceNo.isBlank { return invoiceNo }
+        return strings.purchaseLabel
+    }
 }

@@ -44,6 +44,22 @@ struct CartView: View {
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .keyboardDoneButton()
+        // One past the last number the shop wrote, put in the box so the usual
+        // bill needs no typing at all. Watched rather than done once: the flag is
+        // cleared when the cart is emptied after a save, which is exactly when
+        // the next number is wanted.
+        .onAppear(perform: seedInvoiceNo)
+        .onChange(of: cart.invoiceNoSeeded) { seedInvoiceNo() }
+    }
+
+    private func seedInvoiceNo() {
+        guard !cart.invoiceNoSeeded else { return }
+        cart.seedInvoiceNo(store.nextInvoiceNo())
+    }
+
+    /// The bill already carrying this number, if the shop has written it twice.
+    private var clash: Bill? {
+        store.billWithInvoiceNo(cart.invoiceNo)
     }
 
     // MARK: Sticky footer
@@ -53,6 +69,39 @@ struct CartView: View {
 
         return VStack(spacing: 10) {
             CustomerPicker()
+
+            // The paper's number and the day it happened, side by side and both
+            // optional. Above the payment pills because they describe *the bill*,
+            // not the money — and because a shop entering yesterday's book needs
+            // the date before it thinks about what was paid.
+            HStack(alignment: .bottom, spacing: 8) {
+                NocturneField(
+                    label: Loc.invoiceNoField,
+                    placeholder: Loc.invoiceNoOptional,
+                    text: $cart.invoiceNo,
+                    height: 40,
+                    fontSize: 13.5,
+                    identifier: "cart.invoiceNo"
+                )
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(Loc.billDate).nocturneText(.fieldLabel)
+                    DatePicker("", selection: $cart.soldAt, displayedComponents: .date)
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                        .font(NocturneType.inter(13))
+                        .tint(Nocturne.accent)
+                        .frame(height: 40)
+                }
+            }
+
+            // Named, not merely reported: "already used" leaves the owner
+            // hunting, "already used — Ahmed, 18 Aug" points at the bill.
+            if let clash {
+                Text(Loc.invoiceNoAlreadyUsed(who: clash.who, date: Loc.longDate(clash.createdAt)))
+                    .nocturneText(.meta)
+                    .foregroundStyle(Nocturne.accent400)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             HStack(spacing: 6) {
                 ChoicePill(
@@ -106,7 +155,7 @@ struct CartView: View {
             // typed one needs a choice.
             Button(saveTitle, action: onSave)
                 .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
-                .disabled(!cart.canSave)
+                .disabled(!cart.canSave || clash != nil)
         }
         .padding(.horizontal, Metrics.screenPadding)
         .padding(.top, 12)
@@ -118,6 +167,9 @@ struct CartView: View {
     }
 
     private var saveTitle: String {
+        // A number on two bills is two records the shop cannot tell apart later,
+        // so this one is a refusal rather than a warning.
+        if clash != nil { return Loc.changeTheInvoiceNo }
         if cart.canSave { return Loc.saveBill }
         return cart.customer.isBlank ? Loc.enterCustomerName : Loc.chooseFromTheList
     }

@@ -28,6 +28,9 @@ struct BackupDocument: Codable, Equatable {
     /// book: it would read this file and tell the owner the shop owes nobody
     /// anything. That is the payments case again, and the answer is the same one.
     /// Better that build refuses the file and says so.
+    /// The invoice numbers added after 2 do **not** bump it. A reader that
+    /// ignores them shows "Bill #7" where the owner wrote "1024" on the paper: a
+    /// label lost, not a figure misread. The rule is about meaning.
     static let currentVersion = 2
 
     var version: Int = BackupDocument.currentVersion
@@ -94,6 +97,8 @@ struct BackupDocument: Codable, Equatable {
         var total: Double
         /// Absent for a delivery settled on the spot, exactly as on a bill.
         var paid: Double?
+        /// The number on the supplier's invoice.
+        var invoiceNo: String?
         var createdAt: Date
         var voided: Bool
     }
@@ -121,6 +126,8 @@ struct BackupDocument: Codable, Equatable {
         /// Absent for a bill paid in full.
         var paid: Double?
         var who: String
+        /// The number on the paper bill. Absent when the shop wrote none.
+        var invoiceNo: String?
         var voided: Bool
         var lines: [LineRecord]
     }

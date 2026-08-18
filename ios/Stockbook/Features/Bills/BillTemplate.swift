@@ -46,7 +46,7 @@ struct BillTemplate: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(Loc.billNumber(bill.number))
+                Text(bill.reference(Loc))
                     .font(NocturneType.inter(20, .medium))
                 Spacer(minLength: 8)
                 if bill.voided {

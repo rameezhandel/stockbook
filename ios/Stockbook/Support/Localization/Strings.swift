@@ -439,6 +439,14 @@ struct Strings {
     /// otherwise stamp the whole day at once and never notice.
     var billDateNote: String { pick("Today unless you change it.", "ಬದಲಾಯಿಸದಿದ್ದರೆ ಇಂದಿನ ದಿನಾಂಕ.") }
 
+    /// Two numbers the same is two records the shop cannot tell apart later, so
+    /// the clash is named — whose it is and when — rather than merely reported.
+    func invoiceNoAlreadyUsed(who: String, date: String) -> String {
+        pick("Already used — \(who), \(date)", "ಈಗಾಗಲೇ ಬಳಸಲಾಗಿದೆ — \(who), \(date)")
+    }
+
+    var changeTheInvoiceNo: String { pick("Change the number", "ಸಂಖ್ಯೆ ಬದಲಿಸಿ") }
+
     func billNumber(_ number: Int) -> String {
         pick("Bill #\(number)", "ಬಿಲ್ #\(number)")
     }

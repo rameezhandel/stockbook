@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -148,6 +149,19 @@ private fun Footer(
     strings: Strings,
     onSave: () -> Unit
 ) {
+    // The bill already carrying this number, if the shop has written it twice.
+    // Recomputed against `state` as well as the text, so a number freed by
+    // voiding the bill that held it stops being a clash immediately.
+    val clash = remember(state, cart.invoiceNo) { store.billWithInvoiceNo(cart.invoiceNo) }
+
+    // One past the last number the shop wrote, put in the box so the usual bill
+    // needs no typing at all. Keyed on the seed flag rather than run once: the
+    // flag is cleared when the cart is emptied after a save, which is exactly
+    // when the next number is wanted.
+    LaunchedEffect(cart.invoiceNoSeeded) {
+        if (!cart.invoiceNoSeeded) cart.seedInvoiceNo(store.nextInvoiceNo())
+    }
+
     Column(modifier = Modifier.fillMaxWidth().background(Nocturne.surface)) {
         Box(Modifier.fillMaxWidth().height(Metrics.hairline).background(Nocturne.neutral800))
 
@@ -199,6 +213,17 @@ private fun Footer(
                         )
                     }
                 }
+            }
+
+            // Named, not merely reported: "already used" leaves the owner
+            // hunting, "already used — Ahmed, 18 Aug" points at the bill.
+            if (clash != null) {
+                Text(
+                    strings.invoiceNoAlreadyUsed(clash.who, strings.longDate(clash.createdAt)),
+                    style = NocturneType.meta,
+                    color = Nocturne.accent400,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
             }
             Spacer(Modifier.height(10.dp))
 
@@ -263,6 +288,9 @@ private fun Footer(
             // missing and stays disabled until it isn't.
             PrimaryButton(
                 title = when {
+                    // A number on two bills is two records the shop cannot tell
+                    // apart later, so this one is a refusal rather than a warning.
+                    clash != null -> strings.changeTheInvoiceNo
                     cart.canSave -> strings.saveBill
                     // Two different things are missing, and the button says which:
                     // an empty box needs a name, a typed one needs a choice.
@@ -270,7 +298,7 @@ private fun Footer(
                     else -> strings.chooseFromTheList
                 },
                 onClick = onSave,
-                enabled = cart.canSave,
+                enabled = cart.canSave && clash == null,
                 fullWidth = true,
                 height = 48.dp,
                 fontSize = 15.0

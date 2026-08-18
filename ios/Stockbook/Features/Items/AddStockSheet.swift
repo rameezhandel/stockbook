@@ -24,6 +24,9 @@ struct AddStockSheet: View {
     @State private var supplierKey: String?
     @State private var settledNow = true
     @State private var paidText = ""
+    /// The number on the supplier's invoice, and the day it arrived.
+    @State private var invoiceNo = ""
+    @State private var arrivedAt = Date.now
 
     private var isPurchase: Bool {
         if case .purchase = mode { return true }
@@ -50,6 +53,38 @@ struct AddStockSheet: View {
                     typed: $supplier,
                     chosenKey: $supplierKey
                 )
+
+                // The paper that came with the stock, and the day it came. Both
+                // optional: a delivery with no invoice is still a delivery.
+                HStack(alignment: .bottom, spacing: 8) {
+                    NocturneField(
+                        label: Loc.invoiceNoField,
+                        placeholder: Loc.invoiceNoOptional,
+                        text: $invoiceNo,
+                        identifier: "purchase.invoiceNo"
+                    )
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(Loc.billDate).nocturneText(.fieldLabel)
+                        DatePicker("", selection: $arrivedAt, displayedComponents: .date)
+                            .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .font(NocturneType.inter(13))
+                            .tint(Nocturne.accent)
+                            .frame(height: Metrics.inputHeight)
+                    }
+                }
+
+                if let clash {
+                    Text(
+                        Loc.invoiceNoAlreadyUsed(
+                            who: store.supplier(key: clash.supplierKey)?.name ?? clash.supplierKey,
+                            date: Loc.longDate(clash.createdAt)
+                        )
+                    )
+                    .nocturneText(.meta)
+                    .foregroundStyle(Nocturne.accent400)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
 
             HStack(spacing: 8) {
@@ -131,8 +166,15 @@ struct AddStockSheet: View {
         return Loc.quickAddNote(cost: Money.text(product.cost, in: currency))
     }
 
+    /// The delivery already filed under this number, whoever it came from. Across
+    /// the whole book rather than per supplier: one number, one piece of paper.
+    private var clash: Purchase? {
+        store.purchaseWithInvoiceNo(invoiceNo)
+    }
+
     private var actionLabel: String {
         guard isPurchase else { return Loc.addToStock(max(0, quantityValue)) }
+        if clash != nil { return Loc.changeTheInvoiceNo }
         if supplierKey != nil { return Loc.recordPurchase }
         return supplier.isBlank ? Loc.whoDeliveredIt : Loc.chooseSupplierFromTheList
     }
@@ -141,7 +183,7 @@ struct AddStockSheet: View {
     /// add is not: it is a correction to a number on a shelf, and demanding a
     /// supplier for it would be asking who delivered the bag you just tipped in.
     private var canSave: Bool {
-        isPurchase ? quantityValue > 0 && supplierKey != nil : true
+        isPurchase ? quantityValue > 0 && supplierKey != nil && clash == nil : true
     }
 
     /// Zero or empty quantity just closes the sheet — the owner opened it, then
@@ -157,7 +199,9 @@ struct AddStockSheet: View {
                 supplierKey: key,
                 quantity: quantityValue,
                 unitCost: Money.parse(unitCost) ?? 0,
-                paid: settledNow ? nil : (Money.parse(paidText) ?? 0)
+                paid: settledNow ? nil : (Money.parse(paidText) ?? 0),
+                createdAt: arrivedAt,
+                invoiceNo: invoiceNo
             )
         } else {
             store.restock(product, quantity: quantityValue, mode: .quickAdd)

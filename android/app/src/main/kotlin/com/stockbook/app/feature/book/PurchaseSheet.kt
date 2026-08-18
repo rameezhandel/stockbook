@@ -61,6 +61,9 @@ fun PurchaseSheet(
         )
 
         Line(strings.supplier, supplierName)
+        // Only when there was one. An empty row headed "Invoice no." reads as a
+        // number the app lost rather than one the delivery never had.
+        live.invoiceNo?.let { Line(strings.invoiceNoField, it) }
         Line(live.name, strings.perPiece(live.qty, Money.text(live.unitCost, currency)))
 
         FadedRule(modifier = Modifier.padding(vertical = 10.dp))

@@ -408,6 +408,21 @@ both it and setup step 4.
   editable price with its override treatment and Reset, the customer chosen from
   the roster through an upward scrolling picker that can also create one on the
   spot, full/part payment, and save.
+- **The number on the paper, and the day it happened** — a bill and a delivery
+  both carry the number written on the physical paper, and both can be entered
+  for the day they actually happened rather than the day they were typed. On the
+  sell screen the number is **suggested**: one past the last one the shop wrote,
+  digits only ("A-0099" → "A-0100"), so the usual bill needs no typing and the run
+  starts wherever the shop's own book starts. Typing a number that is already on
+  another bill — or on another delivery, whoever it came from — names the clash
+  and refuses the save until it is changed. Voiding frees the number again, since
+  void-and-re-enter is how a bill typed wrong gets corrected.
+
+  `Bill.number` is untouched by all of this. It stays the app's own counter and
+  the thing identity is built on; the typed number is a **label**, and conflating
+  the two is how a duplicate would start overwriting history. The store records
+  what it is told — the refusal is the screen's, because a screen can hand the
+  number back to the person who typed it and a restored backup cannot.
 - **Receipt** — the full-screen confirmation, including the faded rule.
 - **Bills** — full history newest-first, with the muted treatment on voided
   ones, and a customer filter. Tapping any bill on Bills or Today opens it as a
