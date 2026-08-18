@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.BuildConfig
 import com.stockbook.app.design.DropdownField
@@ -62,6 +63,7 @@ fun SettingsScreen(
     onStartOver: () -> Unit
 ) {
     var ownerName by remember(state.settings.ownerName) { mutableStateOf(state.settings.ownerName) }
+    var shopAddress by remember(state.settings.shopAddress) { mutableStateOf(state.settings.shopAddress) }
 
     // Drawn as a sibling of the tab content inside the shell's Box, so without a
     // ground of its own the screen behind shows straight through it — and without
@@ -94,6 +96,27 @@ fun SettingsScreen(
                     },
                     label = strings.businessOwner,
                     placeholder = strings.businessOwnerName
+                )
+                Spacer(Modifier.height(10.dp))
+                // Free text with line breaks in it, and taller than one line
+                // because that is how an address is written. Nothing parses it —
+                // the statement copies it out exactly as typed.
+                NocturneField(
+                    value = shopAddress,
+                    onValueChange = {
+                        shopAddress = it
+                        store.setShopAddress(it)
+                    },
+                    label = strings.shopAddress,
+                    placeholder = strings.shopAddressHint,
+                    height = 84.dp,
+                    imeAction = ImeAction.Default
+                )
+                Text(
+                    strings.shopAddressNote,
+                    style = NocturneType.meta,
+                    color = Nocturne.neutral500,
+                    modifier = Modifier.padding(top = 6.dp)
                 )
                 Spacer(Modifier.height(10.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {

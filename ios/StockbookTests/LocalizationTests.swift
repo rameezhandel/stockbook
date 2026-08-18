@@ -73,6 +73,7 @@ struct LocalizationTests {
         \.boughtFromThem, \.youOwe,
         \.owedToSuppliers, \.nothingOwedOut, \.chooseSupplierFromTheList,
         \.removeSupplierBill, \.removeSupplierBillNote, \.purchasedInPeriod, \.paidOutInPeriod,
+        \.shopAddress, \.shopAddressHint, \.shopAddressNote,
         \.currencySection, \.currencyNote, \.setupCurrencyNote, \.moveToAnotherPhone,
         \.moveToAnotherPhoneNote, \.exportEverything, \.exportNoteFirstTime, \.exportNoteAfterBackup,
         \.writeAFreshFile, \.createBackupFile, \.importABackupFile, \.chooseAFile,

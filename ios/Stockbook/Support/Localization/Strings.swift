@@ -733,6 +733,15 @@ struct Strings {
     }
 
 
+    var shopAddress: String { pick("Shop address", "ಅಂಗಡಿ ವಿಳಾಸ") }
+    var shopAddressHint: String { pick("Street, district, city", "ರಸ್ತೆ, ಬಡಾವಣೆ, ಊರು") }
+    var shopAddressNote: String {
+        pick(
+            "Printed at the top of a statement, exactly as typed here.",
+            "ಖಾತೆ ವಿವರದ ಮೇಲ್ಭಾಗದಲ್ಲಿ, ಇಲ್ಲಿ ಬರೆದ ಹಾಗೆಯೇ ಮುದ್ರಿತವಾಗುತ್ತದೆ."
+        )
+    }
+
     var moveToAnotherPhone: String { pick("Move to another phone", "ಇನ್ನೊಂದು ಫೋನಿಗೆ ಸಾಗಿಸಿ") }
 
     var moveToAnotherPhoneNote: String {

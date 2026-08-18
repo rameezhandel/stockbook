@@ -12,6 +12,7 @@ struct SettingsScreen: View {
     @Environment(AppRouter.self) private var router
 
     @State private var ownerName = ""
+    @State private var shopAddress = ""
     @State private var seeded = false
 
     private var settings: Settings { store.settings }
@@ -57,6 +58,37 @@ struct SettingsScreen: View {
                 )
                 .onChange(of: ownerName) { _, new in
                     store.setOwnerName(new)
+                }
+
+                // Free text with line breaks in it, and taller than one line
+                // because that is how an address is written. Nothing parses it —
+                // the statement copies it out exactly as typed.
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(Loc.shopAddress).nocturneText(.fieldLabel)
+                    TextEditor(text: $shopAddress)
+                        .font(NocturneType.inter(14))
+                        .foregroundStyle(Nocturne.text)
+                        .scrollContentBackground(.hidden)
+                        .tint(Nocturne.accent)
+                        .frame(height: 84)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(Nocturne.bg, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
+                        .hairline(radius: Metrics.controlRadius)
+                        .overlay(alignment: .topLeading) {
+                            if shopAddress.isEmpty {
+                                Text(Loc.shopAddressHint)
+                                    .font(NocturneType.inter(14))
+                                    .foregroundStyle(Nocturne.neutral500)
+                                    .padding(.horizontal, 11)
+                                    .padding(.vertical, 12)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                        .onChange(of: shopAddress) { _, new in
+                            store.setShopAddress(new)
+                        }
+                    Text(Loc.shopAddressNote).nocturneText(.meta)
                 }
 
                 HStack(spacing: 10) {
@@ -219,5 +251,6 @@ struct SettingsScreen: View {
         guard !seeded else { return }
         seeded = true
         ownerName = settings.ownerName
+        shopAddress = settings.shopAddress
     }
 }

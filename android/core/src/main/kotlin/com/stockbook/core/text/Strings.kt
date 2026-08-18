@@ -663,6 +663,15 @@ class Strings(val language: AppLanguage) {
             )
 
 
+    val shopAddress: String get() = pick("Shop address", "ಅಂಗಡಿ ವಿಳಾಸ")
+    val shopAddressHint: String
+        get() = pick("Street, district, city", "ರಸ್ತೆ, ಬಡಾವಣೆ, ಊರು")
+    val shopAddressNote: String
+        get() = pick(
+            "Printed at the top of a statement, exactly as typed here.",
+            "ಖಾತೆ ವಿವರದ ಮೇಲ್ಭಾಗದಲ್ಲಿ, ಇಲ್ಲಿ ಬರೆದ ಹಾಗೆಯೇ ಮುದ್ರಿತವಾಗುತ್ತದೆ."
+        )
+
     val moveToAnotherPhone: String get() = pick("Move to another phone", "ಇನ್ನೊಂದು ಫೋನಿಗೆ ಸಾಗಿಸಿ")
 
     val moveToAnotherPhoneNote: String get() =

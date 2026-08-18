@@ -86,6 +86,13 @@ final class StockbookStore {
         attempt { try repository.save(settings) }
     }
 
+    /// Trailing blank lines go; the rest is kept exactly as typed, line breaks
+    /// included — the owner is laying out how their own address prints.
+    func setShopAddress(_ address: String) {
+        settings.shopAddress = address.trimmed
+        attempt { try repository.save(settings) }
+    }
+
     /// The interface language. Applied to `L10n` in the same breath, because the
     /// two must never disagree — `RootView` rebuilds off `settings.language`
     /// while every string is read from `L10n`.
