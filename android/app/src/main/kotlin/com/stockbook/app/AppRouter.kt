@@ -57,6 +57,16 @@ class AppRouter {
      * A banner saying "3 customers still owe" is a fact the owner can do nothing
      * with; these turn it into the names, and each name into the payment sheet.
      */
+    /**
+     * Whether Sell is showing the product picker rather than the bill form.
+     *
+     * Screen-local by rights, and here because the shell has to know: the picker
+     * carries its own bottom bar, and the tab bar underneath it would be a second
+     * one stacked on the first. Reset when Sell leaves the screen, so coming back
+     * lands on the form rather than wherever the last visit ended.
+     */
+    var pickingProducts by mutableStateOf(false)
+
     var showingDebtors by mutableStateOf(false)
     var showingCreditors by mutableStateOf(false)
 

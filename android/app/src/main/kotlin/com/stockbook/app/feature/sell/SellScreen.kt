@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,8 +63,14 @@ fun SellScreen(
     modifier: Modifier = Modifier
 ) {
     var query by remember { mutableStateOf("") }
-    /** Set by "Add items", cleared by "Done adding". */
-    var browsing by remember { mutableStateOf(false) }
+    // Set by "Add items", cleared by "Done adding". On the router rather than in
+    // here because the shell draws the tab bar and must not stack it under the
+    // picker's own bottom bar.
+    val browsing = router.pickingProducts
+
+    // Leaving Sell puts the picker away. It used to happen for free, when this
+    // was a `remember` that died with the screen.
+    DisposableEffect(Unit) { onDispose { router.pickingProducts = false } }
 
     val currency = state.settings.currency
     // An empty cart no longer means the picker: a bill with nothing on it is the
@@ -127,7 +134,7 @@ fun SellScreen(
                         },
                         onAddProduct = { router.openNewProduct() },
                         onDoneAdding = {
-                            browsing = false
+                            router.pickingProducts = false
                             query = ""
                         },
                         modifier = Modifier.weight(1f)
@@ -141,7 +148,7 @@ fun SellScreen(
                     currency = currency,
                     strings = strings,
                     onBrowse = {
-                        browsing = true
+                        router.pickingProducts = true
                         query = ""
                     },
                     onSave = {
@@ -158,7 +165,7 @@ fun SellScreen(
                         )
                         if (bill != null) {
                             cart.clear()
-                            browsing = false
+                            router.pickingProducts = false
                             query = ""
                             router.receipt = bill
                         }

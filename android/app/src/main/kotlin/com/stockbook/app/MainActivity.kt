@@ -175,7 +175,10 @@ private fun Shell(store: StockbookStore) {
                 }
             }
 
-            if (router.tab != AppTab.SELL || cart.isEmpty) {
+            // Hidden only under the product picker, which carries its own bar.
+            // The bill form keeps the tab bar: it is a form now rather than a
+            // till, and a screen with no way off it is worse than a tall one.
+            if (router.tab != AppTab.SELL || !router.pickingProducts) {
                 StockbookTabBar(
                     selected = router.tab,
                     onSelect = { router.tab = it },
