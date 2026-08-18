@@ -23,6 +23,9 @@ struct StatementScreen: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.currency) private var currency
 
+    /// Set once the PDF is on disk; the share sheet is presented off it.
+    @State private var pdfFile: StatementFile?
+
     /// Whose account: a customer key, or a supplier key with `isSupplier` set.
     let partyKey: String
 
@@ -101,6 +104,13 @@ struct StatementScreen: View {
         // A period change re-draws the whole document; a row still armed for
         // deletion in the old one would be armed against a row that has moved.
         .onChange(of: choice) { _, _ in deleting = nil }
+        // Presented off the file rather than a flag, so the sheet cannot open
+        // before the PDF exists — and closing it drops the URL, so the next tap
+        // renders the period the owner is looking at *then*.
+        .sheet(item: $pdfFile) { file in
+            ShareSheet(url: file.url)
+                .presentationDetents([.medium, .large])
+        }
     }
 
     // MARK: Period
@@ -386,16 +396,45 @@ struct StatementScreen: View {
 
     // MARK: Sharing
 
-    /// Plain text through the system share sheet, which is how a statement
-    /// actually reaches a customer here — a photo of a screen or a WhatsApp
-    /// message, not an emailed PDF. The app makes no network call either way; the
+    /// Two ways out, side by side. The app makes no network call either way; the
     /// OS does whatever the owner picks.
+    ///
+    /// Plain text is the quick one — a WhatsApp line, which is how a statement
+    /// usually reaches a customer here. The PDF is the document somebody files
+    /// beside their supplier statements, and it is the same figures either way.
     private func shareRow(_ statement: Statement) -> some View {
-        ShareLink(item: plainText(statement)) {
-            Label(Loc.share, systemImage: Icon.share)
+        HStack(spacing: 8) {
+            ShareLink(item: plainText(statement)) {
+                Label(Loc.share, systemImage: Icon.share)
+            }
+            .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
+
+            Button(Loc.sharePdf) { makePDF(statement) }
+                .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
         }
-        .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
         .padding(.top, 10)
+    }
+
+    /// Renders the document to a file and hands the URL to the share sheet.
+    ///
+    /// A failure leaves `pdfFile` nil and nothing opens, which is the honest
+    /// outcome: there is no half-written statement worth offering, and the owner
+    /// still has the plain-text button beside it.
+    private func makePDF(_ statement: Statement) {
+        let document = StatementDocument.make(
+            statement: statement,
+            settings: store.settings,
+            strings: Loc
+        )
+        let slug = document.partyName
+            .replacingOccurrences(of: "[^A-Za-z0-9]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+            .lowercased()
+        guard let url = try? StatementPDF.write(
+            document,
+            fileName: Loc.statementFileName(name: slug, date: Copy.fileDate(.now))
+        ) else { return }
+        pdfFile = StatementFile(url: url)
     }
 
     private func plainText(_ statement: Statement) -> String {
