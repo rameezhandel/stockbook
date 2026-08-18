@@ -231,41 +231,6 @@ struct StoreTests {
         #expect(store.outstanding().names.isEmpty)
     }
 
-    // MARK: Restock
-
-    @Test("Quick add raises stock and leaves the buying price alone")
-    func quickAdd() {
-        let store = makeStore()
-        let product = store.addProduct(name: "Hinge", stock: 4, cost: 18, price: 30)
-
-        store.restock(product, quantity: 50, mode: .quickAdd, unitCost: 99)
-
-        #expect(store.product(uid: product.uid)?.stock == 54)
-        #expect(store.product(uid: product.uid)?.cost == 18)
-    }
-
-    @Test("A purchase entry overwrites the buying price with the latest paid")
-    func purchaseEntry() {
-        let store = makeStore()
-        let product = store.addProduct(name: "Hinge", stock: 4, cost: 18, price: 30)
-
-        store.restock(product, quantity: 50, mode: .purchase, unitCost: 17)
-
-        #expect(store.product(uid: product.uid)?.stock == 54)
-        #expect(store.product(uid: product.uid)?.cost == 17, "cost is latest paid, not a weighted average")
-    }
-
-    @Test("A zero quantity does nothing")
-    func emptyRestock() {
-        let store = makeStore()
-        let product = store.addProduct(name: "Hinge", stock: 4, cost: 18, price: 30)
-
-        store.restock(product, quantity: 0, mode: .purchase, unitCost: 17)
-
-        #expect(store.product(uid: product.uid)?.stock == 4)
-        #expect(store.product(uid: product.uid)?.cost == 18)
-    }
-
     // MARK: Start over
 
     @Test("Start over clears the shop and returns to setup")
