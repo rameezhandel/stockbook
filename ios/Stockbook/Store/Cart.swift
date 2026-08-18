@@ -190,6 +190,12 @@ final class Cart {
         lines.removeAll { $0.id == uid }
     }
 
+    /// Empties the bill of items, putting the figure back in the owner's hands.
+    /// The way back from a total the app worked out to one they type.
+    func removeLines() {
+        lines = []
+    }
+
     /// Drops any line whose product has been deleted from the catalogue.
     func dropLine(for product: Product) {
         remove(product.uid)

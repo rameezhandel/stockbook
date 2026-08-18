@@ -20,8 +20,38 @@ struct CartView: View {
         @Bindable var cart = cart
 
         VStack(spacing: 0) {
+            // Read top to bottom it is the order the owner already has the
+            // answers in: the number on the paper, the day, who it is for, what
+            // it came to. What was sold comes after all of that, because on most
+            // bills here it never comes at all.
             ScrollView {
-                LazyVStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
+                    paperRow
+
+                    CustomerPicker()
+                        .padding(.top, 12)
+
+                    // The figure, however it was arrived at. Never both at once:
+                    // a typed amount beside a line sum is two answers to one
+                    // question, and no way to tell which is about to be saved.
+                    Group {
+                        if cart.lines.isEmpty {
+                            NocturneField.number(
+                                label: Loc.amountField,
+                                text: $cart.amountText,
+                                height: Metrics.tallInputHeight,
+                                isRequiredAndEmpty: cart.total <= 0,
+                                emphasis: .sellingPrice,
+                                prefix: currency.symbol.trimmed,
+                                fontSize: 17,
+                                identifier: "cart.amount"
+                            )
+                        } else {
+                            itemisedTotal
+                        }
+                    }
+                    .padding(.top, 12)
+
                     ForEach(cart.lines) { line in
                         CartLineCard(
                             line: line,
@@ -31,24 +61,29 @@ struct CartView: View {
                             onResetPrice: { cart.resetPrice(for: line.id) },
                             onRemove: { cart.remove(line.id) }
                         )
+                        .padding(.top, 8)
                         .transition(.opacity)
                     }
 
-                    // Saying what was sold is the optional step, so the button
-                    // offers it plainly on an empty bill and only says "another"
-                    // once there is a first one to be another of.
+                    // Quiet on purpose. Most bills here never touch it, and a
+                    // button that shouts is a button an owner in a hurry taps by
+                    // mistake.
                     Button(action: onBrowse) {
                         Label(cart.isEmpty ? Loc.addItems : Loc.addAnotherItem, systemImage: Icon.browseAll)
                     }
-                    .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
-                    .padding(.top, 2)
+                    .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
+                    .padding(.top, 12)
+
+                    paymentBlock
+                        .padding(.top, 14)
                 }
                 .padding(.horizontal, Metrics.screenPadding)
-                .padding(.bottom, 10)
+                .padding(.bottom, 12)
                 .motion(Motion.list, value: cart.lines.count)
             }
+            .scrollBounceBehavior(.basedOnSize)
 
-            footer
+            saveBar
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .keyboardDoneButton()
@@ -74,19 +109,16 @@ struct CartView: View {
         store.billWithInvoiceNo(cart.invoiceNo, exceptNumber: cart.editing)
     }
 
-    // MARK: Sticky footer
-
-    private var footer: some View {
+    /// The paper's number and the day it happened, side by side.
+    ///
+    /// First on the form because they describe *the bill* rather than the money,
+    /// and because a shop entering yesterday's book needs the date before it
+    /// thinks about anything else. The number is required; the date has today in
+    /// it already.
+    private var paperRow: some View {
         @Bindable var cart = cart
 
-        return VStack(spacing: 10) {
-            CustomerPicker()
-
-            // The paper's number and the day it happened, side by side. Above the
-            // payment pills because they describe *the bill*, not the money — and
-            // because a shop entering yesterday's book needs the date before it
-            // thinks about what was paid. The number is required; the date has
-            // today in it already.
+        return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .bottom, spacing: 8) {
                 NocturneField(
                     label: Loc.invoiceNoField,
@@ -118,7 +150,47 @@ struct CartView: View {
                     .foregroundStyle(Nocturne.accent400)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+    }
 
+    /// The total, once the bill has been itemised.
+    ///
+    /// It takes the amount box's place rather than sitting beside it, and says
+    /// where the figure came from: it stopped being something typed the moment
+    /// there were lines to add up. "Remove items" is the way back to typing.
+    private var itemisedTotal: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .lastTextBaseline) {
+                Text(Loc.total)
+                    .font(NocturneType.inter(13))
+                    .foregroundStyle(Nocturne.neutral500)
+                Spacer()
+                Text(Money.text(cart.total, in: currency))
+                    .nocturneText(.bigNumber(26))
+                    .rollingNumber(cart.total)
+            }
+            HStack {
+                Text(Loc.fromItems(cart.lines.count))
+                    .nocturneText(.meta)
+                Spacer()
+                Button(Loc.removeItems) { cart.removeLines() }
+                    .buttonStyle(.plain)
+                    .font(NocturneType.inter(12))
+                    .foregroundStyle(Nocturne.accent)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
+        .hairline(Nocturne.accent700, radius: Metrics.controlRadius)
+    }
+
+    /// Paid in full or part, and what is left if part.
+    private var paymentBlock: some View {
+        @Bindable var cart = cart
+
+        return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 ChoicePill(
                     title: Loc.paidInFull,
@@ -134,73 +206,41 @@ struct CartView: View {
             }
 
             if cart.payMode == .part {
-                NocturneField.number(label: Loc.paidNow, text: $cart.paidText, height: 40)
-            }
-
-            VStack(spacing: 4) {
-                // What the bill came to: typed while nothing says what it is made
-                // of, computed from then on — never both at once, or the footer is
-                // showing one figure and about to save another.
-                if cart.lines.isEmpty {
-                    NocturneField.number(
-                        label: Loc.amountField,
-                        text: $cart.amountText,
-                        height: Metrics.tallInputHeight,
-                        isRequiredAndEmpty: cart.total <= 0,
-                        emphasis: .sellingPrice,
-                        prefix: currency.symbol.trimmed,
-                        fontSize: 17,
-                        identifier: "cart.amount"
-                    )
-                } else {
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(Loc.total)
-                                .font(NocturneType.inter(13))
-                                .foregroundStyle(Nocturne.neutral500)
-                            // Says where the figure came from, because it stopped
-                            // being typed the moment the first line landed and the
-                            // box it was typed in is no longer on screen.
-                            Text(Loc.fromItems(cart.lines.count))
-                                .nocturneText(.meta)
-                        }
-                        Spacer()
-                        // The one number the customer is also looking at. It rolls
-                        // rather than swapping, so a quantity tapped while the eye
-                        // is on the stepper still reads as the total moving.
-                        Text(Money.text(cart.total, in: currency))
-                            .nocturneText(.bigNumber(28))
-                            .rollingNumber(cart.total)
-                    }
-                }
-
-                if cart.payMode == .part {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(Loc.balance)
-                            .font(NocturneType.inter(12.5))
-                            .foregroundStyle(Nocturne.neutral500)
-                        Spacer()
-                        Text(Money.text(cart.balance, in: currency))
-                            .font(NocturneType.inter(15))
-                            .foregroundStyle(Nocturne.accent400)
-                            .rollingNumber(cart.balance)
-                    }
+                NocturneField.number(
+                    label: Loc.paidNow,
+                    text: $cart.paidText,
+                    height: 40,
+                    prefix: currency.symbol.trimmed
+                )
+                HStack(alignment: .firstTextBaseline) {
+                    Text(Loc.balance)
+                        .font(NocturneType.inter(12.5))
+                        .foregroundStyle(Nocturne.neutral500)
+                    Spacer()
+                    Text(Money.text(cart.balance, in: currency))
+                        .font(NocturneType.inter(15))
+                        .foregroundStyle(Nocturne.accent400)
+                        .rollingNumber(cart.balance)
                 }
             }
+        }
+    }
 
-            // Validation is the button's label, never a toast: it says what is
-            // missing and stays disabled until it isn't.
-            Button(saveTitle, action: onSave)
-                .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
-                .disabled(!cart.canSave || clash != nil)
-        }
-        .padding(.horizontal, Metrics.screenPadding)
-        .padding(.top, 12)
-        .padding(.bottom, max(bottomInset, 24))
-        .background(Nocturne.surface)
-        .overlay(alignment: .top) {
-            Rectangle().fill(Nocturne.neutral800).frame(height: 1)
-        }
+    /// The one thing that leaves the screen, pinned to the bottom of it.
+    ///
+    /// Validation is the button's label, never a toast: it says what is missing
+    /// and stays disabled until it isn't.
+    private var saveBar: some View {
+        Button(saveTitle, action: onSave)
+            .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
+            .disabled(!cart.canSave || clash != nil)
+            .padding(.horizontal, Metrics.screenPadding)
+            .padding(.top, 10)
+            .padding(.bottom, max(bottomInset, 10))
+            .background(Nocturne.surface)
+            .overlay(alignment: .top) {
+                Rectangle().fill(Nocturne.neutral800).frame(height: 1)
+            }
     }
 
     private var saveTitle: String {
@@ -424,19 +464,22 @@ private struct CustomerPicker: View {
     }
 
     var body: some View {
-        // The list sits **above** the field as an ordinary sibling, not as an
-        // overlay. Two attempts to float it — an overlay with an alignment
-        // guide, then the same with `fixedSize` — both landed back on top of
-        // the field, because an overlay is proposed its parent's 40pt height
-        // and no amount of guide arithmetic reliably undoes that. A sibling in
-        // the stack cannot overlap by construction: the footer simply grows
-        // upwards to make room, which is what a popover looks like here anyway.
+        // The list sits **below** the field, as an ordinary sibling rather than
+        // an overlay. It used to open upwards, which was right when this picker
+        // was pinned to the bottom edge with the keyboard under it — on a form
+        // it would shove the bill number and the date off the top of the screen
+        // as you typed.
+        //
+        // A sibling rather than an overlay because an overlay is proposed its
+        // parent's 40pt height, and no amount of alignment-guide arithmetic
+        // reliably undoes that; two attempts both landed back on top of the
+        // field. A sibling cannot overlap by construction.
         VStack(spacing: 6) {
+            field
             if !matches.isEmpty || canCreate {
                 listCard
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            field
         }
         .animation(.easeOut(duration: 0.14), value: matches.count)
         .animation(.easeOut(duration: 0.14), value: canCreate)
