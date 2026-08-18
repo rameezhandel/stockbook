@@ -4,6 +4,7 @@ import com.stockbook.core.model.Product
 import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.model.Supplier
 import com.stockbook.core.store.InMemoryRepository
+import com.stockbook.core.transfer.BackupDocument
 import com.stockbook.core.transfer.BackupService
 import com.stockbook.core.store.StockbookStore
 import java.time.Instant
@@ -299,8 +300,10 @@ class SupplierTests {
         val document = BackupService.decode(BackupService.encode(store.makeBackupDocument()))
 
         // The bump is the rule being applied, not abandoned: a reader that dropped
-        // these would say the shop owes nobody.
-        assertEquals(2, document.version)
+        // these would say the shop owes nobody. Pinned against the constant so a
+        // later bump does not drag this test with it — what it checks is that the
+        // supplier side reaches the file, not what number is on it.
+        assertEquals(BackupDocument.currentVersion, document.version)
         assertEquals(1, document.suppliers.size)
         assertEquals(1, document.purchases.size)
         assertEquals(1, document.supplierPayments.size)

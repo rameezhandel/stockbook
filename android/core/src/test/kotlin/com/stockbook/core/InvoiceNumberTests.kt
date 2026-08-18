@@ -6,6 +6,7 @@ import com.stockbook.core.store.InMemoryRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppLanguage
 import com.stockbook.core.text.Strings
+import com.stockbook.core.transfer.BackupDocument
 import com.stockbook.core.transfer.BackupService
 import java.time.Instant
 import kotlin.test.Test
@@ -230,9 +231,12 @@ class InvoiceNumberTests {
 
         val document = BackupService.decode(BackupService.encode(store.makeBackupDocument()))
 
-        // No version bump: a reader that drops these shows "Bill #1" where the
-        // owner wrote 1024. A label lost, not a figure misread.
-        assertEquals(2, document.version)
+        // Invoice numbers did not bump the version: a reader that drops these
+        // shows "Bill #1" where the owner wrote 1024, which is a label lost
+        // rather than a figure misread. Pinned against the constant, so the
+        // *next* bump does not have to come back and edit this line — what this
+        // test is about is the numbers surviving, not what the version is.
+        assertEquals(BackupDocument.currentVersion, document.version)
 
         val restored = store()
         restored.replaceEverything(document)

@@ -306,6 +306,37 @@ class Strings(val language: AppLanguage) {
             "ಒಂದು ಬಿಲ್‌ಗೆ ಅಲ್ಲ, ಗ್ರಾಹಕರ ಖಾತೆಗೆ ದಾಖಲಾಗುತ್ತದೆ — ಕೌಂಟರಿನಲ್ಲಿ ಹಣ ಬರುವುದು ಹಾಗೆಯೇ."
         )
 
+    // --- Credit notes
+
+    val creditNoteLabel: String get() = pick("Credit note", "ಕ್ರೆಡಿಟ್ ನೋಟ್")
+    val creditNotes: String get() = pick("Credit notes", "ಕ್ರೆಡಿಟ್ ನೋಟ್‌ಗಳು")
+    val issueACreditNote: String get() = pick("Issue a credit note", "ಕ್ರೆಡಿಟ್ ನೋಟ್ ಕೊಡಿ")
+    val editCreditNote: String get() = pick("Edit credit note", "ಕ್ರೆಡಿಟ್ ನೋಟ್ ಬದಲಾಯಿಸಿ")
+    val creditNoteNo: String get() = pick("Credit note no.", "ಕ್ರೆಡಿಟ್ ನೋಟ್ ಸಂಖ್ಯೆ")
+    val creditNoteNoHint: String get() = pick("e.g. 00130", "ಉದಾ. 00130")
+    val amountCredited: String get() = pick("Amount credited", "ಕೊಟ್ಟ ರಿಯಾಯಿತಿ")
+    val creditedOn: String get() = pick("Credited on", "ಕೊಟ್ಟ ದಿನ")
+    val creditReason: String get() = pick("Reason", "ಕಾರಣ")
+    val creditReasonExample: String
+        get() = pick("returned goods, overcharge…", "ವಾಪಸ್ ಬಂದ ಸಾಮಾನು, ಹೆಚ್ಚು ಬಿಲ್…")
+    val saveCreditNote: String get() = pick("Save credit note", "ಕ್ರೆಡಿಟ್ ನೋಟ್ ಉಳಿಸಿ")
+    val removeCreditNote: String get() = pick("Remove this credit note", "ಈ ಕ್ರೆಡಿಟ್ ನೋಟ್ ತೆಗೆದುಹಾಕಿ")
+    val enterCreditNoteNumber: String get() = pick("Enter a note number", "ನೋಟ್ ಸಂಖ್ಯೆ ಬರೆಯಿರಿ")
+    val changeTheCreditNoteNo: String get() = pick("Change the note number", "ನೋಟ್ ಸಂಖ್ಯೆ ಬದಲಾಯಿಸಿ")
+    val itemsReturned: String get() = pick("Items returned", "ವಾಪಸ್ ಬಂದ ಸಾಮಾನು")
+    val addReturnedItems: String get() = pick("Add returned items", "ವಾಪಸ್ ಬಂದ ಸಾಮಾನು ಸೇರಿಸಿ")
+    val noCreditNotesYet: String get() = pick("No credit notes yet.", "ಇನ್ನೂ ಕ್ರೆಡಿಟ್ ನೋಟ್ ಇಲ್ಲ.")
+
+    // The one thing to know about a credit note: it is not money.
+    val creditNoteNotAPayment: String
+        get() = pick(
+            "Reduces what this customer owes without any money changing hands. Returned goods go back on the shelf.",
+            "ಹಣ ಬರದೆಯೇ ಈ ಗ್ರಾಹಕರ ಬಾಕಿ ಕಡಿಮೆ ಆಗುತ್ತದೆ. ವಾಪಸ್ ಬಂದ ಸಾಮಾನು ಮತ್ತೆ ದಾಸ್ತಾನಿಗೆ ಸೇರುತ್ತದೆ."
+        )
+
+    fun creditNoteAlreadyUsed(date: String): String =
+        pick("Already used on $date", "$date ರಂದು ಬಳಸಲಾಗಿದೆ")
+
     // --- Statement
 
     val statement: String get() = pick("Statement", "ಖಾತೆ ವಿವರ")

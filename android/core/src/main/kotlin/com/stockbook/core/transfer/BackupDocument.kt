@@ -55,8 +55,24 @@ data class BackupDocument(
     /** The supplier roster, and the money going the other way. */
     val suppliers: List<SupplierRecordRow> = emptyList(),
     val purchases: List<PurchaseRow> = emptyList(),
-    val supplierPayments: List<SupplierPaymentRow> = emptyList()
+    val supplierPayments: List<SupplierPaymentRow> = emptyList(),
+    /** What has been credited back to customers. */
+    val creditNotes: List<CreditNoteRow> = emptyList()
 ) {
+    @Serializable
+    data class CreditNoteRow(
+        val id: String,
+        val customerKey: String,
+        val total: Double,
+        /** The number the owner wrote on the paper note, on its own series. */
+        val noteNo: String? = null,
+        val reason: String? = null,
+        @Serializable(with = InstantSerializer::class)
+        val issuedAt: Instant,
+        /** What came back, empty on a note that is only a figure. */
+        val lines: List<LineRecord> = emptyList()
+    )
+
     @Serializable
     data class CustomerRecordRow(
         /**
@@ -169,22 +185,25 @@ data class BackupDocument(
 
     companion object {
         /**
-         * The format this build writes: **two**, and the second there has ever
-         * been.
+         * The format this build writes: **three**.
          *
-         * It reached 3 during development — a bump when payments arrived, another
-         * for opening balances — but nothing had shipped, so those numbers
-         * described files that exist nowhere. Carrying them forward would have
-         * meant three shapes of history to keep readable, all imaginary.
+         * It reached 3 once before during development — a bump when payments
+         * arrived, another for opening balances — and was reset, because nothing
+         * had shipped and those numbers described files that exist nowhere.
          *
-         * It is still a version, and rule 2 still stands — and **2 is the rule
-         * being applied**, not abandoned. Suppliers, purchases and money paid out
-         * arrived after 1, and a reader that ignored them would not merely lose an
-         * address book: it would read this file and tell the owner the shop owes
-         * nobody anything. That is the payments case again, and the answer is the
-         * same. Better that build refuses the file and says so.
+         * Rule 2 is what put it back. Suppliers, purchases and money paid out
+         * arrived after 1, and a reader that ignored them would tell the owner
+         * the shop owes nobody anything — that was 2. Credit notes are the same
+         * failure in the other direction: a reader that dropped them would show
+         * every credited customer owing more than they do, and the owner would
+         * go and ask for money that was written off weeks ago. Better that build
+         * refuses the file and says so.
+         *
+         * The shop address added alongside them did **not** bump it. A reader
+         * that ignores an address prints a statement without one: a label lost,
+         * not a figure misread. The rule is about meaning.
          */
-        const val currentVersion = 2
+        const val currentVersion = 3
 
         // The invoice numbers added after 2 do **not** bump it. A reader that
         // ignores them shows "Bill #7" where the owner wrote "1024" on the paper:

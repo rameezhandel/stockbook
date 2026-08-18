@@ -3,6 +3,7 @@ package com.stockbook.core.store
 import com.stockbook.core.model.AppTheme
 import com.stockbook.core.model.Bill
 import com.stockbook.core.model.BillLine
+import com.stockbook.core.model.CreditNote
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.CustomerRecord
@@ -74,6 +75,9 @@ class StockbookStore(private val repository: StockbookRepository) {
 
     /** Money paid out after the delivery, newest first. */
     val supplierPayments: List<SupplierPayment> get() = _state.value.supplierPayments
+
+    /** What has been credited back to customers, newest first. */
+    val creditNotes: List<CreditNote> get() = _state.value.creditNotes
 
 
     val settings: Settings get() = _state.value.settings
@@ -456,6 +460,14 @@ class StockbookStore(private val repository: StockbookRepository) {
             book[payment.customerKey]?.let { it.owed -= payment.amount }
         }
 
+        // Credited goods and figures come off what is owed exactly as payments
+        // do. They are kept apart on a statement because only one of them is
+        // cash — but a customer who was credited 540 owes 540 less, and every
+        // screen that asks what somebody owes has to say so.
+        for (note in creditNotes) {
+            book[note.customerKey]?.let { it.owed -= note.total }
+        }
+
         return book.map { (key, tally) ->
             val record = roster[key]
             Customer(
@@ -617,6 +629,130 @@ class StockbookStore(private val repository: StockbookRepository) {
 
     fun paymentsForCustomer(key: String): List<Payment> = payments.filter { it.customerKey == key }
 
+    // --- Credit notes
+
+    /**
+     * Credits a customer's account, and puts anything returned back on the shelf.
+     *
+     * The shelf moves only for an itemised note, which is [saveBill]'s rule read
+     * backwards: what a bill took off, a credit note for the same goods puts
+     * back, and a note that is only a figure moves nothing. A shop that types
+     * totals keeps its own count either way.
+     *
+     * Null for a note that credits nothing — the mirror of a bill for nothing,
+     * and refused for the same reason.
+     */
+    fun addCreditNote(
+        customerKey: String,
+        lines: List<DraftLine> = emptyList(),
+        amount: Double? = null,
+        noteNo: String? = null,
+        reason: String? = null,
+        issuedAt: Instant = Timestamps.now()
+    ): CreditNote? {
+        if (customerKey.isEmpty()) return null
+
+        val snapshots = snapshot(lines)
+        val total = if (snapshots.isEmpty()) amount ?: 0.0 else snapshots.sumOf { it.lineTotal }
+        if (total <= 0) return null
+
+        val note = CreditNote(
+            customerKey = customerKey,
+            lines = snapshots,
+            total = total,
+            noteNo = noteNo?.trim()?.takeIf { it.isNotEmpty() },
+            reason = CustomerRecord.tidied(reason),
+            issuedAt = issuedAt
+        )
+
+        putBackStock(note)
+        _state.value = _state.value.copy(
+            creditNotes = (creditNotes + note).sortedByDescending { it.issuedAt }
+        )
+        attempt { repository.replaceAll(_state.value) }
+        return note
+    }
+
+    /**
+     * Corrects one, shelf and all.
+     *
+     * Takes back whatever the old note returned before applying the new one, so
+     * a note edited from 5 pieces to 3 leaves 3 on the shelf rather than 8 —
+     * the same take-back-first order [updatePurchase] needs, for the same reason.
+     */
+    fun updateCreditNote(
+        id: String,
+        customerKey: String,
+        lines: List<DraftLine> = emptyList(),
+        amount: Double? = null,
+        noteNo: String? = null,
+        reason: String? = null,
+        issuedAt: Instant
+    ): CreditNote? {
+        val existing = creditNotes.firstOrNull { it.id == id } ?: return null
+        if (customerKey.isEmpty()) return null
+
+        val snapshots = snapshot(lines)
+        val total = if (snapshots.isEmpty()) amount ?: 0.0 else snapshots.sumOf { it.lineTotal }
+        if (total <= 0) return null
+
+        takeBackCreditedStock(existing)
+
+        val updated = existing.copy(
+            customerKey = customerKey,
+            lines = snapshots,
+            total = total,
+            noteNo = noteNo?.trim()?.takeIf { it.isNotEmpty() },
+            reason = CustomerRecord.tidied(reason),
+            issuedAt = issuedAt
+        )
+        putBackStock(updated)
+
+        _state.value = _state.value.copy(
+            creditNotes = creditNotes
+                .map { if (it.id == id) updated else it }
+                .sortedByDescending { it.issuedAt }
+        )
+        attempt { repository.replaceAll(_state.value) }
+        return updated
+    }
+
+    /** Removes one, taking back anything it had put on the shelf. */
+    fun deleteCreditNote(id: String) {
+        val existing = creditNotes.firstOrNull { it.id == id } ?: return
+        takeBackCreditedStock(existing)
+        _state.value = _state.value.copy(creditNotes = creditNotes.filterNot { it.id == id })
+        attempt { repository.replaceAll(_state.value) }
+    }
+
+    /**
+     * The note already carrying this number, if any — the same question
+     * [billWithInvoiceNo] asks, on a series of its own.
+     */
+    fun creditNoteWithNo(noteNo: String?, exceptId: String? = null): CreditNote? {
+        val key = InvoiceNo.key(noteNo)
+        if (key.isEmpty()) return null
+        return creditNotes.firstOrNull { it.id != exceptId && InvoiceNo.key(it.noteNo) == key }
+    }
+
+    fun creditNotesForCustomer(key: String): List<CreditNote> =
+        creditNotes.filter { it.customerKey == key }
+
+    /** Returned goods go back on the shelf. Nothing moves for a note with no lines. */
+    private fun putBackStock(note: CreditNote) {
+        for (line in note.lines) {
+            val product = product(line.productUid) ?: continue
+            replace(product.copy(stock = maxOf(0, product.stock + line.qty)))
+        }
+    }
+
+    private fun takeBackCreditedStock(note: CreditNote) {
+        for (line in note.lines) {
+            val product = product(line.productUid) ?: continue
+            replace(product.copy(stock = maxOf(0, product.stock - line.qty)))
+        }
+    }
+
     // --- Statements
 
     /**
@@ -632,6 +768,7 @@ class StockbookStore(private val repository: StockbookRepository) {
             customer = customer,
             bills = billsForCustomer(key),
             payments = paymentsForCustomer(key),
+            creditNotes = creditNotesForCustomer(key),
             period = period
         )
     }
@@ -1165,6 +1302,17 @@ class StockbookStore(private val repository: StockbookRepository) {
                     note = it.note
                 )
             }.sortedByDescending { it.paidAt },
+            creditNotes = document.creditNotes.map { row ->
+                CreditNote(
+                    id = row.id,
+                    customerKey = row.customerKey,
+                    lines = row.lines.map { BillLine(it.productUid, it.name, it.qty, it.price) },
+                    total = row.total,
+                    noteNo = row.noteNo,
+                    reason = row.reason,
+                    issuedAt = row.issuedAt
+                )
+            }.sortedByDescending { it.issuedAt },
             settings = restored
         )
 
@@ -1179,6 +1327,19 @@ class StockbookStore(private val repository: StockbookRepository) {
         // Absent rather than blank, so the two builds write the same bytes for a
         // shop that has never typed one.
         shopAddress = settings.shopAddress.ifBlank { null },
+        creditNotes = creditNotes.map { note ->
+            BackupDocument.CreditNoteRow(
+                id = note.id,
+                customerKey = note.customerKey,
+                total = note.total,
+                noteNo = note.noteNo,
+                reason = note.reason,
+                issuedAt = note.issuedAt,
+                lines = note.lines.map {
+                    BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price)
+                }
+            )
+        },
         currencyCode = settings.currencyCode,
         products = products.map {
             BackupDocument.ProductRecord(it.uid, it.name, it.stock, it.cost, it.price)

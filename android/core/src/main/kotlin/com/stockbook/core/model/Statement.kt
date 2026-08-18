@@ -129,11 +129,26 @@ data class Statement(
     /** Sum of live charges in the period: bills billed, or deliveries taken. */
     val billed: Double,
     /**
-     * Everything settled during the period: paid on the bill or delivery itself,
-     * plus payments made afterwards.
+     * Everything settled during the period **with money**: paid on the bill or
+     * delivery itself, plus payments made afterwards.
+     *
+     * Credit notes are not in here, deliberately — see [credited]. Both reduce
+     * what is owed and only one of them is cash, and this is the figure a shop
+     * reconciles its till against.
      */
     val received: Double,
-    /** `openingBalance + billed − received`. What they owe at the end of it. */
+    /**
+     * Credited back over the period, with no money changing hands.
+     *
+     * Its own line on the document rather than folded into [billed] as a
+     * negative charge: the owner needs to see what was invoiced and what was
+     * given back as two facts, not as one net figure that hides both.
+     */
+    val credited: Double,
+    /**
+     * `openingBalance + billed − received − credited`. What they owe at the end
+     * of it.
+     */
     val closingBalance: Double,
     /**
      * The running balance after each entry, parallel to [entries], so the
@@ -158,6 +173,15 @@ data class Statement(
         val charge: Double
         val settledAtOnce: Double
 
+        /**
+         * Whether this entry reduces the balance **without money moving**.
+         *
+         * Only a credit note does. It exists so the totals can keep cash and
+         * credit apart while the running balance treats them identically — which
+         * is exactly right, since both leave the customer owing less.
+         */
+        val isCredit: Boolean get() = false
+
         data class ForBill(val bill: Bill) : Entry {
             override val date: Instant get() = bill.createdAt
             override val id: String get() = "bill-${bill.number}"
@@ -170,6 +194,14 @@ data class Statement(
             override val id: String get() = "payment-${payment.id}"
             override val charge: Double get() = 0.0
             override val settledAtOnce: Double get() = payment.amount
+        }
+
+        data class ForCreditNote(val note: CreditNote) : Entry {
+            override val date: Instant get() = note.issuedAt
+            override val id: String get() = "credit-note-${note.id}"
+            override val charge: Double get() = 0.0
+            override val settledAtOnce: Double get() = note.total
+            override val isCredit: Boolean get() = true
         }
 
         data class ForPurchase(val purchase: Purchase) : Entry {
@@ -191,16 +223,22 @@ data class Statement(
 
     companion object {
 
-        /** One customer's account: bills charge it, payments settle it. */
+        /**
+         * One customer's account: bills charge it, payments settle it, credit
+         * notes reduce it without settling anything.
+         */
         fun make(
             customer: Customer,
             bills: List<Bill>,
             payments: List<Payment>,
+            creditNotes: List<CreditNote> = emptyList(),
             period: StatementPeriod,
             zone: ZoneId = ZoneId.systemDefault()
         ): Statement = make(
             party = customer.party,
-            entries = bills.map { Entry.ForBill(it) } + payments.map { Entry.ForPayment(it) },
+            entries = bills.map { Entry.ForBill(it) } +
+                payments.map { Entry.ForPayment(it) } +
+                creditNotes.map { Entry.ForCreditNote(it) },
             period = period,
             zone = zone
         )
@@ -247,7 +285,10 @@ data class Statement(
 
             val inRange = ordered.filter { it.date in range }
             val billed = inRange.sumOf { it.charge }
-            val received = inRange.sumOf { it.settledAtOnce }
+            // Split by where the reduction came from, not by how big it was.
+            // Both still come off the running balance below, together.
+            val received = inRange.filterNot { it.isCredit }.sumOf { it.settledAtOnce }
+            val credited = inRange.filter { it.isCredit }.sumOf { it.settledAtOnce }
 
             val running = mutableListOf<Double>()
             var balance = opening
@@ -264,7 +305,8 @@ data class Statement(
                 entries = inRange,
                 billed = billed,
                 received = received,
-                closingBalance = opening + billed - received,
+                credited = credited,
+                closingBalance = opening + billed - received - credited,
                 runningBalances = running
             )
         }

@@ -100,6 +100,8 @@ data class ShopState(
     val purchases: List<Purchase> = emptyList(),
     /** Money paid to a supplier after the delivery. */
     val supplierPayments: List<SupplierPayment> = emptyList(),
+    /** What has been credited back to customers, newest first. */
+    val creditNotes: List<CreditNote> = emptyList(),
     val settings: Settings = Settings()
 ) {
     companion object {
