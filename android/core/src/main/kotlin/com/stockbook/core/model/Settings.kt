@@ -22,6 +22,16 @@ data class Settings(
      */
     val ownerName: String = "",
     /**
+     * The shop's postal address, as it should be printed at the top of a
+     * statement.
+     *
+     * Free text with line breaks in it, not structured fields: an address in
+     * Madinah does not have the same parts as one in Bengaluru, and the owner
+     * knows how theirs is written. Nothing parses this — it is copied onto the
+     * document exactly as typed.
+     */
+    val shopAddress: String = "",
+    /**
      * ISO 4217 code of the one currency the shop bills in, chosen during setup
      * and changeable in Settings. Stored as the code rather than the symbol so a
      * wrong symbol is a one-line fix in `Currency` instead of a migration out of

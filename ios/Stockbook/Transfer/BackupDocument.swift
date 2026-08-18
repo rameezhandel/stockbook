@@ -36,6 +36,16 @@ struct BackupDocument: Codable, Equatable {
     var version: Int = BackupDocument.currentVersion
     var exportedAt: Date
     var ownerName: String
+    /// The shop's printed address.
+    ///
+    /// Optional **so that a file without the key still reads**, which is the one
+    /// tolerance the customer/payment rows below deliberately do not have. The
+    /// difference is what a missing key would mean: no `customers` key marks a
+    /// file this app did not write, whereas no address is simply a shop that had
+    /// not typed one. Swift omits a nil optional on the way out, matching
+    /// Kotlin's `explicitNulls = false`, and Kotlin reads a missing key as its
+    /// `""` default — so neither build needs the other to have written it.
+    var shopAddress: String?
     /// ISO 4217, and the only thing that says what the numbers in this file mean.
     var currencyCode: String
     var products: [ProductRecord]

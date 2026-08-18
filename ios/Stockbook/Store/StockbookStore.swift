@@ -1080,6 +1080,8 @@ final class StockbookStore {
         restored.language = settings.language
         restored.theme = settings.theme
         restored.ownerName = document.ownerName
+        // Part of the shop's identity on paper, so it travels with it.
+        restored.shopAddress = document.shopAddress ?? ""
         // Currency, unlike language, is a property of the numbers in the file:
         // those prices were entered in it.
         restored.currencyCode = document.currencyCode
@@ -1175,6 +1177,9 @@ final class StockbookStore {
         BackupDocument(
             exportedAt: date,
             ownerName: settings.ownerName,
+            // Written as absent rather than as "" when there is none, so the two
+            // builds put the same bytes in the file for a shop with no address.
+            shopAddress: settings.shopAddress.isBlank ? nil : settings.shopAddress,
             currencyCode: settings.currencyCode,
             products: products.map {
                 BackupDocument.ProductRecord(uid: $0.uid, name: $0.name, stock: $0.stock, cost: $0.cost, price: $0.price)

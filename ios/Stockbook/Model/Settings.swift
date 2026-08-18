@@ -7,6 +7,15 @@ struct Settings: Codable, Equatable {
     /// "Hello, <first name>" on the dashboard.
     var ownerName: String = ""
 
+    /// The shop's postal address, as it should be printed at the top of a
+    /// statement.
+    ///
+    /// Free text with line breaks in it, not structured fields: an address in
+    /// Madinah does not have the same parts as one in Bengaluru, and the owner
+    /// knows how theirs is written. Nothing parses this — it is copied onto the
+    /// document exactly as typed.
+    var shopAddress: String = ""
+
     /// ISO 4217 code of the one currency the shop bills in, chosen during setup
     /// and changeable in Settings. Stored as the code rather than the symbol so
     /// a wrong symbol is a one-line fix here instead of a migration out of
@@ -63,6 +72,7 @@ struct Settings: Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let fallback = Settings()
         ownerName = try container.decodeIfPresent(String.self, forKey: .ownerName) ?? fallback.ownerName
+        shopAddress = try container.decodeIfPresent(String.self, forKey: .shopAddress) ?? fallback.shopAddress
         lowStockAt = try container.decodeIfPresent(Int.self, forKey: .lowStockAt) ?? fallback.lowStockAt
         currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode) ?? fallback.currencyCode
         language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? fallback.language

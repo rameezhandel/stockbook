@@ -117,6 +117,13 @@ class StockbookStore(private val repository: StockbookRepository) {
 
     fun setOwnerName(name: String) = updateSettings { it.copy(ownerName = name.trim()) }
 
+    /**
+     * Trailing blank lines go; the rest is kept exactly as typed, line breaks
+     * included — the owner is laying out how their own address prints.
+     */
+    fun setShopAddress(address: String) =
+        updateSettings { it.copy(shopAddress = address.trim()) }
+
     fun setLanguage(language: AppLanguage) {
         if (settings.language == language) return
         updateSettings { it.copy(language = language) }
@@ -1057,6 +1064,8 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun replaceEverything(document: BackupDocument) {
         val restored = Settings(
             ownerName = document.ownerName,
+            // Part of the shop's identity on paper, so it travels with it.
+            shopAddress = document.shopAddress.orEmpty(),
             // Currency, unlike language, is a property of the numbers in the
             // file: those prices were entered in it.
             currencyCode = document.currencyCode,
@@ -1167,6 +1176,9 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun makeBackupDocument(at: Instant = Timestamps.now()): BackupDocument = BackupDocument(
         exportedAt = at,
         ownerName = settings.ownerName,
+        // Absent rather than blank, so the two builds write the same bytes for a
+        // shop that has never typed one.
+        shopAddress = settings.shopAddress.ifBlank { null },
         currencyCode = settings.currencyCode,
         products = products.map {
             BackupDocument.ProductRecord(it.uid, it.name, it.stock, it.cost, it.price)

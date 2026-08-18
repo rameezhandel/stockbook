@@ -29,6 +29,17 @@ data class BackupDocument(
     @Serializable(with = InstantSerializer::class)
     val exportedAt: Instant,
     val ownerName: String,
+    /**
+     * The shop's printed address, absent rather than empty when there is none.
+     *
+     * Nullable rather than defaulted-blank so both builds write the same bytes:
+     * `explicitNulls = false` drops a null here, and Swift's synthesised encoder
+     * drops a nil optional, so a shop with no address produces an identical file
+     * on either phone. It is also the one field in this document a reader may
+     * find missing without concluding the file is not ours — see the Swift
+     * twin, where that distinction is what makes it optional at all.
+     */
+    val shopAddress: String? = null,
     /** ISO 4217, and the only thing that says what the numbers in this file mean. */
     val currencyCode: String,
     val products: List<ProductRecord> = emptyList(),
