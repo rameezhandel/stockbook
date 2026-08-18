@@ -421,7 +421,7 @@ class StockbookStore(private val repository: StockbookRepository) {
     // --- Customers
 
     /**
-     * Distinct customers from non-voided bills, **sorted by outstanding balance
+     * Distinct customers from the bills, **sorted by outstanding balance
      * descending, then bill count descending** — the people who owe money come
      * first because that is who the owner most needs to recognise at the counter.
      *
@@ -648,10 +648,7 @@ class StockbookStore(private val repository: StockbookRepository) {
         )
     }
 
-    /**
-     * Every bill for one customer, voided ones included — history is never
-     * hidden, only marked.
-     */
+    /** Every bill for one customer. */
     fun billsForCustomer(key: String): List<Bill> =
         bills.filter { Customer.key(it.who) == key }
 

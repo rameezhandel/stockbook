@@ -260,9 +260,11 @@ class Cart {
             )
         }
 
-        // Only where the bill had no lines to add up. A typed figure sitting behind
-        // lines is the second answer this form refuses to hold.
-        amountText = if (bill.isItemised) "" else Money.amount(bill.total, currency)
+        // Only where nothing was carried across to add up — which includes a bill
+        // whose every product has since been deleted, and which is therefore a
+        // figure now whatever it used to be. A typed amount sitting behind lines is
+        // the second answer this form refuses to hold.
+        amountText = if (_lines.isEmpty()) Money.amount(bill.total, currency) else ""
         invoiceNo = bill.invoiceNo.orEmpty()
         invoiceNoSeeded = true
         soldAt = bill.createdAt

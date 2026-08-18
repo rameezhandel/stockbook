@@ -272,11 +272,12 @@ private fun Shell(store: StockbookStore) {
             )
         }
 
-        // One sheet, two doors into it: from a product, where it can also count
-        // that product's shelf, and from the Delivery button, where it is a
-        // supplier's bill with nothing named on it yet.
+        // One sheet, three doors into it: from a product, where it can also count
+        // that product's shelf; from the Delivery button, where it is a supplier's
+        // bill with nothing named on it yet; and from a delivery being corrected,
+        // which is the same bill arriving already filled in.
         BottomSheet(
-            visible = router.addStock != null || router.recordingDelivery,
+            visible = router.addStock != null || router.recordingDelivery || router.editingPurchase != null,
             onDismiss = { router.closeAddStock() }
         ) {
             AddStockSheet(
@@ -285,6 +286,7 @@ private fun Shell(store: StockbookStore) {
                 store = store,
                 currency = state.settings.currency,
                 strings = strings,
+                editing = router.editingPurchase,
                 onClose = { router.closeAddStock() }
             )
         }
@@ -328,6 +330,7 @@ private fun Shell(store: StockbookStore) {
                     state = state,
                     store = store,
                     strings = strings,
+                    onEdit = { router.editPurchase(it) },
                     onClose = { router.purchaseDetail = null }
                 )
             }
@@ -404,6 +407,15 @@ private fun Shell(store: StockbookStore) {
                     store = store,
                     strings = strings,
                     onShare = { text -> shareText(context, text) },
+                    onEdit = { existing ->
+                        // Filled here rather than inside the router, which is the
+                        // only place that holds both. Whatever was half-typed on
+                        // the Sell form goes with it — a correction is one bill at
+                        // a time, and stashing the other one would be a second
+                        // draft nothing on screen mentions.
+                        cart.fill(existing, state.products, state.settings.currency)
+                        router.editBill(existing)
+                    },
                     onClose = { router.billDetail = null }
                 )
             }

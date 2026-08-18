@@ -50,6 +50,7 @@ import com.stockbook.app.design.SheetHeader
 import com.stockbook.app.design.hairline
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Product
+import com.stockbook.core.model.Purchase
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
@@ -88,24 +89,65 @@ fun AddStockSheet(
     store: StockbookStore,
     currency: Currency,
     strings: Strings,
+    /**
+     * The delivery being corrected, where this sheet was opened from one. Null is
+     * a delivery being recorded for the first time, which is the ordinary case.
+     */
+    editing: Purchase? = null,
     onClose: () -> Unit
 ) {
-    var supplierBill by remember { mutableStateOf(product == null) }
+    // What the delivery said it restocked, if that product is still on the books.
+    // A purchase can outlive the product it bought, and the sheet cannot offer a
+    // quantity of something that no longer exists — so it comes back as a bill for
+    // a figure, which is what saving it again would make it anyway.
+    val editedProduct = remember(editing, state.products) {
+        editing?.productUid?.let { uid -> state.products.firstOrNull { it.uid == uid } }
+    }
+    // The delivery it was, where it said what arrived and that product is still
+    // there to say it about. Null on anything that comes back as a bare figure.
+    val editedDelivery = editing?.takeIf { editedProduct != null && it.qty > 0 }
+
+    // A correction is a supplier's bill and never a shelf count: there is one
+    // document open, and it is not the shelf.
+    var supplierBill by remember { mutableStateOf(product == null || editing != null) }
     var count by remember { mutableStateOf("") }
-    var quantity by remember { mutableStateOf("") }
-    var unitCost by remember { mutableStateOf("") }
-    /** What was typed into the supplier box, and who was actually chosen. */
-    var supplier by remember { mutableStateOf("") }
-    var supplierKey by remember { mutableStateOf<String?>(null) }
+    var quantity by remember { mutableStateOf(editedDelivery?.qty?.toString().orEmpty()) }
+    var unitCost by remember {
+        mutableStateOf(
+            editedDelivery?.unitCost?.takeIf { it > 0 }?.let { Money.amount(it, currency) }.orEmpty()
+        )
+    }
+    /**
+     * What was typed into the supplier box, and who was actually chosen.
+     *
+     * The name is read off the store once, to seed the box. Unkeyed on purpose:
+     * re-reading it on every recomposition is what would throw away whatever the
+     * owner had typed over it.
+     */
+    var supplier by remember {
+        mutableStateOf(
+            editing?.let { store.supplier(it.supplierKey)?.name ?: it.supplierKey }.orEmpty()
+        )
+    }
+    var supplierKey by remember { mutableStateOf(editing?.supplierKey) }
     /** What was typed into the product box, and which product was actually chosen. */
-    var productText by remember { mutableStateOf(product?.name.orEmpty()) }
-    var chosenProduct by remember { mutableStateOf(product) }
-    var amount by remember { mutableStateOf("") }
-    var settledNow by remember { mutableStateOf(true) }
-    var paidText by remember { mutableStateOf("") }
+    var productText by remember { mutableStateOf((editedProduct ?: product)?.name.orEmpty()) }
+    var chosenProduct by remember { mutableStateOf(editedProduct ?: product) }
+    // Only where there is no arithmetic to show instead — an itemised delivery's
+    // total is its quantity times its cost, and a figure typed beside that is a
+    // second answer to a question already answered.
+    var amount by remember {
+        mutableStateOf(
+            if (editing != null && editedDelivery == null) Money.amount(editing.total, currency) else ""
+        )
+    }
+    var settledNow by remember { mutableStateOf(editing?.paid == null) }
+    var paidText by remember {
+        mutableStateOf(editing?.paid?.let { Money.amount(it, currency) }.orEmpty())
+    }
     /** The number on the supplier's invoice, and the day it arrived. */
-    var invoiceNo by remember { mutableStateOf("") }
-    var arrivedAt by remember { mutableStateOf(Timestamps.now()) }
+    var invoiceNo by remember { mutableStateOf(editing?.invoiceNo.orEmpty()) }
+    var arrivedAt by remember { mutableStateOf(editing?.createdAt ?: Timestamps.now()) }
     var pickingDate by remember { mutableStateOf(false) }
 
     val countValue = count.trim().toIntOrNull()
@@ -122,8 +164,12 @@ fun AddStockSheet(
     val totalValue = if (itemised) quantityValue * costValue else Money.parse(amount) ?: 0.0
 
     // The delivery already filed under this number, whoever it came from. Across
-    // the whole book rather than per supplier: one number, one piece of paper.
-    val clash = remember(state, invoiceNo) { store.purchaseWithInvoiceNo(invoiceNo) }
+    // the whole book rather than per supplier: one number, one piece of paper —
+    // and never the delivery being corrected, which is already filed under its
+    // own number and must not be told so.
+    val clash = remember(state, invoiceNo, editing) {
+        store.purchaseWithInvoiceNo(invoiceNo, exceptId = editing?.id)
+    }
 
     // A supplier bill is a record against an account and against a piece of paper,
     // so it needs the supplier, the number and a figure. Counting a shelf is none
@@ -163,14 +209,21 @@ fun AddStockSheet(
             // "Add stock" over a box asking what you counted is the exact sentence
             // that would make somebody type the number they are adding.
             title = if (supplierBill) strings.supplierBillTitle else strings.setCount,
-            subtitle = product?.let { strings.onShelfNow(it.name, it.stock) },
+            // Which document this is, on a correction: the sheet is otherwise
+            // identical to the one that files a new delivery, and the date is what
+            // tells the owner which one they opened.
+            subtitle = if (editing != null) {
+                strings.longDate(editing.createdAt)
+            } else {
+                product?.let { strings.onShelfNow(it.name, it.stock) }
+            },
             onClose = onClose
         )
 
-        // Only where there is a shelf to count. Opened from the Delivery button
-        // there is no product yet, so there is nothing to offer a count of and the
-        // sheet is a supplier bill and says so.
-        if (product != null) {
+        // Only where there is a shelf to count. Opened from the Delivery button,
+        // or on a delivery being corrected, there is no product to offer a count
+        // of and the sheet is a supplier bill and says so.
+        if (product != null && editing == null) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 ModePill(
                     strings.setCount,
@@ -422,12 +475,31 @@ fun AddStockSheet(
                 supplierKey == null -> strings.whoDeliveredIt
                 invoiceNo.isBlank() -> strings.enterBillNumber
                 totalValue <= 0 -> strings.enterAnAmount
+                // A correction says so, because "Record purchase" over a delivery
+                // that already happened reads as a second one about to be filed.
+                editing != null -> strings.saveChanges
                 else -> strings.recordPurchase
             },
             onClick = {
                 val key = supplierKey ?: return@PrimaryButton
                 val paid = if (settledNow) null else (Money.parse(paidText) ?: 0.0)
-                if (itemised) {
+                if (editing != null) {
+                    // One call for both shapes, unlike the two below: the store
+                    // applies the same rule to what it is handed — a product with
+                    // a quantity is stock arriving, anything else is a figure —
+                    // and it ignores the amount where there is arithmetic instead.
+                    store.updatePurchase(
+                        id = editing.id,
+                        product = chosenProduct,
+                        supplierKey = key,
+                        quantity = quantityValue,
+                        unitCost = costValue,
+                        paid = paid,
+                        amount = totalValue,
+                        createdAt = arrivedAt,
+                        invoiceNo = invoiceNo
+                    )
+                } else if (itemised) {
                     // Stock arriving, against an account and a piece of paper —
                     // which is why this is not `restock` with a supplier string
                     // that went nowhere.

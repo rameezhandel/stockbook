@@ -53,9 +53,6 @@ fun BillTemplate(
             Kicker(shopName, modifier = Modifier.padding(bottom = 5.dp))
         }
 
-        // Nothing sits beside the reference any more. A bill entered wrongly is
-        // corrected on the document itself, so there is no mark a bill can be
-        // carrying by the time anybody reads one.
         Text(
             bill.reference(strings),
             style = NocturneType.inter(20.0, FontWeight.Medium),
