@@ -417,11 +417,12 @@ both it and setup step 4.
   another bill — or on another delivery, whoever it came from — names the clash
   and refuses the save until it is changed.
 
-  **Required on a bill, optional on a delivery.** The shop writes the number it
-  hands over, so a bill with none cannot be matched to the paper it came from —
-  and with the box prefilled that costs no typing. A delivery's number belongs to
-  the *supplier's* paper, which may not exist: demanding one there would mean
-  inventing it, and an invented number is worse than none. Voiding frees the number again, since
+  **Required on both sides of the book.** A record with no number cannot be
+  matched to the paper it came from, which is the whole reason for keeping the
+  number — so neither screen saves without one, the field is marked while it is
+  empty, and the button says which thing is missing. On a bill it costs no typing,
+  since the box arrives prefilled; on a delivery it is copied off the invoice that
+  came with the stock. Voiding frees the number again, since
   void-and-re-enter is how a bill typed wrong gets corrected.
 
   `Bill.number` is untouched by all of this. It stays the app's own counter and

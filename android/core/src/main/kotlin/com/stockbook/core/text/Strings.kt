@@ -390,7 +390,7 @@ class Strings(val language: AppLanguage) {
     // Said the same way on both sides of the book: the number written on the
     // piece of paper, whoever wrote it.
     val invoiceNoField: String get() = pick("Invoice no.", "ಬಿಲ್ ಸಂಖ್ಯೆ")
-    val invoiceNoOptional: String get() = pick("From the book", "ಪುಸ್ತಕದಿಂದ")
+    val invoiceNoHint: String get() = pick("From the book", "ಪುಸ್ತಕದಿಂದ")
     val billDate: String get() = pick("Date", "ದಿನಾಂಕ")
 
     // Two numbers the same is two records the shop cannot tell apart later, so
@@ -400,8 +400,9 @@ class Strings(val language: AppLanguage) {
 
     val changeTheInvoiceNo: String get() = pick("Change the number", "ಸಂಖ್ಯೆ ಬದಲಿಸಿ")
 
-    // Required on a bill, not on a delivery: the shop writes the number it hands
-    // over, and a record with none cannot be matched to the paper it came from.
+    // Both sides of the book refuse to save without a number: a record with none
+    // cannot be matched to the paper it came from, which is the whole reason for
+    // keeping the number at all.
     val enterBillNumber: String get() = pick("Enter the bill number", "ಬಿಲ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ")
 
     // The date a sale is *entered* is not always the date it happened. Said out

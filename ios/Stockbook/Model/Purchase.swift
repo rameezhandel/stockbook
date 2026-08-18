@@ -31,8 +31,12 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
     /// driver waits for cash. A number means part paid, and the shop owes
     /// `total − paid`.
     var paid: Double?
-    /// The number on the supplier's invoice, when it came with one — the same
-    /// field as a bill's, pointing the other way.
+    /// The number on the supplier's invoice — the same field as a bill's, pointing
+    /// the other way.
+    ///
+    /// Optional here and required by the screen. The type has to be able to read a
+    /// record that has none — a file written by another build, or a fixture — but
+    /// nothing the owner enters can leave it empty.
     var invoiceNo: String?
     var createdAt: Date
     var voided: Bool

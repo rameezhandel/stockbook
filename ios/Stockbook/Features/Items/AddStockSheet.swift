@@ -54,13 +54,16 @@ struct AddStockSheet: View {
                     chosenKey: $supplierKey
                 )
 
-                // The paper that came with the stock, and the day it came. Both
-                // optional: a delivery with no invoice is still a delivery.
+                // The paper that came with the stock, and the day it came. The
+                // number is required here as it is on a bill: a delivery filed
+                // under no number cannot be matched to the invoice in the drawer,
+                // which is the one thing the supplier will quote on the phone.
                 HStack(alignment: .bottom, spacing: 8) {
                     NocturneField(
                         label: Loc.invoiceNoField,
-                        placeholder: Loc.invoiceNoOptional,
+                        placeholder: Loc.invoiceNoHint,
                         text: $invoiceNo,
+                        isRequiredAndEmpty: invoiceNo.isBlank,
                         identifier: "purchase.invoiceNo"
                     )
                     VStack(alignment: .leading, spacing: 5) {
@@ -175,15 +178,17 @@ struct AddStockSheet: View {
     private var actionLabel: String {
         guard isPurchase else { return Loc.addToStock(max(0, quantityValue)) }
         if clash != nil { return Loc.changeTheInvoiceNo }
-        if supplierKey != nil { return Loc.recordPurchase }
-        return supplier.isBlank ? Loc.whoDeliveredIt : Loc.chooseSupplierFromTheList
+        if supplierKey == nil { return supplier.isBlank ? Loc.whoDeliveredIt : Loc.chooseSupplierFromTheList }
+        if invoiceNo.isBlank { return Loc.enterBillNumber }
+        return Loc.recordPurchase
     }
 
-    /// A purchase is a record against an account, so it needs the account. Quick
-    /// add is not: it is a correction to a number on a shelf, and demanding a
-    /// supplier for it would be asking who delivered the bag you just tipped in.
+    /// A purchase is a record against an account and against a piece of paper, so
+    /// it needs the supplier and the number. Quick add is neither: it is a
+    /// correction to a count on a shelf, and demanding either would be asking who
+    /// delivered the bag you just tipped in.
     private var canSave: Bool {
-        isPurchase ? quantityValue > 0 && supplierKey != nil && clash == nil : true
+        isPurchase ? quantityValue > 0 && supplierKey != nil && !invoiceNo.isBlank && clash == nil : true
     }
 
     /// Zero or empty quantity just closes the sheet — the owner opened it, then

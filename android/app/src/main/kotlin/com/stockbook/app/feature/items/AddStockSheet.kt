@@ -93,15 +93,19 @@ fun AddStockSheet(
     val costValue = Money.parse(unitCost) ?: 0.0
     val totalValue = maxOf(0, quantityValue) * costValue
 
-    // A purchase is a record against an account, so it needs the account. Quick
-    // add is not: it is a correction to a number on a shelf, and demanding a
-    // supplier for it would be asking who delivered the bag you just tipped in.
     // The delivery already filed under this number, whoever it came from. Across
     // the whole book rather than per supplier: one number, one piece of paper.
     val clash = remember(state, invoiceNo) { store.purchaseWithInvoiceNo(invoiceNo) }
 
-    val canSave =
-        if (purchase) quantityValue > 0 && supplierKey != null && clash == null else quantityValue > 0
+    // A purchase is a record against an account and against a piece of paper, so
+    // it needs the supplier and the number. Quick add is neither: it is a
+    // correction to a count on a shelf, and demanding either would be asking who
+    // delivered the bag you just tipped in.
+    val canSave = if (purchase) {
+        quantityValue > 0 && supplierKey != null && invoiceNo.isNotBlank() && clash == null
+    } else {
+        quantityValue > 0
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(
@@ -132,14 +136,17 @@ fun AddStockSheet(
         }
 
         if (purchase) {
-            // The paper that came with the stock, and the day it came. Both
-            // optional: a delivery with no invoice is still a delivery.
+            // The paper that came with the stock, and the day it came. The
+            // number is required here as it is on a bill: a delivery filed under
+            // no number cannot be matched to the invoice in the drawer, which is
+            // the one thing the supplier will quote on the phone.
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 NocturneField(
                     value = invoiceNo,
                     onValueChange = { invoiceNo = it },
                     label = strings.invoiceNoField,
-                    placeholder = strings.invoiceNoOptional,
+                    placeholder = strings.invoiceNoHint,
+                    isRequiredAndEmpty = invoiceNo.isBlank(),
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(8.dp))
@@ -276,6 +283,7 @@ fun AddStockSheet(
                 clash != null -> strings.changeTheInvoiceNo
                 supplierKey == null && supplier.isNotBlank() -> strings.chooseSupplierFromTheList
                 supplierKey == null -> strings.whoDeliveredIt
+                invoiceNo.isBlank() -> strings.enterBillNumber
                 else -> strings.recordPurchase
             },
             onClick = {

@@ -78,7 +78,7 @@ struct CartView: View {
             HStack(alignment: .bottom, spacing: 8) {
                 NocturneField(
                     label: Loc.invoiceNoField,
-                    placeholder: Loc.invoiceNoOptional,
+                    placeholder: Loc.invoiceNoHint,
                     text: $cart.invoiceNo,
                     height: 40,
                     // Marked, and it means it: a bill cannot be saved without a

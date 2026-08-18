@@ -43,11 +43,15 @@ data class Purchase(
      */
     val paid: Double? = null,
     /**
-     * The number on the supplier's invoice, when it came with one.
+     * The number on the supplier's invoice.
      *
      * The same field as a bill's, pointing the other way: what is written on the
      * paper that arrived with the stock, so the pile in the drawer can be matched
      * against what the app says was delivered.
+     *
+     * Nullable here and required by the screen. The type has to be able to read a
+     * record that has none — a file written by another build, or a fixture — but
+     * nothing the owner enters can leave it empty.
      */
     val invoiceNo: String? = null,
     @Serializable(with = InstantSerializer::class)

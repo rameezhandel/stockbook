@@ -185,7 +185,7 @@ private fun Footer(
                 NocturneField(
                     value = cart.invoiceNo,
                     onValueChange = { cart.invoiceNo = it },
-                    placeholder = strings.invoiceNoOptional,
+                    placeholder = strings.invoiceNoHint,
                     label = strings.invoiceNoField,
                     // Marked, and it means it: a bill cannot be saved without a
                     // number. Emptied only by an owner who cleared the prefill.

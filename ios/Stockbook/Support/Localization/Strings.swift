@@ -431,7 +431,7 @@ struct Strings {
     // piece of paper, whoever wrote it.
 
     var invoiceNoField: String { pick("Invoice no.", "ಬಿಲ್ ಸಂಖ್ಯೆ") }
-    var invoiceNoOptional: String { pick("From the book", "ಪುಸ್ತಕದಿಂದ") }
+    var invoiceNoHint: String { pick("From the book", "ಪುಸ್ತಕದಿಂದ") }
     var billDate: String { pick("Date", "ದಿನಾಂಕ") }
 
     /// The date a sale is *entered* is not always the date it happened. Said out
@@ -447,8 +447,9 @@ struct Strings {
 
     var changeTheInvoiceNo: String { pick("Change the number", "ಸಂಖ್ಯೆ ಬದಲಿಸಿ") }
 
-    /// Required on a bill, not on a delivery: the shop writes the number it hands
-    /// over, and a record with none cannot be matched to the paper it came from.
+    /// Both sides of the book refuse to save without a number: a record with none
+    /// cannot be matched to the paper it came from, which is the whole reason for
+    /// keeping the number at all.
     var enterBillNumber: String { pick("Enter the bill number", "ಬಿಲ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ") }
 
     func billNumber(_ number: Int) -> String {
