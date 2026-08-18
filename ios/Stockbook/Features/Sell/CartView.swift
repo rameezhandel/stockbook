@@ -88,17 +88,6 @@ struct CartView: View {
         // in this app that has always got this right.
         .scrollDismissesKeyboard(.interactively)
         .keyboardDoneButton()
-        // One past the last number the shop wrote, put in the box so the usual
-        // bill needs no typing at all. Watched rather than done once: the flag is
-        // cleared when the cart is emptied after a save, which is exactly when
-        // the next number is wanted.
-        .onAppear(perform: seedInvoiceNo)
-        .onChange(of: cart.invoiceNoSeeded) { seedInvoiceNo() }
-    }
-
-    private func seedInvoiceNo() {
-        guard !cart.invoiceNoSeeded else { return }
-        cart.seedInvoiceNo(store.nextInvoiceNo())
     }
 
     /// The bill already carrying this number, if the shop has written it twice.
@@ -127,7 +116,7 @@ struct CartView: View {
                     text: $cart.invoiceNo,
                     height: 40,
                     // Marked, and it means it: a bill cannot be saved without a
-                    // number. Emptied only by an owner who cleared the prefill.
+                    // number, and nothing puts one in the box but the owner.
                     isRequiredAndEmpty: cart.invoiceNo.isBlank,
                     fontSize: 13.5,
                     identifier: "cart.invoiceNo"

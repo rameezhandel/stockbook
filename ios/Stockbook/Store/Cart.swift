@@ -77,20 +77,6 @@ final class Cart {
     /// bill books are numbered "1024" in some shops and "A-1024" in others.
     var invoiceNo: String = ""
 
-    /// Whether the suggested next number has been put in the box yet.
-    ///
-    /// The suggestion has to happen once per bill, not once per screen: refilling
-    /// on every redraw would fight an owner who cleared the field, and seeding
-    /// only on first appearance would leave the box empty for every bill after
-    /// the first.
-    private(set) var invoiceNoSeeded = false
-
-    /// Puts the suggested number in the box. A nil suggestion leaves it empty.
-    func seedInvoiceNo(_ suggestion: String?) {
-        invoiceNo = suggestion ?? ""
-        invoiceNoSeeded = true
-    }
-
     /// When the sale happened, which is not always when it is being typed. A shop
     /// entering the day's book at closing time would otherwise stamp the lot at
     /// once, and the statements would inherit it.
@@ -141,8 +127,9 @@ final class Cart {
     ///
     /// The number is required because the shop writes one on every bill it hands
     /// over, and a record with none cannot be matched to the paper it came from —
-    /// which is the whole reason for keeping the number at all. It costs no
-    /// typing: the box arrives filled in with the next one.
+    /// which is the whole reason for keeping the number at all. Always typed,
+    /// never suggested: a guessed next value is the app inventing a run the
+    /// paper does not have.
     var canSave: Bool { customerKey != nil && !invoiceNo.isBlank && total > 0 }
 
     // MARK: Mutation
@@ -215,9 +202,6 @@ final class Cart {
     /// is nothing left to price it against — and because `saveBill` and
     /// `updateBill` would drop it anyway. Better it is missing from the form the
     /// owner is looking at than missing only from what gets saved.
-    ///
-    /// `invoiceNoSeeded` is set here, or `CartView` would replace the bill's own
-    /// number with the next unused one the moment it appeared.
     @MainActor
     func load(_ bill: Bill, in store: StockbookStore) {
         // Nothing worth keeping is not worth restoring: a form the owner has not
@@ -244,7 +228,6 @@ final class Cart {
         payMode = bill.paid == nil ? .full : .part
         paidText = bill.paid.map { Money.amount($0, in: store.settings.currency) } ?? ""
         invoiceNo = bill.invoiceNo ?? ""
-        invoiceNoSeeded = true
         soldAt = bill.createdAt
     }
 
@@ -254,7 +237,6 @@ final class Cart {
         let lines: [Line]
         let amountText: String
         let invoiceNo: String
-        let invoiceNoSeeded: Bool
         let soldAt: Date
         let customer: String
         let customerKey: String?
@@ -275,7 +257,6 @@ final class Cart {
             lines: lines,
             amountText: amountText,
             invoiceNo: invoiceNo,
-            invoiceNoSeeded: invoiceNoSeeded,
             soldAt: soldAt,
             customer: customer,
             customerKey: customerKey,
@@ -298,7 +279,6 @@ final class Cart {
         lines = draft.lines
         amountText = draft.amountText
         invoiceNo = draft.invoiceNo
-        invoiceNoSeeded = draft.invoiceNoSeeded
         soldAt = draft.soldAt
         customer = draft.customer
         customerKey = draft.customerKey
@@ -316,9 +296,6 @@ final class Cart {
         payMode = .full
         paidText = ""
         invoiceNo = ""
-        // Cleared, not merely emptied: the next bill wants the next number, and
-        // the screen seeds it the moment it sees this go false.
-        invoiceNoSeeded = false
         soldAt = .now
         editing = nil
     }

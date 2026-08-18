@@ -94,30 +94,6 @@ class InvoiceNumberTests {
     // --- Typed, not generated
 
     @Test
-    fun `the next number carries on from the last one written`() {
-        val store = store()
-        val product = store.aProduct()
-        assertNull(store.nextInvoiceNo(), "nothing to go on before the first bill")
-
-        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Ahmed", null, invoiceNo = "A-1024")
-        assertEquals("A-1025", store.nextInvoiceNo(), "the prefix is the book's, only the digits move")
-
-        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Sami", null, invoiceNo = "0099")
-        assertEquals("0100", store.nextInvoiceNo(), "and the width the shop writes is kept")
-    }
-
-    @Test
-    fun `a number with no digits in it suggests nothing`() {
-        val store = store()
-        val product = store.aProduct()
-        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Ahmed", null, invoiceNo = "INV")
-
-        // Better an empty box than a wrong guess: the owner types what the paper
-        // says, and the run continues from there.
-        assertNull(store.nextInvoiceNo())
-    }
-
-    @Test
     fun `a number already used is found, whatever case it was typed in`() {
         val store = store()
         val product = store.aProduct()

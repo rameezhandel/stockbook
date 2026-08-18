@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -99,14 +98,6 @@ fun CartView(
     // told 1024 is taken, by itself.
     val clash = remember(state, cart.invoiceNo, editing) {
         store.billWithInvoiceNo(cart.invoiceNo, exceptNumber = editing?.number)
-    }
-
-    // One past the last number the shop wrote, put in the box so the usual bill
-    // needs no typing at all. Keyed on the seed flag rather than run once: the
-    // flag is cleared when the cart is emptied after a save, which is exactly
-    // when the next number is wanted.
-    LaunchedEffect(cart.invoiceNoSeeded) {
-        if (!cart.invoiceNoSeeded) cart.seedInvoiceNo(store.nextInvoiceNo())
     }
 
     if (pickingDate) {
@@ -238,7 +229,7 @@ private fun PaperRow(
                 placeholder = strings.invoiceNoHint,
                 label = strings.invoiceNoField,
                 // Marked, and it means it: a bill cannot be saved without a
-                // number. Emptied only by an owner who cleared the prefill.
+                // number, and nothing puts one in the box but the owner.
                 isRequiredAndEmpty = cart.invoiceNo.isBlank(),
                 height = 40.dp,
                 fontSize = 13.5,

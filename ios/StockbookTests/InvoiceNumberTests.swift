@@ -83,45 +83,6 @@ struct InvoiceNumberTests {
 
     // MARK: Typed, not generated
 
-    @Test("The next number carries on from the last one written")
-    func nextNumber() {
-        let store = makeStore()
-        let product = aProduct(in: store)
-        #expect(store.nextInvoiceNo() == nil, "nothing to go on before the first bill")
-
-        store.saveBill(
-            lines: [DraftLine(productUID: product.uid, qty: 1, price: 95)],
-            customer: "Ahmed",
-            paid: nil,
-            invoiceNo: "A-1024"
-        )
-        #expect(store.nextInvoiceNo() == "A-1025", "the prefix is the book's, only the digits move")
-
-        store.saveBill(
-            lines: [DraftLine(productUID: product.uid, qty: 1, price: 95)],
-            customer: "Sami",
-            paid: nil,
-            invoiceNo: "0099"
-        )
-        #expect(store.nextInvoiceNo() == "0100", "and the width the shop writes is kept")
-    }
-
-    @Test("A number with no digits in it suggests nothing")
-    func nothingToIncrement() {
-        let store = makeStore()
-        let product = aProduct(in: store)
-        store.saveBill(
-            lines: [DraftLine(productUID: product.uid, qty: 1, price: 95)],
-            customer: "Ahmed",
-            paid: nil,
-            invoiceNo: "INV"
-        )
-
-        // Better an empty box than a wrong guess: the owner types what the paper
-        // says, and the run continues from there.
-        #expect(store.nextInvoiceNo() == nil)
-    }
-
     @Test("A number already used is found, whatever case it was typed in")
     func clashFound() {
         let store = makeStore()

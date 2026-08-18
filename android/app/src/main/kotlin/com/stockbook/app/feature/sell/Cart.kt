@@ -83,23 +83,6 @@ class Cart {
     var invoiceNo by mutableStateOf("")
 
     /**
-     * Whether the suggested next number has been put in the box yet.
-     *
-     * The suggestion has to happen once per bill, not once per screen: refilling
-     * on every recomposition would fight an owner who cleared the field, and
-     * seeding only on first appearance would leave the box empty for every bill
-     * after the first.
-     */
-    var invoiceNoSeeded by mutableStateOf(false)
-        private set
-
-    /** Puts the suggested number in the box. Null suggestion leaves it empty. */
-    fun seedInvoiceNo(suggestion: String?) {
-        invoiceNo = suggestion.orEmpty()
-        invoiceNoSeeded = true
-    }
-
-    /**
      * When the sale happened, which is not always when it is being typed.
      *
      * A shop that writes bills in the book all day and enters them at closing
@@ -147,8 +130,9 @@ class Cart {
      *
      * The number is required because the shop writes one on every bill it hands
      * over, and a record with none cannot be matched to the paper it came from —
-     * which is the whole reason for keeping the number at all. It costs no typing:
-     * the box arrives filled in with the next one.
+     * which is the whole reason for keeping the number at all. Always typed,
+     * never suggested: a guessed next value is the app inventing a run the paper
+     * does not have.
      */
     val canSave: Boolean get() = customerKey != null && invoiceNo.isNotBlank() && total > 0
 
@@ -231,9 +215,7 @@ class Cart {
      * the same screen the bill was.
      *
      * Everything the document carries comes back: what was on it, who it was for,
-     * the figure where it had no lines, the day and the number. The number is
-     * marked as seeded so the form does not helpfully replace it with the next one
-     * in the book — which would rewrite the paper's number on the way past.
+     * the figure where it had no lines, the day and the number.
      *
      * A line whose product has since been deleted is **dropped here**, because
      * `StockbookStore.saveBill` would drop it on the way in anyway: showing it and
@@ -271,7 +253,6 @@ class Cart {
         // the second answer this form refuses to hold.
         amountText = if (_lines.isEmpty()) Money.amount(bill.total, currency) else ""
         invoiceNo = bill.invoiceNo.orEmpty()
-        invoiceNoSeeded = true
         soldAt = bill.createdAt
         customer = bill.who
         // Chosen rather than typed: this name is already on a bill, so it already
@@ -290,7 +271,6 @@ class Cart {
         val lines: List<Line>,
         val amountText: String,
         val invoiceNo: String,
-        val invoiceNoSeeded: Boolean,
         val soldAt: java.time.Instant,
         val customer: String,
         val customerKey: String?,
@@ -312,7 +292,6 @@ class Cart {
         lines = _lines.toList(),
         amountText = amountText,
         invoiceNo = invoiceNo,
-        invoiceNoSeeded = invoiceNoSeeded,
         soldAt = soldAt,
         customer = customer,
         customerKey = customerKey,
@@ -325,7 +304,6 @@ class Cart {
         _lines.addAll(draft.lines)
         amountText = draft.amountText
         invoiceNo = draft.invoiceNo
-        invoiceNoSeeded = draft.invoiceNoSeeded
         soldAt = draft.soldAt
         customer = draft.customer
         customerKey = draft.customerKey
@@ -350,9 +328,6 @@ class Cart {
         _lines.clear()
         amountText = ""
         invoiceNo = ""
-        // Cleared, not merely emptied: the next bill wants the next number, and
-        // the screen seeds it the moment it sees this go false.
-        invoiceNoSeeded = false
         soldAt = Timestamps.now()
         customer = ""
         customerKey = null

@@ -310,18 +310,6 @@ class StockbookStore(private val repository: StockbookRepository) {
     }
 
     /**
-     * What to put in the bill-number field before anything is typed: one past the
-     * last number the shop wrote.
-     *
-     * Null when there is nothing to go on — no bills yet, or the last number has
-     * no digits in it. Blank is the honest answer there: the first number belongs
-     * to the shop's own bill book, and guessing "1" would be the app inventing a
-     * run the paper does not have.
-     */
-    fun nextInvoiceNo(): String? =
-        InvoiceNo.next(bills.firstOrNull { !it.invoiceNo.isNullOrBlank() }?.invoiceNo)
-
-    /**
      * The lines as they will be stored: names and prices taken **now**, so that
      * renaming or repricing a product tomorrow cannot rewrite what somebody paid
      * today. Reads products; moves no stock, which is what lets both saving and
