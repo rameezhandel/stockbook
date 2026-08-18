@@ -653,6 +653,8 @@ class Strings(val language: AppLanguage) {
     val importABackupFile: String get() = pick("Import a backup file", "ಬ್ಯಾಕಪ್ ಫೈಲ್ ತರಿಸಿ")
     val chooseAFile: String get() = pick("Choose a file", "ಫೈಲ್ ಆರಿಸಿ")
     val replaceEverything: String get() = pick("Replace everything", "ಎಲ್ಲವನ್ನೂ ಬದಲಿಸಿ")
+    val restoreFromBackup: String get() = pick("Restore from a backup file", "ಬ್ಯಾಕಪ್ ಫೈಲ್‌ನಿಂದ ಶುರು ಮಾಡಿ")
+    val useThisBackup: String get() = pick("Use this backup", "ಈ ಬ್ಯಾಕಪ್ ಬಳಸಿ")
 
     val importNoteIdle: String get() =
             pick(

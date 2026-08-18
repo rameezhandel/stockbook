@@ -725,6 +725,8 @@ struct Strings {
     var importABackupFile: String { pick("Import a backup file", "ಬ್ಯಾಕಪ್ ಫೈಲ್ ತರಿಸಿ") }
     var chooseAFile: String { pick("Choose a file", "ಫೈಲ್ ಆರಿಸಿ") }
     var replaceEverything: String { pick("Replace everything", "ಎಲ್ಲವನ್ನೂ ಬದಲಿಸಿ") }
+    var restoreFromBackup: String { pick("Restore from a backup file", "ಬ್ಯಾಕಪ್ ಫೈಲ್‌ನಿಂದ ಶುರು ಮಾಡಿ") }
+    var useThisBackup: String { pick("Use this backup", "ಈ ಬ್ಯಾಕಪ್ ಬಳಸಿ") }
 
     var importNoteIdle: String {
         pick(

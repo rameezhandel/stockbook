@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// First-run setup: name, then product names, then the regulars who buy on
 /// account, then stock and prices.
@@ -15,6 +16,12 @@ struct SetupFlowView: View {
     @State private var step: Step = .name
     @State private var ownerName = ""
     @State private var currency = Currency.default
+
+    // A shop moving to a new phone already has a file; typing the whole shop
+    // back in by hand is the thing this sheet exists to skip.
+    @State private var showingImportSheet = false
+    @State private var isImportingFile = false
+    @State private var importFlow = ImportFlow()
     @State private var draftName = ""
     @State private var drafts: [ProductDraft] = []
     @State private var draftCustomer = ""
@@ -97,6 +104,19 @@ struct SetupFlowView: View {
                     .font(NocturneType.inter(15, .medium))
                     .foregroundStyle(Nocturne.accent)
             }
+        }
+        .fileImporter(
+            isPresented: $isImportingFile,
+            allowedContentTypes: [.json]
+        ) { result in
+            importFlow.pick(result)
+        }
+        .nocturneSheet(isPresented: $showingImportSheet) {
+            SetupImportSheet(
+                importFlow: importFlow,
+                onChooseFile: { isImportingFile = true },
+                onClose: { showingImportSheet = false }
+            )
         }
     }
 
@@ -190,9 +210,18 @@ struct SetupFlowView: View {
             .frame(maxHeight: .infinity, alignment: .top)
 
             footer {
-                Button(Loc.continueAction) { advance(to: .products) }
-                    .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
-                    .disabled(ownerName.isBlank)
+                VStack(spacing: 10) {
+                    Button(Loc.continueAction) { advance(to: .products) }
+                        .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
+                        .disabled(ownerName.isBlank)
+
+                    // The primary path is typing a shop in from scratch; this
+                    // is the quiet way out for a phone that already has a file
+                    // for one.
+                    Button(Loc.restoreFromBackup) { showingImportSheet = true }
+                        .buttonStyle(GhostButtonStyle(fontSize: 13, horizontalPadding: 0))
+                        .frame(maxWidth: .infinity)
+                }
             }
         }
     }

@@ -72,7 +72,7 @@ struct LocalizationTests {
         \.moveToAnotherPhoneNote, \.exportEverything, \.exportNoteFirstTime, \.exportNoteAfterBackup,
         \.writeAFreshFile, \.createBackupFile, \.importABackupFile, \.chooseAFile,
         \.replaceEverything, \.importNoteIdle, \.importNoteDone, \.startAgain,
-        \.startOver,
+        \.startOver, \.restoreFromBackup, \.useThisBackup,
     ]
 
     @Test("Every string is written in both languages")

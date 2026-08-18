@@ -17,10 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -40,17 +37,7 @@ import com.stockbook.app.design.hairline
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
-import com.stockbook.core.transfer.BackupDocument
-import com.stockbook.core.transfer.BackupError
 import com.stockbook.core.transfer.BackupService
-
-/** What the owner has picked, and whether it can be trusted yet. */
-private sealed interface ImportStage {
-    data object Idle : ImportStage
-    data class Picked(val document: BackupDocument, val filename: String) : ImportStage
-    data class Failed(val error: BackupError) : ImportStage
-    data object Imported : ImportStage
-}
 
 /**
  * The export/import handoff — the app's only route onto a new phone.
@@ -68,7 +55,7 @@ fun BackupScreen(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    var stage by remember { mutableStateOf<ImportStage>(ImportStage.Idle) }
+    val importFlow = remember { ImportFlow() }
 
     val exporter = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -85,18 +72,7 @@ fun BackupScreen(
 
     val importer = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        stage = try {
-            val text = context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
-                ?: throw BackupError.Unreadable
-            ImportStage.Picked(BackupService.decode(text), uri.lastPathSegment ?: "backup.json")
-        } catch (error: BackupError) {
-            ImportStage.Failed(error)
-        } catch (_: Exception) {
-            ImportStage.Failed(BackupError.Unreadable)
-        }
-    }
+    ) { uri -> importFlow.pick(uri, context.contentResolver) }
 
     // Drawn as a sibling of the tab content inside the shell's Box, so without a
     // ground of its own the screen behind shows straight through it — and without
@@ -150,19 +126,19 @@ fun BackupScreen(
             Column(modifier = Modifier.fillMaxWidth().card().padding(13.dp)) {
                 CardHeading(Icon.openRow, strings.importABackupFile)
 
-                val current = stage
+                val current = importFlow.stage
                 Text(
                     when (current) {
-                        is ImportStage.Imported -> strings.importNoteDone
-                        is ImportStage.Failed -> strings.backupError(current.error)
+                        is ImportFlow.Stage.Imported -> strings.importNoteDone
+                        is ImportFlow.Stage.Failed -> strings.backupError(current.error)
                         else -> strings.importNoteIdle
                     },
                     style = NocturneType.inter(12.0),
-                    color = if (current is ImportStage.Failed) Nocturne.accent300 else Nocturne.neutral500,
+                    color = if (current is ImportFlow.Stage.Failed) Nocturne.accent300 else Nocturne.neutral500,
                     modifier = Modifier.padding(bottom = 11.dp)
                 )
 
-                if (current is ImportStage.Picked) {
+                if (current is ImportFlow.Stage.Picked) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -196,7 +172,7 @@ fun BackupScreen(
                     Row(modifier = Modifier.fillMaxWidth()) {
                         SecondaryButton(
                             strings.cancel,
-                            onClick = { stage = ImportStage.Idle },
+                            onClick = { importFlow.cancel() },
                             fullWidth = true,
                             height = 42.dp,
                             fontSize = 13.5,
@@ -206,8 +182,8 @@ fun BackupScreen(
                         PrimaryButton(
                             strings.replaceEverything,
                             onClick = {
-                                store.replaceEverything(current.document)
-                                stage = ImportStage.Imported
+                                val confirmed = importFlow.confirm() ?: return@PrimaryButton
+                                store.replaceEverything(confirmed)
                             },
                             fullWidth = true,
                             height = 42.dp,
