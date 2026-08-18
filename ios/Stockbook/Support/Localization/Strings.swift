@@ -447,6 +447,10 @@ struct Strings {
 
     var changeTheInvoiceNo: String { pick("Change the number", "ಸಂಖ್ಯೆ ಬದಲಿಸಿ") }
 
+    /// Required on a bill, not on a delivery: the shop writes the number it hands
+    /// over, and a record with none cannot be matched to the paper it came from.
+    var enterBillNumber: String { pick("Enter the bill number", "ಬಿಲ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ") }
+
     func billNumber(_ number: Int) -> String {
         pick("Bill #\(number)", "ಬಿಲ್ #\(number)")
     }

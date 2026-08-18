@@ -400,6 +400,10 @@ class Strings(val language: AppLanguage) {
 
     val changeTheInvoiceNo: String get() = pick("Change the number", "ಸಂಖ್ಯೆ ಬದಲಿಸಿ")
 
+    // Required on a bill, not on a delivery: the shop writes the number it hands
+    // over, and a record with none cannot be matched to the paper it came from.
+    val enterBillNumber: String get() = pick("Enter the bill number", "ಬಿಲ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ")
+
     // The date a sale is *entered* is not always the date it happened. Said out
     // loud on the cart, because a shop catching up at closing time would
     // otherwise stamp the whole day at once and never notice.

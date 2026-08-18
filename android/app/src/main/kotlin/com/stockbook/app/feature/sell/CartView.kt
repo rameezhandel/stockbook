@@ -176,16 +176,20 @@ private fun Footer(
             CustomerPicker(cart = cart, state = state, store = store, currency = currency, strings = strings)
             Spacer(Modifier.height(10.dp))
 
-            // The paper's number and the day it happened, side by side and both
-            // optional. They sit above the payment pills because they describe
-            // *the bill*, not the money — and because a shop entering yesterday's
-            // book needs the date before it thinks about what was paid.
+            // The paper's number and the day it happened, side by side. They sit
+            // above the payment pills because they describe *the bill*, not the
+            // money — and because a shop entering yesterday's book needs the date
+            // before it thinks about what was paid. The number is required; the
+            // date has today in it already.
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 NocturneField(
                     value = cart.invoiceNo,
                     onValueChange = { cart.invoiceNo = it },
                     placeholder = strings.invoiceNoOptional,
                     label = strings.invoiceNoField,
+                    // Marked, and it means it: a bill cannot be saved without a
+                    // number. Emptied only by an owner who cleared the prefill.
+                    isRequiredAndEmpty = cart.invoiceNo.isBlank(),
                     height = 40.dp,
                     fontSize = 13.5,
                     modifier = Modifier.weight(1f)
@@ -292,10 +296,12 @@ private fun Footer(
                     // apart later, so this one is a refusal rather than a warning.
                     clash != null -> strings.changeTheInvoiceNo
                     cart.canSave -> strings.saveBill
-                    // Two different things are missing, and the button says which:
-                    // an empty box needs a name, a typed one needs a choice.
+                    // Whatever is missing, the button names it: an empty name box
+                    // needs a name, a typed one needs a choice from the list, and
+                    // a cleared number box needs a number.
                     cart.customer.isBlank() -> strings.enterCustomerName
-                    else -> strings.chooseFromTheList
+                    cart.customerKey == null -> strings.chooseFromTheList
+                    else -> strings.enterBillNumber
                 },
                 onClick = onSave,
                 enabled = cart.canSave && clash == null,

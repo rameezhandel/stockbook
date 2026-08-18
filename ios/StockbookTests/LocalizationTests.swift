@@ -56,7 +56,7 @@ struct LocalizationTests {
         \.customersStat, \.languageSection, \.languageAndCurrency, \.notBackedUpYet,
         \.themeSection, \.themeDark, \.themeLight,
         \.invoiceNoField, \.invoiceNoOptional, \.billDate, \.billDateNote,
-        \.changeTheInvoiceNo,
+        \.changeTheInvoiceNo, \.enterBillNumber,
         \.bookTitle, \.salesSide, \.purchasesSide, \.recordDelivery,
         \.whoDoYouBuyFrom, \.suppliersSetupBody, \.noSuppliersYetKicker, \.supplierOpeningNote,
         \.whichProductArrived, \.noDeliveriesYet, \.deliveryDetail,

@@ -70,16 +70,20 @@ struct CartView: View {
         return VStack(spacing: 10) {
             CustomerPicker()
 
-            // The paper's number and the day it happened, side by side and both
-            // optional. Above the payment pills because they describe *the bill*,
-            // not the money — and because a shop entering yesterday's book needs
-            // the date before it thinks about what was paid.
+            // The paper's number and the day it happened, side by side. Above the
+            // payment pills because they describe *the bill*, not the money — and
+            // because a shop entering yesterday's book needs the date before it
+            // thinks about what was paid. The number is required; the date has
+            // today in it already.
             HStack(alignment: .bottom, spacing: 8) {
                 NocturneField(
                     label: Loc.invoiceNoField,
                     placeholder: Loc.invoiceNoOptional,
                     text: $cart.invoiceNo,
                     height: 40,
+                    // Marked, and it means it: a bill cannot be saved without a
+                    // number. Emptied only by an owner who cleared the prefill.
+                    isRequiredAndEmpty: cart.invoiceNo.isBlank,
                     fontSize: 13.5,
                     identifier: "cart.invoiceNo"
                 )
@@ -150,9 +154,7 @@ struct CartView: View {
             }
 
             // Validation is the button's label, never a toast: it says what is
-            // missing and stays disabled until it isn't. Two different things can
-            // be missing, and the button says which: an empty box needs a name, a
-            // typed one needs a choice.
+            // missing and stays disabled until it isn't.
             Button(saveTitle, action: onSave)
                 .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                 .disabled(!cart.canSave || clash != nil)
@@ -171,7 +173,12 @@ struct CartView: View {
         // so this one is a refusal rather than a warning.
         if clash != nil { return Loc.changeTheInvoiceNo }
         if cart.canSave { return Loc.saveBill }
-        return cart.customer.isBlank ? Loc.enterCustomerName : Loc.chooseFromTheList
+        // Whatever is missing, the button names it: an empty name box needs a
+        // name, a typed one needs a choice from the list, and a cleared number
+        // box needs a number.
+        if cart.customer.isBlank { return Loc.enterCustomerName }
+        if cart.customerKey == nil { return Loc.chooseFromTheList }
+        return Loc.enterBillNumber
     }
 }
 

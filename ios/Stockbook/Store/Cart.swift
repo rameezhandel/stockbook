@@ -96,13 +96,18 @@ final class Cart {
         payMode == .full ? nil : paidNow
     }
 
-    /// The one gate on this screen: a bill needs something on it, and somebody
-    /// **chosen** to give it to.
+    /// The gate on this screen: a bill needs something on it, somebody **chosen**
+    /// to give it to, and a number.
     ///
     /// Not merely a non-blank name: a name nobody picked from the list is a name
     /// with no account behind it, so nothing could be owed against it or settled
     /// off it later.
-    var canSave: Bool { !lines.isEmpty && customerKey != nil }
+    ///
+    /// The number is required because the shop writes one on every bill it hands
+    /// over, and a record with none cannot be matched to the paper it came from —
+    /// which is the whole reason for keeping the number at all. It costs no
+    /// typing: the box arrives filled in with the next one.
+    var canSave: Bool { !lines.isEmpty && customerKey != nil && !invoiceNo.isBlank }
 
     // MARK: Mutation
 

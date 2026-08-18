@@ -415,7 +415,13 @@ both it and setup step 4.
   digits only ("A-0099" → "A-0100"), so the usual bill needs no typing and the run
   starts wherever the shop's own book starts. Typing a number that is already on
   another bill — or on another delivery, whoever it came from — names the clash
-  and refuses the save until it is changed. Voiding frees the number again, since
+  and refuses the save until it is changed.
+
+  **Required on a bill, optional on a delivery.** The shop writes the number it
+  hands over, so a bill with none cannot be matched to the paper it came from —
+  and with the box prefilled that costs no typing. A delivery's number belongs to
+  the *supplier's* paper, which may not exist: demanding one there would mean
+  inventing it, and an invented number is worse than none. Voiding frees the number again, since
   void-and-re-enter is how a bill typed wrong gets corrected.
 
   `Bill.number` is untouched by all of this. It stays the app's own counter and
