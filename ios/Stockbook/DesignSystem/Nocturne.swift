@@ -70,9 +70,9 @@ enum Nocturne {
     static var scrim: Color { palette.scrim }
 
     /// `linear-gradient(155deg, var(--color-accent-900), var(--color-surface))`
-    /// on the "Sold today" stat card. 155° in CSS is measured clockwise from
+    /// on Home's emphasised stat card. 155° in CSS is measured clockwise from
     /// north, which lands just off vertical — hence the near-vertical unit points.
-    static var soldTodayGradient: LinearGradient {
+    static var statCardGradient: LinearGradient {
         LinearGradient(
             colors: [palette.accent900, palette.surface],
             startPoint: UnitPoint(x: 0.29, y: 0.05),

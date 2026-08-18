@@ -76,10 +76,10 @@ struct Strings {
 
     func tab(_ tab: AppTab) -> String {
         switch tab {
-        case .today: pick("Today", "ಇಂದು")
+        case .today: pick("Home", "ಮುಖಪುಟ")
         case .items: pick("Items", "ಸಾಮಾನು")
-        case .sell: pick("Sell", "ಮಾರಾಟ")
-        case .book: pick("Book", "ಪುಸ್ತಕ")
+        case .sell: pick("Sales", "ಮಾರಾಟಗಳು")
+        case .book: pick("Reports", "ವರದಿಗಳು")
         }
     }
 
@@ -87,11 +87,11 @@ struct Strings {
 
     var today: String { pick("Today", "ಇಂದು") }
     var settings: String { pick("Settings", "ಸೆಟ್ಟಿಂಗ್‌ಗಳು") }
-    var soldToday: String { pick("Sold today", "ಇಂದಿನ ಮಾರಾಟ") }
+    var receivableStat: String { pick("To collect", "ಬರಬೇಕಾದ ಬಾಕಿ") }
+    var payableStat: String { pick("To pay", "ಕೊಡಬೇಕಾದ ಬಾಕಿ") }
     var billsStat: String { pick("Bills", "ಬಿಲ್‌ಗಳು") }
     var recentBills: String { pick("Recent bills", "ಇತ್ತೀಚಿನ ಬಿಲ್‌ಗಳು") }
     var noBillsToday: String { pick("No bills yet today.", "ಇಂದು ಇನ್ನೂ ಒಂದೂ ಬಿಲ್ ಆಗಿಲ್ಲ.") }
-    var saveFile: String { pick("Save file", "ಫೈಲ್ ಉಳಿಸಿ") }
 
     func greeting(_ firstName: String) -> String {
         pick("Hello, \(firstName)", "ನಮಸ್ಕಾರ, \(firstName)")
@@ -104,20 +104,6 @@ struct Strings {
 
     func stillOwe(customerCount n: Int) -> String {
         pick("\(customers(n)) still owe", "\(n) ಗ್ರಾಹಕರು ಇನ್ನೂ ಬಾಕಿ ಕೊಡಬೇಕು")
-    }
-
-    var backupWrittenNote: String {
-        pick(
-            "Backup written. Copy it somewhere safe — everything lives on this phone only.",
-            "ಬ್ಯಾಕಪ್ ಆಗಿದೆ. ಅದನ್ನು ಸುರಕ್ಷಿತ ಜಾಗಕ್ಕೆ ನಕಲಿಸಿ — ಎಲ್ಲಾ ಮಾಹಿತಿ ಈ ಫೋನಿನಲ್ಲಿ ಮಾತ್ರ ಇದೆ."
-        )
-    }
-
-    var backupMissingNote: String {
-        pick(
-            "Nothing backed up yet. Everything lives on this phone only.",
-            "ಇನ್ನೂ ಬ್ಯಾಕಪ್ ಆಗಿಲ್ಲ. ಎಲ್ಲಾ ಮಾಹಿತಿ ಈ ಫೋನಿನಲ್ಲಿ ಮಾತ್ರ ಇದೆ."
-        )
     }
 
     // MARK: - Items
@@ -158,7 +144,7 @@ struct Strings {
 
     // MARK: The book: both halves of the account, side by side
 
-    var bookTitle: String { pick("Book", "ಪುಸ್ತಕ") }
+    var bookTitle: String { pick("Reports", "ವರದಿಗಳು") }
     var salesSide: String { pick("Sales", "ಮಾರಾಟ") }
     var purchasesSide: String { pick("Purchases", "ಖರೀದಿ") }
 

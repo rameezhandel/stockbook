@@ -150,8 +150,7 @@ private fun Shell(store: StockbookStore) {
                         state = state,
                         store = store,
                         router = router,
-                        strings = strings,
-                        onExport = { router.showingBackup = true }
+                        strings = strings
                     )
                     AppTab.ITEMS -> ItemsScreen(
                         state = state,

@@ -88,7 +88,7 @@ struct StatCard: View {
         .padding(14)
         .background {
             if gradient {
-                Nocturne.soldTodayGradient
+                Nocturne.statCardGradient
             } else {
                 Nocturne.surface
             }

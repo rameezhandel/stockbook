@@ -1,15 +1,11 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
-/// The home screen: what sold today, who owes money, the last few bills, and a
-/// standing reminder that nothing is backed up.
+/// The home screen: what is owed each way, who owes money, and the last few
+/// bills.
 struct TodayScreen: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
     @Environment(\.currency) private var currency
-
-    @State private var exportDocument: BackupFile?
-    @State private var isExporting = false
 
     private var bills: [Bill] { store.bills }
     private var settings: Settings { store.settings }
@@ -37,27 +33,14 @@ struct TodayScreen: View {
                 let payable = store.payable()
 
                 VStack(spacing: 0) {
-                    statCards
+                    statCards(owed, payable)
                     owedBanner(owed, followedByPayable: !payable.names.isEmpty)
                     payableBanner(payable)
                     recentBills
-                    backupNudge
                 }
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.top, 4)
                 .padding(.bottom, 18)
-            }
-        }
-        .fileExporter(
-            isPresented: $isExporting,
-            document: exportDocument,
-            contentType: .json,
-            defaultFilename: exportDocument?.document.suggestedFilename
-        ) { result in
-            // Only a real write counts as a backup — a cancelled save sheet must
-            // not quiet the nudge.
-            if case .success = result {
-                store.markExported()
             }
         }
     }
@@ -69,14 +52,14 @@ struct TodayScreen: View {
 
     // MARK: Stats
 
-    private var statCards: some View {
+    private func statCards(_ owed: (names: [String], total: Double), _ payable: (names: [String], total: Double)) -> some View {
         HStack(spacing: Metrics.cardGap) {
             StatCard(
-                label: Loc.soldToday,
-                value: Money.text(bills.reduce(0) { $0 + $1.total }, in: currency),
+                label: Loc.receivableStat,
+                value: Money.text(owed.total, in: currency),
                 gradient: true
             )
-            StatCard(label: Loc.billsStat, value: String(bills.count))
+            StatCard(label: Loc.payableStat, value: Money.text(payable.total, in: currency))
         }
         .padding(.bottom, Metrics.cardGap)
     }
@@ -189,28 +172,5 @@ struct TodayScreen: View {
                 }
             }
         }
-    }
-
-    // MARK: Backup
-
-    private var backupNudge: some View {
-        DashedBox(padding: EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)) {
-            HStack(spacing: 11) {
-                Glyph(settings.hasBackup ? Icon.backupDone : Icon.backupMissing, size: 20)
-                    .foregroundStyle(settings.hasBackup ? Nocturne.accent : Nocturne.neutral500)
-                Text(settings.hasBackup ? Loc.backupWrittenNote : Loc.backupMissingNote)
-                    .font(NocturneType.inter(12))
-                    .foregroundStyle(Nocturne.neutral500)
-                    .lineSpacing(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Button(Loc.saveFile) {
-                    exportDocument = BackupFile(document: store.makeBackupDocument())
-                    isExporting = true
-                }
-                .buttonStyle(.secondaryCompact)
-            }
-        }
-        .padding(.top, 18)
     }
 }

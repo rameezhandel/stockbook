@@ -73,21 +73,21 @@ class Strings(val language: AppLanguage) {
     // --- Tabs
 
     fun tab(tab: AppTab): String = when (tab) {
-        AppTab.TODAY -> pick("Today", "ಇಂದು")
+        AppTab.TODAY -> pick("Home", "ಮುಖಪುಟ")
         AppTab.ITEMS -> pick("Items", "ಸಾಮಾನು")
-        AppTab.SELL -> pick("Sell", "ಮಾರಾಟ")
-        AppTab.BOOK -> pick("Book", "ಪುಸ್ತಕ")
+        AppTab.SELL -> pick("Sales", "ಮಾರಾಟಗಳು")
+        AppTab.BOOK -> pick("Reports", "ವರದಿಗಳು")
     }
 
     // --- Today
 
     val today: String get() = pick("Today", "ಇಂದು")
     val settings: String get() = pick("Settings", "ಸೆಟ್ಟಿಂಗ್‌ಗಳು")
-    val soldToday: String get() = pick("Sold today", "ಇಂದಿನ ಮಾರಾಟ")
+    val receivableStat: String get() = pick("To collect", "ಬರಬೇಕಾದ ಬಾಕಿ")
+    val payableStat: String get() = pick("To pay", "ಕೊಡಬೇಕಾದ ಬಾಕಿ")
     val billsStat: String get() = pick("Bills", "ಬಿಲ್‌ಗಳು")
     val recentBills: String get() = pick("Recent bills", "ಇತ್ತೀಚಿನ ಬಿಲ್‌ಗಳು")
     val noBillsToday: String get() = pick("No bills yet today.", "ಇಂದು ಇನ್ನೂ ಒಂದೂ ಬಿಲ್ ಆಗಿಲ್ಲ.")
-    val saveFile: String get() = pick("Save file", "ಫೈಲ್ ಉಳಿಸಿ")
 
     fun greeting(firstName: String): String =
             pick("Hello, $firstName", "ನಮಸ್ಕಾರ, $firstName")
@@ -98,18 +98,6 @@ class Strings(val language: AppLanguage) {
 
     fun stillOwe(n: Int): String =
             pick("${customers(n)} still owe", "$n ಗ್ರಾಹಕರು ಇನ್ನೂ ಬಾಕಿ ಕೊಡಬೇಕು")
-
-    val backupWrittenNote: String get() =
-            pick(
-                "Backup written. Copy it somewhere safe — everything lives on this phone only.",
-                "ಬ್ಯಾಕಪ್ ಆಗಿದೆ. ಅದನ್ನು ಸುರಕ್ಷಿತ ಜಾಗಕ್ಕೆ ನಕಲಿಸಿ — ಎಲ್ಲಾ ಮಾಹಿತಿ ಈ ಫೋನಿನಲ್ಲಿ ಮಾತ್ರ ಇದೆ."
-            )
-
-    val backupMissingNote: String get() =
-            pick(
-                "Nothing backed up yet. Everything lives on this phone only.",
-                "ಇನ್ನೂ ಬ್ಯಾಕಪ್ ಆಗಿಲ್ಲ. ಎಲ್ಲಾ ಮಾಹಿತಿ ಈ ಫೋನಿನಲ್ಲಿ ಮಾತ್ರ ಇದೆ."
-            )
 
     // --- Items
 
@@ -143,7 +131,7 @@ class Strings(val language: AppLanguage) {
 
     // --- The book: both halves of the account, side by side
 
-    val bookTitle: String get() = pick("Book", "ಪುಸ್ತಕ")
+    val bookTitle: String get() = pick("Reports", "ವರದಿಗಳು")
     val salesSide: String get() = pick("Sales", "ಮಾರಾಟ")
     val purchasesSide: String get() = pick("Purchases", "ಖರೀದಿ")
 

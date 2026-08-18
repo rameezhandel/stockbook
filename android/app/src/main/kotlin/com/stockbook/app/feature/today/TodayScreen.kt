@@ -29,9 +29,7 @@ import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.ScreenHeader
-import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.StatCard
-import com.stockbook.app.design.dashedBox
 import com.stockbook.app.feature.bills.BillRow
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.money.Money
@@ -41,8 +39,8 @@ import com.stockbook.core.text.firstName
 import java.time.Instant
 
 /**
- * The home screen: what sold today, who owes money, the last few bills, and a
- * standing reminder that nothing is backed up.
+ * The home screen: what is owed each way, who owes money, and the last few
+ * bills.
  */
 @Composable
 fun TodayScreen(
@@ -50,7 +48,6 @@ fun TodayScreen(
     store: StockbookStore,
     router: AppRouter,
     strings: Strings,
-    onExport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val currency = state.settings.currency
@@ -82,15 +79,15 @@ fun TodayScreen(
             item {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     StatCard(
-                        label = strings.soldToday,
-                        value = Money.text(state.bills.sumOf { it.total }, currency),
+                        label = strings.receivableStat,
+                        value = Money.text(owedTotal, currency),
                         gradient = true,
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(Modifier.width(Metrics.cardGap))
                     StatCard(
-                        label = strings.billsStat,
-                        value = state.bills.size.toString(),
+                        label = strings.payableStat,
+                        value = Money.text(payableTotal, currency),
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -160,16 +157,6 @@ fun TodayScreen(
                     )
                 }
             }
-
-            item {
-                Spacer(Modifier.height(18.dp))
-                BackupNudge(
-                    hasBackup = state.settings.hasBackup,
-                    note = if (state.settings.hasBackup) strings.backupWrittenNote else strings.backupMissingNote,
-                    actionTitle = strings.saveFile,
-                    onAction = onExport
-                )
-            }
         }
     }
 }
@@ -218,32 +205,4 @@ private fun OwedBanner(
 private fun Modifier.owedBannerBackground(): Modifier = drawBehind {
     drawRect(Nocturne.surface)
     drawRect(color = Nocturne.accent, size = Size(2.dp.toPx(), size.height))
-}
-
-@Composable
-private fun BackupNudge(
-    hasBackup: Boolean,
-    note: String,
-    actionTitle: String,
-    onAction: () -> Unit
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().dashedBox().padding(12.dp)
-    ) {
-        Glyph(
-            if (hasBackup) Icon.confirm else Icon.edit,
-            size = 20.dp,
-            tint = if (hasBackup) Nocturne.accent else Nocturne.neutral500
-        )
-        Spacer(Modifier.width(11.dp))
-        Text(
-            note,
-            style = NocturneType.inter(12.0),
-            color = Nocturne.neutral500,
-            modifier = Modifier.weight(1f)
-        )
-        Spacer(Modifier.width(8.dp))
-        SecondaryButton(actionTitle, onClick = onAction, height = 34.dp, fontSize = 12.5)
-    }
 }

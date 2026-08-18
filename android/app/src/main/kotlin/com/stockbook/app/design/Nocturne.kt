@@ -69,8 +69,8 @@ object Nocturne {
     val secondaryPressed: Color get() = palette.text.copy(alpha = palette.pressedStrength * 0.64f)
     val ghostPressed: Color get() = palette.accent.copy(alpha = palette.pressedStrength * 0.82f)
 
-    /** The one gradient in the app: the "Sold today" card. */
-    val soldTodayGradient: Brush
+    /** The one gradient in the app: the emphasised stat card on Home. */
+    val statCardGradient: Brush
         get() = Brush.linearGradient(
             colors = listOf(palette.accent900, palette.surface),
             start = Offset(0f, 0f),

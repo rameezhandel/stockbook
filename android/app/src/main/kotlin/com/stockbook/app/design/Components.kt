@@ -124,7 +124,7 @@ fun StatCard(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(Metrics.statRadius))
-            .then(if (gradient) Modifier.background(Nocturne.soldTodayGradient) else Modifier.background(Nocturne.surface))
+            .then(if (gradient) Modifier.background(Nocturne.statCardGradient) else Modifier.background(Nocturne.surface))
             .hairline(radius = Metrics.statRadius)
             .padding(14.dp)
     ) {
