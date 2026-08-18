@@ -101,7 +101,6 @@ struct BackupDocument: Codable, Equatable {
         /// The number on the supplier's invoice.
         var invoiceNo: String?
         var createdAt: Date
-        var voided: Bool
 
         /// Spelled out, unlike its five sibling rows, only because the decoder
         /// below is: any initialiser written in a struct's own body suppresses
@@ -116,8 +115,7 @@ struct BackupDocument: Codable, Equatable {
             total: Double,
             paid: Double? = nil,
             invoiceNo: String? = nil,
-            createdAt: Date,
-            voided: Bool = false
+            createdAt: Date
         ) {
             self.id = id
             self.supplierKey = supplierKey
@@ -129,7 +127,6 @@ struct BackupDocument: Codable, Equatable {
             self.paid = paid
             self.invoiceNo = invoiceNo
             self.createdAt = createdAt
-            self.voided = voided
         }
 
         /// The one row that reads its own keys, because it is the one row whose
@@ -147,6 +144,10 @@ struct BackupDocument: Codable, Equatable {
         /// `customers` or `purchases` array means a file this app did not write,
         /// and refusing it is the right answer. This is about keys inside a row
         /// that is genuinely there.
+        ///
+        /// The `voided` key an older build wrote here is read by neither side any
+        /// more. An unknown key is ignored rather than refused, so a backup taken
+        /// before voiding was removed still imports.
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             id = try container.decode(UUID.self, forKey: .id)
@@ -159,7 +160,6 @@ struct BackupDocument: Codable, Equatable {
             paid = try container.decodeIfPresent(Double.self, forKey: .paid)
             invoiceNo = try container.decodeIfPresent(String.self, forKey: .invoiceNo)
             createdAt = try container.decode(Date.self, forKey: .createdAt)
-            voided = try container.decodeIfPresent(Bool.self, forKey: .voided) ?? false
         }
     }
 
@@ -188,7 +188,6 @@ struct BackupDocument: Codable, Equatable {
         var who: String
         /// The number on the paper bill. Absent when the shop wrote none.
         var invoiceNo: String?
-        var voided: Bool
         var lines: [LineRecord]
     }
 

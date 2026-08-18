@@ -63,21 +63,6 @@ struct BillTextTests {
         #expect(body.contains(english.partPaidNote(paid: "SAR 100", who: "Ahmed", balance: "SAR 90")), "\(body)")
     }
 
-    @Test("A voided bill says so instead of asking for money")
-    func voidedBill() throws {
-        let store = makeStore()
-        let lock = store.addProduct(name: "Cisa lock", stock: 50, cost: 60, price: 95)
-        let bill = try #require(
-            store.saveBill(lines: [DraftLine(productUID: lock.uid, qty: 1, price: 95)], customer: "Ahmed", paid: 0)
-        )
-        store.void(bill)
-
-        let body = try text(store)
-
-        #expect(body.contains(english.voidedNote))
-        #expect(!body.contains("owes"), "a voided bill is owed nothing")
-    }
-
     @Test("A shop with no name has no letterhead")
     func noLetterhead() throws {
         let store = makeStore()

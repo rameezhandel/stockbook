@@ -231,10 +231,9 @@ struct StatementScreen: View {
         VStack(alignment: .leading, spacing: 7) {
             entryLine(entry, balance: balance)
 
-            // Only a payment. A bill or a delivery is **voided**, never deleted,
-            // and voiding lives inside the opened document where it belongs —
-            // offering deletion beside it here would be a second, worse route to
-            // the same history.
+            // Only a payment. Correcting or removing a bill or a delivery lives
+            // inside the opened document where it belongs — offering it beside the
+            // line here would be a second, worse route to the same history.
             if let id = paymentID(entry), deleting == id {
                 Button(Loc.deleteThisPayment) {
                     if isSupplier {
@@ -273,9 +272,7 @@ struct StatementScreen: View {
                 case .bill(let bill):
                     Text(bill.reference(Loc))
                         .font(NocturneType.inter(13))
-                        .foregroundStyle(bill.voided ? Nocturne.neutral500 : Nocturne.text)
-                        .strikethrough(bill.voided)
-                    Text(bill.voided ? Loc.voided : bill.summary)
+                    Text(bill.summary)
                         .nocturneText(.meta)
                         .lineLimit(2)
                 case .payment(let payment):
@@ -291,11 +288,9 @@ struct StatementScreen: View {
                 case .purchase(let purchase):
                     Text(purchase.reference(Loc))
                         .font(NocturneType.inter(13))
-                        .foregroundStyle(purchase.voided ? Nocturne.neutral500 : Nocturne.text)
-                        .strikethrough(purchase.voided)
                     // The product and how many of it: a delivery note's whole
                     // content, on one line, since a purchase carries one product.
-                    Text(purchase.voided ? Loc.voided : deliveryDetail(purchase))
+                    Text(deliveryDetail(purchase))
                         .nocturneText(.meta)
                         .lineLimit(2)
                 case .supplierPayment(let payment):
@@ -350,8 +345,7 @@ struct StatementScreen: View {
 
     private func amountTint(_ entry: Statement.Entry) -> Color {
         switch entry {
-        case .bill(let bill): bill.voided ? Nocturne.neutral500 : Nocturne.text
-        case .purchase(let purchase): purchase.voided ? Nocturne.neutral500 : Nocturne.text
+        case .bill, .purchase: Nocturne.text
         case .payment, .supplierPayment: Nocturne.accent400
         }
     }
@@ -388,13 +382,11 @@ struct StatementScreen: View {
             let balance = Money.text(statement.runningBalances[index], in: currency)
             switch entry {
             case .bill(let bill):
-                let marker = bill.voided ? " (\(Loc.voided))" : ""
-                lines.append("\(Loc.longDate(bill.createdAt))  \(bill.reference(Loc))\(marker)  \(Money.text(bill.total, in: currency))  →  \(balance)")
+                lines.append("\(Loc.longDate(bill.createdAt))  \(bill.reference(Loc))  \(Money.text(bill.total, in: currency))  →  \(balance)")
             case .payment(let payment):
                 lines.append("\(Loc.longDate(payment.receivedAt))  \(Loc.paymentLabel)  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
             case .purchase(let purchase):
-                let marker = purchase.voided ? " (\(Loc.voided))" : ""
-                lines.append("\(Loc.longDate(purchase.createdAt))  \(purchase.reference(Loc))  \(deliveryDetail(purchase))\(marker)  \(Money.text(purchase.total, in: currency))  →  \(balance)")
+                lines.append("\(Loc.longDate(purchase.createdAt))  \(purchase.reference(Loc))  \(deliveryDetail(purchase))  \(Money.text(purchase.total, in: currency))  →  \(balance)")
             case .supplierPayment(let payment):
                 lines.append("\(Loc.longDate(payment.paidAt))  \(Loc.paymentLabel)  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
             }

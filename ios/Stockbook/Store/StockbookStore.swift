@@ -299,8 +299,8 @@ final class StockbookStore {
     /// today. Reads products; moves no stock, which is what lets both saving and
     /// editing decide separately what the shelf owes.
     private func snapshot(_ lines: [DraftLine]) -> [BillLine] {
-        lines.compactMap { line in
-            guard let product = product(uid: line.productUID) else { return nil }
+        lines.compactMap { line -> BillLine? in
+            guard let product = self.product(uid: line.productUID) else { return nil }
             return BillLine(
                 productUID: product.uid,
                 name: product.name,
@@ -329,7 +329,10 @@ final class StockbookStore {
         createdAt: Date,
         invoiceNo: String? = nil
     ) -> Bill? {
-        guard let existing = bills.first(where: { $0.number == number }) else { return nil }
+        // The index is taken once and stays valid: nothing below writes to `bills`
+        // until the last line, and `replace` moves products rather than bills.
+        guard let index = bills.firstIndex(where: { $0.number == number }) else { return nil }
+        let existing = bills[index]
         let name = customer.trimmed
         guard !name.isEmpty else { return nil }
 
@@ -359,7 +362,6 @@ final class StockbookStore {
         updated.invoiceNo = CustomerRecord.tidied(invoiceNo)
         updated.createdAt = createdAt
 
-        guard let index = bills.firstIndex(where: { $0.number == number }) else { return nil }
         bills[index] = updated
         attempt { try repository.update(updated) }
         return updated
@@ -952,7 +954,10 @@ final class StockbookStore {
         createdAt: Date,
         invoiceNo: String? = nil
     ) -> Purchase? {
-        guard let existing = purchases.first(where: { $0.id == id }) else { return nil }
+        // Taken once and still valid at the end: nothing below writes to
+        // `purchases`, and `replace` moves products rather than purchases.
+        guard let index = purchases.firstIndex(where: { $0.id == id }) else { return nil }
+        let existing = purchases[index]
         guard !supplierKey.isBlank else { return nil }
 
         let resolved = product.flatMap { self.product(uid: $0.uid) }
@@ -989,7 +994,6 @@ final class StockbookStore {
         updated.invoiceNo = CustomerRecord.tidied(invoiceNo)
         updated.createdAt = createdAt
 
-        guard let index = purchases.firstIndex(where: { $0.id == id }) else { return nil }
         purchases[index] = updated
         attempt { try repository.update(updated) }
         return updated
@@ -1123,8 +1127,7 @@ final class StockbookStore {
                     paid: record.paid,
                     who: record.who,
                     invoiceNo: record.invoiceNo,
-                    createdAt: record.createdAt,
-                    voided: record.voided
+                    createdAt: record.createdAt
                 )
             },
             customers: document.customers.map {
@@ -1167,8 +1170,7 @@ final class StockbookStore {
                     total: $0.total,
                     paid: $0.paid,
                     invoiceNo: $0.invoiceNo,
-                    createdAt: $0.createdAt,
-                    voided: $0.voided
+                    createdAt: $0.createdAt
                 )
             },
             supplierPayments: document.supplierPayments.map {
@@ -1211,7 +1213,6 @@ final class StockbookStore {
                     paid: bill.paid,
                     who: bill.who,
                     invoiceNo: bill.invoiceNo,
-                    voided: bill.voided,
                     lines: bill.lines.map {
                         BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price)
                     }
@@ -1257,8 +1258,7 @@ final class StockbookStore {
                     total: $0.total,
                     paid: $0.paid,
                     invoiceNo: $0.invoiceNo,
-                    createdAt: $0.createdAt,
-                    voided: $0.voided
+                    createdAt: $0.createdAt
                 )
             },
             supplierPayments: supplierPayments.map {

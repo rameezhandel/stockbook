@@ -128,9 +128,9 @@ struct Statement: Equatable {
     /// What happened, in the order it happened.
     ///
     /// Four cases rather than a neutral row of numbers, because the document has
-    /// to mark a voided bill, name the product on a delivery and show a payment's
-    /// note. Being an enum is also what made adding the supplier side safe: every
-    /// `switch` over it stopped compiling until it had been thought about.
+    /// to name the product on a delivery and show a payment's note. Being an enum
+    /// is also what made adding the supplier side safe: every `switch` over it
+    /// stopped compiling until it had been thought about.
     enum Entry: Equatable, Identifiable {
         case bill(Bill)
         case payment(Payment)
@@ -158,8 +158,8 @@ struct Statement: Equatable {
         /// What the account is charged by this event.
         var charge: Double {
             switch self {
-            case .bill(let bill): bill.voided ? 0 : bill.total
-            case .purchase(let purchase): purchase.voided ? 0 : purchase.total
+            case .bill(let bill): bill.total
+            case .purchase(let purchase): purchase.total
             case .payment, .supplierPayment: 0
             }
         }
@@ -168,8 +168,8 @@ struct Statement: Equatable {
         /// delivery, or the whole of a payment made later.
         var settledAtOnce: Double {
             switch self {
-            case .bill(let bill): bill.voided ? 0 : bill.total - bill.balance
-            case .purchase(let purchase): purchase.voided ? 0 : purchase.total - purchase.balance
+            case .bill(let bill): bill.total - bill.balance
+            case .purchase(let purchase): purchase.total - purchase.balance
             case .payment(let payment): payment.amount
             case .supplierPayment(let payment): payment.amount
             }
@@ -243,9 +243,7 @@ struct Statement: Equatable {
     /// The arithmetic, once.
     ///
     /// Everything above hands this the same three things: who the account is,
-    /// everything that ever happened on it, and the period to report. A voided
-    /// bill or delivery did not happen and contributes nothing — it is still
-    /// listed, because history is marked here rather than hidden.
+    /// everything that ever happened on it, and the period to report.
     private static func make(
         party: StatementParty,
         entries: [Entry],
@@ -268,8 +266,6 @@ struct Statement: Equatable {
         var running: [Double] = []
         var balance = opening
         for entry in inRange {
-            // A voided entry moves nothing, which is exactly what makes the
-            // running column readable beside it.
             balance += entry.charge - entry.settledAtOnce
             running.append(balance)
         }

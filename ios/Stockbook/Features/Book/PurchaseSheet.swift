@@ -2,17 +2,20 @@ import SwiftUI
 
 /// One delivery, opened from the book.
 ///
-/// The bill sheet's mirror, including where voiding lives: on the document rather
-/// than on the list row, so the thing being undone is on screen while it is
-/// undone. Voiding a delivery takes its stock back off the shelf, which the
-/// button says out loud — that is the part that surprises people.
+/// The bill sheet's mirror, including where correcting lives: on the document
+/// rather than on the list row, so the thing being changed is on screen while it
+/// is changed. Removing a delivery takes its stock back off the shelf, which the
+/// note says out loud — that is the part that surprises people.
 struct PurchaseSheet: View {
     let purchase: Purchase
     let onClose: () -> Void
 
     @Environment(StockbookStore.self) private var store
+    @Environment(AppRouter.self) private var router
     @Environment(\.currency) private var currency
 
+    /// Armed by the first tap on Remove. A delivery takes two, because removing
+    /// one moves stock as well as money.
     @State private var confirming = false
 
     /// Falls back to what opened the sheet, which matters after a database
@@ -56,23 +59,31 @@ struct PurchaseSheet: View {
                 tint: live.balance > 0 ? Nocturne.accent400 : Nocturne.neutral400
             )
 
-            if live.voided {
-                Text(Loc.purchaseVoidedNote)
-                    .nocturneText(.meta)
-                    .padding(.top, 14)
-            } else {
-                // Two taps, because this one moves stock as well as money.
-                Button(confirming ? Loc.tapAgainToRemove : Loc.voidAndRemoveStock) {
+            // Back to the sheet it was entered on, filled in with what it says
+            // now. Saving from there rewrites this delivery rather than recording
+            // a second one, and moves the shelf by the difference.
+            Button(Loc.editBill) {
+                router.editDelivery(live, product: live.productUID.flatMap { store.product(uid: $0) })
+            }
+            .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
+            .padding(.top, 14)
+
+            // Removal is a second tap, and the note is why: whatever this put on
+            // the shelf comes back off it.
+            VStack(alignment: .leading, spacing: 6) {
+                Button(confirming ? Loc.tapAgainToRemove : Loc.removeSupplierBill) {
                     if confirming {
-                        store.voidPurchase(id: live.id)
+                        store.deletePurchase(id: live.id)
                         onClose()
                     } else {
                         withAnimation(Metrics.quick) { confirming = true }
                     }
                 }
-                .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
-                .padding(.top, 14)
+                .buttonStyle(.ghostMuted)
+
+                Text(Loc.removeSupplierBillNote).nocturneText(.meta)
             }
+            .padding(.top, 10)
         }
     }
 

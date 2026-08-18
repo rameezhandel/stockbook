@@ -140,22 +140,25 @@ struct StoreTests {
         #expect(store.product(uid: product.uid)?.stock == 10, "a refused bill must not touch stock")
     }
 
-    @Test("Bill numbers are monotonic")
+    @Test("Bill numbers are stable and monotonic")
     func billNumbering() throws {
         let store = makeStore()
         let product = store.addProduct(name: "Hinge", stock: 10, cost: 3, price: 6)
 
         let first = try #require(store.saveBill(lines: [.init(productUID: product.uid, qty: 1, price: 6)], customer: "A", paid: nil))
         let second = try #require(store.saveBill(lines: [.init(productUID: product.uid, qty: 1, price: 6)], customer: "B", paid: nil))
+        store.deleteBill(number: second.number)
+        let third = try #require(store.saveBill(lines: [.init(productUID: product.uid, qty: 1, price: 6)], customer: "C", paid: nil))
 
         #expect(first.number == 1)
         #expect(second.number == 2)
+        #expect(third.number == 3, "removing must not hand a number back out")
     }
 
-    // MARK: Void
+    // MARK: Removing
 
-    @Test("Voiding puts the stock back and keeps the bill")
-    func voiding() throws {
+    @Test("Removing puts the stock back, and removing twice does not do it twice")
+    func removingIsIdempotent() throws {
         let store = makeStore()
         let product = store.addProduct(name: "Deadbolt", stock: 8, cost: 40, price: 70)
         let bill = try #require(
@@ -163,27 +166,12 @@ struct StoreTests {
         )
         #expect(store.product(uid: product.uid)?.stock == 5)
 
-        store.void(bill)
-
+        store.deleteBill(number: bill.number)
         #expect(store.product(uid: product.uid)?.stock == 8)
-        // Bills are values, so the copy returned by saveBill cannot learn that
-        // it was voided — the store's own record is the one that matters.
-        #expect(store.bills.first { $0.number == bill.number }?.voided == true)
-        #expect(store.bills.count == 1, "bills are voided, never deleted")
-    }
 
-    @Test("Voiding twice does not double-restore stock")
-    func voidingIsIdempotent() throws {
-        let store = makeStore()
-        let product = store.addProduct(name: "Deadbolt", stock: 8, cost: 40, price: 70)
-        let bill = try #require(
-            store.saveBill(lines: [.init(productUID: product.uid, qty: 3, price: 70)], customer: "Sami", paid: nil)
-        )
-
-        store.void(bill)
-        store.void(bill)
-
-        #expect(store.product(uid: product.uid)?.stock == 8)
+        store.deleteBill(number: bill.number)
+        #expect(store.product(uid: product.uid)?.stock == 8, "removing twice must not restock twice")
+        #expect(store.bills.isEmpty, "a removed bill is gone, not marked")
     }
 
     // MARK: Customers
@@ -229,15 +217,15 @@ struct StoreTests {
                 "no point suggesting exactly what has been typed")
     }
 
-    @Test("A voided bill leaves the customer book")
-    func voidedBillsDropOut() throws {
+    @Test("A removed bill leaves the customer book")
+    func removedBillsDropOut() throws {
         let store = makeStore()
         let product = store.addProduct(name: "Hinge", stock: 100, cost: 3, price: 10)
         let bill = try #require(
             store.saveBill(lines: [.init(productUID: product.uid, qty: 1, price: 10)], customer: "Sami", paid: 0)
         )
 
-        store.void(bill)
+        store.deleteBill(number: bill.number)
 
         #expect(store.customers().isEmpty)
         #expect(store.outstanding().names.isEmpty)

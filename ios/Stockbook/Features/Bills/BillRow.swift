@@ -2,9 +2,9 @@ import SwiftUI
 
 /// A bill as it appears on Today and on Bills. Tapping one opens `BillSheet`.
 ///
-/// The row used to carry "Void & put stock back" inline. It no longer does: the
-/// app's one destructive action on history now lives inside the opened bill, so
-/// reaching it costs a deliberate tap first, and the list stays a list.
+/// The row carries no destructive action of its own: correcting or removing a
+/// bill lives inside the opened document, so reaching either costs a deliberate
+/// tap first, and the list stays a list.
 struct BillRow: View {
     let bill: Bill
 
@@ -15,7 +15,6 @@ struct BillRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(bill.summary)
                     .nocturneText(.rowValue)
-                    .foregroundStyle(bill.voided ? Nocturne.neutral500 : Nocturne.text)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Text(meta).nocturneText(.meta)
@@ -34,10 +33,9 @@ struct BillRow: View {
         .contentShape(Rectangle())
     }
 
-    /// `voided · Ahmed Contracting · 09:41 · 2 items · owes SAR 94`
+    /// `Ahmed Contracting · 09:41 · 2 items · owes SAR 94`
     private var meta: String {
         var parts: [String] = []
-        if bill.voided { parts.append(Loc.voided) }
         if !bill.who.isBlank { parts.append(bill.who) }
         parts.append(Loc.time(bill.createdAt))
         parts.append(Loc.items(bill.lines.count))
@@ -48,7 +46,6 @@ struct BillRow: View {
     }
 
     private var totalColor: Color {
-        if bill.voided { return Nocturne.neutral500 }
-        return bill.isPartPaid ? Nocturne.accent400 : Nocturne.text
+        bill.isPartPaid ? Nocturne.accent400 : Nocturne.text
     }
 }

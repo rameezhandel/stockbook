@@ -129,7 +129,7 @@ class InvoiceNumberTests {
     }
 
     @Test
-    fun `voiding a bill frees its number`() {
+    fun `removing a bill frees its number`() {
         // The correction path: a bill typed wrong is voided and entered again,
         // and the wrong one must not keep the paper's number to itself.
         val store = store()

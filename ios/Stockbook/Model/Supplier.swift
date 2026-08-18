@@ -14,11 +14,10 @@ struct Supplier: Identifiable, Hashable, Sendable {
     /// The roster's spelling where there is one, otherwise the latest delivery's.
     let name: String
     let key: String
-    /// Live purchases only. A voided delivery did not happen.
     let purchaseCount: Int
-    /// What the shop has bought from them, across live purchases.
+    /// What the shop has bought from them.
     let total: Double
-    /// What the shop still owes: unpaid balances on live purchases, less every
+    /// What the shop still owes: unpaid balances on their purchases, less every
     /// payment made since. Signed, like a customer's — paying a supplier ahead is
     /// real money and hiding it would make the next statement wrong.
     let owed: Double

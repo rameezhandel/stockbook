@@ -49,7 +49,7 @@ data class Bill(
      * A string, not an int: bill books are numbered "1024" in some shops and
      * "A-1024" in others, and neither is arithmetic. Distinct from [number],
      * which is this app's own counter and its identity — that one has to stay
-     * unique and machine-assigned, or voiding and history lookups lose their
+     * unique and machine-assigned, or editing and history lookups lose their
      * handle. This is a label the owner recognises; that is a key.
      */
     val invoiceNo: String? = null,

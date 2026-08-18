@@ -110,17 +110,17 @@ struct AmountFirstTests {
         #expect(ahmed.owed == 350)
     }
 
-    @Test("Voiding a bill with no items takes nothing off the shelf")
-    func voidingABillWithNoItems() throws {
+    @Test("Removing a bill with no items takes nothing off the shelf")
+    func removingABillWithNoItems() throws {
         let store = makeStore()
         let product = aProduct(in: store, stock: 50)
         let bill = try #require(store.saveBill(customer: "Ahmed", paid: 0, amount: 450))
 
-        store.void(bill)
+        store.deleteBill(number: bill.number)
 
         #expect(try #require(store.product(uid: product.uid)).stock == 50, "nothing went out, so nothing comes back")
-        // Ahmed was never on the roster and his one bill is now void, so he may
-        // not be listed at all — what matters is that nothing is owed either way.
+        // Ahmed was never on the roster and his one bill is gone, so he may not
+        // be listed at all — what matters is that nothing is owed either way.
         let owed = store.customers().first { $0.key == "ahmed" }?.owed ?? 0
         #expect(owed == 0)
     }
@@ -173,14 +173,14 @@ struct AmountFirstTests {
         #expect(try #require(store.product(uid: product.uid)).stock == 10)
     }
 
-    @Test("Voiding a supplier bill with no product takes nothing off the shelf")
-    func voidingASupplierBillWithNoProduct() throws {
+    @Test("Removing a supplier bill with no product takes nothing off the shelf")
+    func removingASupplierBillWithNoProduct() throws {
         let store = makeStore()
         let product = aProduct(in: store, stock: 10)
         let supplier = try #require(store.addSupplier(name: "Al Faisal"))
         let purchase = try #require(store.recordSupplierBill(supplierKey: supplier.key, amount: 800, paid: 0))
 
-        store.voidPurchase(id: purchase.id)
+        store.deletePurchase(id: purchase.id)
 
         #expect(try #require(store.product(uid: product.uid)).stock == 10)
         #expect(try #require(store.suppliers().first).owed == 0)

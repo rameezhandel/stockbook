@@ -153,7 +153,7 @@ class StoreTests {
     }
 
     @Test
-    fun `voiding puts the stock back and is idempotent`() {
+    fun `removing a bill puts the stock back and is idempotent`() {
         val store = makeStore()
         val product = store.addProduct("Hinge", stock = 10, cost = 3.0, price = 10.0)
         val bill = assertNotNull(store.saveBill(listOf(DraftLine(product.uid, 4, 10.0)), "Sami", null))
@@ -210,7 +210,7 @@ class StoreTests {
     }
 
     @Test
-    fun `a voided bill leaves the customer book`() {
+    fun `a removed bill leaves the customer book`() {
         val store = makeStore()
         val product = store.addProduct("Hinge", stock = 100, cost = 3.0, price = 10.0)
         val bill = assertNotNull(store.saveBill(listOf(DraftLine(product.uid, 1, 10.0)), "Sami", paid = 0.0))

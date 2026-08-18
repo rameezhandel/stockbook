@@ -113,8 +113,7 @@ struct StatementTests {
         _ number: Int,
         on date: Date,
         total: Double,
-        paid: Double? = nil,
-        voided: Bool = false
+        paid: Double? = nil
     ) -> Bill {
         Bill(
             number: number,
@@ -122,8 +121,7 @@ struct StatementTests {
             total: total,
             paid: paid,
             who: "Ahmed Contracting",
-            createdAt: date,
-            voided: voided
+            createdAt: date
         )
     }
 
@@ -209,20 +207,6 @@ struct StatementTests {
         #expect(statement.isEmpty, "nothing happened in August")
     }
 
-    @Test("A voided bill is listed and counts for nothing")
-    func voided() {
-        let statement = august(
-            bills: [
-                bill(1, on: date(2026, 8, 4), total: 900, paid: 0),
-                bill(2, on: date(2026, 8, 5), total: 500, paid: 0, voided: true)
-            ]
-        )
-
-        #expect(statement.entries.count == 2, "history is marked, never hidden")
-        #expect(statement.billed == 900)
-        #expect(statement.closingBalance == 900)
-    }
-
     @Test("Entries read downwards, oldest first")
     func order() {
         let statement = august(
@@ -250,7 +234,7 @@ struct StatementTests {
                 bill(1, on: date(2026, 3, 2), total: 900, paid: 0),
                 bill(2, on: date(2026, 8, 4), total: 250, paid: 100),
                 bill(3, on: date(2026, 8, 6), total: 80),
-                bill(4, on: date(2026, 8, 9), total: 400, paid: 0, voided: true)
+                bill(4, on: date(2026, 8, 9), total: 400, paid: 0)
             ],
             payments: [payment(200, on: date(2026, 8, 12)), payment(25, on: date(2026, 8, 28))]
         )

@@ -139,10 +139,10 @@ struct SupplierTests {
         #expect(store.purchases.isEmpty)
     }
 
-    // MARK: Voiding
+    // MARK: Removing
 
-    @Test("Voiding a delivery takes the stock back off the shelf")
-    func voidPurchase() throws {
+    @Test("Removing a delivery takes the stock back off the shelf")
+    func removePurchase() throws {
         let store = makeStore()
         let product = aProduct(in: store, stock: 2)
         let record = try #require(store.addSupplier(name: "Al Faisal"))
@@ -150,17 +150,17 @@ struct SupplierTests {
             store.recordPurchase(product: product, supplierKey: record.key, quantity: 10, unitCost: 60, paid: 0)
         )
 
-        store.voidPurchase(id: purchase.id)
+        store.deletePurchase(id: purchase.id)
 
         #expect(try #require(store.product(uid: product.uid)).stock == 2)
-        #expect(store.purchases.first?.voided == true, "history is marked, not deleted")
+        #expect(store.purchases.isEmpty, "removed outright rather than marked")
         let supplier = try #require(store.supplier(key: record.key))
-        #expect(supplier.owed == 0, "a voided delivery is owed for by nobody")
+        #expect(supplier.owed == 0, "and owed for by nobody")
         #expect(supplier.purchaseCount == 0)
     }
 
-    @Test("Voiding twice does not remove the stock twice")
-    func voidTwice() throws {
+    @Test("Removing twice does not remove the stock twice")
+    func removeTwice() throws {
         let store = makeStore()
         let product = aProduct(in: store, stock: 5)
         let record = try #require(store.addSupplier(name: "Al Faisal"))
@@ -168,14 +168,14 @@ struct SupplierTests {
             store.recordPurchase(product: product, supplierKey: record.key, quantity: 3, unitCost: 60)
         )
 
-        store.voidPurchase(id: purchase.id)
-        store.voidPurchase(id: purchase.id)
+        store.deletePurchase(id: purchase.id)
+        store.deletePurchase(id: purchase.id)
 
         #expect(try #require(store.product(uid: product.uid)).stock == 5)
     }
 
     @Test("Stock already sold on floors at zero rather than going negative")
-    func voidAfterSelling() throws {
+    func removeAfterSelling() throws {
         let store = makeStore()
         let product = aProduct(in: store, stock: 0)
         let record = try #require(store.addSupplier(name: "Al Faisal"))
@@ -185,7 +185,7 @@ struct SupplierTests {
         // All four sold before anybody noticed the delivery was wrong.
         store.saveBill(lines: [DraftLine(productUID: product.uid, qty: 4, price: 95)], customer: "Ahmed", paid: nil)
 
-        store.voidPurchase(id: purchase.id)
+        store.deletePurchase(id: purchase.id)
 
         #expect(try #require(store.product(uid: product.uid)).stock == 0)
     }

@@ -146,7 +146,11 @@ private struct AppShell: View {
             ProductEditorSheet(product: target.product)
         }
         .nocturneSheet(item: $router.addStock) { target in
-            AddStockSheet(product: target.product, startInPurchase: router.startingPurchase)
+            AddStockSheet(
+                product: target.product,
+                startInPurchase: router.startingPurchase,
+                editing: target.purchase
+            )
         }
         // Which product arrived. A purchase carries one product, so something has
         // to name it, and asking here is fewer taps than making the owner find the
@@ -174,7 +178,11 @@ private struct AppShell: View {
         }
     }
 
+    /// Hidden while a bill is being written, because the picker and the cart both
+    /// draw their own sticky footer there. A bill being **corrected** hides it
+    /// too, even with nothing on it yet: a correction entered as a figure has no
+    /// lines, and leaving the bar up would put two footers on top of each other.
     private var showsTabBar: Bool {
-        router.tab != .sell || cart.isEmpty
+        router.tab != .sell || (cart.isEmpty && !cart.isEditing)
     }
 }

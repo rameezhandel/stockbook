@@ -49,7 +49,7 @@ class CustomerTests {
     }
 
     @Test
-    fun `filtering by customer ignores case, and keeps voided bills visible`() {
+    fun `filtering by customer ignores case`() {
         val store = makeStore()
         val hinge = store.addProduct("Hinge", 100, 3.0, 10.0)
 
@@ -65,7 +65,7 @@ class CustomerTests {
     }
 
     @Test
-    fun `a voided bill is neither a sale nor a debt`() {
+    fun `a removed bill is neither a sale nor a debt`() {
         val store = makeStore()
         val hinge = store.addProduct("Hinge", 100, 3.0, 10.0)
 

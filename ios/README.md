@@ -50,7 +50,7 @@ merge conflict.
 **Views read, the store writes.** Screens read `store.products`, `store.bills`
 and `store.settings`; the setters are private, so "no view mutates data" is
 enforced rather than requested. Stock arithmetic, bill numbering, snapshotting,
-voiding and restocking all live in `StockbookStore` — the layer the tests drive,
+correcting and restocking all live in `StockbookStore` — the layer the tests drive,
 with no UI in the loop.
 
 **Storage is behind one protocol.** `StockbookRepository` is the only seam
@@ -161,9 +161,9 @@ The handoff's deliberate modelling decisions, and where they are enforced:
 | Everything sells by the piece — no units, no packs, no fractions | `Product` |
 | Bill lines snapshot name and price; editing a product never rewrites history | `StockbookStore.saveBill`, tested in `StoreTests.historyIsImmutable` |
 | Cost is *latest paid*, not a weighted average | `StockbookStore.restock(mode: .purchase)` |
-| Stock changes in exactly seven places, and nowhere else | setup · product editor · **itemised** bill (floor 0) · void (restore) · restock · delivery with a product on it · `setStock` after a count |
+| Stock changes in exactly seven places, and nowhere else | setup · product editor · **itemised** bill (floor 0) · editing or removing a bill (by the difference) · restock · delivery with a product on it, and editing or removing one · `setStock` after a count |
 | A bill or supplier bill entered as a figure moves no stock at all | `Bill.isItemised`, `Purchase.isItemised`, pinned in `AmountFirstTests` |
-| Bills are voided, never deleted | `StockbookStore.void` |
+| A mistake is edited or removed, never marked | `StockbookStore.updateBill` / `deleteBill`, and their delivery mirrors |
 
 Products carry a `uid: UUID` and nothing else identifies them. A row id or an
 object reference would be local to one store, and a bill line has to still point
@@ -179,7 +179,7 @@ it is the *only* way data moves between devices.
 { "version": 1, "exportedAt": "…", "ownerName": "…", "currencyCode": "SAR",
   "products":  [ { "uid": "…", "name": "…", "stock": 12, "cost": 60, "price": 95 } ],
   "bills":     [ { "number": 1, "createdAt": "…", "total": 190, "paid": 100,
-                   "who": "…", "voided": false, "lines": [ … ] } ],
+                   "who": "…", "lines": [ … ] } ],
   "customers": [ { "key": "ahmed", "name": "Ahmed", "openingBalance": 0, "createdAt": "…" } ],
   "payments":  [ { "id": "…", "customerKey": "ahmed", "amount": 30, "receivedAt": "…" } ] }
 ```
@@ -367,7 +367,7 @@ What moves, and why:
 | The picker/cart swap and tab changes cross-fade | which way you went |
 | The Bills list restacks on a filter change | the whole list was rewritten, not just scrolled |
 | A tab icon dissolves outline → filled | same glyph, new state |
-| The opened bill redraws on void | the tap changed the document under your thumb |
+| The opened bill redraws after an edit | the tap changed the document under your thumb |
 
 Everything goes through `.motion(_:value:)` rather than `.animation(_:value:)`,
 which checks **Reduce Motion** in one place — the call site that forgets is the
@@ -423,8 +423,8 @@ both it and setup step 4.
   number — so neither screen saves without one, the field is marked while it is
   empty, and the button says which thing is missing. On a bill it costs no typing,
   since the box arrives prefilled; on a delivery it is copied off the invoice that
-  came with the stock. Voiding frees the number again, since
-  void-and-re-enter is how a bill typed wrong gets corrected.
+  came with the stock. A document being **corrected** is left out of its own
+  duplicate check, and removing one frees its number again.
 
   `Bill.number` is untouched by all of this. It stays the app's own counter and
   the thing identity is built on; the typed number is a **label**, and conflating
@@ -432,8 +432,7 @@ both it and setup step 4.
   what it is told — the refusal is the screen's, because a screen can hand the
   number back to the person who typed it and a restored backup cannot.
 - **Receipt** — the full-screen confirmation, including the faded rule.
-- **Bills** — full history newest-first, with the muted treatment on voided
-  ones, and a customer filter. Tapping any bill on Bills or Today opens it as a
+- **Bills** — full history newest-first, and a customer filter. Tapping any bill on Bills or Today opens it as a
   document.
 - **Customers** — a stored roster of the typed-in facts (name, phone, place)
   merged with the figures derived from history, keyed case-insensitively so
@@ -445,8 +444,8 @@ both it and setup step 4.
   customer rather than to an invoice, because that is how a counter settles.
   They come off what is owed, so the Bills filter and the Today banner stop
   claiming money already in the till. A mistyped one is deleted from the
-  statement in two taps; unlike a bill there is nothing to void, since a payment
-  is one number and one date.
+  statement in two taps; unlike a bill there is nothing to correct, since a
+  payment is one number and one date.
 - **Suppliers and purchases** — the customer half of the book, pointing the other
   way. A delivery is entered from the add-stock sheet against a supplier **chosen
   from the roster**, never a typed name, and it puts the stock on the shelf, takes
@@ -455,8 +454,8 @@ both it and setup step 4.
   product back on the shelf, and five lines entered as five purchases are five
   true records rather than one convenient fiction.
 
-  A wrong delivery is **voided**, which takes the stock back off the shelf —
-  idempotent, and floored at zero, since it may already have been sold. Money paid
+  A wrong delivery is **edited or removed**, and either takes the stock back off
+  the shelf — floored at zero, since it may already have been sold. Money paid
   to a supplier is its own record, exactly as a customer's payment is, and the same
   two sheets serve both directions: `PartyEditorSheet` and `PaymentSheet`, each
   with two entry points. What a payment *is* does not change with its direction.
@@ -469,9 +468,9 @@ both it and setup step 4.
 - **The bill itself** — `BillTemplate`: letterhead, number, date, customer,
   every line with its arithmetic, total and what is owed. One view, used both
   by the confirmation after saving and by the sheet that opens from history, so
-  the two cannot drift apart. Void lives inside the opened bill rather than on
-  the list row — the app's one destructive action on history now costs a
-  deliberate tap to reach, and the row goes back to being a row.
+  the two cannot drift apart. Edit and Remove live inside the opened bill rather
+  than on the list row — the app's actions on saved history cost a deliberate tap
+  to reach, and the row goes back to being a row.
 
   **Shareable as plain text**, from the confirmation and from history alike —
   `BillText.plainText`, a pure function of the bill, checked against literal
@@ -521,7 +520,7 @@ construction:
   not answerable. Allocation would be a fiction the owner then has to maintain.
 
 **Not built, and not to be built without asking:** low-stock alerts, returns,
-bill editing beyond void, **purchase** editing beyond void, printable receipts,
+printable receipts,
 barcode scanning, product photos, multi-user, VAT, reporting, profit reporting,
 multi-line delivery notes, and weighted-average costing — `Product.cost` stays
 "latest paid". All were considered and deliberately cut. *(A customer ledger was
@@ -540,7 +539,7 @@ xcodebuild test -scheme Stockbook -destination 'platform=iOS Simulator,name=iPho
 
 They cover the rules where a plausible-looking wrong implementation is easy to
 write: stock flooring at zero, part payments clamping to the total, history
-surviving a product edit, voiding being idempotent, the owed banner counting
+surviving a product edit, an edit moving the shelf by the difference, the owed banner counting
 people rather than bills, suggestion ranking, cost being latest-paid, and the
 backup round trip and its rejections.
 

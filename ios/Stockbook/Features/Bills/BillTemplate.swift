@@ -49,14 +49,6 @@ struct BillTemplate: View {
                 Text(bill.reference(Loc))
                     .font(NocturneType.inter(20, .medium))
                 Spacer(minLength: 8)
-                if bill.voided {
-                    Text(Loc.voided)
-                        .font(NocturneType.inter(11, .medium))
-                        .foregroundStyle(Nocturne.accent)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .hairline(Nocturne.accent, radius: 6)
-                }
             }
             .padding(.bottom, 4)
 
@@ -115,17 +107,15 @@ struct BillTemplate: View {
 
             Text(paymentNote)
                 .font(NocturneType.inter(12.5))
-                .foregroundStyle(bill.voided ? Nocturne.neutral500 : Nocturne.accent400)
+                .foregroundStyle(Nocturne.accent400)
                 .lineSpacing(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 7)
         }
     }
 
-    /// `Paid in full, cash.` / `Paid SAR 100 · Ahmed owes SAR 94` / the voided
-    /// note, which outranks both — a voided bill is owed nothing.
+    /// `Paid in full, cash.` or `Paid SAR 100 · Ahmed owes SAR 94`.
     private var paymentNote: String {
-        if bill.voided { return Loc.voidedNote }
         guard let paid = bill.paid else { return Loc.paidInFullCash }
         return Loc.partPaidNote(
             paid: Money.text(paid, in: currency),

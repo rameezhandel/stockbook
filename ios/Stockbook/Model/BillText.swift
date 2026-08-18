@@ -32,11 +32,7 @@ enum BillText {
         lines.append("")
         lines.append("\(strings.total): \(Money.text(bill.total, in: currency))")
 
-        if bill.voided {
-            // A voided bill owes nothing, and says so before it says anything
-            // about money — otherwise sending one reads as a demand.
-            lines.append(strings.voidedNote)
-        } else if let paid = bill.paid {
+        if let paid = bill.paid {
             lines.append(strings.partPaidNote(
                 paid: Money.text(paid, in: currency),
                 who: bill.who,

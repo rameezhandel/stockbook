@@ -13,7 +13,6 @@ struct TodayScreen: View {
 
     private var bills: [Bill] { store.bills }
     private var settings: Settings { store.settings }
-    private var liveBills: [Bill] { store.liveBills }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -68,10 +67,10 @@ struct TodayScreen: View {
         HStack(spacing: Metrics.cardGap) {
             StatCard(
                 label: Loc.soldToday,
-                value: Money.text(liveBills.reduce(0) { $0 + $1.total }, in: currency),
+                value: Money.text(bills.reduce(0) { $0 + $1.total }, in: currency),
                 gradient: true
             )
-            StatCard(label: Loc.billsStat, value: String(liveBills.count))
+            StatCard(label: Loc.billsStat, value: String(bills.count))
         }
         .padding(.bottom, Metrics.cardGap)
     }

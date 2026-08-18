@@ -138,9 +138,9 @@ struct InvoiceNumberTests {
         #expect(store.billWithInvoiceNo("") == nil, "an empty box is not a clash with every blank bill")
     }
 
-    @Test("Voiding a bill frees its number")
-    func voidingFreesTheNumber() throws {
-        // The correction path: a bill typed wrong is voided and entered again,
+    @Test("Removing a bill frees its number")
+    func removingFreesTheNumber() throws {
+        // The correction path: a bill typed wrong is removed and entered again,
         // and the wrong one must not keep the paper's number to itself.
         let store = makeStore()
         let product = aProduct(in: store)
@@ -153,7 +153,7 @@ struct InvoiceNumberTests {
             )
         )
 
-        store.void(bill)
+        store.deleteBill(number: bill.number)
 
         #expect(store.billWithInvoiceNo("1024") == nil)
     }

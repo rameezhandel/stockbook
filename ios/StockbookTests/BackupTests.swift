@@ -89,12 +89,89 @@ struct BackupTests {
         let destination = makeStore()
         destination.replaceEverything(with: source.makeBackupDocument())
 
-        // Voiding on the new phone has to find the product by uid, which is the
-        // whole reason products carry one.
+        // Removing on the new phone has to find the product by uid to put the
+        // stock back, which is the whole reason products carry one.
         let importedBill = try #require(destination.bills.first { $0.number == bill.number })
-        destination.void(importedBill)
+        destination.deleteBill(number: importedBill.number)
 
         #expect(destination.products.first?.stock == 10)
+    }
+
+    // MARK: Across the two platforms
+
+    /// The file is the only way data moves between phones, and one of those
+    /// phones may be an Android one. `voided` is gone from both models, so
+    /// neither may still be writing it: a key that means nothing is a key the
+    /// next reader has to guess about, and a build that read it would restore
+    /// bills marked as something this app no longer has a word for.
+    @Test("Nothing writes a voided flag any more")
+    func voidedIsNotWritten() throws {
+        let store = makeStore()
+        let product = store.addProduct(name: "Cisa lock", stock: 12, cost: 60, price: 95)
+        store.saveBill(
+            lines: [.init(productUID: product.uid, qty: 2, price: 95)],
+            customer: "Ahmed",
+            paid: 100,
+            invoiceNo: "A-1024"
+        )
+        let supplier = try #require(store.addSupplier(name: "Al Faisal"))
+        store.recordPurchase(
+            product: product,
+            supplierKey: supplier.key,
+            quantity: 5,
+            unitCost: 60,
+            invoiceNo: "INV-88"
+        )
+
+        let json = try #require(String(data: try BackupService.encode(store.makeBackupDocument()), encoding: .utf8))
+
+        #expect(!json.contains("voided"), "\(json)")
+    }
+
+    /// The mirror of the rule above: a file an older build wrote **does** carry
+    /// the key, and it still has to import. An unknown key is ignored rather than
+    /// refused, or every backup taken before this change would be lost.
+    @Test("A backup written before voiding was removed still imports")
+    func voidedIsIgnoredOnImport() throws {
+        let data = Data("""
+        {
+          "version" : 2,
+          "exportedAt" : "2026-07-28T09:41:00Z",
+          "ownerName" : "Khalid Al-Amri",
+          "currencyCode" : "SAR",
+          "products" : [],
+          "bills" : [
+            {
+              "createdAt" : "2026-07-28T09:41:00Z",
+              "lines" : [],
+              "number" : 1,
+              "total" : 190,
+              "voided" : true,
+              "who" : "Ahmed Contracting"
+            }
+          ],
+          "customers" : [],
+          "payments" : [],
+          "suppliers" : [],
+          "purchases" : [
+            {
+              "createdAt" : "2026-07-28T10:15:00Z",
+              "id" : "1A2B3C4D-5E6F-4A7B-8C9D-0E1F2A3B4C5D",
+              "supplierKey" : "al faisal",
+              "total" : 800,
+              "voided" : true
+            }
+          ],
+          "supplierPayments" : []
+        }
+        """.utf8)
+
+        let document = try BackupService.decode(data)
+
+        #expect(document.bills.count == 1)
+        #expect(document.bills.first?.total == 190)
+        #expect(document.purchases.count == 1)
+        #expect(document.purchases.first?.total == 800)
     }
 
     // MARK: Validation

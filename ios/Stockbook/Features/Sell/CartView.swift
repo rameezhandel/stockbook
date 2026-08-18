@@ -58,8 +58,12 @@ struct CartView: View {
     }
 
     /// The bill already carrying this number, if the shop has written it twice.
+    ///
+    /// A bill being corrected is excluded from its own check: without that,
+    /// opening 1024 to change its date would be told 1024 is already taken, by
+    /// itself.
     private var clash: Bill? {
-        store.billWithInvoiceNo(cart.invoiceNo)
+        store.billWithInvoiceNo(cart.invoiceNo, exceptNumber: cart.editing)
     }
 
     // MARK: Sticky footer
@@ -126,17 +130,33 @@ struct CartView: View {
             }
 
             VStack(spacing: 4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(Loc.total)
-                        .font(NocturneType.inter(13))
-                        .foregroundStyle(Nocturne.neutral500)
-                    Spacer()
-                    // The one number the customer is also looking at. It rolls
-                    // rather than swapping, so a quantity tapped while the eye
-                    // is on the stepper still reads as the total moving.
-                    Text(Money.text(cart.total, in: currency))
-                        .nocturneText(.bigNumber(28))
-                        .rollingNumber(cart.total)
+                // What the bill came to: typed while nothing says what it is made
+                // of, computed from then on — never both at once, or the footer is
+                // showing one figure and about to save another.
+                if cart.lines.isEmpty {
+                    NocturneField.number(
+                        label: Loc.amountField,
+                        text: $cart.amountText,
+                        height: Metrics.tallInputHeight,
+                        isRequiredAndEmpty: cart.total <= 0,
+                        emphasis: .sellingPrice,
+                        prefix: currency.symbol.trimmed,
+                        fontSize: 17,
+                        identifier: "cart.amount"
+                    )
+                } else {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(Loc.total)
+                            .font(NocturneType.inter(13))
+                            .foregroundStyle(Nocturne.neutral500)
+                        Spacer()
+                        // The one number the customer is also looking at. It rolls
+                        // rather than swapping, so a quantity tapped while the eye
+                        // is on the stepper still reads as the total moving.
+                        Text(Money.text(cart.total, in: currency))
+                            .nocturneText(.bigNumber(28))
+                            .rollingNumber(cart.total)
+                    }
                 }
 
                 if cart.payMode == .part {
@@ -172,13 +192,14 @@ struct CartView: View {
         // A number on two bills is two records the shop cannot tell apart later,
         // so this one is a refusal rather than a warning.
         if clash != nil { return Loc.changeTheInvoiceNo }
-        if cart.canSave { return Loc.saveBill }
+        if cart.canSave { return cart.isEditing ? Loc.saveChanges : Loc.saveBill }
         // Whatever is missing, the button names it: an empty name box needs a
-        // name, a typed one needs a choice from the list, and a cleared number
-        // box needs a number.
+        // name, a typed one needs a choice from the list, a cleared number box
+        // needs a number, and a bill with nothing on it needs a figure.
         if cart.customer.isBlank { return Loc.enterCustomerName }
         if cart.customerKey == nil { return Loc.chooseFromTheList }
-        return Loc.enterBillNumber
+        if cart.invoiceNo.isBlank { return Loc.enterBillNumber }
+        return Loc.enterAnAmount
     }
 }
 

@@ -77,7 +77,7 @@ struct RepositoryTests {
         }
     }
 
-    @Test("Bills append and update by number")
+    @Test("A bill can be appended, then updated in place, then removed")
     func billLifecycle() throws {
         try eachRepository { repository, name in
             let bill = Bill(
@@ -85,18 +85,21 @@ struct RepositoryTests {
                 lines: [BillLine(productUID: UUID(), name: "Padlock", qty: 2, price: 45)],
                 total: 90,
                 paid: nil,
-                who: "Sami"
+                who: "Ahmed"
             )
             try repository.append(bill)
             #expect(try repository.loadAll().bills.count == 1, "\(name)")
 
-            var voided = bill
-            voided.voided = true
-            try repository.update(voided)
+            var corrected = bill
+            corrected.who = "Ahmed Contracting"
+            try repository.update(corrected)
 
             let bills = try repository.loadAll().bills
             #expect(bills.count == 1, "\(name): update must not append")
-            #expect(bills.first?.voided == true, "\(name)")
+            #expect(bills.first?.who == "Ahmed Contracting", "\(name)")
+
+            try repository.deleteBill(number: bill.number)
+            #expect(try repository.loadAll().bills.isEmpty, "\(name)")
         }
     }
 

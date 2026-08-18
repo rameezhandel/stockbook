@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// The sales half's mirror: the supplier panel on top — pick one and see what is
 /// owed to them — and every delivery underneath, newest first. A wrong delivery is
-/// opened and voided, never deleted, exactly as a wrong bill is.
+/// opened and corrected, exactly as a wrong bill is.
 struct PurchasesPane: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
@@ -52,15 +52,12 @@ struct PurchasesPane: View {
     }
 }
 
-/// One delivery. Voided ones stay in the list, muted and marked — history is
-/// never hidden here, only struck through.
+/// One delivery.
 private struct DeliveryRow: View {
     let purchase: Purchase
     let supplierName: String
 
     @Environment(\.currency) private var currency
-
-    private var muted: Bool { purchase.voided }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -70,12 +67,14 @@ private struct DeliveryRow: View {
                 // product name would be.
                 Text(purchase.name ?? Loc.supplierBillTitle)
                     .nocturneText(.rowPrimary)
-                    .foregroundStyle(muted ? Nocturne.neutral500 : Nocturne.text)
                     .lineLimit(1)
+                // A delivery says what arrived and at what; a supplier bill
+                // entered as a figure has only the name to show, and "× 0" beside
+                // it would read as a count the app lost.
                 Text(
-                    muted
-                        ? Loc.voided
-                        : "\(supplierName) · \(Loc.perPiece(qty: purchase.qty, cost: Money.text(purchase.unitCost, in: currency)))"
+                    purchase.isItemised
+                        ? "\(supplierName) · \(Loc.perPiece(qty: purchase.qty, cost: Money.text(purchase.unitCost, in: currency)))"
+                        : supplierName
                 )
                 .nocturneText(.meta)
                 .lineLimit(1)
@@ -85,7 +84,6 @@ private struct DeliveryRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(Money.text(purchase.total, in: currency))
                     .font(NocturneType.inter(14))
-                    .foregroundStyle(muted ? Nocturne.neutral500 : Nocturne.text)
                 Text(
                     purchase.balance > 0
                         ? Loc.owes(Money.text(purchase.balance, in: currency))

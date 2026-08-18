@@ -16,7 +16,6 @@ struct SettingsScreen: View {
 
     private var settings: Settings { store.settings }
     private var products: [Product] { store.products }
-    private var liveBills: [Bill] { store.liveBills }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -62,7 +61,7 @@ struct SettingsScreen: View {
 
                 HStack(spacing: 10) {
                     stat(Loc.productsStat, products.count)
-                    stat(Loc.billsStat, liveBills.count)
+                    stat(Loc.billsStat, store.bills.count)
                     stat(Loc.customersStat, store.customers().count)
                 }
             }

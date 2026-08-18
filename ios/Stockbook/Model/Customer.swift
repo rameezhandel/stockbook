@@ -25,13 +25,12 @@ struct Customer: Identifiable, Hashable, Sendable {
     /// counter for every bill.
     let key: String
 
-    /// Live bills only. A voided bill did not happen.
     let billCount: Int
 
-    /// What they have bought, across live bills.
+    /// What they have bought.
     let total: Double
 
-    /// What they still owe: unpaid balances on live bills, **less every payment
+    /// What they still owe: unpaid balances on their bills, **less every payment
     /// received since**. Can go negative when somebody pays ahead, and is left
     /// signed rather than floored — an advance is real money and hiding it would
     /// make the next statement look wrong.

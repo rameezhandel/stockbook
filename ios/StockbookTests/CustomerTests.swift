@@ -42,7 +42,7 @@ struct CustomerTests {
         #expect(store.bills.last?.who == "ahmed")
     }
 
-    @Test("Filtering by customer ignores case, and keeps voided bills visible")
+    @Test("Filtering by customer ignores case, and a removed bill is not listed")
     func filterByCustomer() throws {
         let store = makeStore()
         let hinge = store.addProduct(name: "Hinge", stock: 100, cost: 3, price: 10)
@@ -53,16 +53,16 @@ struct CustomerTests {
         )
         store.saveBill(lines: [.init(productUID: hinge.uid, qty: 1, price: 10)], customer: "Sami", paid: nil)
 
-        store.void(second)
+        store.deleteBill(number: second.number)
 
         let key = Customer.key(for: "AHMED")
-        // History is never hidden, only marked — the voided bill still lists.
-        #expect(store.bills(forCustomer: key).count == 2)
+        // Removed outright: it is not history any more, so it is not listed.
+        #expect(store.bills(forCustomer: key).count == 1)
         #expect(store.bills(forCustomer: Customer.key(for: "sami")).count == 1)
     }
 
-    @Test("A voided bill is neither a sale nor a debt")
-    func voidedBillsLeaveTheFigures() throws {
+    @Test("A removed bill is neither a sale nor a debt")
+    func removedBillsLeaveTheFigures() throws {
         let store = makeStore()
         let hinge = store.addProduct(name: "Hinge", stock: 100, cost: 3, price: 10)
 
@@ -71,7 +71,7 @@ struct CustomerTests {
             store.saveBill(lines: [.init(productUID: hinge.uid, qty: 9, price: 10)], customer: "Ahmed", paid: 0)
         )
 
-        store.void(mistake)
+        store.deleteBill(number: mistake.number)
 
         let ahmed = try #require(store.customers().first)
         #expect(ahmed.billCount == 1)

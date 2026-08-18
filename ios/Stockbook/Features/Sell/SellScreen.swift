@@ -19,8 +19,13 @@ struct SellScreen: View {
     /// though the cart is full and nothing has been typed.
     @State private var browsing = false
 
+    /// A bill being corrected never opens on the picker, however few lines it has.
+    /// The owner tapped Edit on a document, and being handed a product list
+    /// instead of the document would look like the tap had done something else —
+    /// and for a bill entered as a figure there would be no way back to the form
+    /// at all.
     private var showsPicker: Bool {
-        cart.isEmpty || !query.isBlank || browsing
+        (cart.isEmpty && !cart.isEditing) || !query.isBlank || browsing
     }
 
     private var matches: [Product] { store.products(matching: query) }
@@ -100,11 +105,39 @@ struct SellScreen: View {
         query = ""
     }
 
+    /// Saves a new bill, or rewrites the one being corrected.
+    ///
+    /// `amount` is passed either way. The store ignores it when there are lines —
+    /// one rule, in one place, rather than a screen deciding which of two figures
+    /// is the real one.
+    ///
+    /// A correction closes onto the corrected document rather than the receipt
+    /// overlay: the owner came from that sheet and is checking the change landed,
+    /// not confirming a sale that has just happened.
     private func save() {
+        if let number = cart.editing {
+            guard let corrected = store.updateBill(
+                number: number,
+                lines: cart.draftLines,
+                customer: cart.customer,
+                paid: cart.paidForStorage,
+                amount: cart.typedAmount,
+                createdAt: cart.soldAt,
+                invoiceNo: cart.invoiceNo
+            ) else { return }
+
+            cart.clear()
+            closePicker()
+            router.tab = .book
+            router.openBill(corrected)
+            return
+        }
+
         guard let bill = store.saveBill(
             lines: cart.draftLines,
             customer: cart.customer,
             paid: cart.paidForStorage,
+            amount: cart.typedAmount,
             createdAt: cart.soldAt,
             invoiceNo: cart.invoiceNo
         ) else { return }

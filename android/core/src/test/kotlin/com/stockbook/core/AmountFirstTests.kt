@@ -113,7 +113,7 @@ class AmountFirstTests {
     }
 
     @Test
-    fun `voiding a bill with no items takes nothing off the shelf`() {
+    fun `removing a bill with no items takes nothing off the shelf`() {
         val store = store()
         val product = store.aProduct(stock = 50)
         val bill = assertNotNull(store.saveBill(customer = "Ahmed", paid = 0.0, amount = 450.0))
@@ -175,7 +175,7 @@ class AmountFirstTests {
     }
 
     @Test
-    fun `voiding a supplier bill with no product takes nothing off the shelf`() {
+    fun `removing a supplier bill with no product takes nothing off the shelf`() {
         val store = store()
         val product = store.aProduct(stock = 10)
         val supplier = assertNotNull(store.addSupplier("Al Faisal"))

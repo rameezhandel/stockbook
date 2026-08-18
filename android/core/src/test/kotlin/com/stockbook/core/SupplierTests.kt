@@ -141,7 +141,7 @@ class SupplierTests {
     // --- Voiding
 
     @Test
-    fun `voiding a delivery takes the stock back off the shelf`() {
+    fun `removing a delivery takes the stock back off the shelf`() {
         val store = store()
         val product = store.aProduct(stock = 2)
         val record = assertNotNull(store.addSupplier("Al Faisal"))

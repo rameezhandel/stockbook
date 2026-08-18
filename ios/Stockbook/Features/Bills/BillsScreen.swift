@@ -3,10 +3,9 @@ import SwiftUI
 /// Every bill ever saved, newest first — and, filtered to one customer, the
 /// answer to "what has this person bought and what do they still owe me?"
 ///
-/// Nothing here is deleted. A bill entered wrong is *voided*, which puts its
-/// stock back and leaves the record in place with a "voided" mark. Without that,
-/// one mistyped bill puts the shelf and the app permanently out of step; with
-/// deletion instead, the history quietly stops matching what actually happened.
+/// A bill entered wrong is **edited or removed** from the document itself, and
+/// either puts its stock back where it belongs. Nothing on this list does it:
+/// the row is a way in, and the correction lives one tap further on.
 struct BillsScreen: View {
     /// False inside the book, which carries one header for both halves.
     var showsHeader = true
@@ -116,9 +115,6 @@ struct BillsScreen: View {
 
     // MARK: What they are worth, and what they owe
 
-    /// Both figures count **live bills only** — a voided bill did not happen, so
-    /// it is neither a sale nor a debt. It still appears in the list below,
-    /// marked, because history is never hidden.
     private func summary(for customer: Customer) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 9) {

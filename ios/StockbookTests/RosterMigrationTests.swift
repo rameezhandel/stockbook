@@ -24,6 +24,10 @@ struct RosterMigrationTests {
     /// the next time a field is added. A default value on a property does **not**
     /// make the synthesised decoder tolerate a missing key; it throws. Without a
     /// hand-written decoder this file takes the whole shop down.
+    ///
+    /// It carries a `voided` key too, which is the other half of the same rule
+    /// pointing the other way: a field can be **removed** as well as added, and a
+    /// key nothing reads any more has to be ignored rather than refused.
     private let shopFileBeforeRoster = Data("""
     {
       "bills" : [

@@ -108,7 +108,7 @@ live here.
 
 Everything the iOS app does.
 
-- **The whole domain**, with 108 tests: products, bills, voiding, restock,
+- **The whole domain**, with 189 tests: products, bills, editing and removing, restock,
   customers and their case-insensitive identity, the stored roster and the
   payments that come off what is owed, statement periods and their arithmetic,
   money in fourteen currencies,

@@ -128,6 +128,17 @@ final class AppRouter {
         addStock = AddStockTarget(product: product)
     }
 
+    /// Reopens a saved delivery on the sheet it was entered on.
+    ///
+    /// The product comes from the store rather than from the purchase's snapshot,
+    /// because the sheet needs a live one to price against — and it is nil for a
+    /// supplier bill that named none, or one whose product has since been deleted.
+    func editDelivery(_ purchase: Purchase, product: Product?) {
+        purchaseDetail = nil
+        startingPurchase = true
+        addStock = AddStockTarget(product: product, purchase: purchase)
+    }
+
     func openBill(_ bill: Bill) {
         billDetail = bill
     }
@@ -166,9 +177,15 @@ struct ProductEditorTarget: Identifiable {
     var id: String { product?.uid.uuidString ?? "new" }
 }
 
+/// Identifies the add-stock sheet.
+///
+/// `product` is nil for a supplier bill that names none — which the sheet can be
+/// opened on only by correcting one, since nothing on iOS writes one yet.
+/// `purchase` is the delivery being corrected, nil for a new one.
 struct AddStockTarget: Identifiable {
-    let product: Product
-    var id: UUID { product.uid }
+    let product: Product?
+    var purchase: Purchase? = nil
+    var id: String { purchase?.id.uuidString ?? product?.uid.uuidString ?? "new" }
 }
 
 /// Identifies the customer editor sheet. `nil` customer means "New customer".

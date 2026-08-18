@@ -297,9 +297,10 @@ class StockbookStore(private val repository: StockbookRepository) {
      * number. It lives here rather than on the screen because the delivery side
      * asks the same question, and one answer means one rule.
      *
-     * **Voided bills are ignored.** Voiding and re-entering is how a bill typed
-     * wrong gets corrected, and the wrong one must not hold the paper's number
-     * hostage afterwards.
+     * A removed bill takes its number with it, and a bill being edited does not
+     * clash with itself — see [exceptNumber]. Between them, that is what makes
+     * correcting a bill possible at all: neither the old record nor the bill in
+     * front of the owner may hold the paper's number hostage.
      */
     fun billWithInvoiceNo(invoiceNo: String?, exceptNumber: Int? = null): Bill? {
         val key = InvoiceNo.key(invoiceNo)

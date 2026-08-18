@@ -52,6 +52,27 @@ final class Cart {
     /// Held as text so a half-typed amount is representable.
     var paidText: String = ""
 
+    /// What the bill came to, typed rather than computed.
+    ///
+    /// The ordinary case in this shop: the paper bill was written before the app
+    /// was opened, so the figure is already known and rebuilding it product by
+    /// product to arrive at it is work for nothing. Held as text rather than a
+    /// number so a half-typed "45" is not a bill for forty-five riyals.
+    ///
+    /// Ignored the moment there are lines — see `total`. Two answers to "what did
+    /// it come to" is one too many, and the lines are the ones with arithmetic
+    /// behind them.
+    var amountText: String = ""
+
+    /// The number of the bill being corrected, or nil when this is a new one.
+    ///
+    /// It decides which store call Save makes and it is passed to the duplicate
+    /// check as `exceptNumber` — without that, opening bill 1024 to fix its date
+    /// would be told 1024 is already taken, by itself.
+    private(set) var editing: Int?
+
+    var isEditing: Bool { editing != nil }
+
     /// The number written on the paper bill, when the shop wrote one. Free text:
     /// bill books are numbered "1024" in some shops and "A-1024" in others.
     var invoiceNo: String = ""
@@ -77,9 +98,19 @@ final class Cart {
 
     var isEmpty: Bool { lines.isEmpty }
 
+    /// What the bill comes to: the typed figure until something is on it, the sum
+    /// of the lines from then on.
+    ///
+    /// The same rule `StockbookStore.saveBill` applies to what it is handed, said
+    /// once more here because the screen has to show the figure it is about to
+    /// save. If these two ever disagree the owner is looking at one number and
+    /// saving another.
     var total: Double {
-        lines.reduce(0) { $0 + $1.lineTotal }
+        lines.isEmpty ? (typedAmount ?? 0) : lines.reduce(0) { $0 + $1.lineTotal }
     }
+
+    /// The figure in the amount box, or nil when there is nothing readable in it.
+    var typedAmount: Double? { Money.parse(amountText) }
 
     /// The amount taken now: the full total, or the clamped part payment.
     var paidNow: Double {
@@ -96,8 +127,13 @@ final class Cart {
         payMode == .full ? nil : paidNow
     }
 
-    /// The gate on this screen: a bill needs something on it, somebody **chosen**
-    /// to give it to, and a number.
+    /// The gate on this screen: a bill needs a figure, somebody **chosen** to
+    /// give it to, and a number.
+    ///
+    /// A figure rather than a line: what was sold is optional, and a bill saying
+    /// only that Ahmed owes 450 is the shape of this shop. What it may never be is
+    /// a bill for nothing — `total` above zero is the whole of that test, however
+    /// the figure was arrived at.
     ///
     /// Not merely a non-blank name: a name nobody picked from the list is a name
     /// with no account behind it, so nothing could be owed against it or settled
@@ -107,7 +143,7 @@ final class Cart {
     /// over, and a record with none cannot be matched to the paper it came from —
     /// which is the whole reason for keeping the number at all. It costs no
     /// typing: the box arrives filled in with the next one.
-    var canSave: Bool { !lines.isEmpty && customerKey != nil && !invoiceNo.isBlank }
+    var canSave: Bool { customerKey != nil && !invoiceNo.isBlank && total > 0 }
 
     // MARK: Mutation
 
@@ -166,8 +202,44 @@ final class Cart {
         lines.removeAll { !known.contains($0.productUID) }
     }
 
+    /// Fills the cart from a bill already saved, so it can be corrected on the
+    /// form it was typed on.
+    ///
+    /// A line whose product has since been deleted is **dropped**, because there
+    /// is nothing left to price it against — and because `saveBill` and
+    /// `updateBill` would drop it anyway. Better it is missing from the form the
+    /// owner is looking at than missing only from what gets saved.
+    ///
+    /// `invoiceNoSeeded` is set here, or `CartView` would replace the bill's own
+    /// number with the next unused one the moment it appeared.
+    @MainActor
+    func load(_ bill: Bill, in store: StockbookStore) {
+        editing = bill.number
+        lines = bill.lines.compactMap { line in
+            guard let uid = line.productUID, let product = store.product(uid: uid) else { return nil }
+            return Line(
+                productUID: uid,
+                name: line.name,
+                qty: line.qty,
+                price: line.price,
+                basePrice: product.price
+            )
+        }
+        // A bill entered as a figure has no lines to sum, so the total goes back
+        // into the box it was typed into.
+        amountText = bill.isItemised ? "" : Money.amount(bill.total, in: store.settings.currency)
+        customer = bill.who
+        customerKey = Customer.key(for: bill.who)
+        payMode = bill.paid == nil ? .full : .part
+        paidText = bill.paid.map { Money.amount($0, in: store.settings.currency) } ?? ""
+        invoiceNo = bill.invoiceNo ?? ""
+        invoiceNoSeeded = true
+        soldAt = bill.createdAt
+    }
+
     func clear() {
         lines = []
+        amountText = ""
         customer = ""
         customerKey = nil
         payMode = .full
@@ -177,6 +249,7 @@ final class Cart {
         // the screen seeds it the moment it sees this go false.
         invoiceNoSeeded = false
         soldAt = .now
+        editing = nil
     }
 
     /// How many of a product are on the bill already. Zero when it is not.
