@@ -52,6 +52,7 @@ import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import com.stockbook.core.model.Bill
 import com.stockbook.core.model.Customer
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.model.Currency
@@ -81,14 +82,24 @@ fun CartView(
     strings: Strings,
     onBrowse: () -> Unit,
     onSave: () -> Unit,
+    /**
+     * The bill being corrected, where this is a correction rather than a new
+     * bill. It changes two things and nothing else: what the button says, and
+     * which bill the number check is allowed to ignore.
+     */
+    editing: Bill? = null,
     modifier: Modifier = Modifier
 ) {
     var pickingDate by remember { mutableStateOf(false) }
 
     // The bill already carrying this number, if the shop has written it twice.
     // Recomputed against `state` as well as the text, so a number freed by
-    // voiding the bill that held it stops being a clash immediately.
-    val clash = remember(state, cart.invoiceNo) { store.billWithInvoiceNo(cart.invoiceNo) }
+    // removing the bill that held it stops being a clash immediately — and never
+    // counting the bill being edited, or opening 1024 to fix its date would be
+    // told 1024 is taken, by itself.
+    val clash = remember(state, cart.invoiceNo, editing) {
+        store.billWithInvoiceNo(cart.invoiceNo, exceptNumber = editing?.number)
+    }
 
     // One past the last number the shop wrote, put in the box so the usual bill
     // needs no typing at all. Keyed on the seed flag rather than run once: the
@@ -201,7 +212,7 @@ fun CartView(
             }
         }
 
-        SaveBar(cart = cart, clash = clash, strings = strings, onSave = onSave)
+        SaveBar(cart = cart, clash = clash, editing = editing, strings = strings, onSave = onSave)
     }
 }
 
@@ -216,7 +227,7 @@ fun CartView(
 private fun PaperRow(
     cart: Cart,
     strings: Strings,
-    clash: com.stockbook.core.model.Bill?,
+    clash: Bill?,
     onPickDate: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -382,7 +393,8 @@ private fun PaymentBlock(
 @Composable
 private fun SaveBar(
     cart: Cart,
-    clash: com.stockbook.core.model.Bill?,
+    clash: Bill?,
+    editing: Bill?,
     strings: Strings,
     onSave: () -> Unit
 ) {
@@ -401,7 +413,9 @@ private fun SaveBar(
                     // A number on two bills is two records the shop cannot tell
                     // apart later, so this one is a refusal rather than a warning.
                     clash != null -> strings.changeTheInvoiceNo
-                    cart.canSave -> strings.saveBill
+                    // A correction says so, because "Save bill" over a bill that
+                    // already exists reads as a second one about to be written.
+                    cart.canSave -> if (editing != null) strings.saveChanges else strings.saveBill
                     // Whatever is missing, the button names it: an empty name box
                     // needs a name, a typed one needs a choice from the list, a
                     // cleared number box needs a number, and a bill with neither

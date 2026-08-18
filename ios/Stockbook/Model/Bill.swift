@@ -2,9 +2,10 @@ import Foundation
 
 /// One sale.
 ///
-/// Bills are never deleted. A mistake is *voided*, which puts the stock back and
-/// leaves the record in place — without that, one mistyped bill puts the shelf
-/// and the app permanently out of step.
+/// A mistake is **edited or removed**, and either puts the stock back where it
+/// belongs: this is the shop's own book, kept by the one person who writes in it,
+/// and the record that outlives a correction is the paper bill in the book rather
+/// than a crossed-out row in here.
 struct Bill: Identifiable, Codable, Equatable {
 
     /// The human-facing number, shown as "Bill #7". Allocated from
@@ -36,7 +37,7 @@ struct Bill: Identifiable, Codable, Equatable {
     /// A string, not an int: bill books are numbered "1024" in some shops and
     /// "A-1024" in others, and neither is arithmetic. Distinct from `number`,
     /// which is this app's own counter and its identity — that one has to stay
-    /// unique and machine-assigned, or voiding and history lookups lose their
+    /// unique and machine-assigned, or editing and history lookups lose their
     /// handle. This is a label the owner recognises; that is a key.
     var invoiceNo: String?
 
@@ -44,8 +45,6 @@ struct Bill: Identifiable, Codable, Equatable {
     var who: String
 
     var createdAt: Date
-
-    var voided: Bool
 
     var id: Int { number }
 
@@ -56,8 +55,7 @@ struct Bill: Identifiable, Codable, Equatable {
         paid: Double?,
         who: String,
         invoiceNo: String? = nil,
-        createdAt: Date = .now,
-        voided: Bool = false
+        createdAt: Date = .now
     ) {
         self.number = number
         self.lines = lines
@@ -66,7 +64,6 @@ struct Bill: Identifiable, Codable, Equatable {
         self.who = who
         self.invoiceNo = CustomerRecord.tidied(invoiceNo)
         self.createdAt = createdAt
-        self.voided = voided
     }
 
     /// Written by hand for the same reason `Settings` is: a default does not make
@@ -78,6 +75,10 @@ struct Bill: Identifiable, Codable, Equatable {
     /// empty list — which kotlinx.serialization would do the moment somebody
     /// turned `encodeDefaults` off on the other side — must not cost this shop
     /// its sales history.
+    ///
+    /// A `voided` key left over from the builds that marked a mistake instead of
+    /// correcting it is simply not read: an unknown key is ignored, so a shop
+    /// file written before voiding was removed still opens, whole.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         number = try container.decode(Int.self, forKey: .number)
@@ -87,16 +88,15 @@ struct Bill: Identifiable, Codable, Equatable {
         who = try container.decode(String.self, forKey: .who)
         invoiceNo = try container.decodeIfPresent(String.self, forKey: .invoiceNo)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
-        voided = try container.decodeIfPresent(Bool.self, forKey: .voided) ?? false
     }
 
-    /// What is still owed on this bill. Zero when paid in full or voided.
+    /// What is still owed on this bill. Zero when paid in full.
     var balance: Double {
-        guard !voided, let paid else { return 0 }
+        guard let paid else { return 0 }
         return max(0, total - paid)
     }
 
-    var isPartPaid: Bool { !voided && paid != nil }
+    var isPartPaid: Bool { paid != nil }
 
     /// Whether this bill says what was sold, or only what it came to.
     ///

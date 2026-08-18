@@ -98,6 +98,11 @@ final class JSONFileRepository: StockbookRepository {
         try persist()
     }
 
+    func deleteBill(number: Int) throws {
+        state.bills.removeAll { $0.number == number }
+        try persist()
+    }
+
     func upsert(_ customer: CustomerRecord) throws {
         if let index = state.customers.firstIndex(where: { $0.key == customer.key }) {
             state.customers[index] = customer
@@ -144,6 +149,11 @@ final class JSONFileRepository: StockbookRepository {
     func update(_ purchase: Purchase) throws {
         guard let index = state.purchases.firstIndex(where: { $0.id == purchase.id }) else { return }
         state.purchases[index] = purchase
+        try persist()
+    }
+
+    func deletePurchase(id: UUID) throws {
+        state.purchases.removeAll { $0.id == id }
         try persist()
     }
 
@@ -216,6 +226,10 @@ final class InMemoryRepository: StockbookRepository {
         state.bills[index] = bill
     }
 
+    func deleteBill(number: Int) throws {
+        state.bills.removeAll { $0.number == number }
+    }
+
     func upsert(_ customer: CustomerRecord) throws {
         if let index = state.customers.firstIndex(where: { $0.key == customer.key }) {
             state.customers[index] = customer
@@ -251,6 +265,10 @@ final class InMemoryRepository: StockbookRepository {
     func update(_ purchase: Purchase) throws {
         guard let index = state.purchases.firstIndex(where: { $0.id == purchase.id }) else { return }
         state.purchases[index] = purchase
+    }
+
+    func deletePurchase(id: UUID) throws {
+        state.purchases.removeAll { $0.id == id }
     }
 
     func append(_ payment: SupplierPayment) throws { state.supplierPayments.append(payment) }

@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
 import com.stockbook.app.design.EmptyStateBox
+import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Glyph
 import com.stockbook.app.design.Icon
 import com.stockbook.app.design.Metrics
@@ -52,6 +53,10 @@ import com.stockbook.core.text.Strings
  * say what was sold, so it is reached from "Add items" and left again by "Done
  * adding". The form never disappears from under an owner who has typed into it:
  * everything they entered is still there when they come back.
+ *
+ * It is also where a bill gets **corrected**. `router.editingBill` is what says
+ * so, and the form is the same one either way — a second screen for editing is a
+ * second screen to keep in step with this one, and it would lose that race.
  */
 @Composable
 fun SellScreen(
@@ -67,6 +72,9 @@ fun SellScreen(
     // here because the shell draws the tab bar and must not stack it under the
     // picker's own bottom bar.
     val browsing = router.pickingProducts
+    // Null for a new bill. The cart was filled from this one before the tab
+    // changed, so everything below draws it without knowing where it came from.
+    val editing = router.editingBill
 
     // Leaving Sell puts the picker away. It used to happen for free, when this
     // was a `remember` that died with the screen.
@@ -80,11 +88,32 @@ fun SellScreen(
     val matches = remember(state.products, query) { store.productsMatching(query) }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        ScreenHeader(title = strings.newBill, bottomPadding = 10.dp) {
-            // Only where there is a count to give. "Empty" beside a form with a
-            // customer and a figure already in it describes the item list and
-            // reads as a description of the bill.
-            if (!cart.isEmpty) {
+        ScreenHeader(
+            // Which bill is being corrected, said in the heading: the form below
+            // is identical to the one for a new bill, so this line is the whole
+            // of what tells the owner they are changing 1024 rather than writing
+            // 1025.
+            kicker = if (editing != null) strings.editBill else null,
+            title = editing?.reference(strings) ?: strings.newBill,
+            bottomPadding = 10.dp
+        ) {
+            if (editing != null) {
+                // The way out of a correction without making one. Without it an
+                // owner who tapped Edit by mistake has no way back to a blank
+                // form except by saving the bill they did not mean to touch.
+                GhostButton(
+                    strings.cancel,
+                    onClick = {
+                        cart.clear()
+                        router.closeBillEditing()
+                        query = ""
+                    },
+                    tint = Nocturne.neutral500
+                )
+            } else if (!cart.isEmpty) {
+                // Only where there is a count to give. "Empty" beside a form with
+                // a customer and a figure already in it describes the item list
+                // and reads as a description of the bill.
                 Text(
                     strings.lines(cart.lines.size),
                     style = NocturneType.inter(12.0),
@@ -151,23 +180,48 @@ fun SellScreen(
                         router.pickingProducts = true
                         query = ""
                     },
+                    editing = editing,
                     onSave = {
-                        val bill = store.saveBill(
-                            lines = cart.draftLines,
-                            customer = cart.customer,
-                            paid = cart.paidForStorage,
-                            // Passed whether or not there are lines. The store
-                            // ignores it when there are — one rule, in one place,
-                            // rather than a screen deciding which figure is real.
-                            amount = cart.typedAmount,
-                            createdAt = cart.soldAt,
-                            invoiceNo = cart.invoiceNo
-                        )
+                        // The same figures either way, into whichever of the two
+                        // this is. `updateBill` moves the shelf by the difference
+                        // between the old bill and the new one, which is why an
+                        // edit is one call rather than a removal and a save.
+                        val bill = if (editing != null) {
+                            store.updateBill(
+                                number = editing.number,
+                                lines = cart.draftLines,
+                                customer = cart.customer,
+                                paid = cart.paidForStorage,
+                                amount = cart.typedAmount,
+                                createdAt = cart.soldAt,
+                                invoiceNo = cart.invoiceNo
+                            )
+                        } else {
+                            store.saveBill(
+                                lines = cart.draftLines,
+                                customer = cart.customer,
+                                paid = cart.paidForStorage,
+                                // Passed whether or not there are lines. The store
+                                // ignores it when there are — one rule, in one
+                                // place, rather than a screen deciding which
+                                // figure is real.
+                                amount = cart.typedAmount,
+                                createdAt = cart.soldAt,
+                                invoiceNo = cart.invoiceNo
+                            )
+                        }
                         if (bill != null) {
                             cart.clear()
-                            router.pickingProducts = false
                             query = ""
-                            router.receipt = bill
+                            if (editing != null) {
+                                // Back to the list the bill was opened from, where
+                                // the corrected row is the confirmation. A receipt
+                                // here would announce a sale that did not happen.
+                                router.closeBillEditing()
+                            } else {
+                                router.pickingProducts = false
+                                router.receipt = bill
+                            }
                         }
                     }
                 )

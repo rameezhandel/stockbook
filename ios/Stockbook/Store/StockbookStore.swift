@@ -5,8 +5,8 @@ import Observation
 ///
 /// Views read `products`, `bills` and `settings` directly and never mutate them —
 /// the setters are private, so that is enforced rather than merely asked for.
-/// Stock arithmetic, bill numbering, snapshotting and the void/restock rules are
-/// all one layer, which is the layer the tests drive.
+/// Stock arithmetic, bill numbering, snapshotting and the stock rules are all one
+/// layer, which is the layer the tests drive.
 ///
 /// Persistence is a `StockbookRepository` and nothing here knows which one. The
 /// whole shop is held in memory because it comfortably fits — 50–300 products —
@@ -130,8 +130,6 @@ final class StockbookStore {
         products.first { $0.uid == uid }
     }
 
-    var liveBills: [Bill] { bills.filter { !$0.voided } }
-
     /// Case-insensitive substring match. In memory: at this catalogue size it is
     /// free, and it keeps the rule visible.
     func products(matching query: String) -> [Product] {
@@ -224,17 +222,13 @@ final class StockbookStore {
         let name = customer.trimmed
         guard !name.isEmpty else { return nil }
 
-        var snapshots: [BillLine] = []
-        for line in lines {
-            guard var product = product(uid: line.productUID) else { continue }
-            let quantity = max(1, line.qty)
-            snapshots.append(
-                BillLine(productUID: product.uid, name: product.name, qty: quantity, price: line.price)
-            )
-            // Only an itemised bill moves the shelf. Nothing else in the app can
-            // take stock off it, which is why a shop that types totals is told
-            // the count is its own to keep straight.
-            product.stock = max(0, product.stock - quantity)
+        let snapshots = snapshot(lines)
+        // Only an itemised bill moves the shelf. Nothing else in the app can take
+        // stock off it, which is why a shop that types totals is told the count is
+        // its own to keep straight.
+        for line in snapshots {
+            guard let uid = line.productUID, var product = product(uid: uid) else { continue }
+            product.stock = max(0, product.stock - line.qty)
             replace(product)
         }
 
@@ -274,20 +268,19 @@ final class StockbookStore {
     /// number. It lives here rather than on the screen because the delivery side
     /// asks the same question, and one answer means one rule.
     ///
-    /// **Voided bills are ignored.** Voiding and re-entering is how a bill typed
-    /// wrong gets corrected, and the wrong one must not hold the paper's number
-    /// hostage afterwards.
-    func billWithInvoiceNo(_ invoiceNo: String?) -> Bill? {
+    /// `exceptNumber` is what makes editing possible: without it, opening bill
+    /// 1024 to change its date would be told 1024 is already taken, by itself.
+    func billWithInvoiceNo(_ invoiceNo: String?, exceptNumber: Int? = nil) -> Bill? {
         let key = InvoiceNo.key(invoiceNo)
         guard !key.isEmpty else { return nil }
-        return bills.first { !$0.voided && InvoiceNo.key($0.invoiceNo) == key }
+        return bills.first { $0.number != exceptNumber && InvoiceNo.key($0.invoiceNo) == key }
     }
 
     /// The same question on the other side of the book.
-    func purchaseWithInvoiceNo(_ invoiceNo: String?) -> Purchase? {
+    func purchaseWithInvoiceNo(_ invoiceNo: String?, exceptId: UUID? = nil) -> Purchase? {
         let key = InvoiceNo.key(invoiceNo)
         guard !key.isEmpty else { return nil }
-        return purchases.first { !$0.voided && InvoiceNo.key($0.invoiceNo) == key }
+        return purchases.first { $0.id != exceptId && InvoiceNo.key($0.invoiceNo) == key }
     }
 
     /// What to put in the bill-number field before anything is typed: one past
@@ -298,27 +291,101 @@ final class StockbookStore {
     /// to the shop's own bill book, and guessing "1" would be the app inventing a
     /// run the paper does not have.
     func nextInvoiceNo() -> String? {
-        InvoiceNo.next(after: bills.first { !$0.voided && !($0.invoiceNo ?? "").isBlank }?.invoiceNo)
+        InvoiceNo.next(after: bills.first { !($0.invoiceNo ?? "").isBlank }?.invoiceNo)
     }
 
-    /// Voids a bill and puts its stock back. Bills are never deleted.
-    func void(_ bill: Bill) {
-        guard let index = bills.firstIndex(where: { $0.number == bill.number }), !bills[index].voided else { return }
+    /// The lines as they will be stored: names and prices taken **now**, so that
+    /// renaming or repricing a product tomorrow cannot rewrite what somebody paid
+    /// today. Reads products; moves no stock, which is what lets both saving and
+    /// editing decide separately what the shelf owes.
+    private func snapshot(_ lines: [DraftLine]) -> [BillLine] {
+        lines.compactMap { line in
+            guard let product = product(uid: line.productUID) else { return nil }
+            return BillLine(
+                productUID: product.uid,
+                name: product.name,
+                qty: max(1, line.qty),
+                price: line.price
+            )
+        }
+    }
 
-        for line in bills[index].lines {
+    /// Rewrites a bill, and moves the shelf by the difference.
+    ///
+    /// The old lines go back on and the new ones come off, so an edit that drops a
+    /// line, changes a quantity or abandons itemising altogether leaves the count
+    /// exactly where entering the corrected bill from scratch would have.
+    ///
+    /// Nothing is touched unless the result would be a valid bill: a blank name or
+    /// a total of zero returns nil with the stock still where it was, rather than
+    /// half-applying an edit and leaving the shelf to explain it.
+    @discardableResult
+    func updateBill(
+        number: Int,
+        lines: [DraftLine] = [],
+        customer: String,
+        paid: Double?,
+        amount: Double? = nil,
+        createdAt: Date,
+        invoiceNo: String? = nil
+    ) -> Bill? {
+        guard let existing = bills.first(where: { $0.number == number }) else { return nil }
+        let name = customer.trimmed
+        guard !name.isEmpty else { return nil }
+
+        let snapshots = snapshot(lines)
+        let total = snapshots.isEmpty ? (amount ?? 0) : snapshots.reduce(0) { $0 + $1.lineTotal }
+        guard total > 0 else { return nil }
+
+        // Reverse, then apply. In that order, because a bill that kept the same
+        // product with a smaller quantity would otherwise floor at zero on the way
+        // down and come back wrong.
+        for line in existing.lines {
             guard let uid = line.productUID, var product = product(uid: uid) else { continue }
             product.stock += line.qty
             replace(product)
         }
-        bills[index].voided = true
-        let voided = bills[index]
-        attempt { try repository.update(voided) }
+        for line in snapshots {
+            guard let uid = line.productUID, var product = product(uid: uid) else { continue }
+            product.stock = max(0, product.stock - line.qty)
+            replace(product)
+        }
+
+        var updated = existing
+        updated.lines = snapshots
+        updated.total = total
+        updated.paid = paid.flatMap { $0 < total ? min(max(0, $0), total) : nil }
+        updated.who = name
+        updated.invoiceNo = CustomerRecord.tidied(invoiceNo)
+        updated.createdAt = createdAt
+
+        guard let index = bills.firstIndex(where: { $0.number == number }) else { return nil }
+        bills[index] = updated
+        attempt { try repository.update(updated) }
+        return updated
+    }
+
+    /// Removes a bill and puts its stock back.
+    ///
+    /// Gone rather than marked: this is the shop's own book, and a bill entered by
+    /// mistake is a line the owner would have scribbled out of the paper one. The
+    /// number it carried becomes free again, which is what makes re-entering it
+    /// work.
+    func deleteBill(number: Int) {
+        guard let existing = bills.first(where: { $0.number == number }) else { return }
+        for line in existing.lines {
+            guard let uid = line.productUID, var product = product(uid: uid) else { continue }
+            product.stock += line.qty
+            replace(product)
+        }
+        bills.removeAll { $0.number == number }
+        attempt { try repository.deleteBill(number: number) }
     }
 
     // MARK: - Customers
 
-    /// Distinct customers from non-voided bills, **sorted by outstanding balance
-    /// descending, then bill count descending** — the people who owe money come
+    /// Distinct customers, **sorted by outstanding balance descending, then bill
+    /// count descending** — the people who owe money come
     /// first because that is who the owner most needs to recognise at the counter.
     ///
     /// Grouped by `Customer.key`, so case and stray spaces do not split one
@@ -336,7 +403,7 @@ final class StockbookStore {
         var order: [String] = []
         var book: [String: (name: String, count: Int, total: Double, owed: Double)] = [:]
 
-        for bill in bills where !bill.voided && !bill.who.isBlank {
+        for bill in bills where !bill.who.isBlank {
             let key = Customer.key(for: bill.who)
             if var entry = book[key] {
                 entry.count += 1
@@ -562,8 +629,8 @@ final class StockbookStore {
         )
     }
 
-    /// Every bill for one customer, voided ones included — history is never
-    /// hidden, only marked.
+    /// Every bill for one customer. A bill removed as a mistake is not here,
+    /// because it is not history any more.
     func bills(forCustomer key: String) -> [Bill] {
         bills.filter { Customer.key(for: $0.who) == key }
     }
@@ -636,7 +703,7 @@ final class StockbookStore {
         var order: [String] = []
         var book: [String: (name: String, count: Int, total: Double, owed: Double)] = [:]
 
-        for purchase in purchases where !purchase.voided && !purchase.supplierKey.isBlank {
+        for purchase in purchases where !purchase.supplierKey.isBlank {
             if var entry = book[purchase.supplierKey] {
                 entry.count += 1
                 entry.total += purchase.total
@@ -868,25 +935,85 @@ final class StockbookStore {
         )
     }
 
-    /// Voids a delivery and takes its stock back off the shelf.
+    /// Rewrites a supplier's bill, and moves the shelf by the difference.
     ///
-    /// The mirror of voiding a bill, which puts stock back on. Idempotent:
-    /// voiding twice must not remove the stock twice, which is the bug this rule
-    /// exists to prevent on both sides.
-    func voidPurchase(id: UUID) {
-        guard let index = purchases.firstIndex(where: { $0.id == id }), !purchases[index].voided else { return }
-        let purchase = purchases[index]
-        purchases[index].voided = true
-        attempt { try repository.update(purchases[index]) }
+    /// The mirror of `updateBill`: what the old one put on the shelf comes off,
+    /// and what the new one says arrived goes on. A delivery edited down to a bare
+    /// figure gives back everything it added.
+    @discardableResult
+    func updatePurchase(
+        id: UUID,
+        product: Product?,
+        supplierKey: String,
+        quantity: Int = 0,
+        unitCost: Double = 0,
+        paid: Double? = nil,
+        amount: Double? = nil,
+        createdAt: Date,
+        invoiceNo: String? = nil
+    ) -> Purchase? {
+        guard let existing = purchases.first(where: { $0.id == id }) else { return nil }
+        guard !supplierKey.isBlank else { return nil }
 
-        // Only an itemised delivery put stock on the shelf, so only that one has
-        // any to take back off.
-        if purchase.isItemised, let uid = purchase.productUID, var product = self.product(uid: uid) {
-            // Floored at zero. The stock may already have been sold, and a
-            // negative shelf count is a worse lie than an optimistic one.
-            product.stock = max(0, product.stock - purchase.qty)
-            replace(product)
+        let resolved = product.flatMap { self.product(uid: $0.uid) }
+        let current = quantity > 0 ? resolved : nil
+
+        var cost = 0.0
+        if let current {
+            cost = unitCost > 0 ? unitCost : current.cost
         }
+        let total = current == nil ? (amount ?? 0) : Double(quantity) * cost
+        guard total > 0 else { return nil }
+
+        // Reverse the old, then apply the new — the same order as on a bill, and
+        // for the same reason.
+        takeBackStock(existing)
+        if let current {
+            // Re-read: `current` was captured before the line above moved the
+            // shelf, and adding to that stale count would silently undo the
+            // taking-back on any delivery that kept the same product.
+            var onShelf = self.product(uid: current.uid) ?? current
+            onShelf.stock += quantity
+            onShelf.cost = cost
+            replace(onShelf)
+        }
+
+        var updated = existing
+        updated.supplierKey = supplierKey
+        updated.productUID = current?.uid
+        updated.name = current?.name
+        updated.qty = current == nil ? 0 : quantity
+        updated.unitCost = cost
+        updated.total = total
+        updated.paid = paid.map { min(max(0, $0), total) }
+        updated.invoiceNo = CustomerRecord.tidied(invoiceNo)
+        updated.createdAt = createdAt
+
+        guard let index = purchases.firstIndex(where: { $0.id == id }) else { return nil }
+        purchases[index] = updated
+        attempt { try repository.update(updated) }
+        return updated
+    }
+
+    /// Removes a supplier's bill and takes its stock back off the shelf.
+    func deletePurchase(id: UUID) {
+        guard let purchase = purchases.first(where: { $0.id == id }) else { return }
+        takeBackStock(purchase)
+        purchases.removeAll { $0.id == id }
+        attempt { try repository.deletePurchase(id: id) }
+    }
+
+    /// Unwinds what a delivery put on the shelf. Only an itemised one put anything
+    /// there, so only that one has any to take back.
+    private func takeBackStock(_ purchase: Purchase) {
+        guard purchase.isItemised,
+              let uid = purchase.productUID,
+              var product = self.product(uid: uid)
+        else { return }
+        // Floored at zero. The stock may already have been sold, and a negative
+        // shelf count is a worse lie than an optimistic one.
+        product.stock = max(0, product.stock - purchase.qty)
+        replace(product)
     }
 
     func purchases(forSupplier key: String) -> [Purchase] {

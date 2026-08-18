@@ -53,24 +53,15 @@ fun BillTemplate(
             Kicker(shopName, modifier = Modifier.padding(bottom = 5.dp))
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                bill.reference(strings),
-                style = NocturneType.inter(20.0, FontWeight.Medium),
-                color = Nocturne.text,
-                modifier = Modifier.weight(1f)
-            )
-            if (bill.voided) {
-                Text(
-                    strings.voided,
-                    style = NocturneType.inter(11.0, FontWeight.Medium),
-                    color = Nocturne.accent,
-                    modifier = Modifier
-                        .hairline(Nocturne.accent, 6.dp)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                )
-            }
-        }
+        // Nothing sits beside the reference any more. A bill entered wrongly is
+        // corrected on the document itself, so there is no mark a bill can be
+        // carrying by the time anybody reads one.
+        Text(
+            bill.reference(strings),
+            style = NocturneType.inter(20.0, FontWeight.Medium),
+            color = Nocturne.text,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Text(
             strings.billWhen(strings.longDate(bill.createdAt), strings.time(bill.createdAt)),
@@ -138,17 +129,16 @@ fun BillTemplate(
         Text(
             paymentNote(bill, currency, strings),
             style = NocturneType.inter(12.5),
-            color = if (bill.voided) Nocturne.neutral500 else Nocturne.accent400,
+            color = Nocturne.accent400,
             modifier = Modifier.padding(top = 7.dp)
         )
     }
 }
 
 /**
- * The voided note outranks both of the others — a voided bill is owed nothing.
+ * Settled at the counter, or what is left and who owes it.
  */
 private fun paymentNote(bill: Bill, currency: Currency, strings: Strings): String {
-    if (bill.voided) return strings.voidedNote
     val paid = bill.paid ?: return strings.paidInFullCash
     return strings.partPaidNote(
         paid = Money.text(paid, currency),

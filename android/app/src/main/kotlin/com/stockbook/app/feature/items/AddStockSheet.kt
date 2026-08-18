@@ -69,6 +69,10 @@ import com.stockbook.core.text.Strings
  * the stock arrives and the buying price takes over; name neither and the bill is
  * a figure against the supplier's account, which is what a mixed load or a
  * delivery charge actually is.
+ *
+ * A delivery entered wrongly comes **back here** filled in, rather than to an
+ * editor of its own: the two would have to be kept saying the same things about
+ * quantities, costs and what counts as itemised, and one of them would lose.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

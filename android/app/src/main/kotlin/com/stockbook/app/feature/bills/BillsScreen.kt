@@ -45,8 +45,9 @@ import com.stockbook.core.text.Strings
  * Every bill ever saved, newest first — and, filtered to one customer, the
  * answer to "what has this person bought and what do they still owe me?"
  *
- * Nothing here is deleted. A bill entered wrong is *voided*, which puts its
- * stock back and leaves the record in place with a mark.
+ * Nothing on the list corrects anything. A bill entered wrong is opened first,
+ * and edited or removed from inside the document — which is the only place the
+ * owner can see what they are about to change.
  */
 @Composable
 fun BillsScreen(
@@ -154,9 +155,10 @@ fun BillsScreen(
 }
 
 /**
- * Both figures count **live bills only** — a voided bill did not happen, so it
- * is neither a sale nor a debt. It still appears in the list below, marked,
- * because history is never hidden.
+ * What one customer has bought and what they still owe, above their bills.
+ *
+ * Both figures come from the customer the roster merged together, so a name
+ * spelled two ways on two bills is one person with one balance here.
  */
 @Composable
 private fun CustomerSummary(

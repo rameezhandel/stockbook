@@ -395,8 +395,9 @@ private fun EntryRow(
     onArm: (String?) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    // Either kind of payment can be deleted; a bill or a delivery is voided
-    // instead, and that lives where the document itself is opened.
+    // Either kind of payment can be deleted here; a bill or a delivery is changed
+    // or taken out from inside the document itself, which is where the owner can
+    // see what they are about to touch.
     val paymentId = when (entry) {
         is Statement.Entry.ForPayment -> entry.payment.id
         is Statement.Entry.ForSupplierPayment -> entry.payment.id
@@ -405,9 +406,9 @@ private fun EntryRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // Only a payment. A bill is **voided**, never deleted, and voiding
-            // lives inside the opened bill where it belongs — offering deletion
-            // beside it here would be a second, worse route to the same history.
+            // Only a payment. Removing a bill puts stock back on the shelf, and
+            // offering that from a row on a document somebody is reading would be
+            // a second, worse route to it than the opened bill.
             .then(
                 if (paymentId == null) Modifier
                 else Modifier.clickable {
@@ -422,13 +423,13 @@ private fun EntryRow(
                         Text(
                             entry.bill.reference(strings),
                             style = NocturneType.inter(13.0),
-                            color = if (entry.bill.voided) Nocturne.neutral500 else Nocturne.text
+                            color = Nocturne.text
                         )
                         // Drawn only where there is something to say. A bill
                         // entered as a figure lists nothing, and an empty second
                         // line leaves a gap in a document somebody is checking
                         // line by line.
-                        Detail(if (entry.bill.voided) strings.voided else entry.bill.summary)
+                        Detail(entry.bill.summary)
                     }
                     is Statement.Entry.ForPayment -> {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -444,16 +445,13 @@ private fun EntryRow(
                         Text(
                             entry.purchase.reference(strings),
                             style = NocturneType.inter(13.0),
-                            color = if (entry.purchase.voided) Nocturne.neutral500 else Nocturne.text
+                            color = Nocturne.text
                         )
                         // The product and how many of it: a delivery note's whole
                         // content on one line, since a purchase carries one
                         // product — and nothing at all where the supplier's bill
                         // named none, rather than the word "null" beside a zero.
-                        Detail(
-                            if (entry.purchase.voided) strings.voided
-                            else entry.purchase.name?.let { "$it × ${entry.purchase.qty}" }
-                        )
+                        Detail(entry.purchase.name?.let { "$it × ${entry.purchase.qty}" })
                     }
                     is Statement.Entry.ForSupplierPayment -> {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -476,10 +474,8 @@ private fun EntryRow(
                     amountText(entry, currency),
                     style = NocturneType.inter(13.0),
                     color = when (entry) {
-                        is Statement.Entry.ForBill ->
-                            if (entry.bill.voided) Nocturne.neutral500 else Nocturne.text
-                        is Statement.Entry.ForPurchase ->
-                            if (entry.purchase.voided) Nocturne.neutral500 else Nocturne.text
+                        is Statement.Entry.ForBill,
+                        is Statement.Entry.ForPurchase -> Nocturne.text
                         is Statement.Entry.ForPayment,
                         is Statement.Entry.ForSupplierPayment -> Nocturne.accent400
                     }
@@ -580,19 +576,15 @@ private fun plainText(
     statement.entries.forEachIndexed { index, entry ->
         val balance = Money.text(statement.runningBalances[index], currency)
         when (entry) {
-            is Statement.Entry.ForBill -> {
-                val marker = if (entry.bill.voided) " (${strings.voided})" else ""
-                lines.add(
-                    "${strings.longDate(entry.bill.createdAt)}  ${entry.bill.reference(strings)}$marker  " +
-                        "${Money.text(entry.bill.total, currency)}  →  $balance"
-                )
-            }
+            is Statement.Entry.ForBill -> lines.add(
+                "${strings.longDate(entry.bill.createdAt)}  ${entry.bill.reference(strings)}  " +
+                    "${Money.text(entry.bill.total, currency)}  →  $balance"
+            )
             is Statement.Entry.ForPayment -> lines.add(
                 "${strings.longDate(entry.payment.receivedAt)}  ${strings.paymentLabel}  " +
                     "− ${Money.text(entry.payment.amount, currency)}  →  $balance"
             )
             is Statement.Entry.ForPurchase -> {
-                val marker = if (entry.purchase.voided) " (${strings.voided})" else ""
                 // The product only where the bill named one. Interpolating it
                 // regardless is how a supplier bill for a mixed load ends up
                 // reading "null × 0" on a document somebody is sent.
@@ -600,7 +592,7 @@ private fun plainText(
                 val describes = listOfNotNull(entry.purchase.reference(strings), what)
                 lines.add(
                     "${strings.longDate(entry.purchase.createdAt)}  " +
-                        "${describes.joinToString("  ")}$marker  " +
+                        "${describes.joinToString("  ")}  " +
                         "${Money.text(entry.purchase.total, currency)}  →  $balance"
                 )
             }

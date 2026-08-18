@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.stockbook.core.model.Bill
+import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Product
 import com.stockbook.core.model.Timestamps
@@ -222,6 +224,55 @@ class Cart {
      */
     fun removeLines() {
         _lines.clear()
+    }
+
+    /**
+     * Fills the form from a bill that already exists, so a correction is typed on
+     * the same screen the bill was.
+     *
+     * Everything the document carries comes back: what was on it, who it was for,
+     * the figure where it had no lines, the day and the number. The number is
+     * marked as seeded so the form does not helpfully replace it with the next one
+     * in the book — which would rewrite the paper's number on the way past.
+     *
+     * A line whose product has since been deleted is **dropped here**, because
+     * `StockbookStore.saveBill` would drop it on the way in anyway: showing it and
+     * then saving without it is the one thing worse than showing the bill a line
+     * short, since the total on screen would not be the total that got saved.
+     */
+    fun fill(bill: Bill, products: List<Product>, currency: Currency) {
+        _lines.clear()
+        for (line in bill.lines) {
+            val product = products.firstOrNull { it.uid == line.productUid } ?: continue
+            _lines.add(
+                Line(
+                    productUid = product.uid,
+                    // The product's name and list price as they stand today — the
+                    // name because saving snapshots it again from the product, and
+                    // the price because "usual price" needs something to reset to.
+                    // What was actually charged stays the bill's own figure, so an
+                    // edit cannot silently reprice a line nobody touched.
+                    name = product.name,
+                    qty = line.qty,
+                    price = line.price,
+                    basePrice = product.price
+                )
+            )
+        }
+
+        // Only where the bill had no lines to add up. A typed figure sitting behind
+        // lines is the second answer this form refuses to hold.
+        amountText = if (bill.isItemised) "" else Money.amount(bill.total, currency)
+        invoiceNo = bill.invoiceNo.orEmpty()
+        invoiceNoSeeded = true
+        soldAt = bill.createdAt
+        customer = bill.who
+        // Chosen rather than typed: this name is already on a bill, so it already
+        // has an account behind it, and making the owner re-pick it from the list
+        // to change a date would be the form doubting its own history.
+        customerKey = Customer.key(bill.who)
+        payMode = if (bill.paid == null) PayMode.FULL else PayMode.PART
+        paidText = bill.paid?.let { Money.amount(it, currency) }.orEmpty()
     }
 
     fun clear() {

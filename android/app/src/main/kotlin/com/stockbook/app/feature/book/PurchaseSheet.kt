@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.design.FadedRule
+import com.stockbook.app.design.GhostButton
+import com.stockbook.app.design.Icon
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
@@ -31,10 +33,10 @@ import com.stockbook.core.text.Strings
 /**
  * One delivery, opened from the book.
  *
- * The bill sheet's mirror, including where voiding lives: on the document rather
- * than on the list row, so the thing being undone is on screen while it is undone.
- * Voiding a delivery takes its stock back off the shelf, which the button says
- * out loud — that is the part that surprises people.
+ * The bill sheet's mirror, including where correcting and removing live: on the
+ * document rather than on the list row, so the thing being changed is on screen
+ * while it is changed. Removing a delivery takes its stock back **off** the
+ * shelf, which the note says out loud — that is the part that surprises people.
  */
 @Composable
 fun PurchaseSheet(
@@ -42,6 +44,8 @@ fun PurchaseSheet(
     state: ShopState,
     store: StockbookStore,
     strings: Strings,
+    /** Hands the delivery back to the sheet it was entered on, filled in. */
+    onEdit: (Purchase) -> Unit,
     onClose: () -> Unit
 ) {
     // Falls back to what opened the sheet, which matters after a database replace
@@ -51,7 +55,9 @@ fun PurchaseSheet(
     val supplierName = remember(state, live.supplierKey) {
         store.supplier(live.supplierKey)?.name ?: live.supplierKey
     }
-    var confirming by remember(live.id) { mutableStateOf(false) }
+    // Keyed on the delivery, so a sheet reopened on another one does not arrive
+    // with the first tap already spent.
+    var confirmingRemoval by remember(live.id) { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(
@@ -79,29 +85,37 @@ fun PurchaseSheet(
             tint = if (live.balance > 0) Nocturne.accent400 else Nocturne.neutral400
         )
 
-        if (live.voided) {
-            Text(
-                strings.purchaseVoidedNote,
-                style = NocturneType.meta,
-                color = Nocturne.neutral500,
-                modifier = Modifier.padding(top = 14.dp)
-            )
-        } else {
-            Spacer(Modifier.height(14.dp))
-            // Two taps, because this one moves stock as well as money.
-            SecondaryButton(
-                if (confirming) strings.tapAgainToRemove else strings.voidAndRemoveStock,
+        Spacer(Modifier.height(14.dp))
+        SecondaryButton(
+            strings.editBill,
+            onClick = { onEdit(live) },
+            fullWidth = true,
+            height = 44.dp,
+            fontSize = 13.5,
+            leading = Icon.edit
+        )
+
+        // Two taps, because this one moves stock as well as money, and the note
+        // under it says which way the stock moves.
+        Column(modifier = Modifier.fillMaxWidth().padding(top = 18.dp)) {
+            GhostButton(
+                if (confirmingRemoval) strings.tapAgainToRemove else strings.removeSupplierBill,
                 onClick = {
-                    if (confirming) {
-                        store.voidPurchase(live.id)
+                    if (confirmingRemoval) {
+                        store.deletePurchase(live.id)
                         onClose()
                     } else {
-                        confirming = true
+                        confirmingRemoval = true
                     }
                 },
-                fullWidth = true,
-                height = 44.dp,
-                fontSize = 13.5
+                fontSize = 12.0,
+                tint = Nocturne.neutral500
+            )
+            Text(
+                strings.removeSupplierBillNote,
+                style = NocturneType.meta,
+                color = Nocturne.neutral500,
+                modifier = Modifier.padding(top = 6.dp)
             )
         }
     }

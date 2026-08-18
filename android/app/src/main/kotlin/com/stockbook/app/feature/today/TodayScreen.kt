@@ -54,7 +54,6 @@ fun TodayScreen(
     modifier: Modifier = Modifier
 ) {
     val currency = state.settings.currency
-    val liveBills = state.bills.filterNot { it.voided }
     val (owedNames, owedTotal) = store.outstanding()
     val (payableNames, payableTotal) = store.payable()
     val greetingName = state.settings.ownerName.firstName
@@ -84,14 +83,14 @@ fun TodayScreen(
                 Row(modifier = Modifier.fillMaxWidth()) {
                     StatCard(
                         label = strings.soldToday,
-                        value = Money.text(liveBills.sumOf { it.total }, currency),
+                        value = Money.text(state.bills.sumOf { it.total }, currency),
                         gradient = true,
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(Modifier.width(Metrics.cardGap))
                     StatCard(
                         label = strings.billsStat,
-                        value = liveBills.size.toString(),
+                        value = state.bills.size.toString(),
                         modifier = Modifier.weight(1f)
                     )
                 }

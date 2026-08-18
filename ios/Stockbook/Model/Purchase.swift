@@ -9,9 +9,8 @@ import Foundation
 /// that ever becomes the wrong trade, the change is a `lines` array here — the
 /// shape `Bill` already has — and nothing else moves.
 ///
-/// Purchases are never deleted. A mistake is *voided*, which takes the stock back
-/// off the shelf and leaves the record in place, exactly as a bill's void puts it
-/// back on.
+/// A mistake is **edited or removed**, exactly as on a bill, and either takes the
+/// stock back off the shelf.
 struct Purchase: Codable, Equatable, Identifiable, Sendable {
 
     var id: UUID
@@ -46,7 +45,6 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
     /// nothing the owner enters can leave it empty.
     var invoiceNo: String?
     var createdAt: Date
-    var voided: Bool
 
     init(
         id: UUID = UUID(),
@@ -58,8 +56,7 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
         total: Double,
         paid: Double? = nil,
         invoiceNo: String? = nil,
-        createdAt: Date = .now,
-        voided: Bool = false
+        createdAt: Date = .now
     ) {
         self.id = id
         self.supplierKey = supplierKey
@@ -71,7 +68,6 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
         self.paid = paid
         self.invoiceNo = CustomerRecord.tidied(invoiceNo)
         self.createdAt = createdAt
-        self.voided = voided
     }
 
     /// Written by hand for the reason `Settings`, `ShopState`, `CustomerRecord`,
@@ -84,6 +80,10 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
     /// nothing because kotlinx.serialization falls back to the declared default,
     /// which is exactly the asymmetry that has cost this repo a broken load four
     /// times already.
+    ///
+    /// A `voided` key from the builds that marked a mistake rather than
+    /// correcting it is simply not read: an unknown key is ignored, so a shop
+    /// file written before voiding was removed still opens, whole.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
@@ -96,21 +96,20 @@ struct Purchase: Codable, Equatable, Identifiable, Sendable {
         paid = try container.decodeIfPresent(Double.self, forKey: .paid)
         invoiceNo = try container.decodeIfPresent(String.self, forKey: .invoiceNo)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
-        voided = try container.decodeIfPresent(Bool.self, forKey: .voided) ?? false
     }
 
-    /// What the shop still owes on this delivery. Zero when settled or voided.
+    /// What the shop still owes on this delivery. Zero when settled.
     var balance: Double {
-        guard !voided, let paid else { return 0 }
+        guard let paid else { return 0 }
         return max(0, total - paid)
     }
 
-    var isPartPaid: Bool { !voided && paid != nil }
+    var isPartPaid: Bool { paid != nil }
 
     /// Whether this says what arrived, or only what it cost.
     ///
-    /// Stock moves for the first and not the second, and voiding has to reverse
-    /// exactly what recording it did.
+    /// Stock moves for the first and not the second, so editing or removing one
+    /// has to reverse exactly what recording it did.
     var isItemised: Bool { !(name ?? "").isBlank }
 
     /// What to call this delivery on a list or a statement.

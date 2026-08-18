@@ -29,12 +29,18 @@ protocol StockbookRepository {
 
     // MARK: Bills
 
-    /// Bills are only ever appended. Nothing rewrites history.
     func append(_ bill: Bill) throws
 
-    /// Matched on `number`. In practice voiding uses this, and so does renaming a
-    /// customer — which is the one other thing allowed to touch a saved bill.
+    /// Matched on `number`. Correcting a bill uses this, and so does renaming a
+    /// customer.
     func update(_ bill: Bill) throws
+
+    /// Removes a bill outright.
+    ///
+    /// This app corrects a mistake by editing or removing the record rather than
+    /// by marking it — one owner, one phone, and the document that survives a
+    /// correction is the paper bill in the book.
+    func deleteBill(number: Int) throws
 
     // MARK: Customers
 
@@ -62,10 +68,9 @@ protocol StockbookRepository {
 
     // MARK: Purchases
 
-    /// Appended, then only ever updated in place — voiding is the one thing that
-    /// touches a saved delivery.
     func append(_ purchase: Purchase) throws
     func update(_ purchase: Purchase) throws
+    func deletePurchase(id: UUID) throws
 
     // MARK: Money out
 

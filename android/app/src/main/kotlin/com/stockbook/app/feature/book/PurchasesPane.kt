@@ -50,7 +50,7 @@ import com.stockbook.core.text.Strings
  *
  * The sales half's mirror: the supplier panel on top — pick one and see what is
  * owed to them — and every delivery underneath, newest first. A wrong delivery is
- * opened and voided, never deleted, exactly as a wrong bill is.
+ * opened first and then corrected or taken out, exactly as a wrong bill is.
  */
 @Composable
 fun PurchasesPane(
@@ -115,10 +115,7 @@ fun PurchasesPane(
     }
 }
 
-/**
- * One delivery. Voided ones stay in the list, muted and marked — history is never
- * hidden here, only struck through.
- */
+/** One delivery. Tapping it opens the document, which is where it can be changed. */
 @Composable
 private fun DeliveryRow(
     purchase: Purchase,
@@ -128,7 +125,6 @@ private fun DeliveryRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val muted = purchase.voided
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
@@ -145,19 +141,18 @@ private fun DeliveryRow(
                 // whose product was lost rather than one that never had a product.
                 purchase.name ?: purchase.reference(strings),
                 style = NocturneType.rowPrimary,
-                color = if (muted) Nocturne.neutral500 else Nocturne.text,
+                color = Nocturne.text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                when {
-                    muted -> strings.voided
-                    // `12 × SAR 60` is the arithmetic behind a delivery, and there
-                    // is none behind a bill entered as a figure. Who it was from
-                    // is the whole of what the second line has to say then.
-                    purchase.isItemised ->
-                        "$supplierName · ${strings.perPiece(purchase.qty, Money.text(purchase.unitCost, currency))}"
-                    else -> supplierName
+                // `12 × SAR 60` is the arithmetic behind a delivery, and there is
+                // none behind a bill entered as a figure. Who it was from is the
+                // whole of what the second line has to say then.
+                if (purchase.isItemised) {
+                    "$supplierName · ${strings.perPiece(purchase.qty, Money.text(purchase.unitCost, currency))}"
+                } else {
+                    supplierName
                 },
                 style = NocturneType.meta,
                 color = Nocturne.neutral500,
@@ -170,7 +165,7 @@ private fun DeliveryRow(
             Text(
                 Money.text(purchase.total, currency),
                 style = NocturneType.inter(14.0),
-                color = if (muted) Nocturne.neutral500 else Nocturne.text
+                color = Nocturne.text
             )
             Text(
                 if (purchase.balance > 0) strings.owes(Money.text(purchase.balance, currency))

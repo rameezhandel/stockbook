@@ -98,7 +98,7 @@ fun SettingsScreen(
                 Spacer(Modifier.height(10.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Stat(strings.productsStat, state.products.size, Modifier.weight(1f))
-                    Stat(strings.billsStat, state.bills.count { !it.voided }, Modifier.weight(1f))
+                    Stat(strings.billsStat, state.bills.size, Modifier.weight(1f))
                     Stat(strings.customersStat, store.customers().size, Modifier.weight(1f))
                 }
             }

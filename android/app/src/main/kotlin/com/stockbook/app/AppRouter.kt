@@ -52,6 +52,15 @@ class AppRouter {
     var purchaseDetail by mutableStateOf<Purchase?>(null)
 
     /**
+     * The delivery being corrected, or null when the stock sheet is recording a
+     * new one. A third door into that same sheet, deliberately: a correction typed
+     * on a screen of its own is a screen that drifts away from the one the
+     * delivery was entered on.
+     */
+    var editingPurchase by mutableStateOf<Purchase?>(null)
+        private set
+
+    /**
      * The two Today banners, opened into a list of everybody behind them.
      *
      * A banner saying "3 customers still owe" is a fact the owner can do nothing
@@ -78,6 +87,24 @@ class AppRouter {
      * something that just happened, this one is a document being looked up.
      */
     var billDetail by mutableStateOf<Bill?>(null)
+
+    /**
+     * The bill being corrected, or null when Sell is writing a new one.
+     *
+     * Sell is the screen every bill in this shop was typed on, so it is the screen
+     * a correction is typed on too — this is what tells it which of the two it is
+     * doing, and which bill `updateBill` is being handed.
+     */
+    var editingBill by mutableStateOf<Bill?>(null)
+        private set
+
+    /**
+     * Which tab Edit was tapped from, so finishing a correction goes back there.
+     *
+     * Without it the owner lands on a blank bill form after saving, which reads as
+     * the app inviting them to write another one.
+     */
+    private var tabBeforeEditing = AppTab.TODAY
 
     /**
      * The customer editor sheet. Null closed; a customer means correct, and
@@ -169,14 +196,43 @@ class AppRouter {
         addStock = product
     }
 
-    /** Closes the stock sheet from either of the two ways it can be open. */
+    /** Closes the stock sheet from any of the three ways it can be open. */
     fun closeAddStock() {
         addStock = null
         recordingDelivery = false
+        editingPurchase = null
     }
 
     fun openBill(bill: Bill) {
         billDetail = bill
+    }
+
+    /**
+     * Takes a bill out of its sheet and onto the form it was written on. The cart
+     * is filled by the caller, which is the only thing here that knows one exists.
+     */
+    fun editBill(bill: Bill) {
+        billDetail = null
+        tabBeforeEditing = tab
+        editingBill = bill
+        // The picker is where the last bill left it, and a correction that opened
+        // on a product list would hide the figures it came to change.
+        pickingProducts = false
+        tab = AppTab.SELL
+    }
+
+    /** Leaves a correction — saved or abandoned — and puts the owner back. */
+    fun closeBillEditing() {
+        if (editingBill == null) return
+        editingBill = null
+        pickingProducts = false
+        tab = tabBeforeEditing
+    }
+
+    /** Opens a delivery on the sheet it was entered on, in place of its detail. */
+    fun editPurchase(purchase: Purchase) {
+        purchaseDetail = null
+        editingPurchase = purchase
     }
 
     fun startBill() {
@@ -189,10 +245,12 @@ class AppRouter {
         addStock = null
         recordingDelivery = false
         purchaseDetail = null
+        editingPurchase = null
         showingDebtors = false
         showingCreditors = false
         receipt = null
         billDetail = null
+        editingBill = null
         showingBackup = false
         customerEditor = null
         creatingCustomer = false

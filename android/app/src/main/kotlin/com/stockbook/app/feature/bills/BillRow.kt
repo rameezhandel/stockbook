@@ -27,8 +27,9 @@ import com.stockbook.core.text.Strings
 /**
  * A bill as it appears on Today and on Bills. Tapping one opens the document.
  *
- * The row deliberately carries no destructive action: voiding lives inside the
- * opened bill, so reaching it costs a considered tap and the list stays a list.
+ * The row deliberately carries no destructive action: correcting and removing
+ * live inside the opened bill, so reaching either costs a considered tap and the
+ * list stays a list.
  */
 @Composable
 fun BillRow(
@@ -55,7 +56,7 @@ fun BillRow(
                 // nothing at all.
                 if (bill.isItemised) bill.summary else bill.reference(strings),
                 style = NocturneType.rowValue,
-                color = if (bill.voided) Nocturne.neutral500 else Nocturne.text,
+                color = Nocturne.text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -70,21 +71,16 @@ fun BillRow(
         Text(
             Money.text(bill.total, currency),
             style = NocturneType.inter(15.0),
-            color = when {
-                bill.voided -> Nocturne.neutral500
-                bill.isPartPaid -> Nocturne.accent400
-                else -> Nocturne.text
-            }
+            color = if (bill.isPartPaid) Nocturne.accent400 else Nocturne.text
         )
         Spacer(Modifier.width(8.dp))
         Glyph(Icon.openRow, size = 12.dp, tint = Nocturne.neutral600)
     }
 }
 
-/** `voided · Ahmed Contracting · 09:41 · 2 items · owes SAR 94` */
+/** `Ahmed Contracting · 09:41 · 2 items · owes SAR 94` */
 private fun meta(bill: Bill, currency: Currency, strings: Strings): String {
     val parts = mutableListOf<String>()
-    if (bill.voided) parts.add(strings.voided)
     if (bill.who.isNotBlank()) parts.add(bill.who)
     parts.add(strings.time(bill.createdAt))
     // "0 items" is not a fact about a bill entered as a total; it is the app
