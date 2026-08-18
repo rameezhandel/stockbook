@@ -506,16 +506,11 @@ class Strings(val language: AppLanguage) {
                 "$product — ಈಗ ಅಂಗಡಿಯಲ್ಲಿ $stock ನಗ"
             )
 
-    val quickAdd: String get() = pick("Quick add", "ಬೇಗ ಸೇರಿಸಿ")
-    val purchaseEntry: String get() = pick("Purchase entry", "ಖರೀದಿ ನಮೂದು")
     val supplier: String get() = pick("Supplier", "ಸರಬರಾಜುದಾರ")
     val whoDeliveredIt: String get() = pick("Who delivered it", "ಯಾರು ತಂದುಕೊಟ್ಟರು")
     val howMany: String get() = pick("How many", "ಎಷ್ಟು")
     val paidPerPiece: String get() = pick("Paid per piece", "ಪ್ರತಿ ನಗಕ್ಕೆ ಕೊಟ್ಟದ್ದು")
     val recordPurchase: String get() = pick("Record purchase", "ಖರೀದಿ ದಾಖಲಿಸಿ")
-
-    fun addToStock(quantity: Int): String =
-            pick("Add $quantity to stock", "ದಾಸ್ತಾನಿಗೆ $quantity ಸೇರಿಸಿ")
 
     fun purchaseNote(billTotal: String): String =
             pick(
@@ -523,11 +518,6 @@ class Strings(val language: AppLanguage) {
                 "ಬಿಲ್ ಒಟ್ಟು $billTotal. ಇನ್ನು ಮುಂದೆ ಇದೇ ಖರೀದಿ ಬೆಲೆ ಆಗುತ್ತದೆ."
             )
 
-    fun quickAddNote(cost: String): String =
-            pick(
-                "Topping up the bin. Buying price stays at $cost.",
-                "ದಾಸ್ತಾನು ತುಂಬಿಸುತ್ತಿದ್ದೀರಿ. ಖರೀದಿ ಬೆಲೆ $cost ಆಗಿಯೇ ಇರುತ್ತದೆ."
-            )
 
     // --- Setup
 

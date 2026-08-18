@@ -3,7 +3,6 @@ package com.stockbook.core
 import com.stockbook.core.model.Currency
 import com.stockbook.core.store.DraftLine
 import com.stockbook.core.store.InMemoryRepository
-import com.stockbook.core.store.RestockMode
 import com.stockbook.core.store.StockbookStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -219,41 +218,6 @@ class StoreTests {
 
         assertTrue(store.customers().isEmpty())
         assertTrue(store.outstanding().first.isEmpty())
-    }
-
-    // --- Restock
-
-    @Test
-    fun `quick add raises stock and leaves the buying price alone`() {
-        val store = makeStore()
-        val product = store.addProduct("Hinge", stock = 4, cost = 3.0, price = 10.0)
-
-        store.restock(product, quantity = 6, mode = RestockMode.QUICK_ADD, unitCost = 99.0)
-
-        assertEquals(10, store.product(product.uid)?.stock)
-        assertEquals(3.0, store.product(product.uid)?.cost, "quick add is not a purchase")
-    }
-
-    @Test
-    fun `a purchase overwrites the buying price with the latest paid`() {
-        val store = makeStore()
-        val product = store.addProduct("Hinge", stock = 4, cost = 3.0, price = 10.0)
-
-        store.restock(product, quantity = 6, mode = RestockMode.PURCHASE, unitCost = 5.0)
-
-        assertEquals(10, store.product(product.uid)?.stock)
-        assertEquals(5.0, store.product(product.uid)?.cost, "cost is latest paid, not a weighted average")
-    }
-
-    @Test
-    fun `nothing typed closes the sheet without touching anything`() {
-        val store = makeStore()
-        val product = store.addProduct("Hinge", stock = 4, cost = 3.0, price = 10.0)
-
-        store.restock(product, quantity = 0, mode = RestockMode.PURCHASE, unitCost = 5.0)
-
-        assertEquals(4, store.product(product.uid)?.stock)
-        assertEquals(3.0, store.product(product.uid)?.cost)
     }
 
     // --- Whole-database

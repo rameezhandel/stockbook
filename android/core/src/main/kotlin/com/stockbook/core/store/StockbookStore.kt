@@ -34,14 +34,6 @@ data class DraftLine(
     val price: Double
 )
 
-enum class RestockMode {
-    /** Topping up the bin. The buying price is left alone. */
-    QUICK_ADD,
-
-    /** A supplier delivery. A cost above zero becomes the buying price from now on. */
-    PURCHASE
-}
-
 /**
  * Every rule that changes data lives here, and the current shop lives here too.
  *
@@ -1056,21 +1048,6 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun setStock(product: Product, count: Int) {
         val current = this.product(product.uid) ?: return
         replace(current.copy(stock = maxOf(0, count)))
-    }
-
-    /**
-     * Adds stock. A zero or negative quantity is a no-op — the sheet treats
-     * "nothing typed" as "close without doing anything".
-     */
-    fun restock(product: Product, quantity: Int, mode: RestockMode, unitCost: Double? = null) {
-        if (quantity <= 0) return
-        val current = this.product(product.uid) ?: return
-        val cost = if (mode == RestockMode.PURCHASE && unitCost != null && unitCost > 0) {
-            unitCost
-        } else {
-            current.cost
-        }
-        replace(current.copy(stock = current.stock + quantity, cost = cost))
     }
 
     // --- Whole-database operations

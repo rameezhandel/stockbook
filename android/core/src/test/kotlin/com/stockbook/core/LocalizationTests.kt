@@ -93,7 +93,6 @@ class LocalizationTests {
             assertTrue(strings.onlyInStock(3).contains("3"))
             assertTrue(strings.usualPriceNote("SAR 20").contains("SAR 20"))
             assertTrue(strings.youMakeAPiece("SAR 30").contains("SAR 30"))
-            assertTrue(strings.addToStock(12).contains("12"))
             assertTrue(strings.billNumber(7).contains("7"))
             assertTrue(strings.billedTo("Ahmed").contains("Ahmed"))
             assertTrue(strings.quantityAtPrice(2, "SAR 95").contains("SAR 95"))

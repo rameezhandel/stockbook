@@ -155,9 +155,6 @@ private struct AppShell: View {
         // Which product arrived. A purchase carries one product, so something has
         // to name it, and asking here is fewer taps than making the owner find the
         // product first.
-        .nocturneSheet(isPresented: $router.recordingDelivery) {
-            WhichProductSheet { router.recordingDelivery = false }
-        }
         .nocturneSheet(item: $router.purchaseDetail) { purchase in
             PurchaseSheet(purchase: purchase) { router.purchaseDetail = nil }
         }

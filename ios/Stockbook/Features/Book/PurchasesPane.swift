@@ -28,7 +28,7 @@ struct PurchasesPane: View {
                         icon: Icon.addStock,
                         message: Loc.noDeliveriesYet,
                         actionTitle: Loc.recordDelivery,
-                        action: { router.recordingDelivery = true }
+                        action: { router.recordDelivery() }
                     )
                 }
 

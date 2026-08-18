@@ -555,29 +555,16 @@ struct Strings {
         )
     }
 
-    var quickAdd: String { pick("Quick add", "ಬೇಗ ಸೇರಿಸಿ") }
-    var purchaseEntry: String { pick("Purchase entry", "ಖರೀದಿ ನಮೂದು") }
     var supplier: String { pick("Supplier", "ಸರಬರಾಜುದಾರ") }
     var whoDeliveredIt: String { pick("Who delivered it", "ಯಾರು ತಂದುಕೊಟ್ಟರು") }
     var howMany: String { pick("How many", "ಎಷ್ಟು") }
     var paidPerPiece: String { pick("Paid per piece", "ಪ್ರತಿ ನಗಕ್ಕೆ ಕೊಟ್ಟದ್ದು") }
     var recordPurchase: String { pick("Record purchase", "ಖರೀದಿ ದಾಖಲಿಸಿ") }
 
-    func addToStock(_ quantity: Int) -> String {
-        pick("Add \(quantity) to stock", "ದಾಸ್ತಾನಿಗೆ \(quantity) ಸೇರಿಸಿ")
-    }
-
     func purchaseNote(billTotal: String) -> String {
         pick(
             "Bill total \(billTotal). This becomes the buying price used from now on.",
             "ಬಿಲ್ ಒಟ್ಟು \(billTotal). ಇನ್ನು ಮುಂದೆ ಇದೇ ಖರೀದಿ ಬೆಲೆ ಆಗುತ್ತದೆ."
-        )
-    }
-
-    func quickAddNote(cost: String) -> String {
-        pick(
-            "Topping up the bin. Buying price stays at \(cost).",
-            "ದಾಸ್ತಾನು ತುಂಬಿಸುತ್ತಿದ್ದೀರಿ. ಖರೀದಿ ಬೆಲೆ \(cost) ಆಗಿಯೇ ಇರುತ್ತದೆ."
         )
     }
 

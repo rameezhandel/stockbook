@@ -20,7 +20,7 @@ struct ItemsScreen: View {
                     // here now and asks which product arrived, rather than making
                     // the owner find it first.
                     Button {
-                        router.recordingDelivery = true
+                        router.recordDelivery()
                     } label: {
                         Label(Loc.recordDelivery, systemImage: Icon.addStock)
                     }

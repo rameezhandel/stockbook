@@ -1,11 +1,16 @@
 import SwiftUI
 
-/// Putting stock back on the shelf, two ways — and correcting either afterwards.
+/// A supplier's bill, and the shelf count beside it.
 ///
-/// **Quick add** is the common case — you tipped a bag into the bin and the
-/// count is now higher. **Purchase entry** is a supplier delivery, and it is the
-/// only path that changes the buying price: cost here is "latest paid", not a
-/// weighted average, so the new figure simply takes over.
+/// **Set count** is what the owner types after looking at a shelf — "there are
+/// twelve", never "add twelve". It is the honest action to leave next to a count
+/// that only moves for bills somebody itemised.
+///
+/// **Supplier bill** is the money side, and saying what arrived is optional on it
+/// exactly the way saying what was sold is optional on a sale. Name a product
+/// *and* a quantity and the stock arrives and the buying price takes over; name
+/// neither and the bill is a figure against the account, which is what a mixed
+/// load or a delivery charge actually is.
 ///
 /// A delivery names a product and a count of it; a supplier's bill for a mixed
 /// load names neither and is a figure against the account. `product` being nil is
@@ -27,10 +32,21 @@ struct AddStockSheet: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.currency) private var currency
 
-    @State private var mode: RestockMode = .quickAdd
+    /// Which half is showing. A plain flag rather than a borrowed domain enum:
+    /// the store has no "modes" any more, only setStock and the two ways of
+    /// recording a supplier's bill.
+    @State private var supplierBill = false
     @State private var seeded = false
+    /// What the owner counted on the shelf. Its own box, because "there are 12"
+    /// and "add 12" are the same keystrokes and different shelves.
+    @State private var count = ""
     @State private var quantity = ""
     @State private var unitCost = ""
+    /// What was typed into the product box, and which product was actually
+    /// chosen. Only a choice counts: a typed name matching nothing is not a
+    /// product, and stock cannot arrive against it.
+    @State private var productText = ""
+    @State private var chosenProduct: Product?
     /// What the supplier's bill came to, where no product and count say what it
     /// is made of. Held as text so a half-typed figure is representable.
     @State private var amountText = ""
@@ -50,9 +66,7 @@ struct AddStockSheet: View {
     /// Derived rather than left to `onAppear` to set the mode, or the first frame
     /// draws the wrong form and the sheet visibly changes its mind.
     private var isPurchase: Bool {
-        if product == nil || editing != nil { return true }
-        if case .purchase = mode { return true }
-        return false
+        product == nil || editing != nil || supplierBill
     }
 
     /// Only where there is a shelf to top up, and never while correcting: a
@@ -67,13 +81,17 @@ struct AddStockSheet: View {
     /// Itemised means a product **and** a count of it. A product with no quantity
     /// is half an answer, and guessing the other half would put stock on the shelf
     /// nobody said arrived.
-    private var isItemised: Bool { product != nil && quantityValue > 0 }
+    private var isItemised: Bool { chosenProduct != nil && quantityValue > 0 }
+
+    /// What the owner counted, or nil while the box says nothing readable — which
+    /// is what stops an empty box reading as "there are none".
+    private var countValue: Int? { Int(count.trimmed) }
 
     /// What the delivery is costed at, worked out the same way `recordPurchase`
     /// works it out — or the sheet shows a total the store does not save.
     private var costValue: Double {
         let typed = Money.parse(unitCost) ?? 0
-        return typed > 0 ? typed : (product?.cost ?? 0)
+        return typed > 0 ? typed : (chosenProduct?.cost ?? 0)
     }
 
     private var totalValue: Double {
@@ -83,7 +101,10 @@ struct AddStockSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.fieldGap) {
             SheetHeader(
-                title: product == nil ? Loc.supplierBillTitle : Loc.addStock,
+                // "Add stock" over a box asking what you counted is the exact
+                // sentence that would make somebody type the number they are
+                // adding rather than the number on the shelf.
+                title: isPurchase ? Loc.supplierBillTitle : Loc.setCount,
                 subtitle: product.map { Loc.onShelfNow(product: $0.name, stock: $0.stock) }
             ) {
                 router.addStock = nil
@@ -150,7 +171,14 @@ struct AddStockSheet: View {
                 )
             }
 
-            if product != nil {
+            // Which product arrived, where the shop keeps a count of it. Optional,
+            // and labelled so: a bill for a mixed load, or for a delivery charge,
+            // names nothing and still owes money.
+            if isPurchase, product == nil {
+                ProductPicker(typed: $productText, chosen: $chosenProduct)
+            }
+
+            if chosenProduct != nil {
                 HStack(spacing: 8) {
                     NocturneField.number(label: Loc.howMany, text: $quantity)
                     if isPurchase {
@@ -189,16 +217,41 @@ struct AddStockSheet: View {
                 }
             }
 
-            if !note.isEmpty {
-                Text(note)
+            if !isPurchase, let product {
+                NocturneField.number(
+                    label: Loc.inStock,
+                    text: $count,
+                    isRequiredAndEmpty: countValue == nil
+                )
+                // The whole of the difference between this and what it replaced,
+                // said where the mistake would be made: "add 5" and "there are 5"
+                // are the same keystrokes and different shelves.
+                Text(Loc.setCountNote)
                     .nocturneText(.meta)
                     .padding(.top, 2)
-            }
 
-            Button(actionLabel, action: confirm)
+                Button(Loc.setCount) {
+                    // A count is *set*, never added to. Nothing here reaches
+                    // `restock`, which is the function that would turn "there are
+                    // twelve" into twelve more.
+                    store.setStock(product, count: countValue ?? 0)
+                    router.addStock = nil
+                }
                 .buttonStyle(.primaryBlock)
-                .disabled(!canSave)
+                .disabled(countValue == nil)
                 .padding(.top, 6)
+            } else {
+                if !note.isEmpty {
+                    Text(note)
+                        .nocturneText(.meta)
+                        .padding(.top, 2)
+                }
+
+                Button(actionLabel, action: confirm)
+                    .buttonStyle(.primaryBlock)
+                    .disabled(!canSave)
+                    .padding(.top, 6)
+            }
         }
         .keyboardDoneButton()
         .onAppear(perform: seed)
@@ -212,7 +265,13 @@ struct AddStockSheet: View {
 
         // The Delivery button asked for the purchase half by name. The other two
         // ways of reaching it are derived in `isPurchase` rather than set here.
-        if startInPurchase { mode = .purchase }
+        if startInPurchase { supplierBill = true }
+
+        // The product the sheet was opened for, or the one the delivery being
+        // corrected named — nil when that product has since been deleted, which
+        // is why a delivery can come back as a bare figure.
+        chosenProduct = editing?.productUID.flatMap { store.product(uid: $0) } ?? product
+        productText = chosenProduct?.name ?? ""
 
         guard let editing else { return }
         supplier = store.supplier(key: editing.supplierKey)?.name ?? editing.supplierKey
@@ -233,8 +292,8 @@ struct AddStockSheet: View {
 
     private var modePills: some View {
         HStack(spacing: 8) {
-            pill(Loc.quickAdd, active: !isPurchase) { mode = .quickAdd }
-            pill(Loc.purchaseEntry, active: isPurchase) { mode = .purchase }
+            pill(Loc.setCount, active: !isPurchase) { supplierBill = false }
+            pill(Loc.supplierBillTitle, active: isPurchase) { supplierBill = true }
         }
     }
 
@@ -251,17 +310,11 @@ struct AddStockSheet: View {
         .buttonStyle(.plain)
     }
 
-    /// The note is the only place the two modes explain themselves, so it states
-    /// the consequence rather than restating the mode.
-    ///
     /// Said only where it is true: the buying price takes over when stock actually
     /// arrived, and a bill naming no product changes no price.
     private var note: String {
-        if isPurchase {
-            guard isItemised else { return "" }
-            return Loc.purchaseNote(billTotal: Money.text(totalValue, in: currency))
-        }
-        return Loc.quickAddNote(cost: Money.text(product?.cost ?? 0, in: currency))
+        guard isItemised else { return "" }
+        return Loc.purchaseNote(billTotal: Money.text(totalValue, in: currency))
     }
 
     /// The delivery already filed under this number, whoever it came from. Across
@@ -274,7 +327,6 @@ struct AddStockSheet: View {
     }
 
     private var actionLabel: String {
-        guard isPurchase else { return Loc.addToStock(max(0, quantityValue)) }
         if clash != nil { return Loc.changeTheInvoiceNo }
         if supplierKey == nil { return supplier.isBlank ? Loc.whoDeliveredIt : Loc.chooseSupplierFromTheList }
         if invoiceNo.isBlank { return Loc.enterBillNumber }
@@ -303,7 +355,7 @@ struct AddStockSheet: View {
                 // however the boxes were filled in.
                 store.updatePurchase(
                     id: editing.id,
-                    product: product,
+                    product: chosenProduct,
                     supplierKey: key,
                     quantity: quantityValue,
                     unitCost: Money.parse(unitCost) ?? 0,
@@ -317,7 +369,7 @@ struct AddStockSheet: View {
                 // is why this is not `restock` with a supplier string that went
                 // nowhere.
                 store.recordPurchase(
-                    product: product,
+                    product: chosenProduct,
                     supplierKey: key,
                     quantity: quantityValue,
                     unitCost: Money.parse(unitCost) ?? 0,
@@ -337,8 +389,6 @@ struct AddStockSheet: View {
                     invoiceNo: invoiceNo
                 )
             }
-        } else if let product {
-            store.restock(product, quantity: quantityValue, mode: .quickAdd)
         }
         router.addStock = nil
     }
@@ -354,6 +404,85 @@ struct AddStockSheet: View {
 /// The list is drawn **below** the field here, unlike the cart's. This sheet
 /// grows downwards with room under it; the cart's field sits on the bottom edge
 /// of the screen with the keyboard beneath it.
+/// Which product arrived: type to filter the shelf, then **choose**.
+///
+/// The supplier picker below, pointed at the catalogue, and optional where that
+/// one is required — a supplier's bill always has a supplier, and does not always
+/// have a product. It cannot create one either: a product carries a buying price,
+/// a selling price and a count, and inventing all three from a delivery sheet is
+/// how a catalogue fills up with half-made entries.
+private struct ProductPicker: View {
+    @Binding var typed: String
+    @Binding var chosen: Product?
+
+    @Environment(StockbookStore.self) private var store
+    @Environment(\.currency) private var currency
+
+    private static let rowHeight: CGFloat = 35
+    private static let maxListHeight: CGFloat = 150
+
+    private var matches: [Product] {
+        guard chosen == nil else { return [] }
+        return store.products(matching: typed)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            NocturneField(
+                label: Loc.whichProductArrived,
+                placeholder: Loc.optionalField,
+                text: Binding(get: { typed }, set: { typed = $0; chosen = nil }),
+                identifier: "purchase.product"
+            )
+
+            if !matches.isEmpty {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(matches) { product in
+                            Button { choose(product) } label: {
+                                HStack(spacing: 8) {
+                                    Glyph(Icon.items, size: 13)
+                                        .foregroundStyle(Nocturne.neutral500)
+                                    Text(product.name)
+                                        .font(NocturneType.inter(13.5))
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .lineLimit(1)
+                                    Text(Loc.stockLabel(product.stock))
+                                        .font(NocturneType.inter(11))
+                                        .foregroundStyle(Nocturne.neutral500)
+                                    // The buying price, not the selling one: this
+                                    // list exists to start a delivery, and that is
+                                    // the figure about to be typed over.
+                                    Text(Money.text(product.cost, in: currency))
+                                        .font(NocturneType.inter(11))
+                                        .foregroundStyle(Nocturne.accent400)
+                                }
+                                .padding(.horizontal, 11)
+                                .frame(height: Self.rowHeight)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .frame(height: min(CGFloat(matches.count) * Self.rowHeight, Self.maxListHeight))
+                .scrollBounceBehavior(.basedOnSize)
+                .padding(.vertical, 3)
+                .frame(maxWidth: .infinity)
+                .background(Nocturne.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
+                .hairline(Nocturne.accent, radius: Metrics.controlRadius)
+            }
+        }
+    }
+
+    private func choose(_ product: Product) {
+        typed = product.name
+        chosen = product
+        dismissKeyboard()
+    }
+}
+
 private struct SupplierPicker: View {
     @Binding var typed: String
     @Binding var chosenKey: String?

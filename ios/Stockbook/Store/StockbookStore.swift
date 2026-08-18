@@ -584,7 +584,7 @@ final class StockbookStore {
     /// Not allocated to a particular bill, because that is not how a counter
     /// works: somebody pays what they can against what they owe. A zero or
     /// negative amount is a no-op rather than an error — the sheet treats an
-    /// empty box as "close without doing anything", the same as restock.
+    /// empty box as "close without doing anything".
     @discardableResult
     func recordPayment(
         customerKey: String,
@@ -677,17 +677,6 @@ final class StockbookStore {
         guard var current = self.product(uid: product.uid) else { return }
         current.stock = max(0, count)
         replace(current)
-    }
-
-    /// Adds stock. A zero or negative quantity is a no-op — the sheet treats
-    /// "nothing typed" as "close without doing anything".
-    func restock(_ product: Product, quantity: Int, mode: RestockMode, unitCost: Double? = nil) {
-        guard quantity > 0, var updated = self.product(uid: product.uid) else { return }
-        updated.stock += quantity
-        if case .purchase = mode, let unitCost, unitCost > 0 {
-            updated.cost = unitCost
-        }
-        replace(updated)
     }
 
     // MARK: - Suppliers
@@ -1283,10 +1272,3 @@ struct DraftLine {
     var price: Double
 }
 
-enum RestockMode {
-    /// Topping up the bin. The buying price is left alone.
-    case quickAdd
-    /// A supplier delivery. A cost above zero becomes the buying price used from
-    /// now on.
-    case purchase
-}

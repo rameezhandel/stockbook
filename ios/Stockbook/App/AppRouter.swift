@@ -61,14 +61,6 @@ final class AppRouter {
     /// copy taken when it opened.
     var statementFor: String?
 
-    /// Set by the Items header's Delivery button: the sheet that asks which
-    /// product arrived, before the purchase sheet itself.
-    ///
-    /// A purchase carries one product, so something has to name it. Starting from
-    /// the header and asking is fewer taps than making the owner find the product
-    /// first, which is what recording a delivery used to cost.
-    var recordingDelivery = false
-
     /// A delivery opened from the book, the way a bill is opened from history.
     var purchaseDetail: Purchase?
 
@@ -130,8 +122,17 @@ final class AppRouter {
         addStock = AddStockTarget(product: product)
     }
 
+    /// The Items header's Delivery button, and the Book's empty state.
+    ///
+    /// No product is named: one is optional on a supplier's bill, and asking for
+    /// it first was the app insisting on the answer to a question the paper often
+    /// does not have. The sheet offers the catalogue inside itself instead.
+    func recordDelivery() {
+        startingPurchase = true
+        addStock = AddStockTarget(product: nil)
+    }
+
     func openDelivery(for product: Product) {
-        recordingDelivery = false
         startingPurchase = true
         addStock = AddStockTarget(product: product)
     }
@@ -167,7 +168,6 @@ final class AppRouter {
         supplierEditor = nil
         supplierPaymentFor = nil
         supplierStatementFor = nil
-        recordingDelivery = false
         purchaseDetail = nil
         startingPurchase = false
     }

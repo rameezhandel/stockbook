@@ -46,7 +46,7 @@ struct LocalizationTests {
         \.seeBills, \.nextCustomer, \.paidInFullCash,
         \.newProduct, \.editProduct, \.productName, \.productNameExample,
         \.inStock, \.buyingPrice, \.sellingPrice, \.addStock,
-        \.removeThisProduct, \.setPriceAboveCost, \.quickAdd, \.purchaseEntry,
+        \.removeThisProduct, \.setPriceAboveCost,
         \.supplier, \.whoDeliveredIt, \.howMany, \.paidPerPiece,
         \.recordPurchase, \.welcomeToStockbook, \.welcomeBody, \.yourName,
         \.businessOwnerName, \.yourShelves, \.whatDoYouStock, \.stockNamesBody,
@@ -127,7 +127,6 @@ struct LocalizationTests {
             #expect(strings.onlyInStock(3).contains("3"))
             #expect(strings.usualPriceNote("SAR 20").contains("SAR 20"))
             #expect(strings.youMakeAPiece("SAR 30").contains("SAR 30"))
-            #expect(strings.addToStock(12).contains("12"))
             #expect(strings.billNumber(7).contains("7"))
             #expect(strings.billWhen(date: "28 July 2026", time: "09:41").contains("09:41"))
             #expect(strings.billedTo("Ahmed").contains("Ahmed"))
