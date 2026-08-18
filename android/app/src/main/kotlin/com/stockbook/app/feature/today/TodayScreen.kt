@@ -1,5 +1,6 @@
 package com.stockbook.app.feature.today
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,12 +11,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
 import com.stockbook.app.design.EmptyStateBox
@@ -30,8 +40,11 @@ import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.ScreenHeader
 import com.stockbook.app.design.StatCard
+import com.stockbook.app.design.card
+import com.stockbook.app.design.hairline
 import com.stockbook.app.feature.bills.BillRow
 import com.stockbook.core.model.ShopState
+import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
@@ -51,6 +64,15 @@ fun TodayScreen(
     modifier: Modifier = Modifier
 ) {
     val currency = state.settings.currency
+
+    // Which span the sales card is showing. Local to this screen and not
+    // remembered across launches: the useful answer on opening the app in the
+    // morning is almost always this month, and a screen that came back showing
+    // last March would be quietly lying about "Sold".
+    var span by remember { mutableStateOf(Span.THIS_MONTH) }
+    val period = remember(span, state.bills) { span.period() }
+    val sold = remember(period, state.bills) { store.soldIn(period) }
+
     val (owedNames, owedTotal) = store.outstanding()
     val (payableNames, payableTotal) = store.payable()
     val greetingName = state.settings.ownerName.firstName
@@ -77,6 +99,19 @@ fun TodayScreen(
             )
         ) {
             item {
+                // What the shop turned over, over a span the owner picks. The two
+                // cards below are balances and answer "where do I stand"; this
+                // one answers "how did we do", which is a different question and
+                // the only one on this screen with a period attached to it.
+                SoldCard(
+                    label = strings.soldInPeriod,
+                    value = Money.text(sold, currency),
+                    span = span,
+                    strings = strings,
+                    onChoose = { span = it }
+                )
+                Spacer(Modifier.height(Metrics.cardGap))
+
                 Row(modifier = Modifier.fillMaxWidth()) {
                     StatCard(
                         label = strings.receivableStat,
@@ -205,4 +240,83 @@ private fun OwedBanner(
 private fun Modifier.owedBannerBackground(): Modifier = drawBehind {
     drawRect(Nocturne.surface)
     drawRect(color = Nocturne.accent, size = Size(2.dp.toPx(), size.height))
+}
+
+/**
+ * The three spans Home offers.
+ *
+ * The statement screen's first three chips, minus its custom range: picking two
+ * dates is a job for the document you are about to send somebody, not for a
+ * glance on the way past. The period arithmetic is [StatementPeriod]'s either
+ * way, so "this month" means the same thing on both screens.
+ */
+private enum class Span(val label: (Strings) -> String) {
+    THIS_MONTH({ it.thisMonth }),
+    LAST_MONTH({ it.lastMonth }),
+    THIS_YEAR({ it.thisYear });
+
+    fun period(): StatementPeriod = when (this) {
+        THIS_MONTH -> StatementPeriod.thisMonth()
+        LAST_MONTH -> StatementPeriod.lastMonth()
+        THIS_YEAR -> StatementPeriod.thisYear()
+    }
+}
+
+@Composable
+private fun SoldCard(
+    label: String,
+    value: String,
+    span: Span,
+    strings: Strings,
+    onChoose: (Span) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth().card().padding(14.dp)) {
+        Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
+        Text(
+            value,
+            style = NocturneType.bigNumber(26.0),
+            color = Nocturne.text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 3.dp, bottom = 10.dp)
+        )
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Span.entries.forEach { candidate ->
+                SpanChip(
+                    title = candidate.label(strings),
+                    selected = candidate == span,
+                    onClick = { onChoose(candidate) },
+                    modifier = Modifier.weight(1f)
+                )
+                if (candidate != Span.entries.last()) Spacer(Modifier.width(6.dp))
+            }
+        }
+    }
+}
+
+/** The statement screen's chip, at the size a card has room for. */
+@Composable
+private fun SpanChip(
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        title,
+        style = NocturneType.inter(11.5),
+        color = if (selected) Nocturne.accent else Nocturne.neutral500,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+        modifier = modifier
+            .clip(RoundedCornerShape(Metrics.controlRadius))
+            .background(if (selected) Nocturne.primaryPressed else Color.Transparent)
+            .hairline(
+                if (selected) Nocturne.accent else Nocturne.divider,
+                Metrics.controlRadius
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 7.dp)
+    )
 }

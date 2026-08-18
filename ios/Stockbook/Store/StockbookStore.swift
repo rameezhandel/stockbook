@@ -743,6 +743,36 @@ final class StockbookStore {
         }
     }
 
+    // MARK: - What the shop turned over
+
+    /// Everything billed inside `period`, whoever it was billed to.
+    ///
+    /// The shop-wide twin of a statement's `billed`, and deliberately the same
+    /// notion of a period — there is one idea of "this month" in this app and
+    /// `StatementPeriod` is it, half-open bounds and all, so a bill written at
+    /// midnight on the 1st lands in exactly one month here as it does there.
+    ///
+    /// Bills only. A credit note reduces what somebody *owes*; it does not
+    /// unsell the goods, and a month's takings that quietly shrank when a note
+    /// was written weeks later would be a figure nobody could reconcile against
+    /// the till. The statement is where the two are netted.
+    func soldIn(_ period: StatementPeriod) -> Double {
+        let range = period.range()
+        return bills.filter { range.contains($0.createdAt) }.reduce(0) { $0 + $1.total }
+    }
+
+    /// The other side of the counter, over the same span.
+    func boughtIn(_ period: StatementPeriod) -> Double {
+        let range = period.range()
+        return purchases.filter { range.contains($0.createdAt) }.reduce(0) { $0 + $1.total }
+    }
+
+    /// How many bills the shop wrote in `period`.
+    func billCountIn(_ period: StatementPeriod) -> Int {
+        let range = period.range()
+        return bills.filter { range.contains($0.createdAt) }.count
+    }
+
     // MARK: - Statements
 
     /// One customer's account over a period.

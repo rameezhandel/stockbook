@@ -753,6 +753,38 @@ class StockbookStore(private val repository: StockbookRepository) {
         }
     }
 
+    // --- What the shop turned over
+
+    /**
+     * Everything billed inside [period], whoever it was billed to.
+     *
+     * The shop-wide twin of a statement's `billed`, and deliberately the same
+     * notion of a period — there is one idea of "this month" in this app and
+     * [StatementPeriod] is it, half-open bounds and all, so a bill written at
+     * midnight on the 1st lands in exactly one month here as it does there.
+     *
+     * Bills only. A credit note reduces what somebody *owes*; it does not unsell
+     * the goods, and a month's takings that quietly shrank when a note was
+     * written weeks later would be a figure nobody could reconcile against the
+     * till. The statement is where the two are netted.
+     */
+    fun soldIn(period: StatementPeriod): Double {
+        val range = period.range()
+        return bills.filter { it.createdAt in range }.sumOf { it.total }
+    }
+
+    /** The other side of the counter, over the same span. */
+    fun boughtIn(period: StatementPeriod): Double {
+        val range = period.range()
+        return purchases.filter { it.createdAt in range }.sumOf { it.total }
+    }
+
+    /** How many bills the shop wrote in [period]. */
+    fun billCountIn(period: StatementPeriod): Int {
+        val range = period.range()
+        return bills.count { it.createdAt in range }
+    }
+
     // --- Statements
 
     /**

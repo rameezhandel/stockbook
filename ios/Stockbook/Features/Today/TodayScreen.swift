@@ -10,6 +10,12 @@ struct TodayScreen: View {
     private var bills: [Bill] { store.bills }
     private var settings: Settings { store.settings }
 
+    /// Which span the sales card is showing. Screen-local and not remembered
+    /// across launches: the useful answer on opening the app in the morning is
+    /// almost always this month, and a screen that came back showing last March
+    /// would be quietly lying about "Sold".
+    @State private var span: Span = .thisMonth
+
     var body: some View {
         VStack(spacing: 0) {
             ScreenHeader(
@@ -33,6 +39,12 @@ struct TodayScreen: View {
                 let payable = store.payable()
 
                 VStack(spacing: 0) {
+                    // What the shop turned over, over a span the owner picks. The
+                    // two cards below are balances and answer "where do I stand";
+                    // this one answers "how did we do", which is a different
+                    // question and the only one on this screen with a period
+                    // attached to it.
+                    soldCard
                     statCards(owed, payable)
                     owedBanner(owed, followedByPayable: !payable.names.isEmpty)
                     payableBanner(payable)
@@ -51,6 +63,86 @@ struct TodayScreen: View {
     }
 
     // MARK: Stats
+
+    /// The three spans Home offers.
+    ///
+    /// The statement screen's first three chips, minus its custom range: picking
+    /// two dates is a job for the document you are about to send somebody, not
+    /// for a glance on the way past. The period arithmetic is `StatementPeriod`'s
+    /// either way, so "this month" means the same thing on both screens.
+    private enum Span: CaseIterable, Identifiable {
+        case thisMonth, lastMonth, thisYear
+
+        var id: Self { self }
+
+        var label: String {
+            switch self {
+            case .thisMonth: Loc.thisMonth
+            case .lastMonth: Loc.lastMonth
+            case .thisYear: Loc.thisYear
+            }
+        }
+
+        var period: StatementPeriod {
+            switch self {
+            case .thisMonth: .thisMonth()
+            case .lastMonth: .lastMonth()
+            case .thisYear: .thisYear()
+            }
+        }
+    }
+
+    private var soldCard: some View {
+        // Read once: it is a walk over every bill, and the rolling animation
+        // needs the same figure the label shows.
+        let sold = store.soldIn(span.period)
+
+        return VStack(alignment: .leading, spacing: 0) {
+            Text(Loc.soldInPeriod)
+                .font(NocturneType.inter(11))
+                .foregroundStyle(Nocturne.neutral500)
+            Text(Money.text(sold, in: currency))
+                .nocturneText(.bigNumber(26))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .rollingNumber(sold)
+                .padding(.top, 3)
+                .padding(.bottom, 10)
+
+            HStack(spacing: 6) {
+                ForEach(Span.allCases) { candidate in
+                    spanChip(candidate)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.statRadius, style: .continuous))
+        .hairline(radius: Metrics.statRadius)
+        .padding(.bottom, Metrics.cardGap)
+    }
+
+    /// The statement screen's chip, at the size a card has room for.
+    private func spanChip(_ candidate: Span) -> some View {
+        let selected = candidate == span
+        return Button {
+            withAnimation(Metrics.quick) { span = candidate }
+        } label: {
+            Text(candidate.label)
+                .font(NocturneType.inter(11.5))
+                .foregroundStyle(selected ? Nocturne.accent : Nocturne.neutral500)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .background(
+                    selected ? Nocturne.primaryPressed : Color.clear,
+                    in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous)
+                )
+                .hairline(selected ? Nocturne.accent : Nocturne.divider, radius: Metrics.controlRadius)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
 
     private func statCards(_ owed: (names: [String], total: Double), _ payable: (names: [String], total: Double)) -> some View {
         HStack(spacing: Metrics.cardGap) {

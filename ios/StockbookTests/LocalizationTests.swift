@@ -19,7 +19,7 @@ struct LocalizationTests {
         \.done, \.save, \.cancel, \.add,
         \.all, \.share, \.back, \.continueAction,
         \.next, \.startABill, \.addAProduct, \.today,
-        \.settings, \.receivableStat, \.payableStat, \.billsStat, \.recentBills,
+        \.settings, \.soldInPeriod, \.receivableStat, \.payableStat, \.billsStat, \.recentBills,
         \.noBillsToday,
         \.itemsTitle, \.search, \.nothingAddedYet, \.shelfEmpty, \.itemsRecordDelivery,
         \.billsTitle, \.noBillsEver, \.editBill, \.saveChanges, \.removeBill, \.removeBillNote,
