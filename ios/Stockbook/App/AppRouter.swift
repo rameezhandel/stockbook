@@ -55,6 +55,10 @@ final class AppRouter {
     /// The record-a-payment sheet, for one customer.
     var paymentFor: Customer?
 
+    /// The credit-note sheet. Carries the customer it is against, and — when one
+    /// is being corrected rather than written — the note itself.
+    var creditNoteFor: CreditNoteTarget?
+
     /// A customer's statement, full screen. Held as a **key** rather than a
     /// `Customer`, because recording a payment while it is open changes every
     /// derived figure on it — the screen has to re-read the customer, not show a
@@ -171,6 +175,7 @@ final class AppRouter {
         showingBackup = false
         customerEditor = nil
         paymentFor = nil
+        creditNoteFor = nil
         statementFor = nil
         supplierEditor = nil
         supplierPaymentFor = nil
@@ -203,6 +208,17 @@ struct AddStockTarget: Identifiable {
     let product: Product?
     var purchase: Purchase? = nil
     var id: String { purchase?.id.uuidString ?? product?.uid.uuidString ?? "new" }
+}
+
+/// Identifies the credit-note sheet: who it is against, and the note being
+/// corrected where there is one.
+///
+/// The two travel together because the sheet needs both, and a note with no
+/// customer behind it is not a thing this app can draw.
+struct CreditNoteTarget: Identifiable {
+    let customer: Customer
+    var note: CreditNote? = nil
+    var id: String { note?.id.uuidString ?? "new-\(customer.key)" }
 }
 
 /// Identifies the customer editor sheet. `nil` customer means "New customer".

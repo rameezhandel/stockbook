@@ -169,6 +169,17 @@ struct BillsScreen: View {
                 }
             }
             .padding(.top, 11)
+
+            // On its own line and quiet, unlike the two above it. Taking money
+            // is the daily act; writing some off is the occasional one — and
+            // unlike a payment it is offered even to somebody who owes nothing,
+            // because goods come back after a bill has been settled and that
+            // leaves them in credit.
+            Button(Loc.issueACreditNote) {
+                router.creditNoteFor = CreditNoteTarget(customer: customer)
+            }
+            .buttonStyle(GhostButtonStyle(fontSize: 12.5, horizontalPadding: 0))
+            .padding(.top, 2)
         }
         .padding(13)
         .frame(maxWidth: .infinity, alignment: .leading)

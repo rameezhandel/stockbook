@@ -20,6 +20,7 @@ private func deliveryDetail(_ purchase: Purchase) -> String {
 /// arithmetic and is tested against literal figures.
 struct StatementScreen: View {
     @Environment(StockbookStore.self) private var store
+    @Environment(AppRouter.self) private var router
     @Environment(\.currency) private var currency
 
     /// Whose account: a customer key, or a supplier key with `isSupplier` set.
@@ -187,6 +188,12 @@ struct StatementScreen: View {
 
             row(chargedLabel(statement), Money.text(statement.billed, in: currency))
             row(settledLabel(statement), Money.text(statement.received, in: currency))
+            // Its own line, and only where there is one. Credit is not cash, and
+            // a row saying "0.00 credited" on every statement teaches people to
+            // stop reading the ones that are not zero.
+            if statement.credited > 0 {
+                row(Loc.creditNotes, Money.text(statement.credited, in: currency))
+            }
 
             FadedRule().padding(.vertical, 10)
 
@@ -248,6 +255,15 @@ struct StatementScreen: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
+            // A credit note opens for correction instead of arming a delete,
+            // because it is a document with a number on it rather than a bare
+            // figure: what wants fixing is usually the amount or the reason, and
+            // removing it outright is one button inside the sheet that opens.
+            if case .creditNote(let note) = entry {
+                guard let customer = store.customer(key: note.customerKey) else { return }
+                router.creditNoteFor = CreditNoteTarget(customer: customer, note: note)
+                return
+            }
             guard let id = paymentID(entry) else { return }
             withAnimation(Metrics.quick) {
                 deleting = deleting == id ? nil : id
@@ -260,7 +276,7 @@ struct StatementScreen: View {
         switch entry {
         case .payment(let payment): payment.id
         case .supplierPayment(let payment): payment.id
-        case .bill, .purchase: nil
+        case .bill, .purchase, .creditNote: nil
         }
     }
 
@@ -284,6 +300,17 @@ struct StatementScreen: View {
                     }
                     if let note = payment.note {
                         Text(note).nocturneText(.meta)
+                    }
+                case .creditNote(let note):
+                    Text(note.reference(Loc))
+                        .font(NocturneType.inter(13))
+                        .foregroundStyle(Nocturne.accent400)
+                    // Why it was written, where the owner said. On a document
+                    // somebody is checking against their own paper, "returned,
+                    // damaged" is the difference between a figure they
+                    // recognise and one they have to go and ask about.
+                    if let reason = note.reason {
+                        Text(reason).nocturneText(.meta).lineLimit(2)
                     }
                 case .purchase(let purchase):
                     Text(purchase.reference(Loc))
@@ -338,6 +365,7 @@ struct StatementScreen: View {
         case .purchase(let purchase): Money.text(purchase.total, in: currency)
         // A minus sign on both kinds of payment: it is what the account moves by,
         // and on a supplier's statement that is money leaving rather than arriving.
+        case .creditNote(let note): "− \(Money.text(note.total, in: currency))"
         case .payment(let payment): "− \(Money.text(payment.amount, in: currency))"
         case .supplierPayment(let payment): "− \(Money.text(payment.amount, in: currency))"
         }
@@ -346,7 +374,7 @@ struct StatementScreen: View {
     private func amountTint(_ entry: Statement.Entry) -> Color {
         switch entry {
         case .bill, .purchase: Nocturne.text
-        case .payment, .supplierPayment: Nocturne.accent400
+        case .payment, .supplierPayment, .creditNote: Nocturne.accent400
         }
     }
 
@@ -385,6 +413,8 @@ struct StatementScreen: View {
                 lines.append("\(Loc.longDate(bill.createdAt))  \(bill.reference(Loc))  \(Money.text(bill.total, in: currency))  →  \(balance)")
             case .payment(let payment):
                 lines.append("\(Loc.longDate(payment.receivedAt))  \(Loc.paymentLabel)  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
+            case .creditNote(let note):
+                lines.append("\(Loc.longDate(note.issuedAt))  \(note.reference(Loc))  − \(Money.text(note.total, in: currency))  →  \(balance)")
             case .purchase(let purchase):
                 lines.append("\(Loc.longDate(purchase.createdAt))  \(purchase.reference(Loc))  \(deliveryDetail(purchase))  \(Money.text(purchase.total, in: currency))  →  \(balance)")
             case .supplierPayment(let payment):
@@ -395,6 +425,9 @@ struct StatementScreen: View {
         lines.append("")
         lines.append("\(chargedLabel(statement)): \(Money.text(statement.billed, in: currency))")
         lines.append("\(settledLabel(statement)): \(Money.text(statement.received, in: currency))")
+        if statement.credited > 0 {
+            lines.append("\(Loc.creditNotes): \(Money.text(statement.credited, in: currency))")
+        }
         lines.append("\(Loc.closingBalance): \(closingText(statement))")
         return lines.joined(separator: "\n")
     }

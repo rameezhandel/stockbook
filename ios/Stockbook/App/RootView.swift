@@ -73,6 +73,7 @@ private struct AppRoot: View {
 private struct AppShell: View {
     @Environment(AppRouter.self) private var router
     @Environment(Cart.self) private var cart
+    @Environment(StockbookStore.self) private var store
 
     var body: some View {
         @Bindable var router = router
@@ -166,6 +167,15 @@ private struct AppShell: View {
         }
         .nocturneSheet(item: $router.paymentFor) { customer in
             RecordPaymentSheet(customer: customer) { router.paymentFor = nil }
+        }
+        // The payment sheet's sibling: the same act with no money in it. The
+        // customer is re-read so the sheet's "what will be left" line is not a
+        // stale copy taken when it opened.
+        .nocturneSheet(item: $router.creditNoteFor) { target in
+            CreditNoteSheet(
+                customer: store.customer(key: target.customer.key) ?? target.customer,
+                editing: target.note
+            ) { router.creditNoteFor = nil }
         }
         .nocturneSheet(item: $router.supplierEditor) { target in
             SupplierEditorSheet(existing: target.supplier) { router.supplierEditor = nil }
