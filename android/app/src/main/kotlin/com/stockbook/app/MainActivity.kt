@@ -239,6 +239,7 @@ private fun Shell(store: StockbookStore) {
                 bill = bill,
                 state = state,
                 strings = strings,
+                onShare = { text -> shareText(context, text) },
                 onSeeBills = {
                     router.receipt = null
                     router.tab = AppTab.BOOK
@@ -384,6 +385,7 @@ private fun Shell(store: StockbookStore) {
                     state = state,
                     store = store,
                     strings = strings,
+                    onShare = { text -> shareText(context, text) },
                     onClose = { router.billDetail = null }
                 )
             }

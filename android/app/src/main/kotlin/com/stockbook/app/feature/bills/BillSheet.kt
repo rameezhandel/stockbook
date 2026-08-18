@@ -7,11 +7,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.stockbook.app.design.Icon
 import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.SheetHeader
 import com.stockbook.core.model.Bill
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.store.StockbookStore
+import com.stockbook.core.text.BillText
 import com.stockbook.core.text.Strings
 
 /**
@@ -31,6 +33,7 @@ fun BillSheet(
     state: ShopState,
     store: StockbookStore,
     strings: Strings,
+    onShare: (String) -> Unit,
     onClose: () -> Unit
 ) {
     // Falls back to the value it was opened with, which matters after a database
@@ -51,8 +54,24 @@ fun BillSheet(
             shopName = state.settings.ownerName
         )
 
+        // The bill as something to send: the customer asking for "the invoice"
+        // wants it on their phone, and plain text is what reaches them there.
+        Spacer(Modifier.height(14.dp))
+        SecondaryButton(
+            strings.share,
+            onClick = {
+                onShare(
+                    BillText.plainText(live, state.settings.ownerName, state.settings.currency, strings)
+                )
+            },
+            fullWidth = true,
+            height = 44.dp,
+            fontSize = 13.5,
+            leading = Icon.share
+        )
+
         if (!live.voided) {
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(8.dp))
             SecondaryButton(
                 strings.voidAndRestock,
                 onClick = { store.void(live) },

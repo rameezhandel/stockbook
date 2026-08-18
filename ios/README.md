@@ -464,6 +464,12 @@ both it and setup step 4.
   the two cannot drift apart. Void lives inside the opened bill rather than on
   the list row — the app's one destructive action on history now costs a
   deliberate tap to reach, and the row goes back to being a row.
+
+  **Shareable as plain text**, from the confirmation and from history alike —
+  `BillText.plainText`, a pure function of the bill, checked against literal
+  strings rather than by reading a screen. Plain text rather than a PDF because
+  it lands in WhatsApp, which is where a customer here actually reads it; a PDF
+  would look more like a document and be worse at being one.
 - **Settings** — owner name and counts, language and currency as two dropdowns
   in one card, and a single row through to the backup handoff whose subtitle
   carries the backup state. Export and import live one level in, on

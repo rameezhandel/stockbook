@@ -60,20 +60,34 @@ struct ReceiptOverlay: View {
     }
 
     private var actions: some View {
-        HStack(spacing: 8) {
-            Button(Loc.seeBills) {
-                router.receipt = nil
-                router.tab = .book
+        VStack(spacing: 8) {
+            // Send it now or never: the moment the customer is still at the
+            // counter is the moment they want the bill on their phone.
+            ShareLink(item: BillText.plainText(
+                bill,
+                shopName: store.settings.ownerName,
+                currency: store.settings.currency,
+                strings: Loc
+            )) {
+                Label(Loc.share, systemImage: Icon.share)
             }
-            .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 46))
+            .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
 
-            // The cart was already cleared on save, so this lands on an empty
-            // new bill — the next customer is usually already waiting.
-            Button(Loc.nextCustomer) {
-                router.receipt = nil
-                router.tab = .sell
+            HStack(spacing: 8) {
+                Button(Loc.seeBills) {
+                    router.receipt = nil
+                    router.tab = .book
+                }
+                .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 46))
+
+                // The cart was already cleared on save, so this lands on an
+                // empty new bill — the next customer is usually already waiting.
+                Button(Loc.nextCustomer) {
+                    router.receipt = nil
+                    router.tab = .sell
+                }
+                .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 46))
             }
-            .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 46))
         }
         .padding(.top, 14)
     }

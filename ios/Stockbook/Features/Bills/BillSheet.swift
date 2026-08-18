@@ -33,6 +33,14 @@ struct BillSheet: View {
 
             BillTemplate(bill: live, shopName: store.settings.ownerName)
 
+            // The bill as something to send: the customer asking for "the
+            // invoice" wants it on their phone, and plain text is what reaches
+            // them there.
+            ShareLink(item: plainText(live)) {
+                Label(Loc.share, systemImage: Icon.share)
+            }
+            .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
+
             // Voiding redraws the document under the owner's thumb: the mark
             // appears, the note changes, the button goes. Worth a beat.
             if !live.voided {
@@ -44,5 +52,14 @@ struct BillSheet: View {
             }
         }
         .motion(Motion.list, value: live.voided)
+    }
+
+    private func plainText(_ bill: Bill) -> String {
+        BillText.plainText(
+            bill,
+            shopName: store.settings.ownerName,
+            currency: store.settings.currency,
+            strings: Loc
+        )
     }
 }
