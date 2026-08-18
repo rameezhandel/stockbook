@@ -242,7 +242,99 @@ struct InvoiceNumberTests {
         #expect(store.purchaseWithInvoiceNo("INV-89") == nil)
     }
 
+    // MARK: Receipts
+
+    @Test("A payment keeps the number written on the receipt")
+    func paymentKeepsItsNumber() throws {
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        store.saveBill(customer: "Ahmed", paid: 0, amount: 1000, invoiceNo: "1024")
+
+        let payment = try #require(
+            store.recordPayment(customerKey: "ahmed", amount: 300, paymentNo: " 008455 ")
+        )
+
+        // Trimmed, like every other typed number: a trailing space is a thumb
+        // slip, not part of what the shop wrote.
+        #expect(payment.paymentNo == "008455")
+    }
+
+    @Test("A receipt book is numbered separately from the bill book")
+    func receiptsAreTheirOwnSeries() throws {
+        // The shop's paper works this way, and pretending otherwise would be the
+        // app inventing a rule. Receipt 1024 and invoice 1024 are different slips.
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        store.saveBill(customer: "Ahmed", paid: 0, amount: 1000, invoiceNo: "1024")
+
+        #expect(store.paymentWithNo("1024") == nil)
+
+        store.recordPayment(customerKey: "ahmed", amount: 100, paymentNo: "1024")
+        #expect(store.paymentWithNo("1024") != nil)
+    }
+
+    @Test("Money out is its own book again")
+    func supplierReceiptsAreTheirOwnSeries() throws {
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        let supplier = try #require(store.addSupplier(name: "Al Faisal"))
+        store.recordPayment(customerKey: "ahmed", amount: 100, paymentNo: "77")
+
+        // Nothing the shop received tells it anything about what it paid out.
+        #expect(store.supplierPaymentWithNo("77") == nil)
+
+        store.recordSupplierPayment(supplierKey: supplier.key, amount: 50, paymentNo: "77")
+        #expect(store.supplierPaymentWithNo("77") != nil)
+    }
+
+    @Test("A receipt never clashes with itself")
+    func receiptExcludesItself() throws {
+        // What the sheet asks while somebody is looking at a saved receipt.
+        // Without the exception, opening one to fix its date would be told its
+        // own number is taken.
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        let payment = try #require(
+            store.recordPayment(customerKey: "ahmed", amount: 100, paymentNo: "008455")
+        )
+
+        #expect(store.paymentWithNo("008455", exceptId: payment.id) == nil)
+        #expect(store.paymentWithNo("008455") != nil)
+    }
+
+    @Test("A receipt with no number asks nothing of the book")
+    func blankReceiptNumbersNeverClash() throws {
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        store.recordPayment(customerKey: "ahmed", amount: 100, paymentNo: "  ")
+
+        // Blank is absent, and absent cannot clash — otherwise the first
+        // unnumbered receipt would block every one after it.
+        #expect(store.payments.first?.paymentNo == nil)
+        #expect(store.paymentWithNo("") == nil)
+        #expect(store.paymentWithNo(nil) == nil)
+    }
+
     // MARK: The file
+
+    @Test("Receipt numbers survive a backup round trip")
+    func receiptRoundTrip() throws {
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        let supplier = try #require(store.addSupplier(name: "Al Faisal"))
+        store.recordPayment(customerKey: "ahmed", amount: 300, paymentNo: "008455")
+        store.recordSupplierPayment(supplierKey: supplier.key, amount: 500, paymentNo: "P-12")
+
+        let document = try BackupService.decode(try BackupService.encode(store.makeBackupDocument()))
+        let restored = makeStore()
+        restored.replaceEverything(with: document)
+
+        // Both directions. The export side has two separate call sites and the
+        // restore side two more; a patch that catches three of the four drops
+        // numbers silently on the way to a new phone.
+        #expect(restored.payments.first?.paymentNo == "008455")
+        #expect(restored.supplierPayments.first?.paymentNo == "P-12")
+    }
 
     @Test("Both numbers survive a backup round trip")
     func roundTrip() throws {
