@@ -51,5 +51,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          How a statement PDF leaves the app.
+
+          A `<provider>`, not a permission: it declares nothing the phone's owner
+          is asked about and nothing another app can hold. `grantUriPermissions`
+          hands out read access to **one file at a time**, for as long as the
+          share sheet needs it, from the app's own cache and nowhere else — see
+          `res/xml/shared_files.xml`. `exported="false"` means no other app can
+          address the provider directly; only a URI this app has granted works.
+
+          The alternative was writing the PDF somewhere shared, which would need
+          a storage permission, which this app is never going to ask for.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/shared_files" />
+        </provider>
     </application>
 </manifest>

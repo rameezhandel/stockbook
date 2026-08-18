@@ -44,6 +44,7 @@ import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.ScreenHeader
+import com.stockbook.app.design.PrimaryButton
 import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
@@ -55,6 +56,7 @@ import com.stockbook.core.model.StatementRange
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
+import com.stockbook.core.text.StatementDocument
 import com.stockbook.core.text.Strings
 import java.time.Instant
 import java.time.ZoneId
@@ -82,6 +84,8 @@ fun StatementScreen(
     currency: Currency,
     strings: Strings,
     onShare: (String) -> Unit,
+    /** Hands the rendered document to the share sheet. */
+    onSharePdf: (StatementDocument) -> Unit = {},
     /**
      * Opens a credit note for correction. A note is edited from here because
      * this is the document it appears on — the same place a bill is opened from.
@@ -180,14 +184,28 @@ fun StatementScreen(
                     onEditCreditNote = onEditCreditNote
                 )
                 Spacer(Modifier.height(10.dp))
-                SecondaryButton(
-                    strings.share,
-                    onClick = { onShare(plainText(statement, store, currency, strings)) },
-                    fullWidth = true,
-                    height = 44.dp,
-                    fontSize = 13.5,
-                    leading = Icon.share
-                )
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    SecondaryButton(
+                        strings.share,
+                        onClick = { onShare(plainText(statement, store, currency, strings)) },
+                        fullWidth = true,
+                        height = 44.dp,
+                        fontSize = 13.5,
+                        leading = Icon.share,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    // The plain text above is for a quick WhatsApp line; this is
+                    // the document somebody files. Same figures, two audiences.
+                    PrimaryButton(
+                        strings.sharePdf,
+                        onClick = { onSharePdf(StatementDocument.make(statement, store.settings, strings, currency)) },
+                        fullWidth = true,
+                        height = 44.dp,
+                        fontSize = 13.5,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }

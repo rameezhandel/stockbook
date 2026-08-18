@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The one directory this app ever hands a file out of.
+
+  `cache-path` is the app's own cache, which needs no storage permission to
+  write and no permission for anything else to read once a `content://` URI has
+  been granted for it. Nothing outside this path is exposed, and the app holds no
+  storage permission to expose anything with.
+-->
+<paths>
+    <cache-path name="shared" path="." />
+</paths>

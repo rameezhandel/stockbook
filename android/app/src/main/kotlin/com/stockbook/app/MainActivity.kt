@@ -37,6 +37,7 @@ import com.stockbook.app.feature.customers.CustomerEditorSheet
 import com.stockbook.app.feature.customers.RecordPaymentSheet
 import com.stockbook.app.feature.customers.PaySupplierSheet
 import com.stockbook.app.feature.customers.SupplierEditorSheet
+import com.stockbook.app.feature.customers.StatementPdf
 import com.stockbook.app.feature.customers.StatementScreen
 import com.stockbook.app.feature.items.AddStockSheet
 import com.stockbook.app.feature.items.ItemsScreen
@@ -51,9 +52,11 @@ import com.stockbook.app.feature.today.TodayScreen
 import com.stockbook.app.feature.today.WhoOwesYouSheet
 import com.stockbook.app.feature.today.WhoYouOweSheet
 import com.stockbook.core.model.AppTheme
+import com.stockbook.core.model.Timestamps
 import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppTab
+import com.stockbook.core.text.Dates
 import com.stockbook.core.text.Strings
 import java.io.File
 
@@ -222,6 +225,19 @@ private fun Shell(store: StockbookStore) {
                 currency = state.settings.currency,
                 strings = strings,
                 onShare = { text -> shareText(context, text) },
+                onSharePdf = { document ->
+                    sharePdf(
+                        context,
+                        StatementPdf.write(
+                            document,
+                            context,
+                            strings.statementFileName(
+                                document.partyName.replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').lowercase(),
+                                Dates.fileDate(Timestamps.now())
+                            )
+                        )
+                    )
+                },
                 onEditCreditNote = { note ->
                     store.customer(note.customerKey)?.let { customer ->
                         router.editingCreditNote = note
@@ -240,6 +256,19 @@ private fun Shell(store: StockbookStore) {
                 currency = state.settings.currency,
                 strings = strings,
                 onShare = { text -> shareText(context, text) },
+                onSharePdf = { document ->
+                    sharePdf(
+                        context,
+                        StatementPdf.write(
+                            document,
+                            context,
+                            strings.statementFileName(
+                                document.partyName.replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').lowercase(),
+                                Dates.fileDate(Timestamps.now())
+                            )
+                        )
+                    )
+                },
                 onClose = { router.supplierStatementFor = null }
             )
         }
@@ -457,6 +486,28 @@ private fun shareText(context: android.content.Context, text: String) {
     val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(android.content.Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(android.content.Intent.createChooser(intent, null))
+}
+
+/**
+ * The same hand-off, carrying a file.
+ *
+ * The URI comes from the app's own `FileProvider` and is granted read access for
+ * the life of the chooser — a path would be unreadable to whatever app the owner
+ * picks, and making the file readable any other way would need a storage
+ * permission this app does not have.
+ */
+private fun sharePdf(context: android.content.Context, file: java.io.File) {
+    val uri = androidx.core.content.FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.files",
+        file
+    )
+    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = "application/pdf"
+        putExtra(android.content.Intent.EXTRA_STREAM, uri)
+        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(android.content.Intent.createChooser(intent, null))
 }
