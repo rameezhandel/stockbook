@@ -16,6 +16,7 @@ Native iOS: SwiftUI, iOS 17+, iPhone only, portrait, dark or light.
 | [`project/`](project/) | The original HTML design prototype and the Nocturne design-system stylesheet. |
 | [`chats/`](chats/) | The design conversation the app was specified in. |
 | [`HANDOFF.md`](HANDOFF.md) | Notes from the design-tool export that produced `project/`. |
+| [`BACKLOG.md`](BACKLOG.md) | What is deliberately left until just before going live. |
 
 ## Building
 
