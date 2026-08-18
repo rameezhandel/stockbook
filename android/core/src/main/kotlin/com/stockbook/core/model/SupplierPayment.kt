@@ -23,6 +23,8 @@ data class SupplierPayment(
     val supplierKey: String,
     /** Always positive; the store clamps it. A negative payment is a refund, and there is no such thing here. */
     val amount: Double,
+    /** The number on the receipt, on its own series — see `Payment.paymentNo`. */
+    val paymentNo: String? = null,
     @Serializable(with = InstantSerializer::class)
     val paidAt: Instant = Timestamps.now(),
     /** "cash", "cheque 4471", "against last month" — absent rather than empty when skipped. */

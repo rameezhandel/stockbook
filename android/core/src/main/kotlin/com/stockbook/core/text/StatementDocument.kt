@@ -127,17 +127,36 @@ data class StatementDocument(
         }
 
         /**
-         * What the Transaction column calls each row.
+         * What the Transaction column calls each row: **the kind of document,
+         * then its number**.
          *
-         * The paper's own number wherever there is one — that is the whole point
-         * of a statement somebody is checking against their file of invoices.
+         * "06011" alone tells somebody checking against their own file nothing
+         * about what 06011 *is*, and the books are numbered separately — invoice
+         * 130 and credit note 130 are different pieces of paper. Where a record
+         * carries no number of its own the type is still named, which is the
+         * honest answer rather than a blank cell.
          */
         private fun describe(entry: Statement.Entry, strings: Strings): String = when (entry) {
-            is Statement.Entry.ForBill -> entry.bill.reference(strings)
-            is Statement.Entry.ForPurchase -> entry.purchase.reference(strings)
-            is Statement.Entry.ForCreditNote -> entry.note.reference(strings)
-            is Statement.Entry.ForPayment -> strings.paymentLabel
-            is Statement.Entry.ForSupplierPayment -> strings.paymentLabel
+            is Statement.Entry.ForBill ->
+                entry.bill.invoiceNo?.takeIf { it.isNotBlank() }
+                    ?.let { strings.invoiceRef(it) }
+                    ?: strings.billNumber(entry.bill.number)
+            is Statement.Entry.ForPurchase ->
+                entry.purchase.invoiceNo?.takeIf { it.isNotBlank() }
+                    ?.let { strings.deliveryRef(it) }
+                    ?: strings.purchaseLabel
+            is Statement.Entry.ForCreditNote ->
+                entry.note.noteNo?.takeIf { it.isNotBlank() }
+                    ?.let { strings.creditNoteRef(it) }
+                    ?: strings.creditNoteLabel
+            is Statement.Entry.ForPayment ->
+                entry.payment.paymentNo?.takeIf { it.isNotBlank() }
+                    ?.let { strings.paymentRef(it) }
+                    ?: strings.paymentLabel
+            is Statement.Entry.ForSupplierPayment ->
+                entry.payment.paymentNo?.takeIf { it.isNotBlank() }
+                    ?.let { strings.paymentRef(it) }
+                    ?: strings.paymentLabel
         }
     }
 }

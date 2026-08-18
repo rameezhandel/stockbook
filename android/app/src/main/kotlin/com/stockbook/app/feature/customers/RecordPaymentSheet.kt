@@ -33,6 +33,7 @@ import com.stockbook.app.design.PrimaryButton
 import com.stockbook.app.design.SheetHeader
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
+import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.Supplier
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
@@ -61,6 +62,7 @@ import java.time.ZoneOffset
 @Composable
 fun RecordPaymentSheet(
     customer: Customer,
+    state: ShopState,
     store: StockbookStore,
     currency: Currency,
     strings: Strings,
@@ -74,7 +76,9 @@ fun RecordPaymentSheet(
         footnote = strings.paymentNotAgainstOneBill,
         currency = currency,
         strings = strings,
-        onSave = { amount, at, note -> store.recordPayment(customer.key, amount, at, note) },
+        state = state,
+        clashDate = { store.paymentWithNo(it)?.receivedAt },
+        onSave = { amount, at, note, no -> store.recordPayment(customer.key, amount, at, note, no) },
         onClose = onClose
     )
 }
@@ -89,6 +93,7 @@ fun RecordPaymentSheet(
 @Composable
 fun PaySupplierSheet(
     supplier: Supplier,
+    state: ShopState,
     store: StockbookStore,
     currency: Currency,
     strings: Strings,
@@ -102,7 +107,9 @@ fun PaySupplierSheet(
         footnote = strings.paymentNotAgainstOnePurchase,
         currency = currency,
         strings = strings,
-        onSave = { amount, at, note -> store.recordSupplierPayment(supplier.key, amount, at, note) },
+        state = state,
+        clashDate = { store.supplierPaymentWithNo(it)?.paidAt },
+        onSave = { amount, at, note, no -> store.recordSupplierPayment(supplier.key, amount, at, note, no) },
         onClose = onClose
     )
 }
@@ -117,21 +124,69 @@ private fun PaymentSheet(
     footnote: String,
     currency: Currency,
     strings: Strings,
-    onSave: (amount: Double, at: Instant, note: String) -> Unit,
+    state: ShopState,
+    clashDate: (String) -> Instant?,
+    onSave: (amount: Double, at: Instant, note: String, paymentNo: String) -> Unit,
     onClose: () -> Unit
 ) {
+    var paymentNo by remember(key) { mutableStateOf("") }
     var amount by remember(key) { mutableStateOf("") }
     var note by remember(key) { mutableStateOf("") }
     var receivedAt by remember(key) { mutableStateOf(Timestamps.now()) }
     var pickingDate by remember { mutableStateOf(false) }
 
+    // Recomputed against the whole state so a number freed by deleting the
+    // receipt that held it stops being a clash immediately.
+    val clash = remember(state, paymentNo) { clashDate(paymentNo) }
+
     val typed = Money.parse(amount) ?: 0.0
-    val canSave = typed > 0
+    val canSave = typed > 0 && paymentNo.isNotBlank() && clash == null
     /** What will still be owed once this is saved — usually the target is zero. */
     val remaining = owed - typed
 
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(title = strings.recordAPayment, subtitle = name, onClose = onClose)
+
+        // The paper first: which receipt this is, and the day it was written.
+        // Same row, same order as the credit note's, because it is the same act
+        // of copying a slip into the book.
+        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
+            NocturneField(
+                value = paymentNo,
+                onValueChange = { paymentNo = it },
+                label = strings.paymentNoField,
+                placeholder = strings.paymentNoHint,
+                isRequiredAndEmpty = paymentNo.isBlank(),
+                height = 40.dp,
+                fontSize = 13.5,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(dateLabel, style = NocturneType.fieldLabel, color = Nocturne.neutral400)
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    strings.longDate(receivedAt),
+                    style = NocturneType.inter(13.0),
+                    color = Nocturne.accent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(Metrics.controlRadius))
+                        .clickable { pickingDate = true }
+                        .padding(horizontal = 8.dp, vertical = 10.dp)
+                )
+            }
+        }
+
+        if (clash != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                strings.paymentNoAlreadyUsed(strings.longDate(clash)),
+                style = NocturneType.meta,
+                color = Nocturne.accent400
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
 
         NocturneField(
             value = amount,
@@ -166,24 +221,6 @@ private fun PaymentSheet(
             )
         }
         Spacer(Modifier.height(12.dp))
-
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                dateLabel,
-                style = NocturneType.meta,
-                color = Nocturne.neutral500,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                strings.longDate(receivedAt),
-                style = NocturneType.inter(13.0),
-                color = Nocturne.accent,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(Metrics.controlRadius))
-                    .clickable { pickingDate = true }
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-            )
-        }
 
         if (pickingDate) {
             val picker = rememberDatePickerState(initialSelectedDateMillis = receivedAt.toEpochMilli())
@@ -228,10 +265,15 @@ private fun PaymentSheet(
         )
 
         PrimaryButton(
-            title = if (canSave) strings.savePayment else strings.enterAnAmount,
+            title = when {
+                clash != null -> strings.changeThePaymentNo
+                paymentNo.isBlank() -> strings.enterPaymentNumber
+                typed <= 0 -> strings.enterAnAmount
+                else -> strings.savePayment
+            },
             onClick = {
                 if (!canSave) return@PrimaryButton
-                onSave(typed, receivedAt, note)
+                onSave(typed, receivedAt, note, paymentNo)
                 onClose()
             },
             enabled = canSave,

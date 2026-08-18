@@ -110,6 +110,10 @@ fun SettingsScreen(
                     label = strings.shopAddress,
                     placeholder = strings.shopAddressHint,
                     height = 84.dp,
+                    // `ImeAction.Default` alone was not enough: the field was
+                    // still `singleLine`, which is what turns Return into Done
+                    // whatever the action says.
+                    multiline = true,
                     imeAction = ImeAction.Default
                 )
                 Text(

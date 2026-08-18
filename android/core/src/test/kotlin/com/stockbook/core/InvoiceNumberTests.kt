@@ -219,7 +219,95 @@ class InvoiceNumberTests {
         assertEquals(english.purchaseLabel, purchase.reference(english))
     }
 
+    // --- Receipts
+
+    @Test
+    fun `a payment keeps the number written on the receipt`() {
+        val store = store()
+        store.addCustomer("Ahmed")
+        store.saveBill(customer = "Ahmed", paid = 0.0, amount = 1000.0, invoiceNo = "1024")
+
+        val payment = assertNotNull(store.recordPayment("ahmed", 300.0, paymentNo = " 008455 "))
+
+        // Trimmed, like every other typed number: a trailing space is a thumb
+        // slip, not part of what the shop wrote.
+        assertEquals("008455", payment.paymentNo)
+    }
+
+    @Test
+    fun `a receipt book is numbered separately from the bill book`() {
+        // The shop's paper works this way, and pretending otherwise would be the
+        // app inventing a rule. Receipt 1024 and invoice 1024 are different slips.
+        val store = store()
+        store.addCustomer("Ahmed")
+        store.saveBill(customer = "Ahmed", paid = 0.0, amount = 1000.0, invoiceNo = "1024")
+
+        assertNull(store.paymentWithNo("1024"))
+
+        assertNotNull(store.recordPayment("ahmed", 100.0, paymentNo = "1024"))
+        assertNotNull(store.paymentWithNo("1024"))
+    }
+
+    @Test
+    fun `money out is its own book again`() {
+        val store = store()
+        store.addCustomer("Ahmed")
+        val supplier = assertNotNull(store.addSupplier("Al Faisal"))
+        store.recordPayment("ahmed", 100.0, paymentNo = "77")
+
+        // Nothing the shop received tells it anything about what it paid out.
+        assertNull(store.supplierPaymentWithNo("77"))
+
+        assertNotNull(store.recordSupplierPayment(supplier.key, 50.0, paymentNo = "77"))
+        assertNotNull(store.supplierPaymentWithNo("77"))
+    }
+
+    @Test
+    fun `a receipt never clashes with itself`() {
+        // What the sheet asks while somebody is looking at a saved receipt.
+        // Without the exception, opening one to fix its date would be told its
+        // own number is taken.
+        val store = store()
+        store.addCustomer("Ahmed")
+        val payment = assertNotNull(store.recordPayment("ahmed", 100.0, paymentNo = "008455"))
+
+        assertNull(store.paymentWithNo("008455", exceptId = payment.id))
+        assertNotNull(store.paymentWithNo("008455"))
+    }
+
+    @Test
+    fun `a receipt with no number asks nothing of the book`() {
+        val store = store()
+        store.addCustomer("Ahmed")
+        assertNotNull(store.recordPayment("ahmed", 100.0, paymentNo = "  "))
+
+        // Blank is absent, and absent cannot clash — otherwise the first
+        // unnumbered receipt would block every one after it.
+        assertNull(store.payments.first().paymentNo)
+        assertNull(store.paymentWithNo(""))
+        assertNull(store.paymentWithNo(null))
+    }
+
     // --- The file
+
+    @Test
+    fun `receipt numbers survive a backup round trip`() {
+        val store = store()
+        store.addCustomer("Ahmed")
+        val supplier = assertNotNull(store.addSupplier("Al Faisal"))
+        store.recordPayment("ahmed", 300.0, paymentNo = "008455")
+        store.recordSupplierPayment(supplier.key, 500.0, paymentNo = "P-12")
+
+        val document = BackupService.decode(BackupService.encode(store.makeBackupDocument()))
+        val restored = store()
+        restored.replaceEverything(document)
+
+        // Both directions. The export side has two separate call sites and the
+        // restore side two more; a patch that catches three of the four drops
+        // numbers silently on the way to a new phone.
+        assertEquals("008455", restored.payments.first().paymentNo)
+        assertEquals("P-12", restored.supplierPayments.first().paymentNo)
+    }
 
     @Test
     fun `both numbers survive a backup round trip`() {

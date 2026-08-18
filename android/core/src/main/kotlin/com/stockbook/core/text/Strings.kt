@@ -295,6 +295,14 @@ class Strings(val language: AppLanguage) {
     val receivedOn: String get() = pick("Received on", "ಸ್ವೀಕರಿಸಿದ ದಿನ")
     val paymentNote: String get() = pick("Note", "ಟಿಪ್ಪಣಿ")
     val paymentNoteExample: String get() = pick("cash, cheque…", "ನಗದು, ಚೆಕ್…")
+    val paymentNoField: String get() = pick("Receipt no.", "ರಸೀದಿ ಸಂಖ್ಯೆ")
+    val paymentNoHint: String get() = pick("e.g. 008455", "ಉದಾ. 008455")
+    val enterPaymentNumber: String get() = pick("Enter a receipt number", "ರಸೀದಿ ಸಂಖ್ಯೆ ಬರೆಯಿರಿ")
+    val changeThePaymentNo: String get() = pick("Change the receipt number", "ರಸೀದಿ ಸಂಖ್ಯೆ ಬದಲಾಯಿಸಿ")
+
+    fun paymentNoAlreadyUsed(date: String): String =
+            pick("Already used on $date", "$date ರಂದು ಬಳಸಲಾಗಿದೆ")
+
     val savePayment: String get() = pick("Save payment", "ಪಾವತಿ ಉಳಿಸಿ")
     val paymentLabel: String get() = pick("Payment", "ಪಾವತಿ")
     val deleteThisPayment: String get() = pick("Delete this payment", "ಈ ಪಾವತಿಯನ್ನು ಅಳಿಸಿ")
@@ -668,6 +676,20 @@ class Strings(val language: AppLanguage) {
     //
     // Its own words rather than the screen's. A document somebody files beside
     // their supplier statements should read like one.
+
+    /**
+     * What a row in the Transaction column is called: the kind of document, then
+     * its number.
+     *
+     * A bare "06011" tells somebody checking their own file nothing about *what*
+     * 06011 is, and the three books are numbered separately — invoice 130 and
+     * credit note 130 are different pieces of paper. The `#` goes in here rather
+     * than into the stored number, so what the owner typed stays what they typed.
+     */
+    fun invoiceRef(no: String): String = pick("Invoice #$no", "ಬಿಲ್ #$no")
+    fun creditNoteRef(no: String): String = pick("Credit Note #$no", "ಕ್ರೆಡಿಟ್ ನೋಟ್ #$no")
+    fun paymentRef(no: String): String = pick("Payment #$no", "ಪಾವತಿ #$no")
+    fun deliveryRef(no: String): String = pick("Delivery #$no", "ಡೆಲಿವರಿ #$no")
 
     val accountStatementFor: String get() = pick("Account statement for:", "ಖಾತೆ ವಿವರ — ಇವರಿಗೆ:")
     val accountActivity: String get() = pick("Account Activity", "ಖಾತೆ ವ್ಯವಹಾರ")

@@ -94,6 +94,8 @@ data class BackupDocument(
         val id: String,
         val customerKey: String,
         val amount: Double,
+        /** The number on the receipt, absent where the shop wrote none. */
+        val paymentNo: String? = null,
         @Serializable(with = InstantSerializer::class)
         val receivedAt: Instant,
         val note: String? = null
@@ -134,6 +136,8 @@ data class BackupDocument(
         val id: String,
         val supplierKey: String,
         val amount: Double,
+        /** The number on the receipt, absent where the shop wrote none. */
+        val paymentNo: String? = null,
         @Serializable(with = InstantSerializer::class)
         val paidAt: Instant,
         val note: String? = null

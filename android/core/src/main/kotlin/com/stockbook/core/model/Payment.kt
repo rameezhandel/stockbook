@@ -28,6 +28,15 @@ data class Payment(
      * payment, because that is a refund and this app has no notion of one.
      */
     val amount: Double,
+    /**
+     * The number on the receipt the shop wrote when it took the money.
+     *
+     * Its own series, like a credit note's and unlike a bill's — a receipt book
+     * is numbered separately from an invoice book, and "876" in one has nothing
+     * to do with "876" in the other. Typed rather than suggested, as every
+     * number in this app is.
+     */
+    val paymentNo: String? = null,
     @Serializable(with = InstantSerializer::class)
     val receivedAt: Instant = Timestamps.now(),
     /**

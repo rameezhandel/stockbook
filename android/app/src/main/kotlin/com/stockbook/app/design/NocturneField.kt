@@ -85,7 +85,16 @@ fun NocturneField(
      * iOS twin where a numeric keypad has no return key at all.
      */
     imeAction: ImeAction = ImeAction.Done,
-    onImeAction: (() -> Unit)? = null
+    onImeAction: (() -> Unit)? = null,
+    /**
+     * Whether Return inserts a line rather than closing the keyboard.
+     *
+     * One field wants this — the shop's printed address, which is written on
+     * three or four lines and has to print on three or four lines. Everything
+     * else in this app is a name, a number or a short note, where a stray
+     * newline is a mistake the box should refuse.
+     */
+    multiline: Boolean = false
 ) {
     var focused by remember { mutableStateOf(false) }
     var hasBeenFocused by remember { mutableStateOf(false) }
@@ -146,7 +155,7 @@ fun NocturneField(
                     BasicTextField(
                         value = value,
                         onValueChange = onValueChange,
-                        singleLine = true,
+                        singleLine = !multiline,
                         textStyle = NocturneType.inter(fontSize).copy(
                             color = if (emphasis == FieldEmphasis.CHANGED) Nocturne.accent300 else Nocturne.text,
                             textAlign = textAlign

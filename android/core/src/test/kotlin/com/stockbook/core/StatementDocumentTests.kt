@@ -171,7 +171,7 @@ class StatementDocumentTests {
             createdAt = Instant.parse("2026-08-01T09:00:00Z"),
             invoiceNo = "06011"
         )
-        store.recordPayment("ahmed", 300.0, receivedAt = Instant.parse("2026-08-03T09:00:00Z"))
+        store.recordPayment("ahmed", 300.0, receivedAt = Instant.parse("2026-08-03T09:00:00Z"), paymentNo = "R-1")
         store.addCreditNote(
             customerKey = "ahmed",
             amount = 200.0,
@@ -184,8 +184,11 @@ class StatementDocumentTests {
         )
         val document = StatementDocument.make(statement, store.settings, english)
 
+        // The kind of document, then its number. "06011" alone tells somebody
+        // checking against their own file nothing about what 06011 *is*, and the
+        // three books are numbered separately.
         assertEquals(
-            listOf("06011", english.paymentLabel, "00130"),
+            listOf("Invoice #06011", "Payment #R-1", "Credit Note #00130"),
             document.activityRows.map { it.transaction }
         )
         // The running balance reads down, which is the column's whole job.
@@ -210,8 +213,24 @@ class StatementDocumentTests {
         val document = document(store)
 
         assertEquals(1, document.activityRows.size)
-        assertEquals("06011", document.activityRows.single().transaction)
+        assertEquals("Invoice #06011", document.activityRows.single().transaction)
         assertEquals("SAR 190", document.activityRows.single().amount)
+    }
+
+    @Test
+    fun `a record with no number of its own is still named`() {
+        // A blank cell in the Transaction column is unreadable. The type is the
+        // honest answer where the shop wrote no number.
+        val store = store().aShop()
+        store.addCustomer("Ahmed")
+        store.saveBill(customer = "Ahmed", paid = 0.0, amount = 500.0, invoiceNo = "06011")
+        store.recordPayment("ahmed", 100.0)
+        store.addCreditNote(customerKey = "ahmed", amount = 50.0)
+
+        val transactions = document(store).activityRows.map { it.transaction }
+
+        assertTrue(english.paymentLabel in transactions, transactions.toString())
+        assertTrue(english.creditNoteLabel in transactions, transactions.toString())
     }
 
     @Test

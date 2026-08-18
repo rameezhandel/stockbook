@@ -465,7 +465,7 @@ private fun EntryRow(
                 when (entry) {
                     is Statement.Entry.ForBill -> {
                         Text(
-                            entry.bill.reference(strings),
+                            reference(entry, strings),
                             style = NocturneType.inter(13.0),
                             color = Nocturne.text
                         )
@@ -479,7 +479,7 @@ private fun EntryRow(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Glyph(Icon.confirm, size = 10.dp, tint = Nocturne.accent400)
                             Spacer(Modifier.width(5.dp))
-                            Text(strings.paymentLabel, style = NocturneType.inter(13.0), color = Nocturne.accent400)
+                            Text(reference(entry, strings), style = NocturneType.inter(13.0), color = Nocturne.accent400)
                         }
                         entry.payment.note?.let {
                             Text(it, style = NocturneType.meta, color = Nocturne.neutral500)
@@ -487,7 +487,7 @@ private fun EntryRow(
                     }
                     is Statement.Entry.ForCreditNote -> {
                         Text(
-                            entry.note.reference(strings),
+                            reference(entry, strings),
                             style = NocturneType.inter(13.0),
                             color = Nocturne.accent400
                         )
@@ -499,7 +499,7 @@ private fun EntryRow(
                     }
                     is Statement.Entry.ForPurchase -> {
                         Text(
-                            entry.purchase.reference(strings),
+                            reference(entry, strings),
                             style = NocturneType.inter(13.0),
                             color = Nocturne.text
                         )
@@ -513,7 +513,7 @@ private fun EntryRow(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Glyph(Icon.confirm, size = 10.dp, tint = Nocturne.accent400)
                             Spacer(Modifier.width(5.dp))
-                            Text(strings.paymentLabel, style = NocturneType.inter(13.0), color = Nocturne.accent400)
+                            Text(reference(entry, strings), style = NocturneType.inter(13.0), color = Nocturne.accent400)
                         }
                         entry.payment.note?.let {
                             Text(it, style = NocturneType.meta, color = Nocturne.neutral500)
@@ -572,6 +572,31 @@ private fun Detail(text: String?) {
         maxLines = 2,
         overflow = TextOverflow.Ellipsis
     )
+}
+
+/**
+ * What a row is called on screen: the kind of document, then its number.
+ *
+ * Deliberately the same rule the printed statement follows — the two are read
+ * side by side when somebody checks a PDF against the app, and a row named two
+ * different ways is a row they have to reconcile by eye.
+ */
+private fun reference(entry: Statement.Entry, strings: Strings): String = when (entry) {
+    is Statement.Entry.ForBill ->
+        entry.bill.invoiceNo?.takeIf { it.isNotBlank() }
+            ?.let { strings.invoiceRef(it) } ?: strings.billNumber(entry.bill.number)
+    is Statement.Entry.ForPurchase ->
+        entry.purchase.invoiceNo?.takeIf { it.isNotBlank() }
+            ?.let { strings.deliveryRef(it) } ?: strings.purchaseLabel
+    is Statement.Entry.ForCreditNote ->
+        entry.note.noteNo?.takeIf { it.isNotBlank() }
+            ?.let { strings.creditNoteRef(it) } ?: strings.creditNoteLabel
+    is Statement.Entry.ForPayment ->
+        entry.payment.paymentNo?.takeIf { it.isNotBlank() }
+            ?.let { strings.paymentRef(it) } ?: strings.paymentLabel
+    is Statement.Entry.ForSupplierPayment ->
+        entry.payment.paymentNo?.takeIf { it.isNotBlank() }
+            ?.let { strings.paymentRef(it) } ?: strings.paymentLabel
 }
 
 private fun amountText(entry: Statement.Entry, currency: Currency): String = when (entry) {
@@ -639,7 +664,7 @@ private fun plainText(
                     "${Money.text(entry.bill.total, currency)}  →  $balance"
             )
             is Statement.Entry.ForCreditNote -> lines.add(
-                "${strings.longDate(entry.date)}  ${entry.note.reference(strings)}  − ${Money.text(entry.note.total, currency)}"
+                "${strings.longDate(entry.date)}  ${reference(entry, strings)}  − ${Money.text(entry.note.total, currency)}"
             )
             is Statement.Entry.ForPayment -> lines.add(
                 "${strings.longDate(entry.payment.receivedAt)}  ${strings.paymentLabel}  " +

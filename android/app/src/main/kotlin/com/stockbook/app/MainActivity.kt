@@ -393,6 +393,7 @@ private fun Shell(store: StockbookStore) {
                     // Re-read from the store so the sheet's "what will be left"
                     // line is not a stale copy taken when it opened.
                     customer = store.customer(customer.key) ?: customer,
+                    state = state,
                     store = store,
                     currency = state.settings.currency,
                     strings = strings,
@@ -441,6 +442,7 @@ private fun Shell(store: StockbookStore) {
                     // Re-read from the store so the sheet's "what will be left"
                     // line is not a stale copy taken when it opened.
                     supplier = store.supplier(supplier.key) ?: supplier,
+                    state = state,
                     store = store,
                     currency = state.settings.currency,
                     strings = strings,

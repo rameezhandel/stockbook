@@ -606,12 +606,14 @@ class StockbookStore(private val repository: StockbookRepository) {
         customerKey: String,
         amount: Double,
         receivedAt: Instant = Timestamps.now(),
-        note: String? = null
+        note: String? = null,
+        paymentNo: String? = null
     ): Payment? {
         if (amount <= 0 || customerKey.isEmpty()) return null
         val payment = Payment(
             customerKey = customerKey,
             amount = amount,
+            paymentNo = paymentNo?.trim()?.takeIf { it.isNotEmpty() },
             receivedAt = receivedAt,
             note = CustomerRecord.tidied(note)
         )
@@ -628,6 +630,20 @@ class StockbookStore(private val repository: StockbookRepository) {
     }
 
     fun paymentsForCustomer(key: String): List<Payment> = payments.filter { it.customerKey == key }
+
+    /**
+     * The receipt already carrying this number, if any.
+     *
+     * Its own series: a receipt numbered 1024 does not clash with invoice 1024,
+     * and refusing it would be the app inventing a rule the shop's paper does
+     * not have. The same question [billWithInvoiceNo] and [creditNoteWithNo] ask
+     * of theirs.
+     */
+    fun paymentWithNo(paymentNo: String?, exceptId: String? = null): Payment? {
+        val key = InvoiceNo.key(paymentNo)
+        if (key.isEmpty()) return null
+        return payments.firstOrNull { it.id != exceptId && InvoiceNo.key(it.paymentNo) == key }
+    }
 
     // --- Credit notes
 
@@ -1152,18 +1168,27 @@ class StockbookStore(private val repository: StockbookRepository) {
         supplierKey: String,
         amount: Double,
         paidAt: Instant = Timestamps.now(),
-        note: String? = null
+        note: String? = null,
+        paymentNo: String? = null
     ): SupplierPayment? {
         if (amount <= 0 || supplierKey.isEmpty()) return null
         val payment = SupplierPayment(
             supplierKey = supplierKey,
             amount = amount,
+            paymentNo = paymentNo?.trim()?.takeIf { it.isNotEmpty() },
             paidAt = paidAt,
             note = CustomerRecord.tidied(note)
         )
         _state.value = _state.value.copy(supplierPayments = listOf(payment) + supplierPayments)
         attempt { repository.append(payment) }
         return payment
+    }
+
+    /** The same question [paymentWithNo] asks, on the money-out receipt book. */
+    fun supplierPaymentWithNo(paymentNo: String?, exceptId: String? = null): SupplierPayment? {
+        val key = InvoiceNo.key(paymentNo)
+        if (key.isEmpty()) return null
+        return supplierPayments.firstOrNull { it.id != exceptId && InvoiceNo.key(it.paymentNo) == key }
     }
 
     fun deleteSupplierPayment(id: String) {
@@ -1297,6 +1322,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                     id = it.id,
                     customerKey = it.customerKey,
                     amount = it.amount,
+                    paymentNo = it.paymentNo,
                     receivedAt = it.receivedAt,
                     note = it.note
                 )
@@ -1330,6 +1356,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                     id = it.id,
                     supplierKey = it.supplierKey,
                     amount = it.amount,
+                    paymentNo = it.paymentNo,
                     paidAt = it.paidAt,
                     note = it.note
                 )
@@ -1404,6 +1431,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 id = it.id,
                 customerKey = it.customerKey,
                 amount = it.amount,
+                paymentNo = it.paymentNo,
                 receivedAt = it.receivedAt,
                 note = it.note
             )
@@ -1437,6 +1465,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 id = it.id,
                 supplierKey = it.supplierKey,
                 amount = it.amount,
+                paymentNo = it.paymentNo,
                 paidAt = it.paidAt,
                 note = it.note
             )
