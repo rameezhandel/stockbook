@@ -1013,10 +1013,6 @@ final class StockbookStore {
         purchases.filter { $0.supplierKey == key }
     }
 
-    func purchases(forProduct uid: UUID) -> [Purchase] {
-        purchases.filter { $0.productUID == uid }
-    }
-
     // MARK: - Money out
 
     @discardableResult

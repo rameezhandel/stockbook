@@ -982,8 +982,6 @@ class StockbookStore(private val repository: StockbookRepository) {
 
     fun purchasesForSupplier(key: String): List<Purchase> = purchases.filter { it.supplierKey == key }
 
-    fun purchasesForProduct(uid: String): List<Purchase> = purchases.filter { it.productUid == uid }
-
     // --- Money out
 
     fun recordSupplierPayment(

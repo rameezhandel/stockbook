@@ -447,15 +447,6 @@ class Strings(val language: AppLanguage) {
     val takePayment: String get() = pick("Take payment", "ಪಾವತಿ ಪಡೆಯಿರಿ")
 
 
-    // The date a sale is *entered* is not always the date it happened. Said out
-    // loud on the cart, because a shop catching up at closing time would
-    // otherwise stamp the whole day at once and never notice.
-    val billDateNote: String
-        get() = pick(
-            "Today unless you change it.",
-            "ಬದಲಾಯಿಸದಿದ್ದರೆ ಇಂದಿನ ದಿನಾಂಕ."
-        )
-
     fun billNumber(number: Int): String =
             pick("Bill #$number", "ಬಿಲ್ #$number")
 
@@ -558,7 +549,6 @@ class Strings(val language: AppLanguage) {
     val youPay: String get() = pick("You pay", "ನೀವು ಕೊಡುವುದು")
     val youSell: String get() = pick("You sell", "ನೀವು ಮಾರುವುದು")
     val nextCustomers: String get() = pick("Next — your customers", "ಮುಂದೆ — ನಿಮ್ಮ ಗ್ರಾಹಕರು")
-    val yourCustomers: String get() = pick("Your customers", "ನಿಮ್ಮ ಗ್ರಾಹಕರು")
     val whoDoYouSellTo: String get() = pick("Who buys on account?", "ಯಾರು ಖಾತೆಯಲ್ಲಿ ಖರೀದಿಸುತ್ತಾರೆ?")
 
     // Says out loud that this step is skippable, because a setup screen that

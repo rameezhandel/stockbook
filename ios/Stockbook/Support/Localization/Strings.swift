@@ -448,7 +448,6 @@ struct Strings {
     /// The date a sale is *entered* is not always the date it happened. Said out
     /// loud on the cart, because a shop catching up at closing time would
     /// otherwise stamp the whole day at once and never notice.
-    var billDateNote: String { pick("Today unless you change it.", "ಬದಲಾಯಿಸದಿದ್ದರೆ ಇಂದಿನ ದಿನಾಂಕ.") }
 
     /// Two numbers the same is two records the shop cannot tell apart later, so
     /// the clash is named — whose it is and when — rather than merely reported.
@@ -611,7 +610,6 @@ struct Strings {
     var youPay: String { pick("You pay", "ನೀವು ಕೊಡುವುದು") }
     var youSell: String { pick("You sell", "ನೀವು ಮಾರುವುದು") }
     var nextCustomers: String { pick("Next — your customers", "ಮುಂದೆ — ನಿಮ್ಮ ಗ್ರಾಹಕರು") }
-    var yourCustomers: String { pick("Your customers", "ನಿಮ್ಮ ಗ್ರಾಹಕರು") }
     var whoDoYouSellTo: String { pick("Who buys on account?", "ಯಾರು ಖಾತೆಯಲ್ಲಿ ಖರೀದಿಸುತ್ತಾರೆ?") }
 
     /// Says out loud that this step is skippable, because a setup screen that
