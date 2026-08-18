@@ -27,6 +27,15 @@ interface StockbookRepository {
     fun append(bill: Bill)
     fun update(bill: Bill)
 
+    /**
+     * Removes a bill outright.
+     *
+     * This app corrects a mistake by editing or removing the record rather than
+     * by marking it — one owner, one phone, and the document that survives a
+     * correction is the paper bill in the book.
+     */
+    fun deleteBill(number: Int)
+
     /** Insert or update, matched on [CustomerRecord.key]. */
     fun upsert(customer: CustomerRecord)
 
@@ -51,6 +60,7 @@ interface StockbookRepository {
 
     fun append(purchase: Purchase)
     fun update(purchase: Purchase)
+    fun deletePurchase(id: String)
 
     fun append(payment: SupplierPayment)
     fun deleteSupplierPayment(id: String)

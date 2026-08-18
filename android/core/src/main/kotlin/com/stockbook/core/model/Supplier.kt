@@ -18,9 +18,8 @@ data class Supplier(
     /** The roster's spelling where there is one, otherwise the latest delivery's. */
     val name: String,
     val key: String,
-    /** Live purchases only. A voided purchase did not happen. */
     val purchaseCount: Int,
-    /** What the shop has bought from them, across live purchases. */
+    /** What the shop has bought from them. */
     val total: Double,
     /**
      * What the shop still owes them: unpaid balances on live purchases, less

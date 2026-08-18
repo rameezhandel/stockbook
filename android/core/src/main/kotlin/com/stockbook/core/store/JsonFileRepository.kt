@@ -67,6 +67,10 @@ class JsonFileRepository(private val file: File) : StockbookRepository {
         state.copy(bills = state.bills.map { if (it.number == bill.number) bill else it })
     }
 
+    override fun deleteBill(number: Int) = mutate { state ->
+        state.copy(bills = state.bills.filterNot { it.number == number })
+    }
+
     override fun upsert(customer: CustomerRecord) = mutate { state ->
         val index = state.customers.indexOfFirst { it.key == customer.key }
         if (index >= 0) {
@@ -105,6 +109,10 @@ class JsonFileRepository(private val file: File) : StockbookRepository {
         val index = state.purchases.indexOfFirst { it.id == purchase.id }
         if (index < 0) state
         else state.copy(purchases = state.purchases.toMutableList().also { it[index] = purchase })
+    }
+
+    override fun deletePurchase(id: String) = mutate { state ->
+        state.copy(purchases = state.purchases.filterNot { it.id == id })
     }
 
     override fun append(payment: SupplierPayment) = mutate { state ->
@@ -165,6 +173,9 @@ class InMemoryRepository(initial: ShopState = ShopState.EMPTY) : StockbookReposi
     override fun update(bill: Bill) {
         state = state.copy(bills = state.bills.map { if (it.number == bill.number) bill else it })
     }
+    override fun deleteBill(number: Int) {
+        state = state.copy(bills = state.bills.filterNot { it.number == number })
+    }
     override fun upsert(customer: CustomerRecord) {
         val index = state.customers.indexOfFirst { it.key == customer.key }
         state = if (index >= 0) {
@@ -200,6 +211,9 @@ class InMemoryRepository(initial: ShopState = ShopState.EMPTY) : StockbookReposi
         if (index >= 0) {
             state = state.copy(purchases = state.purchases.toMutableList().also { it[index] = purchase })
         }
+    }
+    override fun deletePurchase(id: String) {
+        state = state.copy(purchases = state.purchases.filterNot { it.id == id })
     }
 
     override fun append(payment: SupplierPayment) {

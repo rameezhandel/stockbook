@@ -128,7 +128,7 @@ class StoreTests {
 
         val first = assertNotNull(store.saveBill(listOf(DraftLine(product.uid, 1, 10.0)), "A", null))
         val second = assertNotNull(store.saveBill(listOf(DraftLine(product.uid, 1, 10.0)), "B", null))
-        store.void(second)
+        store.deleteBill(second.number)
         val third = assertNotNull(store.saveBill(listOf(DraftLine(product.uid, 1, 10.0)), "C", null))
 
         assertEquals(1, first.number)
@@ -159,13 +159,12 @@ class StoreTests {
         val bill = assertNotNull(store.saveBill(listOf(DraftLine(product.uid, 4, 10.0)), "Sami", null))
         assertEquals(6, store.product(product.uid)?.stock)
 
-        store.void(bill)
+        store.deleteBill(bill.number)
         assertEquals(10, store.product(product.uid)?.stock)
 
-        store.void(bill)
-        assertEquals(10, store.product(product.uid)?.stock, "voiding twice must not restock twice")
-        assertTrue(store.bills.first().voided)
-        assertEquals(1, store.bills.size, "a voided bill is still history")
+        store.deleteBill(bill.number)
+        assertEquals(10, store.product(product.uid)?.stock, "removing twice must not restock twice")
+        assertTrue(store.bills.isEmpty(), "a removed bill is gone, not marked")
     }
 
     // --- Customers
@@ -216,7 +215,7 @@ class StoreTests {
         val product = store.addProduct("Hinge", stock = 100, cost = 3.0, price = 10.0)
         val bill = assertNotNull(store.saveBill(listOf(DraftLine(product.uid, 1, 10.0)), "Sami", paid = 0.0))
 
-        store.void(bill)
+        store.deleteBill(bill.number)
 
         assertTrue(store.customers().isEmpty())
         assertTrue(store.outstanding().first.isEmpty())

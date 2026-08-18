@@ -179,11 +179,19 @@ struct Strings {
         )
     }
 
-    var voidAndRestock: String {
-        pick("Void & put stock back", "ರದ್ದು ಮಾಡಿ, ದಾಸ್ತಾನು ವಾಪಸ್")
-    }
+    /// A mistake is corrected on the document itself: opened, changed, or taken
+    /// out. Removing says what it does to the shelf, because that is the part
+    /// that surprises people.
+    var editBill: String { pick("Edit", "ಬದಲಾಯಿಸಿ") }
+    var saveChanges: String { pick("Save changes", "ಬದಲಾವಣೆ ಉಳಿಸಿ") }
+    var removeBill: String { pick("Remove this bill", "ಈ ಬಿಲ್ ತೆಗೆದುಹಾಕಿ") }
 
-    var voided: String { pick("voided", "ರದ್ದಾಗಿದೆ") }
+    var removeBillNote: String {
+        pick(
+            "Gone for good, and anything on it goes back on the shelf.",
+            "ಶಾಶ್ವತವಾಗಿ ಹೋಗುತ್ತದೆ, ಮತ್ತು ಅದರಲ್ಲಿನ ಸಾಮಾನು ಶೆಲ್ಫಿಗೆ ವಾಪಸ್."
+        )
+    }
 
     func owes(_ amount: String) -> String {
         pick("owes \(amount)", "\(amount) ಬಾಕಿ")
@@ -288,12 +296,15 @@ struct Strings {
         pick("Add “\(name)” as a supplier", "“\(name)” ಅನ್ನು ಪೂರೈಕೆದಾರರಾಗಿ ಸೇರಿಸಿ")
     }
 
-    /// A delivery entered wrongly is voided rather than edited, exactly as a bill
-    /// is — and voiding it takes the stock back off the shelf, which the button
-    /// says out loud because it is the part that surprises people.
-    var voidAndRemoveStock: String { pick("Void and remove stock", "ರದ್ದು ಮಾಡಿ ದಾಸ್ತಾನು ಹಿಂತೆಗೆಯಿರಿ") }
-    var purchaseVoidedNote: String {
-        pick("Voided. The stock went back off the shelf.", "ರದ್ದಾಗಿದೆ. ದಾಸ್ತಾನು ಹಿಂತೆಗೆಯಲಾಗಿದೆ.")
+    /// The same two actions on the other side of the book, where removing takes
+    /// stock back off the shelf rather than putting it on.
+    var removeSupplierBill: String { pick("Remove this bill", "ಈ ಬಿಲ್ ತೆಗೆದುಹಾಕಿ") }
+
+    var removeSupplierBillNote: String {
+        pick(
+            "Gone for good, and anything on it comes back off the shelf.",
+            "ಶಾಶ್ವತವಾಗಿ ಹೋಗುತ್ತದೆ, ಮತ್ತು ಅದರಲ್ಲಿನ ಸಾಮಾನು ಶೆಲ್ಫಿನಿಂದ ಹಿಂತೆಗೆಯಲಾಗುತ್ತದೆ."
+        )
     }
 
     var openingBalanceNote: String {
@@ -501,13 +512,6 @@ struct Strings {
     /// `2 × SAR 95` — the arithmetic behind a line, kept visible.
     func quantityAtPrice(quantity: Int, price: String) -> String {
         pick("\(quantity) × \(price)", "\(quantity) × \(price)")
-    }
-
-    var voidedNote: String {
-        pick(
-            "This bill was voided. The stock went back on the shelf and nothing is owed on it.",
-            "ಈ ಬಿಲ್ ರದ್ದಾಗಿದೆ. ದಾಸ್ತಾನು ವಾಪಸ್ ಹೋಗಿದೆ, ಇದರ ಮೇಲೆ ಯಾವ ಬಾಕಿಯೂ ಇಲ್ಲ."
-        )
     }
 
     var paidInFullCash: String { pick("Paid in full, cash.", "ಪೂರ್ತಿ ಪಾವತಿ, ನಗದು.") }

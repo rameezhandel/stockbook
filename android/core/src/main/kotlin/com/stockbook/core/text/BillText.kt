@@ -41,9 +41,6 @@ object BillText {
         lines.add("${strings.total}: ${Money.text(bill.total, currency)}")
         lines.add(
             when {
-                // A voided bill owes nothing, and says so before it says anything
-                // about money — otherwise sending one reads as a demand.
-                bill.voided -> strings.voidedNote
                 bill.paid == null -> strings.paidInFullCash
                 else -> strings.partPaidNote(
                     Money.text(bill.paid, currency),

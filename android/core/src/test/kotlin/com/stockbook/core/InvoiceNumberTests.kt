@@ -138,7 +138,7 @@ class InvoiceNumberTests {
             store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Ahmed", null, invoiceNo = "1024")
         )
 
-        store.void(bill)
+        store.deleteBill(bill.number)
 
         assertNull(store.billWithInvoiceNo("1024"))
     }

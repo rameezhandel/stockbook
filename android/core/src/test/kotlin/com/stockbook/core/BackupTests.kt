@@ -187,10 +187,15 @@ class CrossPlatformBackupTests {
         for (key in listOf(
             "version", "exportedAt", "ownerName", "currencyCode",
             "uid", "stock", "cost", "price",
-            "number", "createdAt", "total", "who", "voided", "productUID", "qty"
+            "number", "createdAt", "total", "who", "productUID", "qty"
         )) {
             assertTrue(text.contains("\"$key\""), "the iPhone reader expects a `$key` key")
         }
+
+        // Gone from both platforms together. A bill is edited or removed now, so
+        // there is no state to carry — and a key written here that Swift no
+        // longer declares is a file the iPhone would refuse outright.
+        assertTrue(!text.contains("\"voided\""), "`voided` is not part of the format any more")
 
         // Paid in full is an *absent* key, not a null — Swift's decoder reads
         // "not present" as nil and would refuse an explicit null.

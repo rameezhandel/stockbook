@@ -118,7 +118,7 @@ class AmountFirstTests {
         val product = store.aProduct(stock = 50)
         val bill = assertNotNull(store.saveBill(customer = "Ahmed", paid = 0.0, amount = 450.0))
 
-        store.void(bill)
+        store.deleteBill(bill.number)
 
         assertEquals(50, assertNotNull(store.product(product.uid)).stock, "nothing went out, so nothing comes back")
         // Ahmed was never on the roster and his one bill is now void, so he may
@@ -181,7 +181,7 @@ class AmountFirstTests {
         val supplier = assertNotNull(store.addSupplier("Al Faisal"))
         val purchase = assertNotNull(store.recordSupplierBill(supplier.key, amount = 800.0, paid = 0.0))
 
-        store.voidPurchase(purchase.id)
+        store.deletePurchase(purchase.id)
 
         assertEquals(10, assertNotNull(store.product(product.uid)).stock)
         assertEquals(0.0, store.suppliers().first().owed)

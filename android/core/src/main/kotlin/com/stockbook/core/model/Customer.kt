@@ -30,9 +30,8 @@ data class Customer(
      * counter for every bill.
      */
     val key: String,
-    /** Live bills only. A voided bill did not happen. */
     val billCount: Int,
-    /** What they have bought, across live bills. */
+    /** What they have bought. */
     val total: Double,
     /**
      * What they still owe: unpaid balances on live bills, **less every payment

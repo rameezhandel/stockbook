@@ -47,8 +47,8 @@ enum class RestockMode {
  *
  * Screens read [state] and never mutate it — the setters are private, so that is
  * enforced rather than merely asked for. Stock arithmetic, bill numbering,
- * snapshotting and the void/restock rules are all one layer, which is the layer
- * the tests drive. None of it knows Android exists.
+ * snapshotting and the stock rules are all one layer, which is the layer the
+ * tests drive. None of it knows Android exists.
  */
 class StockbookStore(private val repository: StockbookRepository) {
 
@@ -83,13 +83,9 @@ class StockbookStore(private val repository: StockbookRepository) {
     /** Money paid out after the delivery, newest first. */
     val supplierPayments: List<SupplierPayment> get() = _state.value.supplierPayments
 
-    /** Deliveries that actually happened. Voided ones are history, not stock. */
-    val livePurchases: List<Purchase> get() = purchases.filterNot { it.voided }
 
     val settings: Settings get() = _state.value.settings
 
-    /** Bills that actually happened. Voided ones are history, not sales. */
-    val liveBills: List<Bill> get() = bills.filterNot { it.voided }
 
     init {
         reload()
@@ -257,22 +253,13 @@ class StockbookStore(private val repository: StockbookRepository) {
         val name = customer.trim()
         if (name.isEmpty()) return null
 
-        val snapshots = mutableListOf<BillLine>()
-        for (line in lines) {
+        val snapshots = snapshot(lines)
+        // Only an itemised bill moves the shelf. Nothing else in the app can take
+        // stock off it, which is why a shop that types totals is told the count is
+        // its own to keep straight.
+        for (line in snapshots) {
             val product = product(line.productUid) ?: continue
-            val quantity = maxOf(1, line.qty)
-            snapshots.add(
-                BillLine(
-                    productUid = product.uid,
-                    name = product.name,
-                    qty = quantity,
-                    price = line.price
-                )
-            )
-            // Only an itemised bill moves the shelf. Nothing else in the app can
-            // take stock off it, which is why a shop that types totals is told
-            // the count is its own to keep straight.
-            replace(product.copy(stock = maxOf(0, product.stock - quantity)))
+            replace(product.copy(stock = maxOf(0, product.stock - line.qty)))
         }
 
         val total = if (snapshots.isEmpty()) amount ?: 0.0 else snapshots.sumOf { it.lineTotal }
@@ -314,17 +301,19 @@ class StockbookStore(private val repository: StockbookRepository) {
      * wrong gets corrected, and the wrong one must not hold the paper's number
      * hostage afterwards.
      */
-    fun billWithInvoiceNo(invoiceNo: String?): Bill? {
+    fun billWithInvoiceNo(invoiceNo: String?, exceptNumber: Int? = null): Bill? {
         val key = InvoiceNo.key(invoiceNo)
         if (key.isEmpty()) return null
-        return bills.firstOrNull { !it.voided && InvoiceNo.key(it.invoiceNo) == key }
+        // `exceptNumber` is what makes editing possible: without it, opening bill
+        // 1024 to change its date would be told 1024 is already taken, by itself.
+        return bills.firstOrNull { it.number != exceptNumber && InvoiceNo.key(it.invoiceNo) == key }
     }
 
     /** The same question on the other side of the book. */
-    fun purchaseWithInvoiceNo(invoiceNo: String?): Purchase? {
+    fun purchaseWithInvoiceNo(invoiceNo: String?, exceptId: String? = null): Purchase? {
         val key = InvoiceNo.key(invoiceNo)
         if (key.isEmpty()) return null
-        return purchases.firstOrNull { !it.voided && InvoiceNo.key(it.invoiceNo) == key }
+        return purchases.firstOrNull { it.id != exceptId && InvoiceNo.key(it.invoiceNo) == key }
     }
 
     /**
@@ -337,22 +326,96 @@ class StockbookStore(private val repository: StockbookRepository) {
      * run the paper does not have.
      */
     fun nextInvoiceNo(): String? =
-        InvoiceNo.next(bills.firstOrNull { !it.voided && !it.invoiceNo.isNullOrBlank() }?.invoiceNo)
+        InvoiceNo.next(bills.firstOrNull { !it.invoiceNo.isNullOrBlank() }?.invoiceNo)
 
-    /** Voids a bill and puts its stock back. Bills are never deleted. */
-    fun void(bill: Bill) {
-        val existing = bills.firstOrNull { it.number == bill.number } ?: return
-        if (existing.voided) return
+    /**
+     * The lines as they will be stored: names and prices taken **now**, so that
+     * renaming or repricing a product tomorrow cannot rewrite what somebody paid
+     * today. Reads products; moves no stock, which is what lets both saving and
+     * editing decide separately what the shelf owes.
+     */
+    private fun snapshot(lines: List<DraftLine>): List<BillLine> =
+        lines.mapNotNull { line ->
+            val product = product(line.productUid) ?: return@mapNotNull null
+            BillLine(
+                productUid = product.uid,
+                name = product.name,
+                qty = maxOf(1, line.qty),
+                price = line.price
+            )
+        }
 
+    /**
+     * Rewrites a bill, and moves the shelf by the difference.
+     *
+     * The old lines go back on and the new ones come off, so an edit that drops a
+     * line, changes a quantity or abandons itemising altogether leaves the count
+     * exactly where entering the corrected bill from scratch would have.
+     *
+     * Nothing is touched unless the result would be a valid bill: a blank name or
+     * a total of zero returns null with the stock still where it was, rather than
+     * half-applying an edit and leaving the shelf to explain it.
+     */
+    fun updateBill(
+        number: Int,
+        lines: List<DraftLine> = emptyList(),
+        customer: String,
+        paid: Double?,
+        amount: Double? = null,
+        createdAt: Instant,
+        invoiceNo: String? = null
+    ): Bill? {
+        val existing = bills.firstOrNull { it.number == number } ?: return null
+        val name = customer.trim()
+        if (name.isEmpty()) return null
+
+        val snapshots = snapshot(lines)
+        val total = if (snapshots.isEmpty()) amount ?: 0.0 else snapshots.sumOf { it.lineTotal }
+        if (total <= 0) return null
+
+        // Reverse, then apply. In that order, because a bill that kept the same
+        // product with a smaller quantity would otherwise floor at zero on the way
+        // down and come back wrong.
         for (line in existing.lines) {
             val product = product(line.productUid) ?: continue
             replace(product.copy(stock = product.stock + line.qty))
         }
-        val voided = existing.copy(voided = true)
-        _state.value = _state.value.copy(
-            bills = bills.map { if (it.number == voided.number) voided else it }
+        for (line in snapshots) {
+            val product = product(line.productUid) ?: continue
+            replace(product.copy(stock = maxOf(0, product.stock - line.qty)))
+        }
+
+        val updated = existing.copy(
+            lines = snapshots,
+            total = total,
+            paid = paid?.takeIf { it < total }?.coerceIn(0.0, total),
+            who = name,
+            invoiceNo = CustomerRecord.tidied(invoiceNo),
+            createdAt = createdAt
         )
-        attempt { repository.update(voided) }
+        _state.value = _state.value.copy(
+            bills = bills.map { if (it.number == number) updated else it }
+        )
+        attempt { repository.update(updated) }
+        return updated
+    }
+
+    /**
+     * Removes a bill and puts its stock back.
+     *
+     * Gone rather than marked: this is the shop's own book, and a bill entered by
+     * mistake is a line the owner would have scribbled out of the paper one. The
+     * number it carried becomes free again, which is what makes re-entering it
+     * work.
+     */
+    fun deleteBill(number: Int) {
+        val existing = bills.firstOrNull { it.number == number } ?: return
+        for (line in existing.lines) {
+            val product = product(line.productUid) ?: continue
+            replace(product.copy(stock = product.stock + line.qty))
+        }
+        _state.value = _state.value.copy(bills = bills.filterNot { it.number == number })
+        attempt { repository.deleteBill(number) }
     }
 
     // --- Customers
@@ -371,7 +434,7 @@ class StockbookStore(private val repository: StockbookRepository) {
 
         val book = LinkedHashMap<String, Tally>()
         for (bill in bills) {
-            if (bill.voided || bill.who.isBlank()) continue
+            if (bill.who.isBlank()) continue
             val key = Customer.key(bill.who)
             val tally = book.getOrPut(key) { Tally(bill.who.trim(), 0, 0.0, 0.0) }
             tally.count += 1
@@ -636,7 +699,7 @@ class StockbookStore(private val repository: StockbookRepository) {
 
         val book = LinkedHashMap<String, Tally>()
         for (purchase in purchases) {
-            if (purchase.voided || purchase.supplierKey.isBlank()) continue
+            if (purchase.supplierKey.isBlank()) continue
             val tally = book.getOrPut(purchase.supplierKey) { Tally(purchase.supplierKey, 0, 0.0, 0.0) }
             tally.count += 1
             tally.total += purchase.total
@@ -847,23 +910,77 @@ class StockbookStore(private val repository: StockbookRepository) {
     )
 
     /**
-     * Voids a delivery and takes its stock back off the shelf.
+     * Rewrites a supplier's bill, and moves the shelf by the difference.
      *
-     * The mirror of voiding a bill, which puts stock back on. Idempotent: voiding
-     * twice must not remove the stock twice, which is the bug this rule exists to
-     * prevent on both sides.
+     * The mirror of [updateBill]: what the old one put on the shelf comes off,
+     * and what the new one says arrived goes on. A delivery edited down to a bare
+     * figure gives back everything it added.
      */
-    fun voidPurchase(id: String) {
-        val purchase = purchases.firstOrNull { it.id == id } ?: return
-        if (purchase.voided) return
-        val voided = purchase.copy(voided = true)
-        _state.value = _state.value.copy(
-            purchases = purchases.map { if (it.id == id) voided else it }
-        )
-        attempt { repository.update(voided) }
+    fun updatePurchase(
+        id: String,
+        product: Product?,
+        supplierKey: String,
+        quantity: Int = 0,
+        unitCost: Double = 0.0,
+        paid: Double? = null,
+        amount: Double? = null,
+        createdAt: Instant,
+        invoiceNo: String? = null
+    ): Purchase? {
+        val existing = purchases.firstOrNull { it.id == id } ?: return null
+        if (supplierKey.isBlank()) return null
 
-        // Only an itemised delivery put stock on the shelf, so only that one has
-        // any to take back off.
+        val current = product?.let { this.product(it.uid) }?.takeIf { quantity > 0 }
+        val cost = when {
+            current == null -> 0.0
+            unitCost > 0 -> unitCost
+            else -> current.cost
+        }
+        val total = if (current == null) amount ?: 0.0 else quantity * cost
+        if (total <= 0) return null
+
+        // Reverse the old, then apply the new — the same order as on a bill, and
+        // for the same reason.
+        takeBackStock(existing)
+        if (current != null) {
+            // Re-read: `current` was captured before the line above moved the
+            // shelf, and adding to that stale count would silently undo the
+            // taking-back on any delivery that kept the same product.
+            val onShelf = this.product(current.uid) ?: current
+            replace(onShelf.copy(stock = onShelf.stock + quantity, cost = cost))
+        }
+
+        val updated = existing.copy(
+            supplierKey = supplierKey,
+            productUid = current?.uid,
+            name = current?.name,
+            qty = if (current == null) 0 else quantity,
+            unitCost = cost,
+            total = total,
+            paid = paid?.let { maxOf(0.0, minOf(it, total)) },
+            invoiceNo = CustomerRecord.tidied(invoiceNo),
+            createdAt = createdAt
+        )
+        _state.value = _state.value.copy(
+            purchases = purchases.map { if (it.id == id) updated else it }
+        )
+        attempt { repository.update(updated) }
+        return updated
+    }
+
+    /** Removes a supplier's bill and takes its stock back off the shelf. */
+    fun deletePurchase(id: String) {
+        val purchase = purchases.firstOrNull { it.id == id } ?: return
+        takeBackStock(purchase)
+        _state.value = _state.value.copy(purchases = purchases.filterNot { it.id == id })
+        attempt { repository.deletePurchase(id) }
+    }
+
+    /**
+     * Unwinds what a delivery put on the shelf. Only an itemised one put anything
+     * there, so only that one has any to take back.
+     */
+    private fun takeBackStock(purchase: Purchase) {
         purchase.productUid?.takeIf { purchase.isItemised }?.let { uid ->
             product(uid)?.let { product ->
                 // Floored at zero. The stock may already have been sold, and a
@@ -1021,8 +1138,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                     paid = record.paid,
                     who = record.who,
                     invoiceNo = record.invoiceNo,
-                    createdAt = record.createdAt,
-                    voided = record.voided
+                    createdAt = record.createdAt
                 )
             }.sortedByDescending { it.createdAt },
             customers = document.customers.map {
@@ -1067,8 +1183,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                     total = it.total,
                     paid = it.paid,
                     invoiceNo = it.invoiceNo,
-                    createdAt = it.createdAt,
-                    voided = it.voided
+                    createdAt = it.createdAt
                 )
             }.sortedByDescending { it.createdAt },
             supplierPayments = document.supplierPayments.map {
@@ -1103,7 +1218,6 @@ class StockbookStore(private val repository: StockbookRepository) {
                 paid = bill.paid,
                 who = bill.who,
                 invoiceNo = bill.invoiceNo,
-                voided = bill.voided,
                 lines = bill.lines.map {
                     BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price)
                 }
@@ -1149,8 +1263,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 total = it.total,
                 paid = it.paid,
                 invoiceNo = it.invoiceNo,
-                createdAt = it.createdAt,
-                voided = it.voided
+                createdAt = it.createdAt
             )
         },
         supplierPayments = supplierPayments.map {

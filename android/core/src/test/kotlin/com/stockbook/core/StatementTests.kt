@@ -115,16 +115,14 @@ class StatementTests {
         number: Int,
         on: Instant,
         total: Double,
-        paid: Double? = null,
-        voided: Boolean = false
+        paid: Double? = null
     ) = Bill(
         number = number,
         lines = listOf(BillLine(productUid = null, name = "Cisa lock", qty = 1, price = total)),
         total = total,
         paid = paid,
         who = "Ahmed Contracting",
-        createdAt = on,
-        voided = voided
+        createdAt = on
     )
 
     private fun payment(amount: Double, on: Instant) =
@@ -201,20 +199,6 @@ class StatementTests {
     }
 
     @Test
-    fun `a voided bill is listed and counts for nothing`() {
-        val statement = august(
-            listOf(
-                bill(1, at(2026, 8, 4), 900.0, paid = 0.0),
-                bill(2, at(2026, 8, 5), 500.0, paid = 0.0, voided = true)
-            )
-        )
-
-        assertEquals(2, statement.entries.size, "history is marked, never hidden")
-        assertEquals(900.0, statement.billed)
-        assertEquals(900.0, statement.closingBalance)
-    }
-
-    @Test
     fun `entries read downwards oldest first`() {
         val statement = august(
             listOf(bill(2, at(2026, 8, 20), 100.0), bill(1, at(2026, 8, 4), 200.0)),
@@ -239,7 +223,7 @@ class StatementTests {
                 bill(1, at(2026, 3, 2), 900.0, paid = 0.0),
                 bill(2, at(2026, 8, 4), 250.0, paid = 100.0),
                 bill(3, at(2026, 8, 6), 80.0),
-                bill(4, at(2026, 8, 9), 400.0, paid = 0.0, voided = true)
+                bill(4, at(2026, 8, 9), 400.0, paid = 0.0)
             ),
             listOf(payment(200.0, at(2026, 8, 12)), payment(25.0, at(2026, 8, 28)))
         )

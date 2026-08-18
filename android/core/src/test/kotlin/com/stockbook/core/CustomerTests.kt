@@ -57,10 +57,10 @@ class CustomerTests {
         val second = assertNotNull(store.saveBill(listOf(DraftLine(hinge.uid, 1, 10.0)), "ahmed", null))
         store.saveBill(listOf(DraftLine(hinge.uid, 1, 10.0)), "Sami", null)
 
-        store.void(second)
+        store.deleteBill(second.number)
 
-        // History is never hidden, only marked — the voided bill still lists.
-        assertEquals(2, store.billsForCustomer(Customer.key("AHMED")).size)
+        // Removed outright: it is not history any more, so it is not listed.
+        assertEquals(1, store.billsForCustomer(Customer.key("AHMED")).size)
         assertEquals(1, store.billsForCustomer(Customer.key("sami")).size)
     }
 
@@ -74,7 +74,7 @@ class CustomerTests {
             store.saveBill(listOf(DraftLine(hinge.uid, 9, 10.0)), "Ahmed", paid = 0.0)
         )
 
-        store.void(mistake)
+        store.deleteBill(mistake.number)
 
         val ahmed = store.customers().first()
         assertEquals(1, ahmed.billCount)

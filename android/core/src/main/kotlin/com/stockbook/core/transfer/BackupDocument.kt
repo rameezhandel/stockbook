@@ -100,7 +100,6 @@ data class BackupDocument(
         val invoiceNo: String? = null,
         @Serializable(with = InstantSerializer::class)
         val createdAt: Instant,
-        val voided: Boolean = false
     )
 
     @Serializable
@@ -133,7 +132,6 @@ data class BackupDocument(
         val who: String,
         /** The number on the paper bill. Absent when the shop wrote none. */
         val invoiceNo: String? = null,
-        val voided: Boolean = false,
         val lines: List<LineRecord> = emptyList()
     )
 

@@ -6,9 +6,10 @@ import java.time.Instant
 /**
  * One sale.
  *
- * Bills are never deleted. A mistake is *voided*, which puts the stock back and
- * leaves the record in place — without that, one mistyped bill puts the shelf
- * and the app permanently out of step.
+ * A mistake is **edited or removed**, and either puts the stock back where it
+ * belongs: this is the shop's own book, kept by the one person who writes in it,
+ * and the record that outlives a correction is the paper bill in the book rather
+ * than a crossed-out row in here.
  */
 @Serializable
 data class Bill(
@@ -53,18 +54,16 @@ data class Bill(
      */
     val invoiceNo: String? = null,
     @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant = Timestamps.now(),
-    val voided: Boolean = false
+    val createdAt: Instant = Timestamps.now()
 ) {
-    /** What is still owed on this bill. Zero when paid in full or voided. */
+    /** What is still owed on this bill. Zero when paid in full. */
     val balance: Double
         get() {
-            if (voided) return 0.0
             val paid = paid ?: return 0.0
             return maxOf(0.0, total - paid)
         }
 
-    val isPartPaid: Boolean get() = !voided && paid != null
+    val isPartPaid: Boolean get() = paid != null
 
     /**
      * Whether this bill says what was sold, or only what it came to.

@@ -14,9 +14,8 @@ import java.util.UUID
  * that ever becomes the wrong trade, the change is a `lines` list here — the same
  * shape [Bill] already has — and nothing else moves.
  *
- * Purchases are never deleted. A mistake is *voided*, which takes the stock back
- * off the shelf and leaves the record in place, exactly as a bill's void puts it
- * back on.
+ * A mistake is **edited or removed**, exactly as on a bill, and either takes the
+ * stock back off the shelf.
  */
 @Serializable
 data class Purchase(
@@ -66,24 +65,22 @@ data class Purchase(
      */
     val invoiceNo: String? = null,
     @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant = Timestamps.now(),
-    val voided: Boolean = false
+    val createdAt: Instant = Timestamps.now()
 ) {
-    /** What the shop still owes on this delivery. Zero when settled or voided. */
+    /** What the shop still owes on this delivery. Zero when settled. */
     val balance: Double
         get() {
-            if (voided) return 0.0
             val paid = paid ?: return 0.0
             return maxOf(0.0, total - paid)
         }
 
-    val isPartPaid: Boolean get() = !voided && paid != null
+    val isPartPaid: Boolean get() = paid != null
 
     /**
      * Whether this says what arrived, or only what it cost.
      *
-     * Stock moves for the first and not the second, and voiding has to reverse
-     * exactly what recording it did.
+     * Stock moves for the first and not the second, so editing or removing one
+     * has to reverse exactly what recording it did.
      */
     val isItemised: Boolean get() = !name.isNullOrBlank()
 

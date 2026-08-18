@@ -149,23 +149,23 @@ class SupplierTests {
             store.recordPurchase(product, record.key, quantity = 10, unitCost = 60.0, paid = 0.0)
         )
 
-        store.voidPurchase(purchase.id)
+        store.deletePurchase(purchase.id)
 
         assertEquals(2, assertNotNull(store.product(product.uid)).stock)
-        assertTrue(store.purchases.first().voided, "history is marked, not deleted")
-        assertEquals(0.0, assertNotNull(store.supplier(record.key)).owed, "a voided delivery is owed for by nobody")
+        assertTrue(store.purchases.isEmpty(), "removed outright rather than marked")
+        assertEquals(0.0, assertNotNull(store.supplier(record.key)).owed, "and owed for by nobody")
         assertEquals(0, assertNotNull(store.supplier(record.key)).purchaseCount)
     }
 
     @Test
-    fun `voiding twice does not remove the stock twice`() {
+    fun `removing twice does not remove the stock twice`() {
         val store = store()
         val product = store.aProduct(stock = 5)
         val record = assertNotNull(store.addSupplier("Al Faisal"))
         val purchase = assertNotNull(store.recordPurchase(product, record.key, quantity = 3, unitCost = 60.0))
 
-        store.voidPurchase(purchase.id)
-        store.voidPurchase(purchase.id)
+        store.deletePurchase(purchase.id)
+        store.deletePurchase(purchase.id)
 
         assertEquals(5, assertNotNull(store.product(product.uid)).stock)
     }
@@ -179,7 +179,7 @@ class SupplierTests {
         // All four sold before anybody noticed the delivery was wrong.
         store.saveBill(listOf(com.stockbook.core.store.DraftLine(product.uid, 4, 95.0)), "Ahmed", null)
 
-        store.voidPurchase(purchase.id)
+        store.deletePurchase(purchase.id)
 
         assertEquals(0, assertNotNull(store.product(product.uid)).stock)
     }

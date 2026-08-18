@@ -66,19 +66,6 @@ class BillTextTests {
     }
 
     @Test
-    fun `a voided bill says so instead of asking for money`() {
-        val store = store()
-        val lock = store.addProduct("Cisa lock", 50, 60.0, 95.0)
-        val bill = assertNotNull(store.saveBill(listOf(DraftLine(lock.uid, 1, 95.0)), "Ahmed", 0.0))
-        store.void(bill)
-
-        val text = text(store)
-
-        assertTrue(text.contains(english.voidedNote), text)
-        assertTrue(!text.contains("owes"), "a voided bill is owed nothing")
-    }
-
-    @Test
     fun `a shop with no name has no letterhead`() {
         val store = store()
         val lock = store.addProduct("Cisa lock", 50, 60.0, 95.0)

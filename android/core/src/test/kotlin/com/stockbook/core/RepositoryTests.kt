@@ -72,9 +72,12 @@ class RepositoryTests {
         repository.append(bill)
         assertEquals(1, repository.loadAll().bills.size, name)
 
-        repository.update(bill.copy(voided = true))
+        repository.update(bill.copy(who = "Ahmed Contracting"))
         assertEquals(1, repository.loadAll().bills.size, name)
-        assertTrue(repository.loadAll().bills.first().voided, name)
+        assertEquals("Ahmed Contracting", repository.loadAll().bills.first().who, name)
+
+        repository.deleteBill(bill.number)
+        assertTrue(repository.loadAll().bills.isEmpty(), name)
     }
 
     @Test

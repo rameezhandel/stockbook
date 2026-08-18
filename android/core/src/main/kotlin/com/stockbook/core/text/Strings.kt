@@ -163,10 +163,18 @@ class Strings(val language: AppLanguage) {
                 "ಇನ್ನೂ ಏನೂ ಮಾರಾಟ ಆಗಿಲ್ಲ. ನೀವು ಉಳಿಸಿದ ಪ್ರತಿ ಬಿಲ್ ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ."
             )
 
-    val voidAndRestock: String get() =
-            pick("Void & put stock back", "ರದ್ದು ಮಾಡಿ, ದಾಸ್ತಾನು ವಾಪಸ್")
+    // A mistake is corrected on the document itself: opened, changed, or taken
+    // out. Removing says what it does to the shelf, because that is the part
+    // that surprises people.
+    val editBill: String get() = pick("Edit", "ಬದಲಾಯಿಸಿ")
+    val saveChanges: String get() = pick("Save changes", "ಬದಲಾವಣೆ ಉಳಿಸಿ")
+    val removeBill: String get() = pick("Remove this bill", "ಈ ಬಿಲ್ ತೆಗೆದುಹಾಕಿ")
 
-    val voided: String get() = pick("voided", "ರದ್ದಾಗಿದೆ")
+    val removeBillNote: String
+        get() = pick(
+            "Gone for good, and anything on it goes back on the shelf.",
+            "ಶಾಶ್ವತವಾಗಿ ಹೋಗುತ್ತದೆ, ಮತ್ತು ಅದರಲ್ಲಿನ ಸಾಮಾನು ಶೆಲ್ಫಿಗೆ ವಾಪಸ್."
+        )
 
     fun owes(amount: String): String =
             pick("owes $amount", "$amount ಬಾಕಿ")
@@ -258,12 +266,15 @@ class Strings(val language: AppLanguage) {
     fun addAsSupplier(name: String): String =
             pick("Add “$name” as a supplier", "“$name” ಅನ್ನು ಪೂರೈಕೆದಾರರಾಗಿ ಸೇರಿಸಿ")
 
-    // A delivery entered wrongly is voided rather than edited, exactly as a bill
-    // is — and voiding it takes the stock back off the shelf, which the button
-    // says out loud because it is the part that surprises people.
-    val voidAndRemoveStock: String get() = pick("Void and remove stock", "ರದ್ದು ಮಾಡಿ ದಾಸ್ತಾನು ಹಿಂತೆಗೆಯಿರಿ")
-    val purchaseVoidedNote: String
-        get() = pick("Voided. The stock went back off the shelf.", "ರದ್ದಾಗಿದೆ. ದಾಸ್ತಾನು ಹಿಂತೆಗೆಯಲಾಗಿದೆ.")
+    // The same two actions on the other side of the book, where removing takes
+    // stock back off the shelf rather than putting it on.
+    val removeSupplierBill: String get() = pick("Remove this bill", "ಈ ಬಿಲ್ ತೆಗೆದುಹಾಕಿ")
+
+    val removeSupplierBillNote: String
+        get() = pick(
+            "Gone for good, and anything on it comes back off the shelf.",
+            "ಶಾಶ್ವತವಾಗಿ ಹೋಗುತ್ತದೆ, ಮತ್ತು ಅದರಲ್ಲಿನ ಸಾಮಾನು ಶೆಲ್ಫಿನಿಂದ ಹಿಂತೆಗೆಯಲಾಗುತ್ತದೆ."
+        )
 
     // Says which balance this is, because the statement has one of its own with a
     // different meaning — that one is derived, this one is typed in once.
@@ -457,12 +468,6 @@ class Strings(val language: AppLanguage) {
     // `2 × SAR 95` — the arithmetic behind a line, kept visible.
     fun quantityAtPrice(quantity: Int, price: String): String =
             pick("$quantity × $price", "$quantity × $price")
-
-    val voidedNote: String get() =
-            pick(
-                "This bill was voided. The stock went back on the shelf and nothing is owed on it.",
-                "ಈ ಬಿಲ್ ರದ್ದಾಗಿದೆ. ದಾಸ್ತಾನು ವಾಪಸ್ ಹೋಗಿದೆ, ಇದರ ಮೇಲೆ ಯಾವ ಬಾಕಿಯೂ ಇಲ್ಲ."
-            )
 
     val paidInFullCash: String get() = pick("Paid in full, cash.", "ಪೂರ್ತಿ ಪಾವತಿ, ನಗದು.")
 

@@ -146,8 +146,7 @@ data class Statement(
      * What happened, in the order it happened.
      *
      * Four cases rather than a neutral row of numbers, because the document has
-     * to mark a voided bill, name the product on a delivery and show a payment's
-     * note. Being a sealed hierarchy is also what makes adding the supplier side
+     * to name the product on a delivery and show a payment's note. Being a sealed hierarchy is also what makes adding the supplier side
      * safe: every `when` over it stopped compiling until it had been thought
      * about.
      */
@@ -162,8 +161,8 @@ data class Statement(
         data class ForBill(val bill: Bill) : Entry {
             override val date: Instant get() = bill.createdAt
             override val id: String get() = "bill-${bill.number}"
-            override val charge: Double get() = if (bill.voided) 0.0 else bill.total
-            override val settledAtOnce: Double get() = if (bill.voided) 0.0 else bill.total - bill.balance
+            override val charge: Double get() = bill.total
+            override val settledAtOnce: Double get() = bill.total - bill.balance
         }
 
         data class ForPayment(val payment: Payment) : Entry {
@@ -176,9 +175,8 @@ data class Statement(
         data class ForPurchase(val purchase: Purchase) : Entry {
             override val date: Instant get() = purchase.createdAt
             override val id: String get() = "purchase-${purchase.id}"
-            override val charge: Double get() = if (purchase.voided) 0.0 else purchase.total
-            override val settledAtOnce: Double
-                get() = if (purchase.voided) 0.0 else purchase.total - purchase.balance
+            override val charge: Double get() = purchase.total
+            override val settledAtOnce: Double get() = purchase.total - purchase.balance
         }
 
         data class ForSupplierPayment(val payment: SupplierPayment) : Entry {
@@ -231,9 +229,7 @@ data class Statement(
          * The arithmetic, once.
          *
          * Everything above hands this the same three things: who the account is,
-         * everything that ever happened on it, and the period to report. A voided
-         * bill or delivery did not happen and contributes nothing — it is still
-         * listed, because history is marked here rather than hidden.
+         * everything that ever happened on it, and the period to report.
          */
         private fun make(
             party: StatementParty,
@@ -256,8 +252,6 @@ data class Statement(
             val running = mutableListOf<Double>()
             var balance = opening
             for (entry in inRange) {
-                // A voided entry moves nothing, which is exactly what makes the
-                // running column readable beside it.
                 balance += entry.charge - entry.settledAtOnce
                 running.add(balance)
             }
