@@ -8,9 +8,9 @@ That file is the spec; this one describes how the code is arranged.
 Open `Stockbook.xcodeproj` and run — there are no dependencies, no package
 resolution, no `pod install`.
 
-> This is the **architecture + foundations** pass. The data layer, the design
-> system and two screens are real; the remaining screens are scaffolded and
-> listed under [What is not built yet](#what-is-not-built-yet).
+> Every screen in the handoff is built, and this app is at parity with the
+> Android one. What is left is verification rather than construction — see
+> [What is not built yet](#what-is-not-built-yet).
 
 ---
 
@@ -497,7 +497,7 @@ both it and setup step 4.
 - **Currency selection** — fourteen currencies, picked in setup and changeable
   in Settings.
 - **Product editor** and **Add stock** sheets, both complete.
-- 60-odd tests over the domain layer.
+- Around 200 tests over the domain layer.
 
 ## What is not built yet
 

@@ -158,7 +158,7 @@ data class BackupDocument(
 
     companion object {
         /**
-         * The format this build writes: **one**, and the first there has ever
+         * The format this build writes: **two**, and the second there has ever
          * been.
          *
          * It reached 3 during development — a bump when payments arrived, another

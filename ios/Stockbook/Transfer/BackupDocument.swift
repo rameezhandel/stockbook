@@ -16,7 +16,7 @@ struct BackupDocument: Codable, Equatable {
 
     /// The format this build writes.
     ///
-    /// **One**, and the first one there has ever been. It reached 3 during
+    /// **Two**, and the second one there has ever been. It reached 3 during
     /// development — a bump when payments arrived, another for opening balances —
     /// but nothing had shipped, so those numbers described files that exist
     /// nowhere. Carrying them forward would have meant three shapes of history to

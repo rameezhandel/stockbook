@@ -17,7 +17,7 @@ android/
 format. It has **no Android dependency at all**, which means:
 
 ```sh
-cd android && ./gradlew :core:test        # 108 tests, about 6 seconds
+cd android && ./gradlew :core:test        # 186 tests, about 12 seconds
 ```
 
 runs on any machine with a JDK — no SDK, no emulator, no Google servers. That is
@@ -32,9 +32,10 @@ Google's Maven, so it builds in CI and in Android Studio.
 
 - **The backup file.** `BackupDocument` is byte-compatible with the iOS build:
   same keys, same ISO-8601 timestamps, same absent-means-paid-in-full rule, same
-  format version — 1, and the only one there has ever been. A shop exported from
-  an iPhone opens on Android and back again, which is tested against a literal
-  iPhone-written file. `productUID` is spelled the way Swift spells it for
+  format version — 2, bumped once when suppliers and money paid out arrived,
+  because a reader that ignored them would tell the owner the shop owes nobody
+  anything. A shop exported from an iPhone opens on Android and back again,
+  which is tested against a literal iPhone-written file. `productUID` is spelled the way Swift spells it for
   exactly that reason.
 
   The two decoders are not equally strict, and it is worth knowing which way.
