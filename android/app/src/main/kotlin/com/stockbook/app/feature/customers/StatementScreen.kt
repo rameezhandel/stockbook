@@ -645,14 +645,15 @@ private fun plainText(
         val balance = Money.text(statement.runningBalances[index], currency)
         when (entry) {
             is Statement.Entry.ForBill -> lines.add(
-                "${strings.longDate(entry.bill.createdAt)}  ${entry.bill.reference(strings)}  " +
+                "${strings.longDate(entry.bill.createdAt)}  ${reference(entry, strings)}  " +
                     "${Money.text(entry.bill.total, currency)}  →  $balance"
             )
             is Statement.Entry.ForCreditNote -> lines.add(
-                "${strings.longDate(entry.date)}  ${reference(entry, strings)}  − ${Money.text(entry.note.total, currency)}"
+                "${strings.longDate(entry.date)}  ${reference(entry, strings)}  " +
+                    "− ${Money.text(entry.note.total, currency)}  →  $balance"
             )
             is Statement.Entry.ForPayment -> lines.add(
-                "${strings.longDate(entry.payment.receivedAt)}  ${strings.paymentLabel}  " +
+                "${strings.longDate(entry.payment.receivedAt)}  ${reference(entry, strings)}  " +
                     "− ${Money.text(entry.payment.amount, currency)}  →  $balance"
             )
             is Statement.Entry.ForPurchase -> {
@@ -660,7 +661,7 @@ private fun plainText(
                 // regardless is how a supplier bill for a mixed load ends up
                 // reading "null × 0" on a document somebody is sent.
                 val what = entry.purchase.name?.let { "$it × ${entry.purchase.qty}" }
-                val describes = listOfNotNull(entry.purchase.reference(strings), what)
+                val describes = listOfNotNull(reference(entry, strings), what)
                 lines.add(
                     "${strings.longDate(entry.purchase.createdAt)}  " +
                         "${describes.joinToString("  ")}  " +
@@ -668,7 +669,7 @@ private fun plainText(
                 )
             }
             is Statement.Entry.ForSupplierPayment -> lines.add(
-                "${strings.longDate(entry.payment.paidAt)}  ${strings.paymentLabel}  " +
+                "${strings.longDate(entry.payment.paidAt)}  ${reference(entry, strings)}  " +
                     "− ${Money.text(entry.payment.amount, currency)}  →  $balance"
             )
         }
