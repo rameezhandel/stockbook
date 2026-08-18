@@ -232,7 +232,9 @@ fun PrimaryButton(
         Text(
             title,
             style = NocturneType.inter(if (compact) 12.5 else fontSize, androidx.compose.ui.text.font.FontWeight.Medium),
-            color = Nocturne.accent
+            color = Nocturne.accent,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -268,7 +270,13 @@ fun SecondaryButton(
             Glyph(leading, size = 15.dp, tint = Nocturne.text)
             Spacer(Modifier.width(6.dp))
         }
-        Text(title, style = NocturneType.inter(fontSize), color = Nocturne.text)
+        Text(
+            title,
+            style = NocturneType.inter(fontSize),
+            color = Nocturne.text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -284,6 +292,8 @@ fun GhostButton(
         text = title,
         style = NocturneType.inter(fontSize, androidx.compose.ui.text.font.FontWeight.Medium),
         color = tint,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier
             .clip(RoundedCornerShape(Metrics.controlRadius))
             .clickable(onClick = onClick)

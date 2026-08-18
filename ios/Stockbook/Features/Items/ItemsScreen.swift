@@ -22,7 +22,8 @@ struct ItemsScreen: View {
                     Button {
                         router.recordDelivery()
                     } label: {
-                        Label(Loc.recordDelivery, systemImage: Icon.addStock)
+                        Label(Loc.itemsRecordDelivery, systemImage: Icon.addStock)
+                            .lineLimit(1)
                     }
                     .buttonStyle(SecondaryButtonStyle(height: Metrics.compactControlHeight, fontSize: 12.5))
 

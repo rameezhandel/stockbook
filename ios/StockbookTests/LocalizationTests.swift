@@ -21,7 +21,7 @@ struct LocalizationTests {
         \.next, \.startABill, \.addAProduct, \.today,
         \.settings, \.receivableStat, \.payableStat, \.billsStat, \.recentBills,
         \.noBillsToday,
-        \.itemsTitle, \.search, \.nothingAddedYet, \.shelfEmpty,
+        \.itemsTitle, \.search, \.nothingAddedYet, \.shelfEmpty, \.itemsRecordDelivery,
         \.billsTitle, \.noBillsEver, \.editBill, \.saveChanges, \.removeBill, \.removeBillNote,
         \.allCustomers, \.customerLabel, \.transactions, \.pendingPayment,
         \.nothingPending,

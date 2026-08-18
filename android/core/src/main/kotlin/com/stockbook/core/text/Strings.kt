@@ -104,6 +104,12 @@ class Strings(val language: AppLanguage) {
     val itemsTitle: String get() = pick("Items", "ಸಾಮಾನುಗಳು")
     val search: String get() = pick("Search", "ಹುಡುಕಿ")
     val nothingAddedYet: String get() = pick("nothing added yet", "ಇನ್ನೂ ಏನೂ ಸೇರಿಸಿಲ್ಲ")
+    /**
+     * The Items header's own name for [recordDelivery] — same sheet, same
+     * action, but a header button reads as a section of the app rather than a
+     * verb the way the Book's empty-state button does.
+     */
+    val itemsRecordDelivery: String get() = pick("Inventory", "ದಾಸ್ತಾನು")
 
     fun itemsSubtitle(total: Int, low: Int): String =
             pick("${products(total)} · $low running low", "$total ಸಾಮಾನು · $low ಕಡಿಮೆ ಆಗುತ್ತಿದೆ")

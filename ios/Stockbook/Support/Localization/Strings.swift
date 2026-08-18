@@ -111,6 +111,10 @@ struct Strings {
     var itemsTitle: String { pick("Items", "ಸಾಮಾನುಗಳು") }
     var search: String { pick("Search", "ಹುಡುಕಿ") }
     var nothingAddedYet: String { pick("nothing added yet", "ಇನ್ನೂ ಏನೂ ಸೇರಿಸಿಲ್ಲ") }
+    /// The Items header's own name for `recordDelivery` — same sheet, same
+    /// action, but a header button reads as a section of the app rather than a
+    /// verb the way the Book's empty-state button does.
+    var itemsRecordDelivery: String { pick("Inventory", "ದಾಸ್ತಾನು") }
 
     func itemsSubtitle(total: Int, low: Int) -> String {
         pick("\(products(total)) · \(low) running low", "\(total) ಸಾಮಾನು · \(low) ಕಡಿಮೆ ಆಗುತ್ತಿದೆ")

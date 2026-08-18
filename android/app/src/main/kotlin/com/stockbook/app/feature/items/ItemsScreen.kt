@@ -79,7 +79,7 @@ fun ItemsScreen(
             // did, is a question inside the sheet rather than the price of
             // opening it.
             SecondaryButton(
-                strings.recordDelivery,
+                strings.itemsRecordDelivery,
                 onClick = { router.recordingDelivery = true },
                 height = Metrics.compactControlHeight,
                 fontSize = 12.5,
