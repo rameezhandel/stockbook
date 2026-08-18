@@ -85,7 +85,6 @@ struct CartView: View {
 
             saveBar
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .keyboardDoneButton()
         // One past the last number the shop wrote, put in the box so the usual
         // bill needs no typing at all. Watched rather than done once: the flag is
