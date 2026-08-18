@@ -319,8 +319,10 @@ struct SupplierTests {
         let document = try BackupService.decode(try BackupService.encode(store.makeBackupDocument()))
 
         // The bump is the rule being applied, not abandoned: a reader that dropped
-        // these would say the shop owes nobody.
-        #expect(document.version == 2)
+        // these would say the shop owes nobody. Pinned against the constant so a
+        // later bump does not drag this test with it — what it checks is that the
+        // supplier side reaches the file, not what number is on it.
+        #expect(document.version == BackupDocument.currentVersion)
         #expect(document.suppliers.count == 1)
         #expect(document.purchases.count == 1)
         #expect(document.supplierPayments.count == 1)

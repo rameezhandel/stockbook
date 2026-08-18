@@ -72,6 +72,11 @@ struct BackupDocument: Codable, Equatable {
     var supplierPayments: [SupplierPaymentRow] = []
 
     /// What has been credited back to customers.
+    ///
+    /// Read through the hand-written decoder below rather than the synthesised
+    /// one, because unlike every array above it this key **can** be legitimately
+    /// missing: a version-2 file predates credit notes entirely, and version 2 is
+    /// older than this build rather than newer, so it is accepted on import.
     var creditNotes: [CreditNoteRow] = []
 
     struct CreditNoteRow: Codable, Equatable {
@@ -254,4 +259,37 @@ enum BackupError: Error, Equatable {
     case unreadable
     case notStockbookData
     case newerVersion(found: Int)
+}
+
+extension BackupDocument {
+
+    /// Written by hand for exactly one key.
+    ///
+    /// Swift's synthesised decoder throws on a missing key however the property
+    /// is defaulted, and for most of this document that is precisely right: no
+    /// `customers` or `purchases` array means a file this app did not write, and
+    /// refusing it is the correct answer. `creditNotes` is the exception. It
+    /// arrived with version 3, a version-2 file has no such key, and version 2 is
+    /// *older* than this build — so it decodes rather than being rejected, and
+    /// throwing here would have made every backup taken before credit notes
+    /// unreadable. The test that caught this decodes a literal version-2 file.
+    ///
+    /// Everything else keeps the strictness it had, spelled out rather than
+    /// inherited, so the next person adding a key has to decide which kind it is.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decode(Int.self, forKey: .version)
+        exportedAt = try container.decode(Date.self, forKey: .exportedAt)
+        ownerName = try container.decode(String.self, forKey: .ownerName)
+        shopAddress = try container.decodeIfPresent(String.self, forKey: .shopAddress)
+        currencyCode = try container.decode(String.self, forKey: .currencyCode)
+        products = try container.decode([ProductRecord].self, forKey: .products)
+        bills = try container.decode([BillRecord].self, forKey: .bills)
+        customers = try container.decode([CustomerRecordRow].self, forKey: .customers)
+        payments = try container.decode([PaymentRow].self, forKey: .payments)
+        suppliers = try container.decode([SupplierRecordRow].self, forKey: .suppliers)
+        purchases = try container.decode([PurchaseRow].self, forKey: .purchases)
+        supplierPayments = try container.decode([SupplierPaymentRow].self, forKey: .supplierPayments)
+        creditNotes = try container.decodeIfPresent([CreditNoteRow].self, forKey: .creditNotes) ?? []
+    }
 }

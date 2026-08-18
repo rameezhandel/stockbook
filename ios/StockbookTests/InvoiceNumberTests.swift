@@ -265,9 +265,12 @@ struct InvoiceNumberTests {
 
         let document = try BackupService.decode(try BackupService.encode(store.makeBackupDocument()))
 
-        // No version bump: a reader that drops these shows "Bill #1" where the
-        // owner wrote 1024. A label lost, not a figure misread.
-        #expect(document.version == 2)
+        // Invoice numbers did not bump the version: a reader that drops these
+        // shows "Bill #1" where the owner wrote 1024, which is a label lost
+        // rather than a figure misread. Pinned against the constant, so the
+        // *next* bump does not have to come back and edit this line — what this
+        // test is about is the numbers surviving, not what the version is.
+        #expect(document.version == BackupDocument.currentVersion)
 
         let restored = makeStore()
         restored.replaceEverything(with: document)
