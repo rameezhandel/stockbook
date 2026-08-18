@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
 import com.stockbook.app.design.DropdownField
 import com.stockbook.app.design.EmptyStateBox
+import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Glyph
 import com.stockbook.app.design.IconButton
 import com.stockbook.app.design.Icon
@@ -123,7 +124,11 @@ fun BillsScreen(
                         strings = strings,
                         onEdit = { router.openCustomer(selected) },
                         onStatement = { router.openStatement(selected) },
-                        onRecordPayment = { router.paymentFor = selected }
+                        onRecordPayment = { router.paymentFor = selected },
+                        onCreditNote = {
+                            router.editingCreditNote = null
+                            router.creditNoteFor = selected
+                        }
                     )
                     Spacer(Modifier.height(Metrics.rowGap + 4.dp))
                 }
@@ -167,7 +172,8 @@ private fun CustomerSummary(
     strings: Strings,
     onEdit: () -> Unit,
     onStatement: () -> Unit,
-    onRecordPayment: () -> Unit
+    onRecordPayment: () -> Unit,
+    onCreditNote: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -253,6 +259,17 @@ private fun CustomerSummary(
                 )
             }
         }
+
+        // On its own line and quiet, unlike the two above it. Taking money is
+        // the daily act; writing some off is the occasional one — and unlike a
+        // payment it is offered even to somebody who owes nothing, because goods
+        // come back after a bill has been settled and that leaves them in credit.
+        GhostButton(
+            strings.issueACreditNote,
+            onClick = onCreditNote,
+            fontSize = 12.5,
+            modifier = Modifier.padding(top = 2.dp)
+        )
     }
 }
 

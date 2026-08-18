@@ -82,6 +82,11 @@ fun StatementScreen(
     currency: Currency,
     strings: Strings,
     onShare: (String) -> Unit,
+    /**
+     * Opens a credit note for correction. A note is edited from here because
+     * this is the document it appears on — the same place a bill is opened from.
+     */
+    onEditCreditNote: (com.stockbook.core.model.CreditNote) -> Unit = {},
     onClose: () -> Unit
 ) {
     /**
@@ -171,7 +176,8 @@ fun StatementScreen(
                     onDelete = { id ->
                         if (isSupplier) store.deleteSupplierPayment(id) else store.deletePayment(id)
                         deleting = null
-                    }
+                    },
+                    onEditCreditNote = onEditCreditNote
                 )
                 Spacer(Modifier.height(10.dp))
                 SecondaryButton(
@@ -299,6 +305,7 @@ private fun Document(
     currency: Currency,
     strings: Strings,
     deleting: String?,
+    onEditCreditNote: (com.stockbook.core.model.CreditNote) -> Unit = {},
     onArm: (String?) -> Unit,
     onDelete: (String) -> Unit
 ) {
@@ -337,7 +344,8 @@ private fun Document(
                     strings = strings,
                     deleting = deleting,
                     onArm = onArm,
-                    onDelete = onDelete
+                    onDelete = onDelete,
+                    onEditCreditNote = onEditCreditNote
                 )
                 if (index < statement.entries.lastIndex) Spacer(Modifier.height(10.dp))
             }
@@ -348,6 +356,13 @@ private fun Document(
         Figure(chargedLabel(statement, strings), Money.text(statement.billed, currency))
         Spacer(Modifier.height(2.dp))
         Figure(settledLabel(statement, strings), Money.text(statement.received, currency))
+        // Its own line, and only where there is one. Credit is not cash, and a
+        // row saying "0.00 credited" on every statement teaches people to stop
+        // reading the ones that are not zero.
+        if (statement.credited > 0) {
+            Spacer(Modifier.height(2.dp))
+            Figure(strings.creditNotes, Money.text(statement.credited, currency))
+        }
 
         FadedRule(modifier = Modifier.padding(vertical = 10.dp))
 
@@ -393,7 +408,8 @@ private fun EntryRow(
     strings: Strings,
     deleting: String?,
     onArm: (String?) -> Unit,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
+    onEditCreditNote: (com.stockbook.core.model.CreditNote) -> Unit = {}
 ) {
     // Either kind of payment can be deleted here; a bill or a delivery is changed
     // or taken out from inside the document itself, which is where the owner can
@@ -403,16 +419,26 @@ private fun EntryRow(
         is Statement.Entry.ForSupplierPayment -> entry.payment.id
         else -> null
     }
+    // A credit note opens for correction instead of arming a delete, because it
+    // is a document with a number on it rather than a bare figure: what wants
+    // fixing is usually the amount or the reason, and removing it outright is one
+    // button inside the sheet that opens.
+    val creditNote = (entry as? Statement.Entry.ForCreditNote)?.note
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // Only a payment. Removing a bill puts stock back on the shelf, and
-            // offering that from a row on a document somebody is reading would be
-            // a second, worse route to it than the opened bill.
+            // Only a payment arms a delete here. Removing a bill puts stock back
+            // on the shelf, and offering that from a row on a document somebody
+            // is reading would be a second, worse route to it than the opened
+            // bill.
             .then(
-                if (paymentId == null) Modifier
-                else Modifier.clickable {
-                    onArm(if (deleting == paymentId) null else paymentId)
+                when {
+                    creditNote != null -> Modifier.clickable { onEditCreditNote(creditNote) }
+                    paymentId == null -> Modifier
+                    else -> Modifier.clickable {
+                        onArm(if (deleting == paymentId) null else paymentId)
+                    }
                 }
             )
     ) {
@@ -440,6 +466,18 @@ private fun EntryRow(
                         entry.payment.note?.let {
                             Text(it, style = NocturneType.meta, color = Nocturne.neutral500)
                         }
+                    }
+                    is Statement.Entry.ForCreditNote -> {
+                        Text(
+                            entry.note.reference(strings),
+                            style = NocturneType.inter(13.0),
+                            color = Nocturne.accent400
+                        )
+                        // Why it was written, where the owner said. On a document
+                        // somebody is checking against their own paper, "returned,
+                        // damaged" is the difference between a figure they
+                        // recognise and one they have to go and ask about.
+                        Detail(entry.note.reason)
                     }
                     is Statement.Entry.ForPurchase -> {
                         Text(
@@ -477,7 +515,8 @@ private fun EntryRow(
                         is Statement.Entry.ForBill,
                         is Statement.Entry.ForPurchase -> Nocturne.text
                         is Statement.Entry.ForPayment,
-                        is Statement.Entry.ForSupplierPayment -> Nocturne.accent400
+                        is Statement.Entry.ForSupplierPayment,
+                        is Statement.Entry.ForCreditNote -> Nocturne.accent400
                     }
                 )
                 // The running balance beside every line: the column that turns a list
@@ -522,6 +561,7 @@ private fun amountText(entry: Statement.Entry, currency: Currency): String = whe
     is Statement.Entry.ForPurchase -> Money.text(entry.purchase.total, currency)
     // A minus sign on both kinds of payment: it is what the account moves by, and
     // on a supplier's statement that is money leaving rather than arriving.
+    is Statement.Entry.ForCreditNote -> "− ${Money.text(entry.note.total, currency)}"
     is Statement.Entry.ForPayment -> "− ${Money.text(entry.payment.amount, currency)}"
     is Statement.Entry.ForSupplierPayment -> "− ${Money.text(entry.payment.amount, currency)}"
 }
@@ -580,6 +620,9 @@ private fun plainText(
                 "${strings.longDate(entry.bill.createdAt)}  ${entry.bill.reference(strings)}  " +
                     "${Money.text(entry.bill.total, currency)}  →  $balance"
             )
+            is Statement.Entry.ForCreditNote -> lines.add(
+                "${strings.longDate(entry.date)}  ${entry.note.reference(strings)}  − ${Money.text(entry.note.total, currency)}"
+            )
             is Statement.Entry.ForPayment -> lines.add(
                 "${strings.longDate(entry.payment.receivedAt)}  ${strings.paymentLabel}  " +
                     "− ${Money.text(entry.payment.amount, currency)}  →  $balance"
@@ -606,6 +649,9 @@ private fun plainText(
     lines.add("")
     lines.add("${chargedLabel(statement, strings)}: ${Money.text(statement.billed, currency)}")
     lines.add("${settledLabel(statement, strings)}: ${Money.text(statement.received, currency)}")
+    if (statement.credited > 0) {
+        lines.add("${strings.creditNotes}: ${Money.text(statement.credited, currency)}")
+    }
     lines.add("${strings.closingBalance}: ${closingText(statement, currency, strings)}")
     return lines.joinToString("\n")
 }

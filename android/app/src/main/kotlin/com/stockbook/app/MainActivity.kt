@@ -32,6 +32,7 @@ import com.stockbook.app.design.BottomSheet
 import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.book.BookScreen
 import com.stockbook.app.feature.book.PurchaseSheet
+import com.stockbook.app.feature.customers.CreditNoteSheet
 import com.stockbook.app.feature.customers.CustomerEditorSheet
 import com.stockbook.app.feature.customers.RecordPaymentSheet
 import com.stockbook.app.feature.customers.PaySupplierSheet
@@ -221,6 +222,12 @@ private fun Shell(store: StockbookStore) {
                 currency = state.settings.currency,
                 strings = strings,
                 onShare = { text -> shareText(context, text) },
+                onEditCreditNote = { note ->
+                    store.customer(note.customerKey)?.let { customer ->
+                        router.editingCreditNote = note
+                        router.creditNoteFor = customer
+                    }
+                },
                 onClose = { router.statementFor = null }
             )
         }
@@ -361,6 +368,24 @@ private fun Shell(store: StockbookStore) {
                     currency = state.settings.currency,
                     strings = strings,
                     onClose = { router.paymentFor = null }
+                )
+            }
+        }
+
+        // The payment sheet's sibling: the same act with no money in it.
+        BottomSheet(
+            visible = router.creditNoteFor != null,
+            onDismiss = { router.creditNoteFor = null; router.editingCreditNote = null }
+        ) {
+            router.creditNoteFor?.let { customer ->
+                CreditNoteSheet(
+                    customer = store.customer(customer.key) ?: customer,
+                    state = state,
+                    store = store,
+                    currency = state.settings.currency,
+                    strings = strings,
+                    editing = router.editingCreditNote,
+                    onClose = { router.creditNoteFor = null; router.editingCreditNote = null }
                 )
             }
         }

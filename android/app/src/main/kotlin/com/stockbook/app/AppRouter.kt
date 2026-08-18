@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.stockbook.core.model.Bill
+import com.stockbook.core.model.CreditNote
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Product
 import com.stockbook.core.model.Purchase
@@ -115,6 +116,13 @@ class AppRouter {
 
     /** The record-a-payment sheet, for one customer. */
     var paymentFor by mutableStateOf<Customer?>(null)
+
+    /**
+     * The credit-note sheet, for one customer. Its sibling below carries the
+     * note being corrected — nil for a new one, exactly as the bill editor does.
+     */
+    var creditNoteFor by mutableStateOf<Customer?>(null)
+    var editingCreditNote by mutableStateOf<CreditNote?>(null)
 
     /**
      * A customer's statement, full screen. Held as a **key** rather than a
@@ -255,6 +263,8 @@ class AppRouter {
         customerEditor = null
         creatingCustomer = false
         paymentFor = null
+        creditNoteFor = null
+        editingCreditNote = null
         statementFor = null
         supplierEditor = null
         creatingSupplier = false
