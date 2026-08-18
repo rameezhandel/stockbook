@@ -70,18 +70,16 @@ struct TodayScreen: View {
     /// two dates is a job for the document you are about to send somebody, not
     /// for a glance on the way past. The period arithmetic is `StatementPeriod`'s
     /// either way, so "this month" means the same thing on both screens.
+    ///
+    /// Carries the period and nothing else. Its label is resolved by the view
+    /// rather than here: `Loc` is main-actor isolated and a bare enum is not, so
+    /// reading a string from inside it does not compile — the Kotlin twin takes
+    /// `Strings` as a parameter for the same separation, arrived at from the
+    /// other direction.
     private enum Span: CaseIterable, Identifiable {
         case thisMonth, lastMonth, thisYear
 
         var id: Self { self }
-
-        var label: String {
-            switch self {
-            case .thisMonth: Loc.thisMonth
-            case .lastMonth: Loc.lastMonth
-            case .thisYear: Loc.thisYear
-            }
-        }
 
         var period: StatementPeriod {
             switch self {
@@ -89,6 +87,14 @@ struct TodayScreen: View {
             case .lastMonth: .lastMonth()
             case .thisYear: .thisYear()
             }
+        }
+    }
+
+    private func label(for span: Span) -> String {
+        switch span {
+        case .thisMonth: Loc.thisMonth
+        case .lastMonth: Loc.lastMonth
+        case .thisYear: Loc.thisYear
         }
     }
 
@@ -128,7 +134,7 @@ struct TodayScreen: View {
         return Button {
             withAnimation(Metrics.quick) { span = candidate }
         } label: {
-            Text(candidate.label)
+            Text(label(for: candidate))
                 .font(NocturneType.inter(11.5))
                 .foregroundStyle(selected ? Nocturne.accent : Nocturne.neutral500)
                 .lineLimit(1)
