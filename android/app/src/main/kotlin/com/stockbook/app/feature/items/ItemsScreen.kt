@@ -75,7 +75,9 @@ fun ItemsScreen(
         ScreenHeader(title = strings.itemsTitle, subtitle = subtitle, bottomPadding = 10.dp) {
             // Recording a delivery used to be three taps down inside a product,
             // which is nobody's idea of discoverable. It starts here now and asks
-            // which product arrived, rather than making the owner find it first.
+            // for nothing but the supplier's bill — which product arrived, if any
+            // did, is a question inside the sheet rather than the price of
+            // opening it.
             SecondaryButton(
                 strings.recordDelivery,
                 onClick = { router.recordingDelivery = true },

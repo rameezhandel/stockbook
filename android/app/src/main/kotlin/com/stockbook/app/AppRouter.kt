@@ -31,29 +31,34 @@ class AppRouter {
     var productEditor by mutableStateOf<Product?>(null)
     var creatingProduct by mutableStateOf(false)
 
+    /**
+     * The stock sheet, opened from a product: it can count that product's shelf
+     * or file a supplier's bill against it.
+     */
     var addStock by mutableStateOf<Product?>(null)
 
     /**
-     * Set by the Items header's Delivery button: the sheet that asks which
-     * product arrived, before the purchase sheet itself.
+     * Set by the Items header's Delivery button: the same sheet with no product
+     * named, which is a supplier bill and nothing else.
      *
-     * A purchase carries one product, so something has to name it. Starting from
-     * the header and asking is fewer taps than making the owner find the product
-     * first, which is what recording a delivery used to cost.
+     * Naming the product used to be the *first* question a delivery asked, in a
+     * sheet of its own. It is optional now — a bill for a mixed load names
+     * nothing and still owes money — so the question moved inside, where it can
+     * be left alone.
      */
     var recordingDelivery by mutableStateOf(false)
 
     /** A delivery opened from the book, the way a bill is opened from history. */
     var purchaseDetail by mutableStateOf<Purchase?>(null)
 
-    /** Set when the add-stock sheet should open on its purchase half. */
-    var startingPurchase by mutableStateOf(false)
-
-    fun openDelivery(product: Product) {
-        recordingDelivery = false
-        startingPurchase = true
-        addStock = product
-    }
+    /**
+     * The two Today banners, opened into a list of everybody behind them.
+     *
+     * A banner saying "3 customers still owe" is a fact the owner can do nothing
+     * with; these turn it into the names, and each name into the payment sheet.
+     */
+    var showingDebtors by mutableStateOf(false)
+    var showingCreditors by mutableStateOf(false)
 
     /** The receipt, shown full-screen after a bill is saved. */
     var receipt by mutableStateOf<Bill?>(null)
@@ -151,8 +156,13 @@ class AppRouter {
     fun openAddStock(product: Product) {
         productEditor = null
         creatingProduct = false
-        startingPurchase = false
         addStock = product
+    }
+
+    /** Closes the stock sheet from either of the two ways it can be open. */
+    fun closeAddStock() {
+        addStock = null
+        recordingDelivery = false
     }
 
     fun openBill(bill: Bill) {
@@ -169,7 +179,8 @@ class AppRouter {
         addStock = null
         recordingDelivery = false
         purchaseDetail = null
-        startingPurchase = false
+        showingDebtors = false
+        showingCreditors = false
         receipt = null
         billDetail = null
         showingBackup = false

@@ -12,6 +12,7 @@ import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.SheetHeader
 import com.stockbook.core.model.Bill
 import com.stockbook.core.model.ShopState
+import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.BillText
 import com.stockbook.core.text.Strings
@@ -43,7 +44,14 @@ fun BillSheet(
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(
             title = strings.billDetailTitle,
-            subtitle = strings.items(live.lines.size),
+            // What it lists, or — where it lists nothing — what it came to. A
+            // bill entered as a figure is not "0 items"; that reads as a document
+            // whose contents went missing.
+            subtitle = if (live.isItemised) {
+                strings.items(live.lines.size)
+            } else {
+                Money.text(live.total, state.settings.currency)
+            },
             onClose = onClose
         )
 

@@ -1,5 +1,6 @@
 package com.stockbook.app.feature.today
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -105,7 +106,8 @@ fun TodayScreen(
                         } else {
                             strings.stillOwe(owedNames.size)
                         },
-                        amount = Money.text(owedTotal, currency)
+                        amount = Money.text(owedTotal, currency),
+                        onClick = { router.showingDebtors = true }
                     )
                     Spacer(Modifier.height(if (payableNames.isEmpty()) 18.dp else 6.dp))
                 }
@@ -123,7 +125,8 @@ fun TodayScreen(
                             strings.youOweMany(payableNames.size)
                         },
                         amount = Money.text(payableTotal, currency),
-                        icon = Icon.items
+                        icon = Icon.items,
+                        onClick = { router.showingCreditors = true }
                     )
                     Spacer(Modifier.height(18.dp))
                 }
@@ -172,14 +175,28 @@ fun TodayScreen(
     }
 }
 
+/**
+ * "Ahmed still owes", and the way to do something about it.
+ *
+ * The banner opens the list of everybody behind the figure, because noticing a
+ * debt and collecting it were two unconnected halves of the app before: the
+ * owner read this line and then went hunting through the Book for the name. The
+ * chevron is what says the line is a door rather than a notice.
+ */
 @Composable
-private fun OwedBanner(note: String, amount: String, icon: ImageVector = Icon.customer) {
+private fun OwedBanner(
+    note: String,
+    amount: String,
+    onClick: () -> Unit,
+    icon: ImageVector = Icon.customer
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .owedBannerBackground()
-            .padding(horizontal = 13.dp, vertical = 12.dp)
+            .clickable(onClick = onClick)
+            .padding(start = 13.dp, end = 9.dp, top = 12.dp, bottom = 12.dp)
     ) {
         Glyph(icon, size = 19.dp, tint = Nocturne.accent400)
         Spacer(Modifier.width(10.dp))
@@ -190,6 +207,8 @@ private fun OwedBanner(note: String, amount: String, icon: ImageVector = Icon.cu
             modifier = Modifier.weight(1f)
         )
         Text(amount, style = NocturneType.inter(16.0), color = Nocturne.accent400)
+        Spacer(Modifier.width(4.dp))
+        Glyph(Icon.openRow, size = 12.dp, tint = Nocturne.neutral600)
     }
 }
 

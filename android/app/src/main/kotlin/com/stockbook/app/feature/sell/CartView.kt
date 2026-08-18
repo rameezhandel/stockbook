@@ -36,7 +36,6 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.ui.draw.clip
-import com.stockbook.core.model.Timestamps
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -61,8 +60,17 @@ import com.stockbook.core.money.Money
 import com.stockbook.core.text.Strings
 
 /**
- * The bill being built. The most important screen in the app: it is what the
+ * The bill being written. The most important screen in the app: it is what the
  * owner is looking at while a customer waits.
+ *
+ * **A form, not a cart.** A bill here is a number, a date, somebody and a
+ * figure — the paper book was written first, so the total is already known and
+ * rebuilding it product by product to arrive at it is work for nothing. Saying
+ * what was sold is one optional button below the figure, and the only thing it
+ * buys is the shelf moving.
+ *
+ * Read top to bottom it is the order the owner already has the answers in: the
+ * number on the paper, the day, who it is for, what it came to.
  */
 @Composable
 fun CartView(
@@ -75,79 +83,7 @@ fun CartView(
     onSave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(
-                start = Metrics.screenPadding,
-                end = Metrics.screenPadding,
-                bottom = 10.dp
-            )
-        ) {
-            items(cart.lines, key = { it.productUid }) { line ->
-                CartLineCard(
-                    line = line,
-                    stock = state.products.firstOrNull { it.uid == line.productUid }?.stock ?: 0,
-                    currency = currency,
-                    strings = strings,
-                    cart = cart,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-            item {
-                SecondaryButton(
-                    strings.addAnotherItem,
-                    onClick = onBrowse,
-                    fullWidth = true,
-                    height = 44.dp,
-                    fontSize = 13.5,
-                    leading = Icon.add,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
-            }
-        }
-
-        Footer(cart = cart, state = state, store = store, currency = currency, strings = strings, onSave = onSave)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun Footer(
-    cart: Cart,
-    state: ShopState,
-    store: StockbookStore,
-    currency: Currency,
-    strings: Strings,
-    onSave: () -> Unit
-) {
     var pickingDate by remember { mutableStateOf(false) }
-
-    if (pickingDate) {
-        val picker = rememberDatePickerState(initialSelectedDateMillis = cart.soldAt.toEpochMilli())
-        DatePickerDialog(
-            onDismissRequest = { pickingDate = false },
-            confirmButton = {
-                GhostButton(strings.done, onClick = {
-                    picker.selectedDateMillis?.let { millis ->
-                        // The picker hands back midnight UTC. Re-anchoring to
-                        // midday in the phone's own zone keeps the bill on the day
-                        // the owner tapped, whatever the offset — which is what the
-                        // statement buckets by.
-                        cart.soldAt = Instant.ofEpochMilli(millis)
-                            .atZone(ZoneOffset.UTC)
-                            .toLocalDate()
-                            .atTime(12, 0)
-                            .atZone(ZoneId.systemDefault())
-                            .toInstant()
-                    }
-                    pickingDate = false
-                })
-            }
-        ) {
-            DatePicker(state = picker)
-        }
-    }
 
     // The bill already carrying this number, if the shop has written it twice.
     // Recomputed against `state` as well as the text, so a number freed by
@@ -162,134 +98,304 @@ private fun Footer(
         if (!cart.invoiceNoSeeded) cart.seedInvoiceNo(store.nextInvoiceNo())
     }
 
+    if (pickingDate) {
+        DateDialog(
+            current = cart.soldAt,
+            strings = strings,
+            onPicked = { cart.soldAt = it },
+            onDismiss = { pickingDate = false }
+        )
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        // The form scrolls and the Save button does not: with a long bill and the
+        // keyboard up, a Save that scrolled away is a Save the owner hunts for
+        // with a customer waiting.
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(
+                start = Metrics.screenPadding,
+                end = Metrics.screenPadding,
+                bottom = 12.dp
+            )
+        ) {
+            item {
+                PaperRow(
+                    cart = cart,
+                    strings = strings,
+                    clash = clash,
+                    onPickDate = { pickingDate = true }
+                )
+            }
+
+            item {
+                CustomerPicker(
+                    cart = cart,
+                    state = state,
+                    store = store,
+                    currency = currency,
+                    strings = strings,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
+
+            // The figure, however it was arrived at. Never both at once: a typed
+            // amount beside a line sum is two answers to one question, and the
+            // owner has no way to tell which one is about to be saved.
+            item {
+                if (cart.isEmpty) {
+                    NocturneField(
+                        value = cart.amountText,
+                        onValueChange = { cart.amountText = it },
+                        label = strings.amountField,
+                        height = Metrics.tallInputHeight,
+                        numeric = true,
+                        isRequiredAndEmpty = cart.total <= 0,
+                        emphasis = FieldEmphasis.SELLING_PRICE,
+                        prefix = currency.symbol.trim(),
+                        fontSize = 17.0,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                } else {
+                    ItemisedTotal(
+                        cart = cart,
+                        currency = currency,
+                        strings = strings,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                }
+            }
+
+            items(cart.lines, key = { it.productUid }) { line ->
+                CartLineCard(
+                    line = line,
+                    stock = state.products.firstOrNull { it.uid == line.productUid }?.stock ?: 0,
+                    currency = currency,
+                    strings = strings,
+                    cart = cart,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
+            // Quiet on purpose. Most bills here never touch it, and a button that
+            // shouts is a button an owner in a hurry taps by mistake.
+            item {
+                SecondaryButton(
+                    if (cart.isEmpty) strings.addItems else strings.addAnotherItem,
+                    onClick = onBrowse,
+                    fullWidth = true,
+                    height = 42.dp,
+                    fontSize = 13.5,
+                    leading = Icon.add,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
+
+            item {
+                PaymentBlock(
+                    cart = cart,
+                    currency = currency,
+                    strings = strings,
+                    modifier = Modifier.padding(top = 14.dp)
+                )
+            }
+        }
+
+        SaveBar(cart = cart, clash = clash, strings = strings, onSave = onSave)
+    }
+}
+
+/**
+ * The paper's number and the day it happened, side by side.
+ *
+ * First on the form because they describe *the bill* rather than the money, and
+ * because a shop entering yesterday's book needs the date before it thinks about
+ * anything else. The number is required; the date has today in it already.
+ */
+@Composable
+private fun PaperRow(
+    cart: Cart,
+    strings: Strings,
+    clash: com.stockbook.core.model.Bill?,
+    onPickDate: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            NocturneField(
+                value = cart.invoiceNo,
+                onValueChange = { cart.invoiceNo = it },
+                placeholder = strings.invoiceNoHint,
+                label = strings.invoiceNoField,
+                // Marked, and it means it: a bill cannot be saved without a
+                // number. Emptied only by an owner who cleared the prefill.
+                isRequiredAndEmpty = cart.invoiceNo.isBlank(),
+                height = 40.dp,
+                fontSize = 13.5,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(strings.billDate, style = NocturneType.fieldLabel, color = Nocturne.neutral500)
+                Spacer(Modifier.height(5.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(Metrics.controlRadius))
+                        .hairline(Nocturne.neutral800, Metrics.controlRadius)
+                        .clickable(onClick = onPickDate)
+                        .padding(horizontal = 10.dp)
+                ) {
+                    Text(
+                        strings.longDate(cart.soldAt),
+                        style = NocturneType.inter(13.0),
+                        color = Nocturne.text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
+        // Named, not merely reported: "already used" leaves the owner hunting,
+        // "already used — Ahmed, 18 Aug" points at the bill.
+        if (clash != null) {
+            Text(
+                strings.invoiceNoAlreadyUsed(clash.who, strings.longDate(clash.createdAt)),
+                style = NocturneType.meta,
+                color = Nocturne.accent400,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        }
+    }
+}
+
+/**
+ * The total, once the bill has been itemised.
+ *
+ * It takes the amount box's place rather than sitting beside it, and says where
+ * the figure came from: it stopped being something typed the moment there were
+ * lines to add up. "Remove items" is the way back to typing, and it empties the
+ * bill rather than merely hiding the sum — a hidden line would still move the
+ * shelf on save.
+ */
+@Composable
+private fun ItemisedTotal(
+    cart: Cart,
+    currency: Currency,
+    strings: Strings,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .card(Metrics.controlRadius)
+            .hairline(Nocturne.accent700, Metrics.controlRadius)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                strings.total,
+                style = NocturneType.inter(13.0),
+                color = Nocturne.neutral500,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                Money.text(cart.total, currency),
+                style = NocturneType.bigNumber(26.0),
+                color = Nocturne.text
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                strings.fromItems(cart.lines.size),
+                style = NocturneType.meta,
+                color = Nocturne.neutral500,
+                modifier = Modifier.weight(1f)
+            )
+            GhostButton(strings.removeItems, onClick = { cart.removeLines() }, fontSize = 12.0)
+        }
+    }
+}
+
+/** Paid in full or part, and what is left if part. */
+@Composable
+private fun PaymentBlock(
+    cart: Cart,
+    currency: Currency,
+    strings: Strings,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            ChoicePill(
+                strings.paidInFull,
+                Icon.confirm,
+                selected = cart.payMode == PayMode.FULL,
+                onClick = { cart.payMode = PayMode.FULL },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(6.dp))
+            ChoicePill(
+                strings.partPayment,
+                Icon.edit,
+                selected = cart.payMode == PayMode.PART,
+                onClick = { cart.payMode = PayMode.PART },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        if (cart.payMode == PayMode.PART) {
+            Spacer(Modifier.height(10.dp))
+            NocturneField(
+                value = cart.paidText,
+                onValueChange = { cart.paidText = it },
+                label = strings.paidNow,
+                height = 40.dp,
+                numeric = true,
+                prefix = currency.symbol.trim()
+            )
+            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                Text(
+                    strings.balance,
+                    style = NocturneType.inter(12.5),
+                    color = Nocturne.neutral500,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    Money.text(cart.balance, currency),
+                    style = NocturneType.inter(15.0),
+                    color = Nocturne.accent400
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The one thing that leaves the screen, pinned to the bottom of it.
+ *
+ * Validation is the button's label, never a toast: it says what is missing and
+ * stays disabled until it isn't.
+ */
+@Composable
+private fun SaveBar(
+    cart: Cart,
+    clash: com.stockbook.core.model.Bill?,
+    strings: Strings,
+    onSave: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxWidth().background(Nocturne.surface)) {
         Box(Modifier.fillMaxWidth().height(Metrics.hairline).background(Nocturne.neutral800))
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = Metrics.screenPadding)
-                .padding(top = 12.dp)
+                .padding(top = 10.dp)
                 .navigationBarsPadding()
-                .padding(bottom = 12.dp)
+                .padding(bottom = 10.dp)
         ) {
-            CustomerPicker(cart = cart, state = state, store = store, currency = currency, strings = strings)
-            Spacer(Modifier.height(10.dp))
-
-            // The paper's number and the day it happened, side by side. They sit
-            // above the payment pills because they describe *the bill*, not the
-            // money — and because a shop entering yesterday's book needs the date
-            // before it thinks about what was paid. The number is required; the
-            // date has today in it already.
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                NocturneField(
-                    value = cart.invoiceNo,
-                    onValueChange = { cart.invoiceNo = it },
-                    placeholder = strings.invoiceNoHint,
-                    label = strings.invoiceNoField,
-                    // Marked, and it means it: a bill cannot be saved without a
-                    // number. Emptied only by an owner who cleared the prefill.
-                    isRequiredAndEmpty = cart.invoiceNo.isBlank(),
-                    height = 40.dp,
-                    fontSize = 13.5,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(strings.billDate, style = NocturneType.fieldLabel, color = Nocturne.neutral500)
-                    Spacer(Modifier.height(5.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp)
-                            .clip(RoundedCornerShape(Metrics.controlRadius))
-                            .hairline(Nocturne.neutral800, Metrics.controlRadius)
-                            .clickable { pickingDate = true }
-                            .padding(horizontal = 10.dp)
-                    ) {
-                        Text(
-                            strings.longDate(cart.soldAt),
-                            style = NocturneType.inter(13.0),
-                            color = Nocturne.text,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-
-            // Named, not merely reported: "already used" leaves the owner
-            // hunting, "already used — Ahmed, 18 Aug" points at the bill.
-            if (clash != null) {
-                Text(
-                    strings.invoiceNoAlreadyUsed(clash.who, strings.longDate(clash.createdAt)),
-                    style = NocturneType.meta,
-                    color = Nocturne.accent400,
-                    modifier = Modifier.padding(top = 6.dp)
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                ChoicePill(
-                    strings.paidInFull,
-                    Icon.confirm,
-                    selected = cart.payMode == PayMode.FULL,
-                    onClick = { cart.payMode = PayMode.FULL },
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(6.dp))
-                ChoicePill(
-                    strings.partPayment,
-                    Icon.edit,
-                    selected = cart.payMode == PayMode.PART,
-                    onClick = { cart.payMode = PayMode.PART },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            if (cart.payMode == PayMode.PART) {
-                Spacer(Modifier.height(10.dp))
-                NocturneField(
-                    value = cart.paidText,
-                    onValueChange = { cart.paidText = it },
-                    label = strings.paidNow,
-                    height = 40.dp,
-                    numeric = true
-                )
-            }
-
-            Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    strings.total,
-                    style = NocturneType.inter(13.0),
-                    color = Nocturne.neutral500,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(Money.text(cart.total, currency), style = NocturneType.bigNumber(28.0), color = Nocturne.text)
-            }
-
-            if (cart.payMode == PayMode.PART) {
-                Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                    Text(
-                        strings.balance,
-                        style = NocturneType.inter(12.5),
-                        color = Nocturne.neutral500,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        Money.text(cart.balance, currency),
-                        style = NocturneType.inter(15.0),
-                        color = Nocturne.accent400
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-            // Validation is the button's label, never a toast: it says what is
-            // missing and stays disabled until it isn't.
             PrimaryButton(
                 title = when {
                     // A number on two bills is two records the shop cannot tell
@@ -297,11 +403,13 @@ private fun Footer(
                     clash != null -> strings.changeTheInvoiceNo
                     cart.canSave -> strings.saveBill
                     // Whatever is missing, the button names it: an empty name box
-                    // needs a name, a typed one needs a choice from the list, and
-                    // a cleared number box needs a number.
+                    // needs a name, a typed one needs a choice from the list, a
+                    // cleared number box needs a number, and a bill with neither
+                    // a figure nor a line on it needs one of the two.
                     cart.customer.isBlank() -> strings.enterCustomerName
                     cart.customerKey == null -> strings.chooseFromTheList
-                    else -> strings.enterBillNumber
+                    cart.invoiceNo.isBlank() -> strings.enterBillNumber
+                    else -> strings.enterAnAmount
                 },
                 onClick = onSave,
                 enabled = cart.canSave && clash == null,
@@ -310,6 +418,48 @@ private fun Footer(
                 fontSize = 15.0
             )
         }
+    }
+}
+
+/**
+ * The day the sale happened, which is not always the day it is being typed.
+ *
+ * Material's own dialog, which is the one place in this app where stock chrome
+ * shows through. Reimplementing a calendar to avoid that is not a trade worth
+ * making.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateDialog(
+    current: Instant,
+    strings: Strings,
+    onPicked: (Instant) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val picker = rememberDatePickerState(initialSelectedDateMillis = current.toEpochMilli())
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            GhostButton(strings.done, onClick = {
+                picker.selectedDateMillis?.let { millis ->
+                    // The picker hands back midnight UTC. Re-anchoring to midday in
+                    // the phone's own zone keeps the bill on the day the owner
+                    // tapped, whatever the offset — which is what the statement
+                    // buckets by.
+                    onPicked(
+                        Instant.ofEpochMilli(millis)
+                            .atZone(ZoneOffset.UTC)
+                            .toLocalDate()
+                            .atTime(12, 0)
+                            .atZone(ZoneId.systemDefault())
+                            .toInstant()
+                    )
+                }
+                onDismiss()
+            })
+        }
+    ) {
+        DatePicker(state = picker)
     }
 }
 
@@ -455,9 +605,11 @@ private fun PriceBox(symbol: String, text: String, overridden: Boolean, onChange
  * to become a customer on the spot. That is one tap more than typing used to be,
  * and it leaves a real account behind rather than a string.
  *
- * The list is drawn **above** the field, not below it. This footer sits at the
- * bottom of the screen with the keyboard under it; a dropdown below the field
- * would open off-screen. The iOS build learned this the hard way.
+ * The list is drawn **below** the field, which is the opposite of what this
+ * screen used to do. It was above while the field sat on the bottom edge with the
+ * keyboard under it, where a dropdown would have opened off-screen; the field is
+ * near the top of a form now, and a list that pushed the bill number upwards to
+ * appear would move the two things the owner had just read.
  */
 @Composable
 private fun CustomerPicker(
@@ -465,7 +617,8 @@ private fun CustomerPicker(
     state: ShopState,
     store: StockbookStore,
     currency: Currency,
-    strings: Strings
+    strings: Strings,
+    modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -500,8 +653,22 @@ private fun CustomerPicker(
         focusManager.clearFocus()
     }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        NocturneField(
+            value = cart.customer,
+            onValueChange = { cart.typeCustomer(it) },
+            label = strings.customerLabel,
+            placeholder = strings.customerName,
+            height = 40.dp,
+            // Marked until somebody is actually chosen, not merely until the box
+            // has characters in it. Accent means "this still needs something", so a
+            // chosen customer drops back to the neutral border — the two states
+            // have to look different or the gate is invisible.
+            isRequiredAndEmpty = cart.customerKey == null
+        )
+
         if (matches.isNotEmpty() || canCreate) {
+            Spacer(Modifier.height(6.dp))
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -566,20 +733,7 @@ private fun CustomerPicker(
                     }
                 }
             }
-            Spacer(Modifier.height(6.dp))
         }
-
-        NocturneField(
-            value = cart.customer,
-            onValueChange = { cart.typeCustomer(it) },
-            placeholder = strings.customerName,
-            height = 40.dp,
-            // Marked until somebody is actually chosen, not merely until the box
-            // has characters in it. Accent means "this still needs something", so a
-            // chosen customer drops back to the neutral border — the two states
-            // have to look different or the gate is invisible.
-            isRequiredAndEmpty = cart.customerKey == null
-        )
     }
 }
 
@@ -587,7 +741,7 @@ private fun CustomerPicker(
  * How tall the customer list may grow before it scrolls.
  *
  * Rows are about 34dp, so this shows four and a sliver of the fifth — enough to
- * read as "there is more" while leaving the footer's own controls on screen with
- * the keyboard up.
+ * read as "there is more" while leaving the rest of the form on screen with the
+ * keyboard up.
  */
 private val CUSTOMER_LIST_MAX_HEIGHT = 150.dp

@@ -64,7 +64,11 @@ fun PurchaseSheet(
         // Only when there was one. An empty row headed "Invoice no." reads as a
         // number the app lost rather than one the delivery never had.
         live.invoiceNo?.let { Line(strings.invoiceNoField, it) }
-        Line(live.name, strings.perPiece(live.qty, Money.text(live.unitCost, currency)))
+        // Only where stock actually arrived. A supplier's bill for a mixed load
+        // names no product, and a line with an empty label and `0 × SAR 0`
+        // against it is the app inventing a delivery nobody described — the total
+        // below is what that bill has to say, and it says it.
+        live.name?.let { Line(it, strings.perPiece(live.qty, Money.text(live.unitCost, currency))) }
 
         FadedRule(modifier = Modifier.padding(vertical = 10.dp))
 

@@ -32,7 +32,6 @@ import com.stockbook.app.design.BottomSheet
 import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.book.BookScreen
 import com.stockbook.app.feature.book.PurchaseSheet
-import com.stockbook.app.feature.book.WhichProductSheet
 import com.stockbook.app.feature.customers.CustomerEditorSheet
 import com.stockbook.app.feature.customers.RecordPaymentSheet
 import com.stockbook.app.feature.customers.PaySupplierSheet
@@ -48,6 +47,8 @@ import com.stockbook.app.feature.settings.BackupScreen
 import com.stockbook.app.feature.settings.SettingsScreen
 import com.stockbook.app.feature.setup.SetupFlow
 import com.stockbook.app.feature.today.TodayScreen
+import com.stockbook.app.feature.today.WhoOwesYouSheet
+import com.stockbook.app.feature.today.WhoYouOweSheet
 import com.stockbook.core.model.AppTheme
 import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
@@ -268,35 +269,49 @@ private fun Shell(store: StockbookStore) {
             )
         }
 
+        // One sheet, two doors into it: from a product, where it can also count
+        // that product's shelf, and from the Delivery button, where it is a
+        // supplier's bill with nothing named on it yet.
         BottomSheet(
-            visible = router.addStock != null,
-            onDismiss = { router.addStock = null }
+            visible = router.addStock != null || router.recordingDelivery,
+            onDismiss = { router.closeAddStock() }
         ) {
-            router.addStock?.let { product ->
-                AddStockSheet(
-                    product = product,
-                    state = state,
-                    store = store,
-                    currency = state.settings.currency,
-                    strings = strings,
-                    startInPurchase = router.startingPurchase,
-                    onClose = { router.addStock = null }
-                )
-            }
+            AddStockSheet(
+                product = router.addStock,
+                state = state,
+                store = store,
+                currency = state.settings.currency,
+                strings = strings,
+                onClose = { router.closeAddStock() }
+            )
         }
 
-        // Which product arrived. A purchase carries one product, so something has
-        // to name it, and asking here is fewer taps than making the owner find the
-        // product first.
+        // Who is behind the Today banners, and the way to collect from them.
         BottomSheet(
-            visible = router.recordingDelivery,
-            onDismiss = { router.recordingDelivery = false }
+            visible = router.showingDebtors,
+            onDismiss = { router.showingDebtors = false }
         ) {
-            WhichProductSheet(
+            WhoOwesYouSheet(
                 state = state,
+                store = store,
                 router = router,
+                currency = state.settings.currency,
                 strings = strings,
-                onClose = { router.recordingDelivery = false }
+                onClose = { router.showingDebtors = false }
+            )
+        }
+
+        BottomSheet(
+            visible = router.showingCreditors,
+            onDismiss = { router.showingCreditors = false }
+        ) {
+            WhoYouOweSheet(
+                state = state,
+                store = store,
+                router = router,
+                currency = state.settings.currency,
+                strings = strings,
+                onClose = { router.showingCreditors = false }
             )
         }
 

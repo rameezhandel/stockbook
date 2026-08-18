@@ -139,15 +139,26 @@ private fun DeliveryRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                purchase.name,
+                // The product where one arrived, and otherwise what the shop calls
+                // the piece of paper: a supplier's bill for a mixed load names
+                // nothing, and a row headed by an empty string reads as a delivery
+                // whose product was lost rather than one that never had a product.
+                purchase.name ?: purchase.reference(strings),
                 style = NocturneType.rowPrimary,
                 color = if (muted) Nocturne.neutral500 else Nocturne.text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                if (muted) strings.voided
-                else "$supplierName · ${strings.perPiece(purchase.qty, Money.text(purchase.unitCost, currency))}",
+                when {
+                    muted -> strings.voided
+                    // `12 × SAR 60` is the arithmetic behind a delivery, and there
+                    // is none behind a bill entered as a figure. Who it was from
+                    // is the whole of what the second line has to say then.
+                    purchase.isItemised ->
+                        "$supplierName · ${strings.perPiece(purchase.qty, Money.text(purchase.unitCost, currency))}"
+                    else -> supplierName
+                },
                 style = NocturneType.meta,
                 color = Nocturne.neutral500,
                 maxLines = 1,

@@ -424,13 +424,11 @@ private fun EntryRow(
                             style = NocturneType.inter(13.0),
                             color = if (entry.bill.voided) Nocturne.neutral500 else Nocturne.text
                         )
-                        Text(
-                            if (entry.bill.voided) strings.voided else entry.bill.summary,
-                            style = NocturneType.meta,
-                            color = Nocturne.neutral500,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        // Drawn only where there is something to say. A bill
+                        // entered as a figure lists nothing, and an empty second
+                        // line leaves a gap in a document somebody is checking
+                        // line by line.
+                        Detail(if (entry.bill.voided) strings.voided else entry.bill.summary)
                     }
                     is Statement.Entry.ForPayment -> {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -449,14 +447,12 @@ private fun EntryRow(
                             color = if (entry.purchase.voided) Nocturne.neutral500 else Nocturne.text
                         )
                         // The product and how many of it: a delivery note's whole
-                        // content on one line, since a purchase carries one product.
-                        Text(
+                        // content on one line, since a purchase carries one
+                        // product — and nothing at all where the supplier's bill
+                        // named none, rather than the word "null" beside a zero.
+                        Detail(
                             if (entry.purchase.voided) strings.voided
-                            else "${entry.purchase.name} × ${entry.purchase.qty}",
-                            style = NocturneType.meta,
-                            color = Nocturne.neutral500,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            else entry.purchase.name?.let { "$it × ${entry.purchase.qty}" }
                         )
                     }
                     is Statement.Entry.ForSupplierPayment -> {
@@ -504,6 +500,25 @@ private fun EntryRow(
             )
         }
     }
+}
+
+/**
+ * The line under an entry's reference, where the entry has one.
+ *
+ * Null and blank are the same answer here — a bill with no lines on it and a
+ * delivery with no product on it both have nothing to add — and both draw
+ * nothing rather than an empty row the eye has to account for.
+ */
+@Composable
+private fun Detail(text: String?) {
+    if (text.isNullOrBlank()) return
+    Text(
+        text,
+        style = NocturneType.meta,
+        color = Nocturne.neutral500,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis
+    )
 }
 
 private fun amountText(entry: Statement.Entry, currency: Currency): String = when (entry) {
@@ -578,10 +593,14 @@ private fun plainText(
             )
             is Statement.Entry.ForPurchase -> {
                 val marker = if (entry.purchase.voided) " (${strings.voided})" else ""
+                // The product only where the bill named one. Interpolating it
+                // regardless is how a supplier bill for a mixed load ends up
+                // reading "null × 0" on a document somebody is sent.
+                val what = entry.purchase.name?.let { "$it × ${entry.purchase.qty}" }
+                val describes = listOfNotNull(entry.purchase.reference(strings), what)
                 lines.add(
                     "${strings.longDate(entry.purchase.createdAt)}  " +
-                        "${entry.purchase.reference(strings)}  " +
-                        "${entry.purchase.name} × ${entry.purchase.qty}$marker  " +
+                        "${describes.joinToString("  ")}$marker  " +
                         "${Money.text(entry.purchase.total, currency)}  →  $balance"
                 )
             }

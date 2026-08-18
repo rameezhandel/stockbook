@@ -61,6 +61,20 @@ class Cart {
     var paidText by mutableStateOf("")
 
     /**
+     * What the bill came to, typed rather than computed.
+     *
+     * The ordinary case in this shop: the paper bill was written before the app
+     * was opened, so the figure is already known and rebuilding it product by
+     * product to arrive at it is work for nothing. Held as text rather than a
+     * number so a half-typed "45" is not a bill for forty-five riyals.
+     *
+     * Ignored the moment there are lines — see [total]. Two answers to "what did
+     * it come to" is one too many, and the lines are the ones with arithmetic
+     * behind them.
+     */
+    var amountText by mutableStateOf("")
+
+    /**
      * The number written on the paper bill, when the shop wrote one. Free text:
      * bill books are numbered "1024" in some shops and "A-1024" in others.
      */
@@ -94,7 +108,20 @@ class Cart {
 
     val isEmpty: Boolean get() = _lines.isEmpty()
 
-    val total: Double get() = _lines.sumOf { it.lineTotal }
+    /**
+     * What the bill comes to: the typed figure until something is on it, the sum
+     * of the lines from then on.
+     *
+     * The same rule `StockbookStore.saveBill` applies to what it is handed, said
+     * once more here because the screen has to show the figure it is about to
+     * save. If these two ever disagree the owner is looking at one number and
+     * saving another.
+     */
+    val total: Double
+        get() = if (_lines.isEmpty()) typedAmount ?: 0.0 else _lines.sumOf { it.lineTotal }
+
+    /** The figure in the amount box, or null when there is nothing readable in it. */
+    val typedAmount: Double? get() = Money.parse(amountText)
 
     val paidValue: Double get() = Money.parse(paidText) ?: 0.0
 
@@ -105,8 +132,12 @@ class Cart {
     val paidForStorage: Double? get() = if (payMode == PayMode.FULL) null else paidValue
 
     /**
-     * A bill needs something on it, somebody **chosen** to give it to, and a
-     * number.
+     * A bill needs a figure, somebody **chosen** to give it to, and a number.
+     *
+     * A figure rather than a line: what was sold is optional, and a bill saying
+     * only that Ahmed owes 450 is the shape of this shop. What it may never be is
+     * a bill for nothing — [total] above zero is the whole of that test, however
+     * the figure was arrived at.
      *
      * Not merely a non-blank name: a name nobody picked from the list is a name
      * with no account behind it, so nothing could be owed to it or settled against
@@ -117,7 +148,7 @@ class Cart {
      * which is the whole reason for keeping the number at all. It costs no typing:
      * the box arrives filled in with the next one.
      */
-    val canSave: Boolean get() = !isEmpty && customerKey != null && invoiceNo.isNotBlank()
+    val canSave: Boolean get() = customerKey != null && invoiceNo.isNotBlank() && total > 0
 
     /** Typed into the field. Invalidates any earlier choice, deliberately. */
     fun typeCustomer(text: String) {
@@ -181,8 +212,21 @@ class Cart {
         _lines.removeAll { it.productUid == productUid }
     }
 
+    /**
+     * Takes every line off, leaving the rest of the bill as it was typed.
+     *
+     * Behind "Remove items": the way back from an itemised bill to one that is
+     * simply a figure. Deliberately not [clear] — the customer, the number and
+     * the date were right before the owner started adding products and are still
+     * right after they stop.
+     */
+    fun removeLines() {
+        _lines.clear()
+    }
+
     fun clear() {
         _lines.clear()
+        amountText = ""
         invoiceNo = ""
         // Cleared, not merely emptied: the next bill wants the next number, and
         // the screen seeds it the moment it sees this go false.

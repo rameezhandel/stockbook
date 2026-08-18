@@ -1,0 +1,171 @@
+package com.stockbook.app.feature.today
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.stockbook.app.AppRouter
+import com.stockbook.app.design.GhostButton
+import com.stockbook.app.design.Glyph
+import com.stockbook.app.design.Icon
+import com.stockbook.app.design.Metrics
+import com.stockbook.app.design.Nocturne
+import com.stockbook.app.design.NocturneType
+import com.stockbook.app.design.SheetHeader
+import com.stockbook.app.design.card
+import com.stockbook.core.model.Currency
+import com.stockbook.core.model.ShopState
+import com.stockbook.core.money.Money
+import com.stockbook.core.store.StockbookStore
+import com.stockbook.core.text.Strings
+
+/**
+ * Everybody who owes the shop money, from the banner that says how many there
+ * are.
+ *
+ * The banner is where the owner notices the debt and the payment sheet is where
+ * it gets collected; before this there was no route between the two, and the way
+ * to take Ahmed's cash was to remember to go and find Ahmed in the Book. One tap
+ * on the thing you just read is the shortest that route can be.
+ */
+@Composable
+fun WhoOwesYouSheet(
+    state: ShopState,
+    store: StockbookStore,
+    router: AppRouter,
+    currency: Currency,
+    strings: Strings,
+    onClose: () -> Unit
+) {
+    // Keyed on the state rather than read off the store bare: `customers()` is a
+    // plain function over a StateFlow's current value and subscribes to nothing,
+    // so a payment taken from inside this sheet would leave the row it settled
+    // sitting here saying the old figure.
+    val owing = remember(state) { store.customers().filter { it.owed > 0 } }
+
+    OwedList(
+        title = strings.whoOwesYou,
+        rows = owing.map { customer ->
+            OwedRow(customer.name, customer.owed) {
+                router.paymentFor = customer
+                onClose()
+            }
+        },
+        currency = currency,
+        strings = strings,
+        onClose = onClose
+    )
+}
+
+/**
+ * The same sheet for money going the other way. One body, two entry points, as
+ * with the payment sheets themselves: what a debt *is* does not change with its
+ * direction.
+ */
+@Composable
+fun WhoYouOweSheet(
+    state: ShopState,
+    store: StockbookStore,
+    router: AppRouter,
+    currency: Currency,
+    strings: Strings,
+    onClose: () -> Unit
+) {
+    val owed = remember(state) { store.suppliers().filter { it.owed > 0 } }
+
+    OwedList(
+        title = strings.whoYouOwe,
+        rows = owed.map { supplier ->
+            OwedRow(supplier.name, supplier.owed) {
+                router.supplierPaymentFor = supplier
+                onClose()
+            }
+        },
+        currency = currency,
+        strings = strings,
+        onClose = onClose
+    )
+}
+
+/** One name, what is outstanding against it, and the way to settle it. */
+private data class OwedRow(val name: String, val amount: Double, val onTake: () -> Unit)
+
+@Composable
+private fun OwedList(
+    title: String,
+    rows: List<OwedRow>,
+    currency: Currency,
+    strings: Strings,
+    onClose: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SheetHeader(
+            title = title,
+            subtitle = Money.text(rows.sumOf { it.amount }, currency),
+            onClose = onClose
+        )
+
+        // The banner that opens this sheet only appears when somebody owes, so an
+        // empty list here means the last of it was settled while the sheet was
+        // open. Worth saying rather than leaving a blank sheet behind.
+        if (rows.isEmpty()) {
+            Text(
+                strings.settledUp,
+                style = NocturneType.meta,
+                color = Nocturne.neutral500,
+                modifier = Modifier.padding(vertical = 14.dp)
+            )
+            return@Column
+        }
+
+        // A plain Column rather than a lazy list: the sheet already scrolls, and a
+        // shop with more debtors than fit in it has a bigger problem than this
+        // screen. Sorted by what is owed — `customers()` and `suppliers()` both
+        // hand them over that way.
+        rows.forEach { row ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = Metrics.rowGap)
+                    .card(Metrics.controlRadius)
+                    .clickable(onClick = row.onTake)
+                    .padding(start = 12.dp, end = 6.dp, top = 4.dp, bottom = 4.dp)
+            ) {
+                Glyph(Icon.customer, size = 13.dp, tint = Nocturne.neutral500)
+                Spacer(Modifier.width(9.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        row.name,
+                        style = NocturneType.rowPrimary,
+                        color = Nocturne.text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        Money.text(row.amount, currency),
+                        style = NocturneType.meta,
+                        color = Nocturne.accent400
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                // Named rather than a chevron: the row goes somewhere specific,
+                // and "Take payment" is the sentence the owner is already halfway
+                // through when they tap it.
+                GhostButton(strings.takePayment, onClick = row.onTake, fontSize = 12.0)
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+    }
+}

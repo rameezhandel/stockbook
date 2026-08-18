@@ -87,33 +87,39 @@ fun BillTemplate(
             )
         }
 
+        // One rule where there is nothing between them, two where there is. A bill
+        // entered as a figure has no lines to list, and the empty band of nothing
+        // that a second rule opened up read as a document that had lost its
+        // contents rather than one that never had any.
         FadedRule(modifier = Modifier.padding(vertical = 12.dp))
 
-        bill.lines.forEachIndexed { index, line ->
-            if (index > 0) Spacer(Modifier.height(10.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(line.name, style = NocturneType.inter(14.0), color = Nocturne.text)
-                    // The arithmetic stays visible. A customer querying a total
-                    // is nearly always querying one line's quantity or price,
-                    // and this is the answer without anyone recomputing it.
+        if (bill.isItemised) {
+            bill.lines.forEachIndexed { index, line ->
+                if (index > 0) Spacer(Modifier.height(10.dp))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(line.name, style = NocturneType.inter(14.0), color = Nocturne.text)
+                        // The arithmetic stays visible. A customer querying a total
+                        // is nearly always querying one line's quantity or price,
+                        // and this is the answer without anyone recomputing it.
+                        Text(
+                            strings.quantityAtPrice(line.qty, Money.text(line.price, currency)),
+                            style = NocturneType.meta,
+                            color = Nocturne.neutral500,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
                     Text(
-                        strings.quantityAtPrice(line.qty, Money.text(line.price, currency)),
-                        style = NocturneType.meta,
-                        color = Nocturne.neutral500,
-                        modifier = Modifier.padding(top = 2.dp)
+                        Money.text(line.lineTotal, currency),
+                        style = NocturneType.inter(14.0),
+                        color = Nocturne.text
                     )
                 }
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    Money.text(line.lineTotal, currency),
-                    style = NocturneType.inter(14.0),
-                    color = Nocturne.text
-                )
             }
-        }
 
-        FadedRule(modifier = Modifier.padding(vertical = 12.dp))
+            FadedRule(modifier = Modifier.padding(vertical = 12.dp))
+        }
 
         Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
             Text(

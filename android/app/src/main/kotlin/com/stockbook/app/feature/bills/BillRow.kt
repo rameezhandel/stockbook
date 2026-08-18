@@ -48,7 +48,12 @@ fun BillRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                bill.summary,
+                // A bill entered as a figure has no names to list, so the row
+                // leads with what the shop calls it instead — the number on the
+                // paper, which is what somebody asking about it will quote.
+                // Falling through to `summary` would leave the row headed by
+                // nothing at all.
+                if (bill.isItemised) bill.summary else bill.reference(strings),
                 style = NocturneType.rowValue,
                 color = if (bill.voided) Nocturne.neutral500 else Nocturne.text,
                 maxLines = 1,
@@ -82,7 +87,9 @@ private fun meta(bill: Bill, currency: Currency, strings: Strings): String {
     if (bill.voided) parts.add(strings.voided)
     if (bill.who.isNotBlank()) parts.add(bill.who)
     parts.add(strings.time(bill.createdAt))
-    parts.add(strings.items(bill.lines.size))
+    // "0 items" is not a fact about a bill entered as a total; it is the app
+    // insisting on a count of something nobody said anything about.
+    if (bill.isItemised) parts.add(strings.items(bill.lines.size))
     if (bill.isPartPaid && bill.balance > 0) {
         parts.add(strings.owes(Money.text(bill.balance, currency)))
     }

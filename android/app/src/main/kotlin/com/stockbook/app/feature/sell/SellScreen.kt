@@ -44,13 +44,13 @@ import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
 
 /**
- * The billing flow: a product picker and a cart, sharing one search field and
- * one header.
+ * The billing flow: the bill form, with the product picker one tap behind it.
  *
- * Which of the two is showing is **derived, never stored as a mode** — the
- * picker appears when the cart is empty, when there is text in the search box,
- * or when "Add another item" was tapped. Anything that empties all three
- * conditions drops you back to the cart, so there is no state to get stranded in.
+ * The form is home now, not the picker. A bill in this shop is a number, a date,
+ * somebody and a figure — the picker exists for the minority of bills that also
+ * say what was sold, so it is reached from "Add items" and left again by "Done
+ * adding". The form never disappears from under an owner who has typed into it:
+ * everything they entered is still there when they come back.
  */
 @Composable
 fun SellScreen(
@@ -62,65 +62,77 @@ fun SellScreen(
     modifier: Modifier = Modifier
 ) {
     var query by remember { mutableStateOf("") }
-    /** Set by "Add another item" — the one case where the picker shows over a full cart. */
+    /** Set by "Add items", cleared by "Done adding". */
     var browsing by remember { mutableStateOf(false) }
 
     val currency = state.settings.currency
-    val showsPicker = cart.isEmpty || query.isNotBlank() || browsing
+    // An empty cart no longer means the picker: a bill with nothing on it is the
+    // ordinary bill here, and dropping the owner into a product list to write one
+    // would be the app asking a question the paper already answered.
+    val showsPicker = browsing || query.isNotBlank()
     val matches = remember(state.products, query) { store.productsMatching(query) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         ScreenHeader(title = strings.newBill, bottomPadding = 10.dp) {
-            Text(
-                if (cart.isEmpty) strings.cartEmpty else strings.lines(cart.lines.size),
-                style = NocturneType.inter(12.0),
-                color = Nocturne.neutral500
-            )
+            // Only where there is a count to give. "Empty" beside a form with a
+            // customer and a figure already in it describes the item list and
+            // reads as a description of the bill.
+            if (!cart.isEmpty) {
+                Text(
+                    strings.lines(cart.lines.size),
+                    style = NocturneType.inter(12.0),
+                    color = Nocturne.neutral500
+                )
+            }
         }
-
-        if (showsPicker && state.products.isNotEmpty()) {
-            Text(
-                if (query.isNotBlank()) strings.matchingQuery(query.trim())
-                else strings.allProductsHint(state.products.size),
-                style = NocturneType.meta,
-                color = Nocturne.neutral500,
-                modifier = Modifier
-                    .padding(horizontal = Metrics.screenPadding)
-                    .padding(bottom = 8.dp)
-            )
-        }
-
-        // Shared between both states: in the cart it sits empty, and typing into
-        // it is what re-opens the picker.
-        NocturneField(
-            value = query,
-            onValueChange = { query = it },
-            placeholder = strings.addAProductPlaceholder,
-            fontSize = 14.5,
-            modifier = Modifier
-                .padding(horizontal = Metrics.screenPadding)
-                .padding(bottom = 10.dp)
-        )
 
         Crossfade(targetState = showsPicker, animationSpec = Motion.screenSpec, label = "sell") { picking ->
             if (picking) {
-                ProductPicker(
-                    products = matches,
-                    hasAnyProducts = state.products.isNotEmpty(),
-                    query = query.trim(),
-                    cart = cart,
-                    currency = currency,
-                    strings = strings,
-                    onPick = { product ->
-                        cart.add(product)
-                        query = ""
-                    },
-                    onAddProduct = { router.openNewProduct() },
-                    onDoneAdding = {
-                        browsing = false
-                        query = ""
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (state.products.isNotEmpty()) {
+                        Text(
+                            if (query.isNotBlank()) strings.matchingQuery(query.trim())
+                            else strings.allProductsHint(state.products.size),
+                            style = NocturneType.meta,
+                            color = Nocturne.neutral500,
+                            modifier = Modifier
+                                .padding(horizontal = Metrics.screenPadding)
+                                .padding(bottom = 8.dp)
+                        )
                     }
-                )
+
+                    // The search box belongs to the picker rather than to the
+                    // screen: a form for typing a total should not open with a
+                    // box asking for a product name.
+                    NocturneField(
+                        value = query,
+                        onValueChange = { query = it },
+                        placeholder = strings.addAProductPlaceholder,
+                        fontSize = 14.5,
+                        modifier = Modifier
+                            .padding(horizontal = Metrics.screenPadding)
+                            .padding(bottom = 10.dp)
+                    )
+
+                    ProductPicker(
+                        products = matches,
+                        hasAnyProducts = state.products.isNotEmpty(),
+                        query = query.trim(),
+                        cart = cart,
+                        currency = currency,
+                        strings = strings,
+                        onPick = { product ->
+                            cart.add(product)
+                            query = ""
+                        },
+                        onAddProduct = { router.openNewProduct() },
+                        onDoneAdding = {
+                            browsing = false
+                            query = ""
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             } else {
                 CartView(
                     cart = cart,
@@ -137,6 +149,10 @@ fun SellScreen(
                             lines = cart.draftLines,
                             customer = cart.customer,
                             paid = cart.paidForStorage,
+                            // Passed whether or not there are lines. The store
+                            // ignores it when there are — one rule, in one place,
+                            // rather than a screen deciding which figure is real.
+                            amount = cart.typedAmount,
                             createdAt = cart.soldAt,
                             invoiceNo = cart.invoiceNo
                         )
@@ -167,9 +183,10 @@ private fun ProductPicker(
     strings: Strings,
     onPick: (Product) -> Unit,
     onAddProduct: () -> Unit,
-    onDoneAdding: () -> Unit
+    onDoneAdding: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth()) {
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(
@@ -231,28 +248,36 @@ private fun ProductPicker(
             }
         }
 
-        // With a cart in progress the tab bar is hidden, so this footer is the
-        // only way back to it.
-        if (!cart.isEmpty) {
-            Column(modifier = Modifier.fillMaxWidth().background(Nocturne.surface)) {
-                Box(Modifier.fillMaxWidth().height(Metrics.hairline).background(Nocturne.neutral800))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Metrics.screenPadding, vertical = 10.dp)
-                        .navigationBarsPadding()
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(strings.lines(cart.lines.size), style = NocturneType.meta, color = Nocturne.neutral500)
+        // Always, not only with something on the bill: the picker is a place the
+        // owner stepped into from the form, and an owner who steps in and changes
+        // their mind must have the same way out as one who added six things.
+        Column(modifier = Modifier.fillMaxWidth().background(Nocturne.surface)) {
+            Box(Modifier.fillMaxWidth().height(Metrics.hairline).background(Nocturne.neutral800))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Metrics.screenPadding, vertical = 10.dp)
+                    .navigationBarsPadding()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (cart.isEmpty) strings.cartEmpty else strings.lines(cart.lines.size),
+                        style = NocturneType.meta,
+                        color = Nocturne.neutral500
+                    )
+                    // The line sum, and only where there are lines to sum. With
+                    // none picked yet the figure here would be whatever was typed
+                    // into the amount box, sitting under the word "empty".
+                    if (!cart.isEmpty) {
                         Text(
                             Money.text(cart.total, currency),
                             style = NocturneType.bigNumber(19.0),
                             color = Nocturne.text
                         )
                     }
-                    PrimaryButton(strings.doneAdding, onClick = onDoneAdding, height = 44.dp)
                 }
+                PrimaryButton(strings.doneAdding, onClick = onDoneAdding, height = 44.dp)
             }
         }
     }
