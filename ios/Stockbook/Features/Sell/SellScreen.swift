@@ -180,99 +180,107 @@ private struct ProductPicker: View {
     @Environment(\.bottomSafeInset) private var bottomInset
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                LazyVStack(spacing: 5) {
-                    if products.isEmpty {
-                        EmptyStateBox(
-                            message: emptyMessage,
-                            actionTitle: Loc.addAProduct,
-                            action: onAddProduct
-                        )
-                        .padding(.top, 8)
-                    }
+        ScrollView {
+            LazyVStack(spacing: 5) {
+                if products.isEmpty {
+                    EmptyStateBox(
+                        message: emptyMessage,
+                        actionTitle: Loc.addAProduct,
+                        action: onAddProduct
+                    )
+                    .padding(.top, 8)
+                }
 
-                    ForEach(products) { product in
-                        Button {
-                            onPick(product)
-                        } label: {
-                            HStack(spacing: 10) {
-                                Text(product.name)
-                                    .font(NocturneType.inter(14))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .lineLimit(1)
+                ForEach(products) { product in
+                    Button {
+                        onPick(product)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Text(product.name)
+                                .font(NocturneType.inter(14))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .lineLimit(1)
 
-                                // Browsing keeps you on this list, so without a
-                                // mark here a tap produces no visible result and
-                                // the same item gets added twice.
-                                let onBill = cart.quantity(forProduct: product.uid)
-                                if onBill > 0 {
-                                    HStack(spacing: 3) {
-                                        Glyph(Icon.confirm, size: 11)
-                                        Text("\(onBill)")
-                                            .font(NocturneType.inter(11.5))
-                                            .contentTransition(.numericText())
-                                    }
-                                    .foregroundStyle(Nocturne.accent)
-                                    // The list does not move when a row is
-                                    // tapped, so this mark is the whole of the
-                                    // feedback. It arrives with a pop.
-                                    .transition(.scale(scale: 0.4).combined(with: .opacity))
+                            // Browsing keeps you on this list, so without a
+                            // mark here a tap produces no visible result and
+                            // the same item gets added twice.
+                            let onBill = cart.quantity(forProduct: product.uid)
+                            if onBill > 0 {
+                                HStack(spacing: 3) {
+                                    Glyph(Icon.confirm, size: 11)
+                                    Text("\(onBill)")
+                                        .font(NocturneType.inter(11.5))
+                                        .contentTransition(.numericText())
                                 }
-
-                                Text(Loc.stockLabel(product.stock))
-                                    .nocturneText(.meta)
-                                    .lineLimit(1)
-                                Text(Money.text(product.price, in: currency))
-                                    .font(NocturneType.inter(14))
-                                    .foregroundStyle(Nocturne.accent400)
+                                .foregroundStyle(Nocturne.accent)
+                                // The list does not move when a row is
+                                // tapped, so this mark is the whole of the
+                                // feedback. It arrives with a pop.
+                                .transition(.scale(scale: 0.4).combined(with: .opacity))
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 11)
-                            .frame(maxWidth: .infinity)
-                            .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .motion(Motion.pop, value: cart.quantity(forProduct: product.uid))
-                        .accessibilityLabel(
-                            cart.quantity(forProduct: product.uid) > 0
-                                ? Loc.onBillAccessibility(
-                                    name: product.name,
-                                    quantity: cart.quantity(forProduct: product.uid)
-                                  )
-                                : product.name
-                        )
-                    }
-                }
-                .padding(.horizontal, Metrics.screenPadding)
-                .padding(.bottom, 18)
-            }
-            .scrollDismissesKeyboard(.interactively)
 
-            // With a cart in progress the tab bar is hidden, so this footer is
-            // the only way back to it.
-            if !cart.isEmpty {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(Loc.lines(cart.lines.count))
-                            .nocturneText(.meta)
-                        Text(Money.text(cart.total, in: currency))
-                            .font(NocturneType.inter(19, .medium))
-                            .rollingNumber(cart.total)
+                            Text(Loc.stockLabel(product.stock))
+                                .nocturneText(.meta)
+                                .lineLimit(1)
+                            Text(Money.text(product.price, in: currency))
+                                .font(NocturneType.inter(14))
+                                .foregroundStyle(Nocturne.accent400)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 11)
+                        .frame(maxWidth: .infinity)
+                        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
+                        .contentShape(Rectangle())
                     }
-                    Spacer(minLength: 12)
-                    Button(Loc.doneAdding, action: onDoneAdding)
-                        .buttonStyle(PrimaryButtonStyle(height: 44))
-                }
-                .padding(.horizontal, Metrics.screenPadding)
-                .padding(.top, 10)
-                .padding(.bottom, max(bottomInset, 24))
-                .background(Nocturne.surface)
-                .overlay(alignment: .top) {
-                    Rectangle().fill(Nocturne.neutral800).frame(height: 1)
+                    .buttonStyle(.plain)
+                    .motion(Motion.pop, value: cart.quantity(forProduct: product.uid))
+                    .accessibilityLabel(
+                        cart.quantity(forProduct: product.uid) > 0
+                            ? Loc.onBillAccessibility(
+                                name: product.name,
+                                quantity: cart.quantity(forProduct: product.uid)
+                              )
+                            : product.name
+                    )
                 }
             }
+            .padding(.horizontal, Metrics.screenPadding)
+            .padding(.bottom, 18)
+            }
+        .scrollDismissesKeyboard(.interactively)
+        // An inset rather than a sibling in a stack, for the reason the bill
+        // form's save bar is one: a fixed-height view beside a flexible one is
+        // what the keyboard inset resolves against wrongly.
+        .safeAreaInset(edge: .bottom, spacing: 0) { footer }
+    }
+
+    /// The way back, and what has been picked so far.
+    ///
+    /// **Always drawn**, including with nothing picked. The tab bar is hidden
+    /// while this screen is up, so this is the only way off it — and it used to
+    /// appear only once something had been added, which stranded anyone who came
+    /// here, changed their mind, and had nothing to add.
+    private var footer: some View {
+        HStack(spacing: 12) {
+            if !cart.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(Loc.lines(cart.lines.count))
+                        .nocturneText(.meta)
+                    Text(Money.text(cart.total, in: currency))
+                        .font(NocturneType.inter(19, .medium))
+                        .rollingNumber(cart.total)
+                }
+            }
+            Spacer(minLength: 12)
+            Button(Loc.doneAdding, action: onDoneAdding)
+                .buttonStyle(PrimaryButtonStyle(height: 44))
+        }
+        .padding(.horizontal, Metrics.screenPadding)
+        .padding(.top, 10)
+        .padding(.bottom, max(bottomInset, 24))
+        .background(Nocturne.surface)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Nocturne.neutral800).frame(height: 1)
         }
     }
 
