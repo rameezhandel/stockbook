@@ -241,6 +241,11 @@ class Cart {
      * short, since the total on screen would not be the total that got saved.
      */
     fun fill(bill: Bill, products: List<Product>, currency: Currency) {
+        // Nothing worth keeping is not worth restoring: a form the owner has not
+        // touched should come back empty rather than with a stale prefilled
+        // number in it.
+        stashed = if (_lines.isNotEmpty() || customerKey != null || typedAmount != null) snapshot() else null
+
         _lines.clear()
         for (line in bill.lines) {
             val product = products.firstOrNull { it.uid == line.productUid } ?: continue
@@ -275,6 +280,70 @@ class Cart {
         customerKey = Customer.key(bill.who)
         payMode = if (bill.paid == null) PayMode.FULL else PayMode.PART
         paidText = bill.paid?.let { Money.amount(it, currency) }.orEmpty()
+    }
+
+    /**
+     * Everything the form was holding, so a correction can borrow the screen and
+     * give it back.
+     */
+    private data class Draft(
+        val lines: List<Line>,
+        val amountText: String,
+        val invoiceNo: String,
+        val invoiceNoSeeded: Boolean,
+        val soldAt: java.time.Instant,
+        val customer: String,
+        val customerKey: String?,
+        val payMode: PayMode,
+        val paidText: String
+    )
+
+    /**
+     * The half-typed bill a correction interrupted, if there was one.
+     *
+     * Editing reuses this form, which used to mean the bill in progress was thrown
+     * away the moment somebody tapped Edit — a real loss, with no warning and no
+     * way back. It is put here instead and restored when the correction ends,
+     * however it ends.
+     */
+    private var stashed: Draft? = null
+
+    private fun snapshot() = Draft(
+        lines = _lines.toList(),
+        amountText = amountText,
+        invoiceNo = invoiceNo,
+        invoiceNoSeeded = invoiceNoSeeded,
+        soldAt = soldAt,
+        customer = customer,
+        customerKey = customerKey,
+        payMode = payMode,
+        paidText = paidText
+    )
+
+    private fun restore(draft: Draft) {
+        _lines.clear()
+        _lines.addAll(draft.lines)
+        amountText = draft.amountText
+        invoiceNo = draft.invoiceNo
+        invoiceNoSeeded = draft.invoiceNoSeeded
+        soldAt = draft.soldAt
+        customer = draft.customer
+        customerKey = draft.customerKey
+        payMode = draft.payMode
+        paidText = draft.paidText
+    }
+
+    /**
+     * Puts back whatever a correction interrupted, or empties the form when it
+     * interrupted nothing.
+     *
+     * Called however a correction ends — saved, or abandoned — because the owner
+     * who had half a bill typed wants it back either way.
+     */
+    fun release() {
+        val draft = stashed
+        stashed = null
+        if (draft == null) clear() else restore(draft)
     }
 
     fun clear() {

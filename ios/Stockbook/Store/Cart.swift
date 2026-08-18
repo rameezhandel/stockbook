@@ -214,6 +214,11 @@ final class Cart {
     /// number with the next unused one the moment it appeared.
     @MainActor
     func load(_ bill: Bill, in store: StockbookStore) {
+        // Nothing worth keeping is not worth restoring: a form the owner has not
+        // touched should come back empty rather than with a stale prefilled
+        // number in it.
+        stashed = (!lines.isEmpty || customerKey != nil || typedAmount != nil) ? snapshot() : nil
+
         editing = bill.number
         lines = bill.lines.compactMap { line in
             guard let uid = line.productUID, let product = store.product(uid: uid) else { return nil }
@@ -237,7 +242,67 @@ final class Cart {
         soldAt = bill.createdAt
     }
 
+    /// Everything the form was holding, so a correction can borrow the screen and
+    /// give it back.
+    private struct Draft {
+        let lines: [Line]
+        let amountText: String
+        let invoiceNo: String
+        let invoiceNoSeeded: Bool
+        let soldAt: Date
+        let customer: String
+        let customerKey: String?
+        let payMode: PayMode
+        let paidText: String
+    }
+
+    /// The half-typed bill a correction interrupted, if there was one.
+    ///
+    /// Editing reuses this form, which used to mean the bill in progress was
+    /// thrown away the moment somebody tapped Edit — a real loss, with no warning
+    /// and no way back. It is kept here instead and restored when the correction
+    /// ends, however it ends.
+    private var stashed: Draft?
+
+    private func snapshot() -> Draft {
+        Draft(
+            lines: lines,
+            amountText: amountText,
+            invoiceNo: invoiceNo,
+            invoiceNoSeeded: invoiceNoSeeded,
+            soldAt: soldAt,
+            customer: customer,
+            customerKey: customerKey,
+            payMode: payMode,
+            paidText: paidText
+        )
+    }
+
+    /// Puts back whatever a correction interrupted, or empties the form when it
+    /// interrupted nothing.
+    ///
+    /// Called however a correction ends — saved, or abandoned — because the owner
+    /// who had half a bill typed wants it back either way.
+    func release() {
+        guard let draft = stashed else {
+            clear()
+            return
+        }
+        stashed = nil
+        lines = draft.lines
+        amountText = draft.amountText
+        invoiceNo = draft.invoiceNo
+        invoiceNoSeeded = draft.invoiceNoSeeded
+        soldAt = draft.soldAt
+        customer = draft.customer
+        customerKey = draft.customerKey
+        payMode = draft.payMode
+        paidText = draft.paidText
+        editing = nil
+    }
+
     func clear() {
+        stashed = nil
         lines = []
         amountText = ""
         customer = ""

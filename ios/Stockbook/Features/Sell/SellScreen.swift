@@ -31,10 +31,24 @@ struct SellScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: Loc.newBill, bottomPadding: 10) {
-                Text(cartCountLabel)
+            ScreenHeader(title: cart.isEditing ? Loc.editBill : Loc.newBill, bottomPadding: 10) {
+                if cart.isEditing {
+                    // The way out of a correction without making one. Without it
+                    // an owner who tapped Edit by mistake can only get back to a
+                    // blank form by saving the bill they did not mean to touch.
+                    Button(Loc.cancel) {
+                        cart.release()
+                        closePicker()
+                        router.tab = .book
+                    }
+                    .buttonStyle(.plain)
                     .font(NocturneType.inter(12))
                     .foregroundStyle(Nocturne.neutral500)
+                } else {
+                    Text(cartCountLabel)
+                        .font(NocturneType.inter(12))
+                        .foregroundStyle(Nocturne.neutral500)
+                }
             }
 
             if showsPicker, !pickerHint.isEmpty {
@@ -129,7 +143,7 @@ struct SellScreen: View {
                 invoiceNo: cart.invoiceNo
             ) else { return }
 
-            cart.clear()
+            cart.release()
             closePicker()
             router.tab = .book
             router.openBill(corrected)

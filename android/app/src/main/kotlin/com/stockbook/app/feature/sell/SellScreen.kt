@@ -104,7 +104,10 @@ fun SellScreen(
                 GhostButton(
                     strings.cancel,
                     onClick = {
-                        cart.clear()
+                        // Gives the form back to whatever was on it before Edit
+                        // borrowed it, which is the whole reason abandoning a
+                        // correction is cheap.
+                        cart.release()
                         router.closeBillEditing()
                         query = ""
                     },
@@ -211,7 +214,10 @@ fun SellScreen(
                             )
                         }
                         if (bill != null) {
-                            cart.clear()
+                            // A correction hands the form back to the bill it
+                            // interrupted; a new bill leaves it empty for the
+                            // next one. `release` is both, and knows which.
+                            if (editing != null) cart.release() else cart.clear()
                             query = ""
                             if (editing != null) {
                                 // Back to the list the bill was opened from, where
