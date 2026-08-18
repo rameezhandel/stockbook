@@ -89,9 +89,10 @@ data class BackupDocument(
         val supplierKey: String,
         @SerialName("productUID")
         val productUid: String? = null,
-        val name: String,
-        val qty: Int,
-        val unitCost: Double,
+        /** Absent on a supplier bill that named no product. */
+        val name: String? = null,
+        val qty: Int = 0,
+        val unitCost: Double = 0.0,
         val total: Double,
         /** Absent for a delivery settled on the spot, exactly as on a bill. */
         val paid: Double? = null,

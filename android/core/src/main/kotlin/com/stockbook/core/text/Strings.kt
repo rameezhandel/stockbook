@@ -405,6 +405,37 @@ class Strings(val language: AppLanguage) {
     // keeping the number at all.
     val enterBillNumber: String get() = pick("Enter the bill number", "ಬಿಲ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ")
 
+    // --- Entering a bill
+
+    // The figure the bill came to, typed rather than computed. The ordinary case:
+    // the paper bill was written first and already says what it came to.
+    val amountField: String get() = pick("Amount", "ಮೊತ್ತ")
+    val addItems: String get() = pick("Add items", "ಸಾಮಾನುಗಳನ್ನು ಸೇರಿಸಿ")
+    val removeItems: String get() = pick("Remove items", "ಸಾಮಾನುಗಳನ್ನು ತೆಗೆಯಿರಿ")
+
+    // Shown under the total once the bill has been itemised, because the figure
+    // stops being typed at that moment and starts being a sum.
+    fun fromItems(n: Int): String = pick("from ${items(n)}", "$n ಸಾಮಾನುಗಳಿಂದ")
+
+    val supplierBillTitle: String get() = pick("Supplier bill", "ಸರಬರಾಜುದಾರರ ಬಿಲ್")
+
+    // --- The shelf, corrected by hand
+
+    val setCount: String get() = pick("Set count", "ಎಣಿಕೆ ನಮೂದಿಸಿ")
+
+    val setCountNote: String
+        get() = pick(
+            "What you counted on the shelf — not how many to add.",
+            "ಶೆಲ್ಫಿನಲ್ಲಿ ನೀವು ಎಣಿಸಿದ ಸಂಖ್ಯೆ — ಸೇರಿಸಬೇಕಾದ ಸಂಖ್ಯೆ ಅಲ್ಲ."
+        )
+
+    // --- Collecting, from wherever the debt was noticed
+
+    val whoOwesYou: String get() = pick("Who owes you", "ನಿಮಗೆ ಬಾಕಿ ಇರುವವರು")
+    val whoYouOwe: String get() = pick("Who you owe", "ನೀವು ಕೊಡಬೇಕಾದವರು")
+    val takePayment: String get() = pick("Take payment", "ಪಾವತಿ ಪಡೆಯಿರಿ")
+
+
     // The date a sale is *entered* is not always the date it happened. Said out
     // loud on the cart, because a shop catching up at closing time would
     // otherwise stamp the whole day at once and never notice.

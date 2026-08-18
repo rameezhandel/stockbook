@@ -228,9 +228,21 @@ class StockbookStore(private val repository: StockbookRepository) {
      * shelf never goes negative.
      */
     fun saveBill(
-        lines: List<DraftLine>,
+        /**
+         * What was sold, when the owner said. Empty is the ordinary case for a
+         * shop entering a paper bill it has already written: the total is known,
+         * and rebuilding it product by product to arrive at it is work for
+         * nothing. An itemised bill moves the shelf; a total does not.
+         */
+        lines: List<DraftLine> = emptyList(),
         customer: String,
         paid: Double?,
+        /**
+         * What the bill came to, for a bill with no lines on it. Ignored when
+         * there are lines — their sum is the total, and a typed figure beside it
+         * is a second answer to a question that already has one.
+         */
+        amount: Double? = null,
         /**
          * When the sale happened, which is not always when it was typed. A shop
          * that writes bills in the paper book all day and enters them at closing
@@ -243,7 +255,7 @@ class StockbookStore(private val repository: StockbookRepository) {
         invoiceNo: String? = null
     ): Bill? {
         val name = customer.trim()
-        if (lines.isEmpty() || name.isEmpty()) return null
+        if (name.isEmpty()) return null
 
         val snapshots = mutableListOf<BillLine>()
         for (line in lines) {
@@ -257,11 +269,16 @@ class StockbookStore(private val repository: StockbookRepository) {
                     price = line.price
                 )
             )
+            // Only an itemised bill moves the shelf. Nothing else in the app can
+            // take stock off it, which is why a shop that types totals is told
+            // the count is its own to keep straight.
             replace(product.copy(stock = maxOf(0, product.stock - quantity)))
         }
-        if (snapshots.isEmpty()) return null
 
-        val total = snapshots.sumOf { it.lineTotal }
+        val total = if (snapshots.isEmpty()) amount ?: 0.0 else snapshots.sumOf { it.lineTotal }
+        // A bill for nothing is not a bill. Either something was sold or a figure
+        // was typed; neither is the same as a blank saved by accident.
+        if (total <= 0) return null
         val bill = Bill(
             number = settings.nextBillNumber,
             lines = snapshots,
@@ -755,38 +772,79 @@ class StockbookStore(private val repository: StockbookRepository) {
      * no-op, exactly as [restock] treats one.
      */
     fun recordPurchase(
-        product: Product,
+        /**
+         * What arrived, where the shop keeps a count of it. Null for a supplier
+         * bill entered as a figure — a mixed load, or something that never sits
+         * on a shelf. Only a named product moves stock.
+         */
+        product: Product?,
         supplierKey: String,
-        quantity: Int,
-        unitCost: Double,
+        quantity: Int = 0,
+        unitCost: Double = 0.0,
         paid: Double? = null,
+        /** What the bill came to, where no product was named. */
+        amount: Double? = null,
         createdAt: Instant = Timestamps.now(),
-        /** The number on the supplier's invoice, when it came with one. */
+        /** The number on the supplier's invoice. */
         invoiceNo: String? = null
     ): Purchase? {
-        if (quantity <= 0 || supplierKey.isBlank()) return null
-        val current = this.product(product.uid) ?: return null
-        val cost = if (unitCost > 0) unitCost else current.cost
+        if (supplierKey.isBlank()) return null
+
+        // Itemised only when a product was named *and* a count came with it: a
+        // product with no quantity is half an answer, and guessing the other half
+        // would put stock on the shelf nobody said arrived.
+        val current = product?.let { this.product(it.uid) }?.takeIf { quantity > 0 }
+        val cost = when {
+            current == null -> 0.0
+            unitCost > 0 -> unitCost
+            else -> current.cost
+        }
+        val total = if (current == null) amount ?: 0.0 else quantity * cost
+        if (total <= 0) return null
+
         val purchase = Purchase(
             supplierKey = supplierKey,
-            productUid = current.uid,
-            name = current.name,
-            qty = quantity,
+            productUid = current?.uid,
+            name = current?.name,
+            qty = if (current == null) 0 else quantity,
             unitCost = cost,
-            total = quantity * cost,
+            total = total,
             // Clamped to the total: a delivery cannot be overpaid, and a typo
             // that says so would put the shop permanently in credit.
-            paid = paid?.let { maxOf(0.0, minOf(it, quantity * cost)) },
+            paid = paid?.let { maxOf(0.0, minOf(it, total)) },
             invoiceNo = CustomerRecord.tidied(invoiceNo),
             createdAt = createdAt
         )
         _state.value = _state.value.copy(purchases = listOf(purchase) + purchases)
         attempt { repository.append(purchase) }
         // Cost is "latest paid", not a weighted average: the new figure simply
-        // takes over, which is the rule `restock` has always followed.
-        replace(current.copy(stock = current.stock + quantity, cost = cost))
+        // takes over. Nothing to take over when no product was named.
+        if (current != null) {
+            replace(current.copy(stock = current.stock + quantity, cost = cost))
+        }
         return purchase
     }
+
+    /**
+     * A supplier's bill with no stock on it: a figure, a date and a number.
+     *
+     * The same record as a delivery, and deliberately so — it is money owed to
+     * the same account, and a statement should not care which way it was entered.
+     */
+    fun recordSupplierBill(
+        supplierKey: String,
+        amount: Double,
+        paid: Double? = null,
+        createdAt: Instant = Timestamps.now(),
+        invoiceNo: String? = null
+    ): Purchase? = recordPurchase(
+        product = null,
+        supplierKey = supplierKey,
+        paid = paid,
+        amount = amount,
+        createdAt = createdAt,
+        invoiceNo = invoiceNo
+    )
 
     /**
      * Voids a delivery and takes its stock back off the shelf.
@@ -804,7 +862,9 @@ class StockbookStore(private val repository: StockbookRepository) {
         )
         attempt { repository.update(voided) }
 
-        purchase.productUid?.let { uid ->
+        // Only an itemised delivery put stock on the shelf, so only that one has
+        // any to take back off.
+        purchase.productUid?.takeIf { purchase.isItemised }?.let { uid ->
             product(uid)?.let { product ->
                 // Floored at zero. The stock may already have been sold, and a
                 // negative shelf count is a worse lie than an optimistic one.
@@ -872,6 +932,21 @@ class StockbookStore(private val repository: StockbookRepository) {
      * Adds stock. A zero or negative quantity is a no-op — the sheet treats
      * "nothing typed" as "close without doing anything".
      */
+    /**
+     * Sets the shelf count to what was actually counted.
+     *
+     * The honest half of keeping stock at all: bills move the count only where
+     * they were itemised, so the figure is a running tally rather than a
+     * measurement, and this is how the owner tells it the truth after looking at
+     * the shelf. A count is *set*, never added to — "there are twelve" is what
+     * somebody says after counting, and asking them to work out the difference
+     * is asking them to do arithmetic the app can do.
+     */
+    fun setStock(product: Product, count: Int) {
+        val current = this.product(product.uid) ?: return
+        replace(current.copy(stock = maxOf(0, count)))
+    }
+
     fun restock(product: Product, quantity: Int, mode: RestockMode, unitCost: Double? = null) {
         if (quantity <= 0) return
         val current = this.product(product.uid) ?: return

@@ -452,6 +452,40 @@ struct Strings {
     /// keeping the number at all.
     var enterBillNumber: String { pick("Enter the bill number", "ಬಿಲ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ") }
 
+    // MARK: Entering a bill
+
+    /// The figure the bill came to, typed rather than computed. The ordinary
+    /// case: the paper bill was written first and already says what it came to.
+    var amountField: String { pick("Amount", "ಮೊತ್ತ") }
+    var addItems: String { pick("Add items", "ಸಾಮಾನುಗಳನ್ನು ಸೇರಿಸಿ") }
+    var removeItems: String { pick("Remove items", "ಸಾಮಾನುಗಳನ್ನು ತೆಗೆಯಿರಿ") }
+
+    /// Shown under the total once the bill has been itemised, because the figure
+    /// stops being typed at that moment and starts being a sum.
+    func fromItems(_ n: Int) -> String {
+        pick("from \(items(n))", "\(n) ಸಾಮಾನುಗಳಿಂದ")
+    }
+
+    var supplierBillTitle: String { pick("Supplier bill", "ಸರಬರಾಜುದಾರರ ಬಿಲ್") }
+
+    // MARK: The shelf, corrected by hand
+
+    var setCount: String { pick("Set count", "ಎಣಿಕೆ ನಮೂದಿಸಿ") }
+
+    var setCountNote: String {
+        pick(
+            "What you counted on the shelf — not how many to add.",
+            "ಶೆಲ್ಫಿನಲ್ಲಿ ನೀವು ಎಣಿಸಿದ ಸಂಖ್ಯೆ — ಸೇರಿಸಬೇಕಾದ ಸಂಖ್ಯೆ ಅಲ್ಲ."
+        )
+    }
+
+    // MARK: Collecting, from wherever the debt was noticed
+
+    var whoOwesYou: String { pick("Who owes you", "ನಿಮಗೆ ಬಾಕಿ ಇರುವವರು") }
+    var whoYouOwe: String { pick("Who you owe", "ನೀವು ಕೊಡಬೇಕಾದವರು") }
+    var takePayment: String { pick("Take payment", "ಪಾವತಿ ಪಡೆಯಿರಿ") }
+
+
     func billNumber(_ number: Int) -> String {
         pick("Bill #\(number)", "ಬಿಲ್ #\(number)")
     }

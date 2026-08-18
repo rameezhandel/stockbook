@@ -18,11 +18,21 @@ data class Bill(
      * can say to a customer.
      */
     val number: Int,
-    val lines: List<BillLine>,
     /**
-     * Sum of `qty × price` at the moment of sale — **stored**, never recomputed
-     * from current product prices. Editing a product tomorrow must not rewrite
-     * what somebody paid today.
+     * What was on the bill, when the owner said.
+     *
+     * **May be empty.** A shop writing bills in a paper book already knows the
+     * total, and rebuilding it line by line to arrive at a figure it can read off
+     * the paper is work for nothing. An itemised bill moves the shelf count; one
+     * entered as a total does not, and [isItemised] is how everything downstream
+     * tells the two apart.
+     */
+    val lines: List<BillLine> = emptyList(),
+    /**
+     * What the bill came to — **stored**, never recomputed. On an itemised bill
+     * it is the sum of `qty × price` at the moment of sale, so editing a product
+     * tomorrow cannot rewrite what somebody paid today. On a bill entered as a
+     * total it is simply what was typed.
      */
     val total: Double,
     /**
@@ -56,7 +66,16 @@ data class Bill(
 
     val isPartPaid: Boolean get() = !voided && paid != null
 
-    /** The row's first line: the names on the bill, joined. */
+    /**
+     * Whether this bill says what was sold, or only what it came to.
+     *
+     * The one question the rest of the app asks about a bill's lines: stock moves
+     * for an itemised bill and not for a typed total, and a document with nothing
+     * to list has to say so rather than print an empty table.
+     */
+    val isItemised: Boolean get() = lines.isNotEmpty()
+
+    /** The row's first line: the names on the bill, joined. Blank when there are none. */
     val summary: String get() = lines.joinToString(", ") { it.name }
 
     /**

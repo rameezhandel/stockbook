@@ -26,15 +26,26 @@ data class Purchase(
     val supplierKey: String,
     /**
      * Which product this restocked. Null once that product has been deleted — a
-     * purchase can outlive what it bought, as a bill line can.
+     * purchase can outlive what it bought, as a bill line can — and null from the
+     * start on a supplier bill that names no product at all.
      */
     val productUid: String? = null,
-    /** The product's name **at the time of delivery**. History must not move. */
-    val name: String,
-    val qty: Int,
-    /** What the shop paid per piece, as entered. */
-    val unitCost: Double,
-    /** `qty × unitCost` at the time, stored rather than recomputed. */
+    /**
+     * The product's name **at the time of delivery**. History must not move.
+     *
+     * Null when the supplier's bill was entered as a figure rather than as
+     * stock arriving: a bill for a mixed load, or for something the shop does
+     * not keep a count of. [isItemised] is how the rest of the app tells them
+     * apart, because only one of the two moves the shelf.
+     */
+    val name: String? = null,
+    val qty: Int = 0,
+    /** What the shop paid per piece, as entered. Zero when no product was named. */
+    val unitCost: Double = 0.0,
+    /**
+     * What the delivery came to — `qty × unitCost` where a product was named, and
+     * simply what was typed where one was not. Stored either way.
+     */
     val total: Double,
     /**
      * `null` means settled on the spot — the common case at a counter where the
@@ -67,6 +78,14 @@ data class Purchase(
         }
 
     val isPartPaid: Boolean get() = !voided && paid != null
+
+    /**
+     * Whether this says what arrived, or only what it cost.
+     *
+     * Stock moves for the first and not the second, and voiding has to reverse
+     * exactly what recording it did.
+     */
+    val isItemised: Boolean get() = !name.isNullOrBlank()
 
     /**
      * What to call this delivery on a list or a statement.
