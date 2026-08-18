@@ -32,7 +32,14 @@ struct SellScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             ScreenHeader(title: cart.isEditing ? Loc.editBill : Loc.newBill, bottomPadding: 10) {
-                if cart.isEditing {
+                if showsPicker {
+                    // The way back off the picker. In the header rather than in a
+                    // bar at the bottom: it has to be reachable with nothing
+                    // added, and nothing in this app sits under the keyboard and
+                    // survives.
+                    Button(Loc.doneAdding, action: closePicker)
+                        .buttonStyle(.primaryCompact)
+                } else if cart.isEditing {
                     // The way out of a correction without making one. Without it
                     // an owner who tapped Edit by mistake can only get back to a
                     // blank form by saving the bill they did not mean to touch.
@@ -75,8 +82,7 @@ struct SellScreen: View {
                         hasAnyProducts: !products.isEmpty,
                         query: query.trimmed,
                         onPick: add(_:),
-                        onAddProduct: { router.openNewProduct() },
-                        onDoneAdding: closePicker
+                        onAddProduct: { router.openNewProduct() }
                     )
                 } else {
                     CartView(
@@ -173,11 +179,9 @@ private struct ProductPicker: View {
     let query: String
     let onPick: (Product) -> Void
     let onAddProduct: () -> Void
-    let onDoneAdding: () -> Void
 
     @Environment(Cart.self) private var cart
     @Environment(\.currency) private var currency
-    @Environment(\.bottomSafeInset) private var bottomInset
 
     var body: some View {
         ScrollView {
@@ -248,40 +252,6 @@ private struct ProductPicker: View {
             .padding(.bottom, 18)
             }
         .scrollDismissesKeyboard(.interactively)
-        // An inset rather than a sibling in a stack, for the reason the bill
-        // form's save bar is one: a fixed-height view beside a flexible one is
-        // what the keyboard inset resolves against wrongly.
-        .safeAreaInset(edge: .bottom, spacing: 0) { footer }
-    }
-
-    /// The way back, and what has been picked so far.
-    ///
-    /// **Always drawn**, including with nothing picked. The tab bar is hidden
-    /// while this screen is up, so this is the only way off it — and it used to
-    /// appear only once something had been added, which stranded anyone who came
-    /// here, changed their mind, and had nothing to add.
-    private var footer: some View {
-        HStack(spacing: 12) {
-            if !cart.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(Loc.lines(cart.lines.count))
-                        .nocturneText(.meta)
-                    Text(Money.text(cart.total, in: currency))
-                        .font(NocturneType.inter(19, .medium))
-                        .rollingNumber(cart.total)
-                }
-            }
-            Spacer(minLength: 12)
-            Button(Loc.doneAdding, action: onDoneAdding)
-                .buttonStyle(PrimaryButtonStyle(height: 44))
-        }
-        .padding(.horizontal, Metrics.screenPadding)
-        .padding(.top, 10)
-        .padding(.bottom, max(bottomInset, 24))
-        .background(Nocturne.surface)
-        .overlay(alignment: .top) {
-            Rectangle().fill(Nocturne.neutral800).frame(height: 1)
-        }
     }
 
     private var emptyMessage: String {

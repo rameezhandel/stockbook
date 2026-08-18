@@ -14,7 +14,6 @@ struct CartView: View {
     @Environment(Cart.self) private var cart
     @Environment(StockbookStore.self) private var store
     @Environment(\.currency) private var currency
-    @Environment(\.bottomSafeInset) private var bottomInset
 
     var body: some View {
         @Bindable var cart = cart
@@ -75,23 +74,19 @@ struct CartView: View {
 
                 paymentBlock
                     .padding(.top, 14)
+
+                saveButton
+                    .padding(.top, 16)
             }
             .padding(.horizontal, Metrics.screenPadding)
             .padding(.bottom, 12)
             .motion(Motion.list, value: cart.lines.count)
         }
         .scrollBounceBehavior(.basedOnSize)
-        // The save bar is part of the scroll view's **safe area**, not a sibling
-        // in a stack with it.
-        //
-        // As a sibling it was a fixed-height view competing for space with a
-        // flexible one, inside a shell that has already told the system to ignore
-        // the keyboard — so whichever way the keyboard inset resolved, one of the
-        // two got the wrong height: either the bar climbed the screen or the form
-        // was squeezed out of existence. `safeAreaInset` is the mechanism made for
-        // this: the bar sits at the bottom, the content is inset by exactly its
-        // height, and when the keyboard opens the pair moves as one.
-        .safeAreaInset(edge: .bottom, spacing: 0) { saveBar }
+        // Nothing moves out of the keyboard's way here, so the way back to what
+        // it covers is to push it down — the same as Items, which is the screen
+        // in this app that has always got this right.
+        .scrollDismissesKeyboard(.interactively)
         .keyboardDoneButton()
         // One past the last number the shop wrote, put in the box so the usual
         // bill needs no typing at all. Watched rather than done once: the flag is
@@ -232,21 +227,20 @@ struct CartView: View {
         }
     }
 
-    /// The one thing that leaves the screen, pinned to the bottom of it.
+    /// The last thing on the form rather than a bar pinned over it.
+    ///
+    /// Pinned is what Android does and what this screen tried twice; on iOS a
+    /// fixed bar at the bottom of a scrolling screen is what kept colliding with
+    /// the keyboard, and every screen here that works keeps nothing down there.
+    /// The form is short — a save that scrolls into view under your thumb costs
+    /// nothing next to a screen that swallows itself.
     ///
     /// Validation is the button's label, never a toast: it says what is missing
     /// and stays disabled until it isn't.
-    private var saveBar: some View {
+    private var saveButton: some View {
         Button(saveTitle, action: onSave)
             .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
             .disabled(!cart.canSave || clash != nil)
-            .padding(.horizontal, Metrics.screenPadding)
-            .padding(.top, 10)
-            .padding(.bottom, max(bottomInset, 10))
-            .background(Nocturne.surface)
-            .overlay(alignment: .top) {
-                Rectangle().fill(Nocturne.neutral800).frame(height: 1)
-            }
     }
 
     private var saveTitle: String {
