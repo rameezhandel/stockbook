@@ -1,12 +1,15 @@
 import SwiftUI
 
-/// The billing flow: a product picker and a cart, sharing one search field and
-/// one header.
+/// The bill being written: a form, with a product picker behind one button.
 ///
-/// Which of the two is showing is derived, never stored as a mode the user can
-/// get stuck in — the picker appears when the cart is empty, when there is text
-/// in the search box, or when "Add another item" was tapped. Anything that
-/// empties all three conditions drops you back to the cart.
+/// **A form, not a cart.** A bill here is a number, a date, somebody and a
+/// figure — the paper book was written first, so the total is already known and
+/// rebuilding it product by product to arrive at it is work for nothing. Saying
+/// what was sold is optional, and the only thing it buys is the shelf moving.
+///
+/// Add items is therefore a genuine mode, entered and left by tapping, rather
+/// than the derived state it used to be. An empty cart no longer means the
+/// picker: it is what the ordinary bill in this shop looks like.
 struct SellScreen: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
@@ -15,17 +18,13 @@ struct SellScreen: View {
     private var products: [Product] { store.products }
 
     @State private var query = ""
-    /// Set by "Add another item" — the one case where the picker is showing even
-    /// though the cart is full and nothing has been typed.
-    @State private var browsing = false
+    /// Set by "Add items", cleared by "Done adding". On the router rather than in
+    /// here because the shell draws the tab bar and must not stack it under the
+    /// picker's own bottom bar.
+    private var browsing: Bool { router.pickingProducts }
 
-    /// A bill being corrected never opens on the picker, however few lines it has.
-    /// The owner tapped Edit on a document, and being handed a product list
-    /// instead of the document would look like the tap had done something else —
-    /// and for a bill entered as a figure there would be no way back to the form
-    /// at all.
     private var showsPicker: Bool {
-        (cart.isEmpty && !cart.isEditing) || !query.isBlank || browsing
+        browsing || !query.isBlank
     }
 
     private var matches: [Product] { store.products(matching: query) }
@@ -46,16 +45,17 @@ struct SellScreen: View {
                     .padding(.bottom, 8)
             }
 
-            // Shared between both states: in the cart it sits empty, and typing
-            // into it is what re-opens the picker.
-            NocturneField(placeholder: Loc.addAProductPlaceholder, text: $query, fontSize: 14.5)
-                .padding(.horizontal, Metrics.screenPadding)
-                .padding(.bottom, 10)
-
             // Which of the two is showing is derived, so the swap is the only
             // signal that a tap changed anything. It fades rather than cuts.
             Group {
                 if showsPicker {
+                    // The search box belongs to the picker rather than to the
+                    // screen: a form for typing a figure should not open with a
+                    // box asking for a product name.
+                    NocturneField(placeholder: Loc.addAProductPlaceholder, text: $query, fontSize: 14.5)
+                        .padding(.horizontal, Metrics.screenPadding)
+                        .padding(.bottom, 10)
+
                     ProductPicker(
                         products: matches,
                         hasAnyProducts: !products.isEmpty,
@@ -74,10 +74,13 @@ struct SellScreen: View {
             .transition(.opacity)
             .motion(Motion.screen, value: showsPicker)
         }
+        // Leaving Sell puts the picker away. It used to happen for free, when
+        // this was a `@State` that died with the screen.
+        .onDisappear { router.pickingProducts = false }
     }
 
     private var cartCountLabel: String {
-        cart.isEmpty ? Loc.cartEmpty : Loc.lines(cart.lines.count)
+        cart.isEmpty ? "" : Loc.lines(cart.lines.count)
     }
 
     private var pickerHint: String {
@@ -96,12 +99,12 @@ struct SellScreen: View {
     }
 
     private func openPicker() {
-        browsing = true
+        router.pickingProducts = true
         query = ""
     }
 
     private func closePicker() {
-        browsing = false
+        router.pickingProducts = false
         query = ""
     }
 

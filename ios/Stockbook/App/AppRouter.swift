@@ -33,6 +33,14 @@ final class AppRouter {
     var addStock: AddStockTarget?
 
     /// The receipt, shown full-screen after a bill is saved.
+    /// Whether Sell is showing the product picker rather than the bill form.
+    ///
+    /// Screen-local by rights, and here because the shell has to know: the picker
+    /// carries its own bottom bar, and the tab bar underneath it would be a
+    /// second one stacked on the first. Cleared when Sell goes away, so coming
+    /// back lands on the form rather than wherever the last visit ended.
+    var pickingProducts = false
+
     var receipt: Bill?
 
     /// A bill opened from history. Distinct from `receipt`: that one is a

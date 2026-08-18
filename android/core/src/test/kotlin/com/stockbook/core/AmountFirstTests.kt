@@ -121,8 +121,8 @@ class AmountFirstTests {
         store.deleteBill(bill.number)
 
         assertEquals(50, assertNotNull(store.product(product.uid)).stock, "nothing went out, so nothing comes back")
-        // Ahmed was never on the roster and his one bill is now void, so he may
-        // not be listed at all — what matters is that nothing is owed either way.
+        // Ahmed was never on the roster and his one bill is gone, so he may not be
+        // listed at all — what matters is that nothing is owed either way.
         assertEquals(0.0, store.customers().firstOrNull { it.key == "ahmed" }?.owed ?: 0.0)
     }
 

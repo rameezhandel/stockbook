@@ -1,7 +1,12 @@
 import SwiftUI
 
-/// The bill being built. The most important screen in the app: it is what the
+/// The bill being written. The most important screen in the app: it is what the
 /// owner is looking at while a customer waits.
+///
+/// **A form, not a cart.** The figure is typed until something says what the
+/// bill is made of, and computed from the lines after that — never both at once,
+/// or the screen shows one number and saves another. What was sold is optional;
+/// the only thing itemising buys is the shelf moving.
 struct CartView: View {
     let onBrowse: () -> Void
     let onSave: () -> Void
@@ -29,8 +34,11 @@ struct CartView: View {
                         .transition(.opacity)
                     }
 
+                    // Saying what was sold is the optional step, so the button
+                    // offers it plainly on an empty bill and only says "another"
+                    // once there is a first one to be another of.
                     Button(action: onBrowse) {
-                        Label(Loc.addAnotherItem, systemImage: Icon.browseAll)
+                        Label(cart.isEmpty ? Loc.addItems : Loc.addAnotherItem, systemImage: Icon.browseAll)
                     }
                     .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
                     .padding(.top, 2)
@@ -146,9 +154,16 @@ struct CartView: View {
                     )
                 } else {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(Loc.total)
-                            .font(NocturneType.inter(13))
-                            .foregroundStyle(Nocturne.neutral500)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(Loc.total)
+                                .font(NocturneType.inter(13))
+                                .foregroundStyle(Nocturne.neutral500)
+                            // Says where the figure came from, because it stopped
+                            // being typed the moment the first line landed and the
+                            // box it was typed in is no longer on screen.
+                            Text(Loc.fromItems(cart.lines.count))
+                                .nocturneText(.meta)
+                        }
                         Spacer()
                         // The one number the customer is also looking at. It rolls
                         // rather than swapping, so a quantity tapped while the eye
