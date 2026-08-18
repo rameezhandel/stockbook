@@ -34,6 +34,9 @@ final class StockbookStore {
     /// Money paid out after the delivery, newest first.
     private(set) var supplierPayments: [SupplierPayment] = []
 
+    /// What has been credited back to customers, newest first.
+    private(set) var creditNotes: [CreditNote] = []
+
     private(set) var settings: Settings = Settings()
 
     /// Set when the disk refuses a write. Nothing in the UI surfaces it yet;
@@ -57,6 +60,7 @@ final class StockbookStore {
             supplierRecords = state.suppliers.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
             purchases = state.purchases.sorted { $0.createdAt > $1.createdAt }
             supplierPayments = state.supplierPayments.sorted { $0.paidAt > $1.paidAt }
+            creditNotes = state.creditNotes.sorted { $0.issuedAt > $1.issuedAt }
             settings = state.settings
             L10n.use(settings.language)
             Nocturne.use(settings.theme)
@@ -437,6 +441,17 @@ final class StockbookStore {
             }
         }
 
+        // Credited goods and figures come off what is owed exactly as payments
+        // do. They are kept apart on a statement because only one of them is
+        // cash — but a customer who was credited 540 owes 540 less, and every
+        // screen that asks what somebody owes has to say so.
+        for note in creditNotes {
+            if var entry = book[note.customerKey] {
+                entry.owed -= note.total
+                book[note.customerKey] = entry
+            }
+        }
+
         return order
             .compactMap { key -> Customer? in
                 guard let entry = book[key] else { return nil }
@@ -603,6 +618,124 @@ final class StockbookStore {
         self.payments.filter { $0.customerKey == key }
     }
 
+    // MARK: - Credit notes
+
+    /// Credits a customer's account, and puts anything returned back on the shelf.
+    ///
+    /// The shelf moves only for an itemised note, which is `saveBill`'s rule read
+    /// backwards: what a bill took off, a credit note for the same goods puts
+    /// back, and a note that is only a figure moves nothing. A shop that types
+    /// totals keeps its own count either way.
+    ///
+    /// Nil for a note that credits nothing — the mirror of a bill for nothing,
+    /// and refused for the same reason.
+    @discardableResult
+    func addCreditNote(
+        customerKey: String,
+        lines: [DraftLine] = [],
+        amount: Double? = nil,
+        noteNo: String? = nil,
+        reason: String? = nil,
+        issuedAt: Date = .now
+    ) -> CreditNote? {
+        guard !customerKey.isEmpty else { return nil }
+
+        let snapshots = snapshot(lines)
+        let total = snapshots.isEmpty ? (amount ?? 0) : snapshots.reduce(0) { $0 + $1.lineTotal }
+        guard total > 0 else { return nil }
+
+        let note = CreditNote(
+            customerKey: customerKey,
+            lines: snapshots,
+            total: total,
+            noteNo: noteNo?.trimmed.isBlank == false ? noteNo?.trimmed : nil,
+            reason: CustomerRecord.tidied(reason),
+            issuedAt: issuedAt
+        )
+
+        putBackStock(note)
+        creditNotes.append(note)
+        creditNotes.sort { $0.issuedAt > $1.issuedAt }
+        persistEverything()
+        return note
+    }
+
+    /// Corrects one, shelf and all.
+    ///
+    /// Takes back whatever the old note returned before applying the new one, so
+    /// a note edited from 5 pieces to 3 leaves 3 on the shelf rather than 8 — the
+    /// same take-back-first order `updatePurchase` needs, for the same reason.
+    @discardableResult
+    func updateCreditNote(
+        id: UUID,
+        customerKey: String,
+        lines: [DraftLine] = [],
+        amount: Double? = nil,
+        noteNo: String? = nil,
+        reason: String? = nil,
+        issuedAt: Date
+    ) -> CreditNote? {
+        guard let index = creditNotes.firstIndex(where: { $0.id == id }) else { return nil }
+        guard !customerKey.isEmpty else { return nil }
+
+        let snapshots = snapshot(lines)
+        let total = snapshots.isEmpty ? (amount ?? 0) : snapshots.reduce(0) { $0 + $1.lineTotal }
+        guard total > 0 else { return nil }
+
+        takeBackCreditedStock(creditNotes[index])
+
+        var updated = creditNotes[index]
+        updated.customerKey = customerKey
+        updated.lines = snapshots
+        updated.total = total
+        updated.noteNo = noteNo?.trimmed.isBlank == false ? noteNo?.trimmed : nil
+        updated.reason = CustomerRecord.tidied(reason)
+        updated.issuedAt = issuedAt
+
+        putBackStock(updated)
+        creditNotes[index] = updated
+        creditNotes.sort { $0.issuedAt > $1.issuedAt }
+        persistEverything()
+        return updated
+    }
+
+    /// Removes one, taking back anything it had put on the shelf.
+    func deleteCreditNote(id: UUID) {
+        guard let note = creditNotes.first(where: { $0.id == id }) else { return }
+        takeBackCreditedStock(note)
+        creditNotes.removeAll { $0.id == id }
+        persistEverything()
+    }
+
+    /// The note already carrying this number, if any — the same question
+    /// `billWithInvoiceNo` asks, on a series of its own.
+    func creditNoteWithNo(_ noteNo: String?, exceptId: UUID? = nil) -> CreditNote? {
+        let key = InvoiceNo.key(noteNo)
+        guard !key.isEmpty else { return nil }
+        return creditNotes.first { $0.id != exceptId && InvoiceNo.key($0.noteNo) == key }
+    }
+
+    func creditNotes(forCustomer key: String) -> [CreditNote] {
+        creditNotes.filter { $0.customerKey == key }
+    }
+
+    /// Returned goods go back on the shelf. Nothing moves for a note with no lines.
+    private func putBackStock(_ note: CreditNote) {
+        for line in note.lines {
+            guard let uid = line.productUID, var product = self.product(uid: uid) else { continue }
+            product.stock = max(0, product.stock + line.qty)
+            replace(product)
+        }
+    }
+
+    private func takeBackCreditedStock(_ note: CreditNote) {
+        for line in note.lines {
+            guard let uid = line.productUID, var product = self.product(uid: uid) else { continue }
+            product.stock = max(0, product.stock - line.qty)
+            replace(product)
+        }
+    }
+
     // MARK: - Statements
 
     /// One customer's account over a period.
@@ -616,6 +749,7 @@ final class StockbookStore {
             customer: customer,
             bills: bills(forCustomer: key),
             payments: payments(forCustomer: key),
+            creditNotes: creditNotes(forCustomer: key),
             period: period
         )
     }
@@ -1057,6 +1191,7 @@ final class StockbookStore {
         supplierRecords = []
         purchases = []
         supplierPayments = []
+        creditNotes = []
         // Everything goes except the language and the theme. Wiping the shop is a
         // data decision; being handed setup in a language you cannot read — or in
         // a colour scheme you turned off — is not one the owner asked for.
@@ -1158,6 +1293,17 @@ final class StockbookStore {
                     note: $0.note
                 )
             },
+            creditNotes: document.creditNotes.map { row in
+                CreditNote(
+                    id: row.id,
+                    customerKey: row.customerKey,
+                    lines: row.lines.map { BillLine(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price) },
+                    total: row.total,
+                    noteNo: row.noteNo,
+                    reason: row.reason,
+                    issuedAt: row.issuedAt
+                )
+            },
             settings: restored
         )
 
@@ -1169,7 +1315,30 @@ final class StockbookStore {
         supplierRecords = state.suppliers.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
         purchases = state.purchases.sorted { $0.createdAt > $1.createdAt }
         supplierPayments = state.supplierPayments.sorted { $0.paidAt > $1.paidAt }
+        creditNotes = state.creditNotes.sorted { $0.issuedAt > $1.issuedAt }
         settings = restored
+    }
+
+    /// Writes the whole shop.
+    ///
+    /// Credit notes have no fine-grained repository calls of their own, unlike
+    /// bills and payments. They are the one record type that moves stock *and*
+    /// its own list in the same breath, so a partial write is the failure worth
+    /// avoiding — and the Kotlin twin persists them the same way, through the
+    /// whole-state door.
+    private func persistEverything() {
+        let state = ShopState(
+            products: products,
+            bills: bills,
+            customers: customerRecords,
+            payments: payments,
+            suppliers: supplierRecords,
+            purchases: purchases,
+            supplierPayments: supplierPayments,
+            creditNotes: creditNotes,
+            settings: settings
+        )
+        attempt { try repository.replaceAll(with: state) }
     }
 
     /// Snapshots the whole database into a backup document.
@@ -1247,6 +1416,19 @@ final class StockbookStore {
                     amount: $0.amount,
                     paidAt: $0.paidAt,
                     note: $0.note
+                )
+            },
+            creditNotes: creditNotes.map { note in
+                BackupDocument.CreditNoteRow(
+                    id: note.id,
+                    customerKey: note.customerKey,
+                    total: note.total,
+                    noteNo: note.noteNo,
+                    reason: note.reason,
+                    issuedAt: note.issuedAt,
+                    lines: note.lines.map {
+                        BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price)
+                    }
                 )
             }
         )

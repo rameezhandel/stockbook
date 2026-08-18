@@ -16,22 +16,25 @@ struct BackupDocument: Codable, Equatable {
 
     /// The format this build writes.
     ///
-    /// **Two**, and the second one there has ever been. It reached 3 during
-    /// development — a bump when payments arrived, another for opening balances —
-    /// but nothing had shipped, so those numbers described files that exist
-    /// nowhere. Carrying them forward would have meant three shapes of history to
-    /// keep readable, all of them imaginary.
+    /// **Three**.
     ///
-    /// It is still a version, and rule 2 still stands — and **2 is the rule being
-    /// applied**, not abandoned. Suppliers, purchases and money paid out arrived
-    /// after 1, and a reader that ignored them would not merely lose an address
-    /// book: it would read this file and tell the owner the shop owes nobody
-    /// anything. That is the payments case again, and the answer is the same one.
-    /// Better that build refuses the file and says so.
-    /// The invoice numbers added after 2 do **not** bump it. A reader that
-    /// ignores them shows "Bill #7" where the owner wrote "1024" on the paper: a
-    /// label lost, not a figure misread. The rule is about meaning.
-    static let currentVersion = 2
+    /// It reached 3 once before during development — a bump when payments
+    /// arrived, another for opening balances — and was reset, because nothing had
+    /// shipped and those numbers described files that exist nowhere.
+    ///
+    /// Rule 2 is what put it back. Suppliers, purchases and money paid out
+    /// arrived after 1, and a reader that ignored them would tell the owner the
+    /// shop owes nobody anything — that was 2. Credit notes are the same failure
+    /// in the other direction: a reader that dropped them would show every
+    /// credited customer owing more than they do, and the owner would go and ask
+    /// for money that was written off weeks ago. Better that build refuses the
+    /// file and says so.
+    ///
+    /// Two things added alongside them did **not** bump it. Invoice numbers: a
+    /// reader that ignores them shows "Bill #7" where the owner wrote "1024".
+    /// The shop address: a statement prints without one. Both are a label lost
+    /// rather than a figure misread, and the rule is about meaning.
+    static let currentVersion = 3
 
     var version: Int = BackupDocument.currentVersion
     var exportedAt: Date
@@ -67,6 +70,21 @@ struct BackupDocument: Codable, Equatable {
     var suppliers: [SupplierRecordRow] = []
     var purchases: [PurchaseRow] = []
     var supplierPayments: [SupplierPaymentRow] = []
+
+    /// What has been credited back to customers.
+    var creditNotes: [CreditNoteRow] = []
+
+    struct CreditNoteRow: Codable, Equatable {
+        var id: UUID
+        var customerKey: String
+        var total: Double
+        /// The number the owner wrote on the paper note, on its own series.
+        var noteNo: String?
+        var reason: String?
+        var issuedAt: Date
+        /// What came back, empty on a note that is only a figure.
+        var lines: [LineRecord] = []
+    }
 
     struct CustomerRecordRow: Codable, Equatable {
         /// Written out rather than re-derived on import, so a future change to the

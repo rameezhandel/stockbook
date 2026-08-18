@@ -334,6 +334,40 @@ struct Strings {
         )
     }
 
+    // MARK: - Credit notes
+
+    var creditNoteLabel: String { pick("Credit note", "ಕ್ರೆಡಿಟ್ ನೋಟ್") }
+    var creditNotes: String { pick("Credit notes", "ಕ್ರೆಡಿಟ್ ನೋಟ್‌ಗಳು") }
+    var issueACreditNote: String { pick("Issue a credit note", "ಕ್ರೆಡಿಟ್ ನೋಟ್ ಕೊಡಿ") }
+    var editCreditNote: String { pick("Edit credit note", "ಕ್ರೆಡಿಟ್ ನೋಟ್ ಬದಲಾಯಿಸಿ") }
+    var creditNoteNo: String { pick("Credit note no.", "ಕ್ರೆಡಿಟ್ ನೋಟ್ ಸಂಖ್ಯೆ") }
+    var creditNoteNoHint: String { pick("e.g. 00130", "ಉದಾ. 00130") }
+    var amountCredited: String { pick("Amount credited", "ಕೊಟ್ಟ ರಿಯಾಯಿತಿ") }
+    var creditedOn: String { pick("Credited on", "ಕೊಟ್ಟ ದಿನ") }
+    var creditReason: String { pick("Reason", "ಕಾರಣ") }
+    var creditReasonExample: String {
+        pick("returned goods, overcharge…", "ವಾಪಸ್ ಬಂದ ಸಾಮಾನು, ಹೆಚ್ಚು ಬಿಲ್…")
+    }
+    var saveCreditNote: String { pick("Save credit note", "ಕ್ರೆಡಿಟ್ ನೋಟ್ ಉಳಿಸಿ") }
+    var removeCreditNote: String { pick("Remove this credit note", "ಈ ಕ್ರೆಡಿಟ್ ನೋಟ್ ತೆಗೆದುಹಾಕಿ") }
+    var enterCreditNoteNumber: String { pick("Enter a note number", "ನೋಟ್ ಸಂಖ್ಯೆ ಬರೆಯಿರಿ") }
+    var changeTheCreditNoteNo: String { pick("Change the note number", "ನೋಟ್ ಸಂಖ್ಯೆ ಬದಲಾಯಿಸಿ") }
+    var itemsReturned: String { pick("Items returned", "ವಾಪಸ್ ಬಂದ ಸಾಮಾನು") }
+    var addReturnedItems: String { pick("Add returned items", "ವಾಪಸ್ ಬಂದ ಸಾಮಾನು ಸೇರಿಸಿ") }
+    var noCreditNotesYet: String { pick("No credit notes yet.", "ಇನ್ನೂ ಕ್ರೆಡಿಟ್ ನೋಟ್ ಇಲ್ಲ.") }
+
+    /// The one thing to know about a credit note: it is not money.
+    var creditNoteNotAPayment: String {
+        pick(
+            "Reduces what this customer owes without any money changing hands. Returned goods go back on the shelf.",
+            "ಹಣ ಬರದೆಯೇ ಈ ಗ್ರಾಹಕರ ಬಾಕಿ ಕಡಿಮೆ ಆಗುತ್ತದೆ. ವಾಪಸ್ ಬಂದ ಸಾಮಾನು ಮತ್ತೆ ದಾಸ್ತಾನಿಗೆ ಸೇರುತ್ತದೆ."
+        )
+    }
+
+    func creditNoteAlreadyUsed(date: String) -> String {
+        pick("Already used on \(date)", "\(date) ರಂದು ಬಳಸಲಾಗಿದೆ")
+    }
+
     // MARK: - Statement
 
     var statement: String { pick("Statement", "ಖಾತೆ ವಿವರ") }

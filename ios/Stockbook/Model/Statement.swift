@@ -134,6 +134,7 @@ struct Statement: Equatable {
     enum Entry: Equatable, Identifiable {
         case bill(Bill)
         case payment(Payment)
+        case creditNote(CreditNote)
         case purchase(Purchase)
         case supplierPayment(SupplierPayment)
 
@@ -141,6 +142,7 @@ struct Statement: Equatable {
             switch self {
             case .bill(let bill): bill.createdAt
             case .payment(let payment): payment.receivedAt
+            case .creditNote(let note): note.issuedAt
             case .purchase(let purchase): purchase.createdAt
             case .supplierPayment(let payment): payment.paidAt
             }
@@ -150,6 +152,7 @@ struct Statement: Equatable {
             switch self {
             case .bill(let bill): "bill-\(bill.number)"
             case .payment(let payment): "payment-\(payment.id.uuidString)"
+            case .creditNote(let note): "credit-note-\(note.id.uuidString)"
             case .purchase(let purchase): "purchase-\(purchase.id.uuidString)"
             case .supplierPayment(let payment): "supplier-payment-\(payment.id.uuidString)"
             }
@@ -160,7 +163,7 @@ struct Statement: Equatable {
             switch self {
             case .bill(let bill): bill.total
             case .purchase(let purchase): purchase.total
-            case .payment, .supplierPayment: 0
+            case .payment, .supplierPayment, .creditNote: 0
             }
         }
 
@@ -172,7 +175,18 @@ struct Statement: Equatable {
             case .purchase(let purchase): purchase.total - purchase.balance
             case .payment(let payment): payment.amount
             case .supplierPayment(let payment): payment.amount
+            case .creditNote(let note): note.total
             }
+        }
+
+        /// Whether this entry reduces the balance **without money moving**.
+        ///
+        /// Only a credit note does. It exists so the totals can keep cash and
+        /// credit apart while the running balance treats them identically —
+        /// which is exactly right, since both leave the customer owing less.
+        var isCredit: Bool {
+            if case .creditNote = self { return true }
+            return false
         }
     }
 
@@ -191,11 +205,23 @@ struct Statement: Equatable {
     /// Sum of live charges in the period: bills billed, or deliveries taken.
     let billed: Double
 
-    /// Everything settled during the period: paid on the bill or delivery itself,
-    /// plus payments made afterwards.
+    /// Everything settled during the period **with money**: paid on the bill or
+    /// delivery itself, plus payments made afterwards.
+    ///
+    /// Credit notes are not in here, deliberately — see `credited`. Both reduce
+    /// what is owed and only one of them is cash, and this is the figure a shop
+    /// reconciles its till against.
     let received: Double
 
-    /// `openingBalance + billed − received`. What they owe at the end of it.
+    /// Credited back over the period, with no money changing hands.
+    ///
+    /// Its own line on the document rather than folded into `billed` as a
+    /// negative charge: the owner needs to see what was invoiced and what was
+    /// given back as two facts, not as one net figure that hides both.
+    let credited: Double
+
+    /// `openingBalance + billed − received − credited`. What they owe at the end
+    /// of it.
     let closingBalance: Double
 
     /// The running balance after each entry, parallel to `entries`, so the
@@ -204,17 +230,21 @@ struct Statement: Equatable {
 
     var isEmpty: Bool { entries.isEmpty }
 
-    /// One customer's account: bills charge it, payments settle it.
+    /// One customer's account: bills charge it, payments settle it, credit notes
+    /// reduce it without settling anything.
     static func make(
         customer: Customer,
         bills: [Bill],
         payments: [Payment],
+        creditNotes: [CreditNote] = [],
         period: StatementPeriod,
         calendar: Calendar = .current
     ) -> Statement {
         make(
             party: customer.party,
-            entries: bills.map(Entry.bill) + payments.map(Entry.payment),
+            entries: bills.map(Entry.bill)
+                + payments.map(Entry.payment)
+                + creditNotes.map(Entry.creditNote),
             period: period,
             calendar: calendar
         )
@@ -261,7 +291,10 @@ struct Statement: Equatable {
 
         let inRange = ordered.filter { range.contains($0.date) }
         let billed = inRange.reduce(0) { $0 + $1.charge }
-        let received = inRange.reduce(0) { $0 + $1.settledAtOnce }
+        // Split by where the reduction came from, not by how big it was. Both
+        // still come off the running balance below, together.
+        let received = inRange.filter { !$0.isCredit }.reduce(0) { $0 + $1.settledAtOnce }
+        let credited = inRange.filter(\.isCredit).reduce(0) { $0 + $1.settledAtOnce }
 
         var running: [Double] = []
         var balance = opening
@@ -278,7 +311,8 @@ struct Statement: Equatable {
             entries: inRange,
             billed: billed,
             received: received,
-            closingBalance: opening + billed - received,
+            credited: credited,
+            closingBalance: opening + billed - received - credited,
             runningBalances: running
         )
     }

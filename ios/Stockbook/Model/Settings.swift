@@ -109,6 +109,9 @@ struct ShopState: Codable, Equatable {
     /// Money paid to a supplier after the delivery.
     var supplierPayments: [SupplierPayment] = []
 
+    /// What has been credited back to customers, newest first.
+    var creditNotes: [CreditNote] = []
+
     var settings: Settings = Settings()
 
     static let empty = ShopState()
@@ -121,6 +124,7 @@ struct ShopState: Codable, Equatable {
         suppliers: [SupplierRecord] = [],
         purchases: [Purchase] = [],
         supplierPayments: [SupplierPayment] = [],
+        creditNotes: [CreditNote] = [],
         settings: Settings = Settings()
     ) {
         self.products = products
@@ -130,6 +134,7 @@ struct ShopState: Codable, Equatable {
         self.suppliers = suppliers
         self.purchases = purchases
         self.supplierPayments = supplierPayments
+        self.creditNotes = creditNotes
         self.settings = settings
     }
 
@@ -150,6 +155,7 @@ struct ShopState: Codable, Equatable {
         suppliers = try container.decodeIfPresent([SupplierRecord].self, forKey: .suppliers) ?? []
         purchases = try container.decodeIfPresent([Purchase].self, forKey: .purchases) ?? []
         supplierPayments = try container.decodeIfPresent([SupplierPayment].self, forKey: .supplierPayments) ?? []
+        creditNotes = try container.decodeIfPresent([CreditNote].self, forKey: .creditNotes) ?? []
         settings = try container.decodeIfPresent(Settings.self, forKey: .settings) ?? Settings()
     }
 }
