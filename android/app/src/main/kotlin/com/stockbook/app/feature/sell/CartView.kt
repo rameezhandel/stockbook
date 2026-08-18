@@ -64,7 +64,6 @@ import com.stockbook.core.text.Strings
  * The bill being built. The most important screen in the app: it is what the
  * owner is looking at while a customer waits.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartView(
     cart: Cart,
@@ -76,34 +75,6 @@ fun CartView(
     onSave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var pickingDate by remember { mutableStateOf(false) }
-
-    if (pickingDate) {
-        val picker = rememberDatePickerState(initialSelectedDateMillis = cart.soldAt.toEpochMilli())
-        DatePickerDialog(
-            onDismissRequest = { pickingDate = false },
-            confirmButton = {
-                GhostButton(strings.done, onClick = {
-                    picker.selectedDateMillis?.let { millis ->
-                        // The picker hands back midnight UTC. Re-anchoring to
-                        // midday in the phone's own zone keeps the bill on the day
-                        // the owner tapped, whatever the offset — which is what the
-                        // statement buckets by.
-                        cart.soldAt = Instant.ofEpochMilli(millis)
-                            .atZone(ZoneOffset.UTC)
-                            .toLocalDate()
-                            .atTime(12, 0)
-                            .atZone(ZoneId.systemDefault())
-                            .toInstant()
-                    }
-                    pickingDate = false
-                })
-            }
-        ) {
-            DatePicker(state = picker)
-        }
-    }
-
     Column(modifier = modifier.fillMaxWidth()) {
         LazyColumn(
             modifier = Modifier.weight(1f),
@@ -140,6 +111,7 @@ fun CartView(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Footer(
     cart: Cart,
@@ -149,6 +121,34 @@ private fun Footer(
     strings: Strings,
     onSave: () -> Unit
 ) {
+    var pickingDate by remember { mutableStateOf(false) }
+
+    if (pickingDate) {
+        val picker = rememberDatePickerState(initialSelectedDateMillis = cart.soldAt.toEpochMilli())
+        DatePickerDialog(
+            onDismissRequest = { pickingDate = false },
+            confirmButton = {
+                GhostButton(strings.done, onClick = {
+                    picker.selectedDateMillis?.let { millis ->
+                        // The picker hands back midnight UTC. Re-anchoring to
+                        // midday in the phone's own zone keeps the bill on the day
+                        // the owner tapped, whatever the offset — which is what the
+                        // statement buckets by.
+                        cart.soldAt = Instant.ofEpochMilli(millis)
+                            .atZone(ZoneOffset.UTC)
+                            .toLocalDate()
+                            .atTime(12, 0)
+                            .atZone(ZoneId.systemDefault())
+                            .toInstant()
+                    }
+                    pickingDate = false
+                })
+            }
+        ) {
+            DatePicker(state = picker)
+        }
+    }
+
     // The bill already carrying this number, if the shop has written it twice.
     // Recomputed against `state` as well as the text, so a number freed by
     // voiding the bill that held it stops being a clash immediately.
