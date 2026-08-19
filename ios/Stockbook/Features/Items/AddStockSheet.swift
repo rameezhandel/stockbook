@@ -138,6 +138,7 @@ struct AddStockSheet: View {
                     NocturneDateField(
                         label: Loc.billDate,
                         date: $arrivedAt,
+                        height: Metrics.inputHeight,
                         identifier: "purchase.arrivedAt"
                     )
                 }

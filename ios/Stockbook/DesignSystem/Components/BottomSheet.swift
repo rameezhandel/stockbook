@@ -14,37 +14,28 @@ import SwiftUI
 /// tapping the scrim. Either add the gesture or do not draw the affordance;
 /// drawing it alone is the one option that teaches the owner the app ignores
 /// them.
-struct BottomSheetContainer<Content: View>: View {
-    let onDismiss: () -> Void
+
+/// The rounded card itself. The scrim behind it is a **sibling**, not a child —
+/// see `nocturneSheet`, which is the only thing that builds either.
+struct BottomSheetPanel<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Nocturne.scrim
-                .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture(perform: onDismiss)
-                .transition(.opacity)
-
-            VStack(spacing: 0) {
-                ScrollView {
-                    content
-                        .padding(.horizontal, Metrics.screenPadding)
-                        // The header still needs air above it, or it sits against
-                        // the rounded corner.
-                        .padding(.top, 16)
-                        .padding(.bottom, 32)
-                }
-                .scrollBounceBehavior(.basedOnSize)
+        VStack(spacing: 0) {
+            ScrollView {
+                content
+                    .padding(.horizontal, Metrics.screenPadding)
+                    // The header still needs air above it, or it sits against
+                    // the rounded corner.
+                    .padding(.top, 16)
+                    .padding(.bottom, 32)
             }
-            .frame(maxWidth: .infinity)
-            .background(Nocturne.surface)
-            .clipShape(TopRoundedRectangle(radius: Metrics.sheetRadius))
-            .shadow(color: Nocturne.sheetShadow, radius: 20, x: 0, y: -16)
-            .transition(.move(edge: .bottom))
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .frame(maxHeight: .infinity, alignment: .bottom)
-        .ignoresSafeArea(.keyboard, edges: .bottom)
+        .frame(maxWidth: .infinity)
+        .background(Nocturne.surface)
+        .clipShape(TopRoundedRectangle(radius: Metrics.sheetRadius))
+        .shadow(color: Nocturne.sheetShadow, radius: 20, x: 0, y: -16)
     }
 }
 
@@ -90,18 +81,36 @@ struct SheetHeader: View {
 
 extension View {
     /// Presents `content` as a Nocturne bottom sheet whenever `item` is non-nil.
+    ///
+    /// The scrim and the panel are separate `if`s inside one ZStack that is
+    /// always mounted, and that is the whole trick. They used to be children of
+    /// a single container view, each carrying its own `.transition` — and every
+    /// sheet in the app faded in anyway. A `.transition` only runs when *that*
+    /// view is the one being inserted; when an ancestor is inserted instead,
+    /// SwiftUI animates the ancestor with the default `.opacity` and the
+    /// transitions written inside it never get a turn. Lifting both out to
+    /// where the condition lives is what lets the scrim fade while the panel
+    /// slides up from the bottom edge.
     func nocturneSheet<Item: Identifiable, SheetContent: View>(
         item: Binding<Item?>,
         @ViewBuilder content: @escaping (Item) -> SheetContent
     ) -> some View {
         overlay {
-            ZStack {
+            ZStack(alignment: .bottom) {
+                if item.wrappedValue != nil {
+                    SheetScrim { item.wrappedValue = nil }
+                }
                 if let value = item.wrappedValue {
-                    BottomSheetContainer(onDismiss: { item.wrappedValue = nil }) {
-                        content(value)
-                    }
+                    BottomSheetPanel { content(value) }
+                        .transition(.move(edge: .bottom))
                 }
             }
+            // No frame on the stack itself: while nothing is presented it holds
+            // nothing, and a full-size empty layer over every screen is a thing
+            // to be sure about rather than to leave lying there. Presented, the
+            // scrim is a `Color` that takes whatever the overlay proposes — the
+            // whole screen — and the panel settles against its bottom edge.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .animation(Metrics.sheet, value: item.wrappedValue != nil)
         }
     }
@@ -117,14 +126,36 @@ extension View {
         @ViewBuilder content: @escaping () -> SheetContent
     ) -> some View {
         overlay {
-            ZStack {
+            ZStack(alignment: .bottom) {
                 if isPresented.wrappedValue {
-                    BottomSheetContainer(onDismiss: { isPresented.wrappedValue = false }) {
-                        content()
-                    }
+                    SheetScrim { isPresented.wrappedValue = false }
+                    BottomSheetPanel { content() }
+                        .transition(.move(edge: .bottom))
                 }
             }
+            // No frame on the stack itself: while nothing is presented it holds
+            // nothing, and a full-size empty layer over every screen is a thing
+            // to be sure about rather than to leave lying there. Presented, the
+            // scrim is a `Color` that takes whatever the overlay proposes — the
+            // whole screen — and the panel settles against its bottom edge.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .animation(Metrics.sheet, value: isPresented.wrappedValue)
         }
+    }
+}
+
+/// The dimmed ground behind a sheet, and the second way out of one.
+///
+/// Carries its own `.transition` because it is inserted directly into the
+/// sheet layer's stack, alongside the panel rather than inside it.
+struct SheetScrim: View {
+    let onTap: () -> Void
+
+    var body: some View {
+        Nocturne.scrim
+            .ignoresSafeArea()
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onTap)
+            .transition(.opacity)
     }
 }

@@ -47,6 +47,57 @@ fun Modifier.hairline(color: Color = Nocturne.neutral800, radius: Dp): Modifier 
 fun Modifier.card(radius: Dp = Metrics.cardRadius): Modifier =
     clip(RoundedCornerShape(radius)).background(Nocturne.surface)
 
+/**
+ * A date the owner can change: a label, the date itself, and a calendar behind
+ * a tap.
+ *
+ * The box is `NocturneField`'s, deliberately. This sits beside one on all four
+ * forms that record a document, and drawn as a bare line of accent text — which
+ * is what it was — it read as a label rather than as something that could be
+ * tapped. Everything the owner can change on these forms now looks the same.
+ *
+ * The dialog itself stays at the call site: each form owns the state the picker
+ * writes into, and hoisting it in here would mean handing back a `Long` from
+ * `DatePickerState` and re-anchoring the time zone in four places instead of
+ * one. See the iOS twin, `NocturneDateField`.
+ */
+@Composable
+fun DateField(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    height: Dp = Metrics.inputHeight
+) {
+    Column(modifier = modifier) {
+        Text(
+            label,
+            style = NocturneType.fieldLabel,
+            color = Nocturne.neutral400,
+            modifier = Modifier.padding(bottom = 5.dp)
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(height)
+                .clip(RoundedCornerShape(Metrics.controlRadius))
+                .background(Nocturne.bg)
+                .hairline(Nocturne.neutral800, Metrics.controlRadius)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 10.dp)
+        ) {
+            Text(
+                value,
+                style = NocturneType.inter(13.0),
+                color = Nocturne.accent,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
 /** A small uppercase section label — "RECENT BILLS". */
 @Composable
 fun Kicker(text: String, tint: Color = Nocturne.neutral500, modifier: Modifier = Modifier) {

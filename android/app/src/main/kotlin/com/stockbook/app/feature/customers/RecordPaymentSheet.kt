@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.stockbook.app.design.DateField
 import com.stockbook.app.design.FieldEmphasis
 import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Metrics
@@ -204,19 +205,13 @@ private fun PaymentSheet(
                 modifier = Modifier.weight(1f)
             )
             Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(dateLabel, style = NocturneType.fieldLabel, color = Nocturne.neutral400)
-                Spacer(Modifier.height(5.dp))
-                Text(
-                    strings.pickedDate(receivedAt),
-                    style = NocturneType.inter(13.0),
-                    color = Nocturne.accent,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(Metrics.controlRadius))
-                        .clickable { pickingDate = true }
-                        .padding(horizontal = 8.dp, vertical = 10.dp)
-                )
-            }
+            DateField(
+                label = dateLabel,
+                value = strings.pickedDate(receivedAt),
+                onClick = { pickingDate = true },
+                height = 40.dp,
+                modifier = Modifier.weight(1f)
+            )
         }
 
         if (clash != null) {

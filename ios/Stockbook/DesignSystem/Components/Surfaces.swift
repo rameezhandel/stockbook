@@ -149,7 +149,11 @@ struct ScreenHeader<Trailing: View>: View {
                 }
             }
             Spacer(minLength: 12)
-            trailing
+            // The buttons get their width first and the title takes what is
+            // left. Without this the two share the shortfall, and "Inventory"
+            // — the longest label any header carries — came out truncated
+            // beside a title that had plenty of room to give.
+            trailing.layoutPriority(1)
         }
         .padding(.horizontal, Metrics.screenPadding)
         .padding(.bottom, bottomPadding)

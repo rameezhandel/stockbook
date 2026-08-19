@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.stockbook.app.design.DateField
 import com.stockbook.app.design.FieldEmphasis
 import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Glyph
@@ -241,28 +242,13 @@ private fun PaperRow(
                 modifier = Modifier.weight(1f)
             )
             Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(strings.billDate, style = NocturneType.fieldLabel, color = Nocturne.neutral500)
-                Spacer(Modifier.height(5.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .clip(RoundedCornerShape(Metrics.controlRadius))
-                        .hairline(Nocturne.neutral800, Metrics.controlRadius)
-                        .clickable(onClick = onPickDate)
-                        .padding(horizontal = 10.dp)
-                ) {
-                    Text(
-                        strings.pickedDate(cart.soldAt),
-                        style = NocturneType.inter(13.0),
-                        color = Nocturne.text,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+            DateField(
+                label = strings.billDate,
+                value = strings.pickedDate(cart.soldAt),
+                onClick = onPickDate,
+                height = 40.dp,
+                modifier = Modifier.weight(1f)
+            )
         }
 
         // Named, not merely reported: "already used" leaves the owner hunting,

@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.stockbook.app.design.DateField
 import com.stockbook.app.design.FieldEmphasis
 import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Glyph
@@ -155,19 +156,13 @@ fun CreditNoteSheet(
                 modifier = Modifier.weight(1f)
             )
             Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(strings.creditedOn, style = NocturneType.fieldLabel, color = Nocturne.neutral400)
-                Spacer(Modifier.height(5.dp))
-                Text(
-                    strings.pickedDate(issuedAt),
-                    style = NocturneType.inter(13.0),
-                    color = Nocturne.accent,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(Metrics.controlRadius))
-                        .clickable { pickingDate = true }
-                        .padding(horizontal = 8.dp, vertical = 10.dp)
-                )
-            }
+            DateField(
+                label = strings.creditedOn,
+                value = strings.pickedDate(issuedAt),
+                onClick = { pickingDate = true },
+                height = 40.dp,
+                modifier = Modifier.weight(1f)
+            )
         }
 
         if (clash != null) {

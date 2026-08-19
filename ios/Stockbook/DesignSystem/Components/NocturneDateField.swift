@@ -19,6 +19,9 @@ import SwiftUI
 struct NocturneDateField: View {
     let label: String
     @Binding var date: Date
+    /// Matched to the field it stands beside, which is 40 on three of the four
+    /// forms and `Metrics.inputHeight` on the delivery sheet.
+    var height: CGFloat = 40
     /// So UI tests can find a field whose visible label is a separate view.
     var identifier: String?
 
@@ -43,8 +46,15 @@ struct NocturneDateField: View {
                     // A long month name in Kannada should shrink rather than
                     // truncate: half a date is worse than a small one.
                     .minimumScaleFactor(0.75)
-                    .padding(.horizontal, 8)
-                    .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    // The same box `NocturneField` draws, because this sits
+                    // beside one on all four forms and a bare line of text next
+                    // to a bordered box reads as a label rather than something
+                    // that can be tapped.
+                    .frame(height: height)
+                    .background(Nocturne.bg, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
+                    .hairline(Nocturne.neutral800, radius: Metrics.controlRadius)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

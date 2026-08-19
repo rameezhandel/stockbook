@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.text.style.TextOverflow
 import com.stockbook.app.design.ChoicePill
+import com.stockbook.app.design.DateField
 import com.stockbook.app.design.FieldEmphasis
 import com.stockbook.app.design.Glyph
 import androidx.compose.material3.DatePicker
@@ -302,28 +303,12 @@ fun AddStockSheet(
                 modifier = Modifier.weight(1f)
             )
             Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(strings.billDate, style = NocturneType.fieldLabel, color = Nocturne.neutral500)
-                Spacer(Modifier.height(5.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(Metrics.inputHeight)
-                        .clip(RoundedCornerShape(Metrics.controlRadius))
-                        .hairline(Nocturne.neutral800, Metrics.controlRadius)
-                        .clickable { pickingDate = true }
-                        .padding(horizontal = 10.dp)
-                ) {
-                    Text(
-                        strings.pickedDate(arrivedAt),
-                        style = NocturneType.inter(13.0),
-                        color = Nocturne.text,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+            DateField(
+                label = strings.billDate,
+                value = strings.pickedDate(arrivedAt),
+                onClick = { pickingDate = true },
+                modifier = Modifier.weight(1f)
+            )
         }
         if (clash != null) {
             Text(
