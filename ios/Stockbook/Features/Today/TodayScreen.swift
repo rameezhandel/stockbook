@@ -45,6 +45,8 @@ struct TodayScreen: View {
                     // attached to it.
                     soldCard
                     statCards(owed, payable)
+                    // Money first, then what to do, then what needs attention.
+                    quickActions
                     owedBanner(owed, followedByPayable: !payable.names.isEmpty)
                     payableBanner(payable)
                     runningLow
@@ -159,6 +161,54 @@ struct TodayScreen: View {
             StatCard(label: Loc.payableStat, value: Money.text(payable.total, in: currency))
         }
         .padding(.bottom, Metrics.cardGap)
+    }
+
+    // MARK: Starting something
+
+    /// The three things the owner begins from nothing, on the screen they land
+    /// on.
+    ///
+    /// Home was entirely reports: every card answered a question and not one of
+    /// them could be pressed. Two of these were also genuinely far away — a
+    /// delivery was reachable only from the Items header, a new customer only
+    /// from the filter at the top of the Book — which is a long way round for the
+    /// two things that happen when a van pulls up outside.
+    ///
+    /// A bill is the exception: Sell is already a tab, so this saves no taps. It
+    /// is here because a row of two would look like something was missing, and
+    /// because starting a bill is what the owner came to do.
+    private var quickActions: some View {
+        HStack(spacing: Metrics.cardGap) {
+            quickAction(Loc.startABill, icon: Icon.sell) { router.startBill() }
+            quickAction(Loc.itemsRecordDelivery, icon: Icon.addStock) { router.recordDelivery() }
+            quickAction(Loc.addACustomer, icon: Icon.customer) { router.openNewCustomer() }
+        }
+        .padding(.bottom, 18)
+    }
+
+    private func quickAction(_ title: String, icon: String, run: @escaping () -> Void) -> some View {
+        Button(action: run) {
+            VStack(spacing: 7) {
+                Glyph(icon, size: 18)
+                    .foregroundStyle(Nocturne.accent)
+                // Two lines allowed, because "Add a customer" does not fit on one
+                // at a third of the width and Kannada is longer again.
+                Text(title)
+                    .font(NocturneType.inter(11.5))
+                    .foregroundStyle(Nocturne.neutral400)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .padding(.horizontal, 6)
+            .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+            .hairline(radius: Metrics.cardRadius)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Owed

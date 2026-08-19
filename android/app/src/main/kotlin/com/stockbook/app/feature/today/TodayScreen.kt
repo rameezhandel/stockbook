@@ -126,6 +126,10 @@ fun TodayScreen(
                     )
                 }
                 Spacer(Modifier.height(Metrics.cardGap))
+
+                // Money first, then what to do, then what needs attention.
+                QuickActions(strings = strings, router = router)
+                Spacer(Modifier.height(18.dp))
             }
 
             if (owedNames.isNotEmpty()) {
@@ -253,6 +257,75 @@ private fun LowStockRow(
             strings.stockLabel(product.stock),
             style = NocturneType.inter(13.0),
             color = Nocturne.accent400
+        )
+    }
+}
+
+/**
+ * The three things the owner begins from nothing, on the screen they land on.
+ *
+ * Home was entirely reports: every card answered a question and not one of them
+ * could be pressed. Two of these were also genuinely far away — a delivery was
+ * reachable only from the Items header, a new customer only from the filter at
+ * the top of the Book — which is a long way round for the two things that happen
+ * when a van pulls up outside.
+ *
+ * A bill is the exception: Sell is already a tab, so this saves no taps. It is
+ * here because a row of two would look like something was missing, and because
+ * starting a bill is what the owner came to do.
+ */
+@Composable
+private fun QuickActions(strings: Strings, router: AppRouter) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        QuickAction(
+            title = strings.startABill,
+            icon = Icon.sell,
+            onClick = { router.startBill() },
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(Modifier.width(Metrics.cardGap))
+        QuickAction(
+            title = strings.itemsRecordDelivery,
+            icon = Icon.addStock,
+            onClick = { router.recordingDelivery = true },
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(Modifier.width(Metrics.cardGap))
+        QuickAction(
+            title = strings.addACustomer,
+            icon = Icon.customer,
+            onClick = { router.openNewCustomer() },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun QuickAction(
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .card()
+            .hairline(radius = Metrics.cardRadius)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 13.dp)
+    ) {
+        Glyph(icon, size = 18.dp, tint = Nocturne.accent)
+        Spacer(Modifier.height(7.dp))
+        // Two lines allowed, because "Add a customer" does not fit on one at a
+        // third of the width and Kannada is longer again.
+        Text(
+            title,
+            style = NocturneType.inter(11.5),
+            color = Nocturne.neutral400,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
