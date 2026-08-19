@@ -13,7 +13,9 @@ languages, and the same file format.
 
 1. **No network calls, ever.** No analytics, no crash reporting, no sync. Both
    apps are fully functional in airplane mode on first launch. The Android APK
-   declares no permissions at all, and CI fails the build if one appears.
+   declares no permissions at all, and CI fails the build if one appears — a
+   check the camera survived, because photographing a bill goes through the
+   phone's own camera app rather than asking for `CAMERA`.
 2. **All persistence is local.** A dropped phone loses everything unless the
    owner exported a file, and both apps keep saying so until one exists.
 3. **Single user.** No login, no roles, no tenancy.
@@ -36,13 +38,23 @@ languages, and the same file format.
 
 - **The backup file.** `BackupDocument` is byte-compatible across both: same
   keys, same ISO-8601 timestamps, same absent-means-paid-in-full rule, same
-  format version. A shop exported from an iPhone opens on Android and back
-  again, and that is tested against literal files written by each.
+  format version — **3**. A shop exported from an iPhone opens on Android and
+  back again, and that is tested against literal files written by each.
+
+  The version bumps only when an older reader would *misinterpret* the new
+  shape, not merely lose a label. Credit notes bumped it, because a reader that
+  dropped them would show every credited customer owing more than they do.
+  Invoice numbers, receipt numbers, the shop address and photograph references
+  did not: a reader that ignores those loses a label, not a figure.
 - **Both string tables**, key for key, in English and Kannada. A string added to
   one app and not the other fails a test rather than shipping.
 - **Every domain rule.** Each core store method has a twin on the other side,
   and the arithmetic they disagree on is a bug in one of them — that is how the
   paid-in-full divergence got caught.
+- **What a printed document says.** `StatementDocument` holds every label and
+  every already-formatted figure, so the two PDF renderers — Core Graphics on
+  one side, a `Canvas` on the other — only ever decide how to draw boxes, never
+  what a row is called or what goes in it.
 
 ## Building
 
@@ -63,7 +75,7 @@ xcodebuild test -scheme Stockbook \
 **Android** — JDK 17+, Android Studio only for the UI:
 
 ```sh
-cd android && ./gradlew :core:test     # 186 tests, ~12s, no SDK or emulator needed
+cd android && ./gradlew :core:test     # 251 tests, ~15s, no SDK or emulator needed
 cd android && ./gradlew :app:assembleDebug
 ```
 
@@ -79,11 +91,25 @@ CI builds and tests both apps on every push —
 
 ## Status
 
-Both apps are feature-complete against the spec and at parity with each other:
-Today, Items, Sell, Bills, the Book (customers and suppliers), Customers,
-Settings, and first-run setup are built on both platforms, along with backup
-export and import.
+Both apps are feature-complete and at parity with each other. Four tabs —
+**Home**, **Items**, **Sales** and **Reports** — plus first-run setup, Settings,
+and backup export and import.
 
-What is left before release is in [`BACKLOG.md`](BACKLOG.md) — TestFlight's
-Apple-side setup, branch cleanup, and the launcher icon and bundled fonts. None
-of it is app code.
+Built on top of the original spec since:
+
+- **Customer statements**, on screen and as a **PDF** either phone can share.
+  The wording and every figure come from one shared `StatementDocument`, so two
+  entirely different graphics stacks print the same document.
+- **Credit notes** — a figure, or the goods that came back, with their own
+  numbering, shown on the statement and taken off what is owed.
+- **Photographs of the paper bill**, taken while writing it or added to a saved
+  one. Stored on the phone; see the note in `BACKLOG.md` about the export.
+- **Typed numbers throughout** — invoice, credit note and receipt numbers are
+  all written by the owner, never auto-generated, each checked against its own
+  series.
+- **The shop's printed address**, and monthly sales on Home over a month or year
+  you pick.
+- **Import from a backup file during first-run setup**, so a new phone starts as
+  the old one left off.
+
+What is left before release is in [`BACKLOG.md`](BACKLOG.md).

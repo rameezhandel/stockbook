@@ -17,9 +17,10 @@ resolution, no `pod install`.
 ## The three constraints everything else follows from
 
 1. **No network calls, ever.** No analytics, no crash reporting, no remote
-   config, no CloudKit — `ModelStack` passes `cloudKitDatabase: .none`
-   explicitly so nobody adds sync by accident. The app is fully functional in
-   airplane mode on first launch.
+   config, no CloudKit — there is no networking code and no sync framework in
+   the target at all, and no dependency that could bring one in. The app is
+   fully functional in airplane mode on first launch. The one thing it asks the
+   phone for is `NSCameraUsageDescription`, so a bill can be photographed.
 2. **All persistence is local.** A dropped phone loses everything unless the
    owner exported a file, and the UI keeps saying so.
 3. **Single user.** No login, no roles, no tenancy.
@@ -398,33 +399,35 @@ both it and setup step 4.
 - `Cart` — line management, price override, payment mode, the save gate.
 - The backup format, its validation, file export via `.fileExporter`, and the
   destructive-replace import path.
-- **Today** — stats, the owed banner (counting distinct people, not bills), the
-  payables banner beside it, recent bills, and a backup nudge that writes a real
-  file.
+- **Home** — what the shop sold over a month or a year you pick, what is pending
+  to collect and pending to pay, the owed banner (counting distinct people, not
+  bills), and recent bills.
 - **Items** — search, rows with margin and stock colouring, empty states, and the
   supplier panel folded underneath: this is where stock comes from, and where
   somebody is standing when "who did we get these from, and have we paid them?"
   comes up.
-- **Sell** — product picker and cart: per-line stepper with live stock, the
+- **Sales** — product picker and cart: per-line stepper with live stock, the
   editable price with its override treatment and Reset, the customer chosen from
   the roster through an upward scrolling picker that can also create one on the
   spot, full/part payment, and save.
 - **The number on the paper, and the day it happened** — a bill and a delivery
   both carry the number written on the physical paper, and both can be entered
-  for the day they actually happened rather than the day they were typed. On the
-  sell screen the number is **suggested**: one past the last one the shop wrote,
-  digits only ("A-0099" → "A-0100"), so the usual bill needs no typing and the run
-  starts wherever the shop's own book starts. Typing a number that is already on
-  another bill — or on another delivery, whoever it came from — names the clash
-  and refuses the save until it is changed.
+  for the day they actually happened rather than the day they were typed.
 
-  **Required on both sides of the book.** A record with no number cannot be
-  matched to the paper it came from, which is the whole reason for keeping the
-  number — so neither screen saves without one, the field is marked while it is
-  empty, and the button says which thing is missing. On a bill it costs no typing,
-  since the box arrives prefilled; on a delivery it is copied off the invoice that
-  came with the stock. A document being **corrected** is left out of its own
-  duplicate check, and removing one frees its number again.
+  **Always typed, never suggested.** An earlier build offered the next number up
+  from the last one written; it was taken out. A bill book skips numbers, gets
+  reused, and starts partway through, so a guessed value is the app inventing a
+  run the paper does not have. Typing a number already on another bill — or on
+  another delivery, whoever it came from — names the clash and refuses the save
+  until it is changed.
+
+  **Required, and on four separate series.** A record with no number cannot be
+  matched to the paper it came from, which is the whole reason for keeping one —
+  so bills, deliveries, credit notes and receipts each demand theirs, and each is
+  checked only against its own book. Receipt 1024 and invoice 1024 are different
+  slips, and refusing that would be the app inventing a rule the shop's paper
+  does not have. A document being **corrected** is left out of its own duplicate
+  check, and removing one frees its number again.
 
   `Bill.number` is untouched by all of this. It stays the app's own counter and
   the thing identity is built on; the typed number is a **label**, and conflating
@@ -432,8 +435,24 @@ both it and setup step 4.
   what it is told — the refusal is the screen's, because a screen can hand the
   number back to the person who typed it and a restored backup cannot.
 - **Receipt** — the full-screen confirmation, including the faded rule.
-- **Bills** — full history newest-first, and a customer filter. Tapping any bill on Bills or Today opens it as a
-  document.
+- **Reports** — full history newest-first, and a customer filter, with the
+  supplier half of the book beside it. Tapping any bill here or on Home opens it
+  as a document.
+- **Statements** — one customer's account over a month, a year or a range you
+  pick: opening balance, what was billed, what came in, what was credited, and
+  every document in between. Shareable as plain text or as a **PDF** laid out
+  like a printed statement. Both platforms draw it from one shared
+  `StatementDocument`, so the wording and the figures cannot drift apart.
+- **Credit notes** — a figure agreed across the counter, or the goods that came
+  back, with their own numbering. They come off what the customer owes without
+  money moving, put returned stock back on the shelf, and appear on the
+  statement.
+- **Photographs of the paper bill** — taken while writing it or added to a saved
+  one, from the camera or the photo library. Shrunk on the way in, kept in the
+  app container, and never in the photo library. The bill stores ids; whether
+  this phone still has the file is asked of the disk every time, so a book
+  restored ahead of its pictures says "not on this phone" rather than pretending
+  there was never a photograph.
 - **Customers** — a stored roster of the typed-in facts (name, phone, place)
   merged with the figures derived from history, keyed case-insensitively so
   `"ahmed "` and `"Ahmed"` are one person. Entered during setup's optional fourth
@@ -497,7 +516,7 @@ both it and setup step 4.
 - **Currency selection** — fourteen currencies, picked in setup and changeable
   in Settings.
 - **Product editor** and **Add stock** sheets, both complete.
-- Around 200 tests over the domain layer.
+- **264 tests** over the domain layer, run in CI on every push.
 
 ## What is not built yet
 

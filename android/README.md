@@ -17,7 +17,7 @@ android/
 format. It has **no Android dependency at all**, which means:
 
 ```sh
-cd android && ./gradlew :core:test        # 186 tests, about 12 seconds
+cd android && ./gradlew :core:test        # 251 tests, about 15 seconds
 ```
 
 runs on any machine with a JDK — no SDK, no emulator, no Google servers. That is
@@ -32,11 +32,16 @@ Google's Maven, so it builds in CI and in Android Studio.
 
 - **The backup file.** `BackupDocument` is byte-compatible with the iOS build:
   same keys, same ISO-8601 timestamps, same absent-means-paid-in-full rule, same
-  format version — 2, bumped once when suppliers and money paid out arrived,
-  because a reader that ignored them would tell the owner the shop owes nobody
-  anything. A shop exported from an iPhone opens on Android and back again,
-  which is tested against a literal iPhone-written file. `productUID` is spelled the way Swift spells it for
-  exactly that reason.
+  format version — **3**. It bumps only when an older reader would
+  *misinterpret* the new shape, not merely lose a label: suppliers and money
+  paid out made it 2, because a reader that ignored them would tell the owner
+  the shop owes nobody anything, and credit notes made it 3, because a reader
+  that dropped those would show every credited customer owing more than they do.
+  Invoice numbers, receipt numbers, the shop address and photograph references
+  did **not** bump it — a reader that ignores those loses a label, not a figure.
+  A shop exported from an iPhone opens on Android and back again, which is
+  tested against a literal iPhone-written file. `productUID` is spelled the way
+  Swift spells it for exactly that reason.
 
   The two decoders are not equally strict, and it is worth knowing which way.
   Kotlin fills a missing key from the field's default; Swift throws unless the
@@ -65,7 +70,20 @@ trip test caught this; nothing on a screen would have.
 
 ## Nothing leaves the phone
 
-The manifest asks for **no permissions at all** — not INTERNET, not storage.
+The manifest asks for **no permissions at all** — not INTERNET, not storage, and
+not CAMERA.
+
+That last one survived the photograph feature rather than being an
+oversight. Android requires `CAMERA` for `ACTION_IMAGE_CAPTURE` **only from apps
+that declare it**; an app that declares nothing is handed the picture by the
+phone's own camera app without the owner being asked for anything. The gallery
+goes through `PickVisualMedia`, which needs no permission on any version. Photos
+are written to the app's private storage, which needs none either — and are
+therefore invisible to the gallery, to other apps' pickers, and to the Files app.
+
+CI does not take this on trust: it runs `aapt2 dump permissions` over the built
+APK on every push and fails the build on anything but the one signature-level
+line `androidx.core` contributes for its own runtime receivers.
 `data_extraction_rules.xml` opts out of Google's own backup transport in both
 directions, because "all persistence is local" would be a half-truth if the shop
 were quietly synced to a Google account behind the owner's back. The only copy
@@ -109,18 +127,22 @@ live here.
 
 Everything the iOS app does.
 
-- **The whole domain**, with 189 tests: products, bills, editing and removing, restock,
+- **The whole domain**, with 251 tests: products, bills, editing and removing, restock,
   customers and their case-insensitive identity, the stored roster and the
   payments that come off what is owed, statement periods and their arithmetic,
   money in fourteen currencies,
   English and Kannada, the storage seam with two implementations run against one
   contract suite, and the backup format including its compatibility with iOS.
-- **All four tabs** — Today, Items (with the supplier panel under the shelves),
-  Sell and Bills — plus first-run setup and its optional third step for customers,
-  the purchase entry with its chosen-not-typed supplier picker, the product editor and add-stock
-  sheets, the customer editor, the record-a-payment sheet, the statement
-  document, the receipt, the bill document, the customer filter, Settings and the
-  backup handoff.
+- **All four tabs** — Home, Items (with the supplier panel under the shelves),
+  Sales and Reports — plus first-run setup with its optional customer step and
+  its import-from-backup route, the purchase entry with its chosen-not-typed
+  supplier picker, the product editor and add-stock sheets, the customer editor,
+  the record-a-payment sheet, the credit-note sheet, the statement on screen and
+  as a shareable PDF, the receipt, the bill document, the customer filter,
+  Settings and the backup handoff.
+- **Photographs of the paper bill** — camera or gallery, from the bill form
+  while it is being written or from a saved bill afterwards. See below for how
+  that keeps the permission promise.
 - The design system: both palettes, named type roles, metrics, motion, and the
   Phosphor-to-Material icon map — plus the dark/light switch in Settings, which
   also tells the status bar and the few Material surfaces (menus, the date
@@ -134,7 +156,7 @@ difference is worth recording rather than quietly enjoying:
 
 | | iOS | Android |
 | --- | --- | --- |
-| Keyboard must not move the layout | four screen-level declarations, found one bug at a time | `windowSoftInputMode="adjustNothing"`, once, in the manifest |
+| Keyboard must not move the layout | four screen-level declarations, found one bug at a time | `windowSoftInputMode`, once, in the manifest |
 | Next/Done between fields | a screen-level focus router and a hand-built toolbar, because a numeric keypad has no return key | `ImeAction.Next` on the field |
 | Getting it on the phone | developer account, API key, signing, TestFlight, ~20 minutes | download the CI artifact and tap it |
 | A new field on a stored type | the synthesised decoder throws on a missing key even with a default, so every shop already on a phone fails to load — `ShopState` decodes by hand | kotlinx.serialization applies the default; nothing to write |
@@ -155,3 +177,10 @@ height, and neither platform's stock sheet exposes those.
   limitation the iOS README explains.
 - **The launcher icon is a placeholder** — a mark, not the iOS icon redrawn for
   Android's adaptive shapes.
+- **`:app` has no local test task.** The domain is covered in seconds; the
+  Compose layer and the platform code beneath it are checked by compiling. That
+  gap is not theoretical — the first build of `PhotoStore` refused every
+  photograph, because `BitmapFactory.decodeStream` returns null by contract when
+  `inJustDecodeBounds` is set and that null was read as failure. Nothing in CI
+  could have caught it.
+- **Photographs do not travel in the backup file** — see `../BACKLOG.md`.
