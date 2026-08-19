@@ -147,6 +147,17 @@ private struct AppShell: View {
                     .zIndex(3)
             }
 
+            // One person, full screen, over whichever half of the book they were
+            // opened from. Below the statement, which is reached *from* here and
+            // has to sit on top of it.
+            if let key = router.partyFor {
+                PartyScreen(partyKey: key, isSupplier: router.partyIsSupplier) {
+                    router.partyFor = nil
+                }
+                .transition(.move(edge: .trailing))
+                .zIndex(3.5)
+            }
+
             // A document rather than a sheet: it runs to a page, and it is the
             // one screen here the owner may turn round and show a customer.
             if let key = router.statementFor {
@@ -164,6 +175,7 @@ private struct AppShell: View {
         .animation(Metrics.quick, value: router.showingSettings)
         .animation(Metrics.quick, value: router.showingBackup)
         .animation(Metrics.quick, value: router.receipt?.number)
+        .animation(Metrics.quick, value: router.partyFor)
         .animation(Metrics.quick, value: router.statementFor)
         .animation(Metrics.quick, value: router.supplierStatementFor)
         .nocturneSheet(item: $router.productEditor) { target in

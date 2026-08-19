@@ -549,6 +549,21 @@ final class StockbookStore {
         customers().first { $0.key == key }
     }
 
+    /// The customer directory: everybody, filtered by what has been typed, in the
+    /// order somebody looks a person up.
+    ///
+    /// A separate function rather than an argument on `customers()`, because the
+    /// two orders answer different questions and neither can be the other's
+    /// default. `customers()` is biggest-debt-first, which is what Today's banner
+    /// and the owed sheets are built on. This one is by name, because a screen you
+    /// go to in order to find Fatima is no use sorted by what Fatima happens to
+    /// owe.
+    func customers(matching query: String) -> [Customer] {
+        customers()
+            .filter { Self.partyMatches(name: $0.name, phone: $0.phone, query: query) }
+            .sorted { $0.name.lowercased() < $1.name.lowercased() }
+    }
+
     /// Adds a customer to the roster. A key already present is updated rather
     /// than duplicated — typing a name that is already there is a correction, not
     /// a second person.
@@ -1020,6 +1035,28 @@ final class StockbookStore {
 
     func supplier(key: String) -> Supplier? {
         suppliers().first { $0.key == key }
+    }
+
+    /// The supplier directory. `customers(matching:)` mirrored.
+    func suppliers(matching query: String) -> [Supplier] {
+        suppliers()
+            .filter { Self.partyMatches(name: $0.name, phone: $0.phone, query: query) }
+            .sorted { $0.name.lowercased() < $1.name.lowercased() }
+    }
+
+    /// Whether one person answers to what has been typed.
+    ///
+    /// Name and phone, because those are the two things written on the paper the
+    /// owner is holding. A blank query matches everybody — the box is empty far
+    /// more often than it is full, and a stray space must not empty the screen.
+    private static func partyMatches(name: String, phone: String?, query: String) -> Bool {
+        let wanted = query.trimmed.lowercased()
+        if wanted.isEmpty { return true }
+        if name.lowercased().contains(wanted) { return true }
+        // Not `?? ""`: an absent phone must read as "no match" rather than as an
+        // empty string that every query is a substring of.
+        guard let phone else { return false }
+        return phone.lowercased().contains(wanted)
     }
 
     /// Adds a supplier to the roster. A key already there is corrected rather

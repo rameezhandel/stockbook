@@ -73,6 +73,16 @@ final class AppRouter {
     /// A delivery opened from the book, the way a bill is opened from history.
     var purchaseDetail: Purchase?
 
+    /// One party's screen, full width: a customer key, or a supplier key with
+    /// `partyIsSupplier` set.
+    ///
+    /// A key rather than the `Customer` itself, for the same reason
+    /// `statementFor` is a key — taking a payment while the screen is open
+    /// changes every figure on it, so the screen has to re-read the person rather
+    /// than show a copy taken when it opened.
+    var partyFor: String?
+    var partyIsSupplier = false
+
     /// Set when the add-stock sheet should open on its purchase half.
     var startingPurchase = false
 
@@ -171,11 +181,22 @@ final class AppRouter {
         billDetail = bill
     }
 
+    func openCustomerScreen(_ key: String) {
+        partyIsSupplier = false
+        partyFor = key
+    }
+
+    func openSupplierScreen(_ key: String) {
+        partyIsSupplier = true
+        partyFor = key
+    }
+
     func startBill() {
         tab = .sell
     }
 
     func closeOverlays() {
+        partyFor = nil
         productEditor = nil
         addStock = nil
         receipt = nil
