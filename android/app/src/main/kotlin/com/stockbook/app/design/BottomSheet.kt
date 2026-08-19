@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -34,9 +33,16 @@ import androidx.compose.ui.unit.dp
  * Bottom sheets, drawn by the app rather than by Material's `ModalBottomSheet`.
  *
  * The design is specific in ways the system sheet does not expose: an
- * `rgba(16,17,28,0.74)` scrim, rounding on the **top corners only**, a 38×4 grab
- * handle, a maximum height of 84%, and the tab bar staying visible behind the
- * scrim. Drawing it here gives all of that.
+ * `rgba(16,17,28,0.74)` scrim, rounding on the **top corners only**, a maximum
+ * height of 84%, and the tab bar staying visible behind the scrim. Drawing it
+ * here gives all of that.
+ *
+ * There is **no grab handle**. The design called for one and it was drawn, but
+ * this sheet has no drag gesture — the handle was an invitation to do something
+ * that did nothing. A sheet closes by its own Close or Done button, or by
+ * tapping the scrim. Either add the gesture or do not draw the affordance;
+ * drawing it alone is the one option that teaches the owner the app ignores
+ * them.
  */
 @Composable
 fun BottomSheet(
@@ -80,15 +86,9 @@ fun BottomSheet(
                         onClick = {}
                     )
             ) {
-                Spacer(Modifier.height(10.dp))
-                Box(
-                    modifier = Modifier
-                        .width(38.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Nocturne.neutral800)
-                )
-                Spacer(Modifier.height(12.dp))
+                // The header still needs air above it, or it sits against the
+                // rounded corner.
+                Spacer(Modifier.height(16.dp))
 
                 Column(
                     modifier = Modifier

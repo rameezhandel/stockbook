@@ -4,10 +4,16 @@ import SwiftUI
 ///
 /// The design is specific in ways the system sheet does not expose: an
 /// `rgba(16,17,28,0.74)` scrim, 18px rounding on the **top corners only**, a
-/// `0 -16px 40px rgba(0,0,0,0.65)` shadow, a 38×4 grab handle, and a max height
-/// of 84%. Presenting it as an overlay inside the app's own root stack gives us
-/// all of that and keeps the tab bar visible behind the scrim, which is what the
-/// prototype does.
+/// `0 -16px 40px rgba(0,0,0,0.65)` shadow, and a max height of 84%. Presenting
+/// it as an overlay inside the app's own root stack gives us all of that and
+/// keeps the tab bar visible behind the scrim, which is what the prototype does.
+///
+/// There is **no grab handle**. The design called for one and it was drawn, but
+/// this sheet has no drag gesture — the handle was an invitation to do something
+/// that did nothing. A sheet closes by its own Close or Done button, or by
+/// tapping the scrim. Either add the gesture or do not draw the affordance;
+/// drawing it alone is the one option that teaches the owner the app ignores
+/// them.
 struct BottomSheetContainer<Content: View>: View {
     let onDismiss: () -> Void
     @ViewBuilder var content: Content
@@ -21,15 +27,12 @@ struct BottomSheetContainer<Content: View>: View {
                 .transition(.opacity)
 
             VStack(spacing: 0) {
-                Capsule()
-                    .fill(Nocturne.neutral800)
-                    .frame(width: 38, height: 4)
-                    .padding(.top, 10)
-                    .padding(.bottom, 12)
-
                 ScrollView {
                     content
                         .padding(.horizontal, Metrics.screenPadding)
+                        // The header still needs air above it, or it sits against
+                        // the rounded corner.
+                        .padding(.top, 16)
                         .padding(.bottom, 32)
                 }
                 .scrollBounceBehavior(.basedOnSize)
