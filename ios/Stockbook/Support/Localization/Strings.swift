@@ -91,8 +91,15 @@ struct Strings {
     var receivableStat: String { pick("To collect", "ಬರಬೇಕಾದ ಬಾಕಿ") }
     var payableStat: String { pick("To pay", "ಕೊಡಬೇಕಾದ ಬಾಕಿ") }
     var billsStat: String { pick("Bills", "ಬಿಲ್‌ಗಳು") }
-    var recentBills: String { pick("Recent bills", "ಇತ್ತೀಚಿನ ಬಿಲ್‌ಗಳು") }
-    var noBillsToday: String { pick("No bills yet today.", "ಇಂದು ಇನ್ನೂ ಒಂದೂ ಬಿಲ್ ಆಗಿಲ್ಲ.") }
+    // What Home shows under the two banners.
+    //
+    // Not recent bills: that list is the Reports tab, and repeating it on the
+    // screen the owner lands on spends the best space in the app on something
+    // one tap away. What belongs here is what they can *do* something about
+    // while standing at the counter — and the shelf running out is the one thing
+    // nothing else in the app volunteers.
+    var runningLow: String { pick("Running low", "ಕಡಿಮೆ ಆಗುತ್ತಿದೆ") }
+    var nothingRunningLow: String { pick("Nothing running low.", "ಯಾವುದೂ ಕಡಿಮೆ ಆಗಿಲ್ಲ.") }
 
     func greeting(_ firstName: String) -> String {
         pick("Hello, \(firstName)", "ನಮಸ್ಕಾರ, \(firstName)")

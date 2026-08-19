@@ -87,8 +87,15 @@ class Strings(val language: AppLanguage) {
     val receivableStat: String get() = pick("To collect", "ಬರಬೇಕಾದ ಬಾಕಿ")
     val payableStat: String get() = pick("To pay", "ಕೊಡಬೇಕಾದ ಬಾಕಿ")
     val billsStat: String get() = pick("Bills", "ಬಿಲ್‌ಗಳು")
-    val recentBills: String get() = pick("Recent bills", "ಇತ್ತೀಚಿನ ಬಿಲ್‌ಗಳು")
-    val noBillsToday: String get() = pick("No bills yet today.", "ಇಂದು ಇನ್ನೂ ಒಂದೂ ಬಿಲ್ ಆಗಿಲ್ಲ.")
+    // What Home shows under the two banners.
+    //
+    // Not recent bills: that list is the Reports tab, and repeating it on the
+    // screen the owner lands on spends the best space in the app on something
+    // one tap away. What belongs here is what they can *do* something about
+    // while standing at the counter — and the shelf running out is the one thing
+    // nothing else in the app volunteers.
+    val runningLow: String get() = pick("Running low", "ಕಡಿಮೆ ಆಗುತ್ತಿದೆ")
+    val nothingRunningLow: String get() = pick("Nothing running low.", "ಯಾವುದೂ ಕಡಿಮೆ ಆಗಿಲ್ಲ.")
 
     fun greeting(firstName: String): String =
             pick("Hello, $firstName", "ನಮಸ್ಕಾರ, $firstName")

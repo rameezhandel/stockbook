@@ -1,13 +1,12 @@
 import SwiftUI
 
-/// The home screen: what is owed each way, who owes money, and the last few
-/// bills.
+/// The home screen: what the shop sold, what is owed each way, who owes money,
+/// and what the shelf is running short of.
 struct TodayScreen: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
     @Environment(\.currency) private var currency
 
-    private var bills: [Bill] { store.bills }
     private var settings: Settings { store.settings }
 
     /// Which span the sales card is showing. Screen-local and not remembered
@@ -48,7 +47,7 @@ struct TodayScreen: View {
                     statCards(owed, payable)
                     owedBanner(owed, followedByPayable: !payable.names.isEmpty)
                     payableBanner(payable)
-                    recentBills
+                    runningLow
                 }
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.top, 4)
@@ -239,36 +238,75 @@ struct TodayScreen: View {
             : Loc.stillOwe(customerCount: names.count)
     }
 
-    // MARK: Recent bills
+    // MARK: Running low
 
-    private var recentBills: some View {
-        VStack(spacing: 0) {
+    /// What the shelf is short of, and a tap straight to restocking it.
+    ///
+    /// This used to be the three most recent bills — which is the Reports tab,
+    /// one tap away, on the screen the owner lands on. Nothing else in the app
+    /// volunteers that something is running out, and it is the one thing here
+    /// they can act on while standing at the counter.
+    private var runningLow: some View {
+        // Emptiest first: the shelf closest to costing a sale.
+        let low = store.products
+            .filter { $0.isLow(store.settings.lowStockAt) }
+            .sorted { $0.stock < $1.stock }
+
+        return VStack(spacing: 0) {
             HStack {
-                Kicker(Loc.recentBills)
+                Kicker(Loc.runningLow)
                 Spacer()
-                Button(Loc.all) { router.tab = .book }
+                Button(Loc.all) { router.tab = .items }
                     .buttonStyle(.ghost)
             }
             .padding(.bottom, 9)
 
-            if bills.isEmpty {
+            if store.products.isEmpty {
                 EmptyStateBox(
-                    message: Loc.noBillsToday,
-                    actionTitle: Loc.startABill,
-                    action: { router.startBill() }
+                    message: Loc.shelfEmpty,
+                    actionTitle: Loc.addAProduct,
+                    action: { router.openNewProduct() }
                 )
+            } else if low.isEmpty {
+                // Said rather than left blank. An empty space here reads as a
+                // section that failed to load; one line reads as good news.
+                Text(Loc.nothingRunningLow)
+                    .nocturneText(.meta)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 VStack(spacing: Metrics.rowGap) {
-                    ForEach(Array(bills.prefix(3))) { bill in
+                    ForEach(low.prefix(4)) { product in
                         Button {
-                            router.openBill(bill)
+                            router.openAddStock(for: product)
                         } label: {
-                            BillRow(bill: bill)
+                            lowStockRow(product)
                         }
                         .buttonStyle(.plain)
                     }
                 }
             }
         }
+    }
+
+    /// One product the shelf is short of.
+    ///
+    /// The count is drawn in the accent, not the neutral it wears on the Items
+    /// screen: everything in this list is by definition low, so the colour is the
+    /// point rather than a warning some rows carry and others do not.
+    private func lowStockRow(_ product: Product) -> some View {
+        HStack(spacing: 8) {
+            Text(product.name)
+                .nocturneText(.rowPrimary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(Loc.stockLabel(product.stock))
+                .font(NocturneType.inter(13))
+                .foregroundStyle(Nocturne.accent400)
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 11)
+        .frame(maxWidth: .infinity)
+        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        .contentShape(Rectangle())
     }
 }

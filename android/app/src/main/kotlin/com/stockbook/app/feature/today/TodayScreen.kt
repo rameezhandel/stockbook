@@ -42,7 +42,6 @@ import com.stockbook.app.design.ScreenHeader
 import com.stockbook.app.design.StatCard
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
-import com.stockbook.app.feature.bills.BillRow
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.money.Money
@@ -52,8 +51,8 @@ import com.stockbook.core.text.firstName
 import java.time.Instant
 
 /**
- * The home screen: what is owed each way, who owes money, and the last few
- * bills.
+ * The home screen: what the shop sold, what is owed each way, who owes money,
+ * and what the shelf is running short of.
  */
 @Composable
 fun TodayScreen(
@@ -163,36 +162,96 @@ fun TodayScreen(
                 }
             }
 
+            // What the shelf is short of, and a tap straight to restocking it.
+            //
+            // This used to be the three most recent bills — which is the Reports
+            // tab, one tap away, on the screen the owner lands on. Nothing else in
+            // the app volunteers that something is running out, and it is the one
+            // thing here they can act on while standing at the counter.
             item {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 9.dp)
                 ) {
-                    Kicker(strings.recentBills, modifier = Modifier.weight(1f))
-                    GhostButton(strings.all, onClick = { router.tab = com.stockbook.core.text.AppTab.BOOK })
+                    Kicker(strings.runningLow, modifier = Modifier.weight(1f))
+                    GhostButton(strings.all, onClick = { router.tab = com.stockbook.core.text.AppTab.ITEMS })
                 }
             }
 
-            if (state.bills.isEmpty()) {
-                item {
+            val low = state.products
+                .filter { it.isLow(state.settings.lowStockAt) }
+                .sortedBy { it.stock }
+
+            when {
+                state.products.isEmpty() -> item {
                     EmptyStateBox(
-                        message = strings.noBillsToday,
-                        actionTitle = strings.startABill,
-                        onAction = { router.startBill() }
+                        message = strings.shelfEmpty,
+                        actionTitle = strings.addAProduct,
+                        onAction = { router.openNewProduct() }
                     )
                 }
-            } else {
-                items(state.bills.take(3), key = { it.number }) { bill ->
-                    BillRow(
-                        bill = bill,
-                        currency = currency,
+
+                low.isEmpty() -> item {
+                    // Said rather than left blank. An empty space here reads as a
+                    // section that failed to load; one line reads as good news.
+                    Text(
+                        strings.nothingRunningLow,
+                        style = NocturneType.meta,
+                        color = Nocturne.neutral500,
+                        modifier = Modifier.padding(bottom = Metrics.rowGap)
+                    )
+                }
+
+                // Emptiest first: the shelf closest to costing a sale.
+                else -> items(low.take(4), key = { it.uid }) { product ->
+                    LowStockRow(
+                        product = product,
                         strings = strings,
-                        onClick = { router.openBill(bill) },
+                        onClick = { router.openAddStock(product) },
                         modifier = Modifier.padding(bottom = Metrics.rowGap)
                     )
                 }
             }
         }
+    }
+}
+
+/**
+ * One product the shelf is short of, and a tap to put stock back on it.
+ *
+ * The count is drawn in the accent, not the neutral it wears on the Items
+ * screen: everything in this list is by definition low, so the colour is the
+ * point rather than a warning that some rows carry and others do not.
+ */
+@Composable
+private fun LowStockRow(
+    product: com.stockbook.core.model.Product,
+    strings: Strings,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .card()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 11.dp)
+    ) {
+        Text(
+            product.name,
+            style = NocturneType.rowPrimary,
+            color = Nocturne.text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            strings.stockLabel(product.stock),
+            style = NocturneType.inter(13.0),
+            color = Nocturne.accent400
+        )
     }
 }
 
