@@ -516,7 +516,7 @@ both it and setup step 4.
 - **Currency selection** — fourteen currencies, picked in setup and changeable
   in Settings.
 - **Product editor** and **Add stock** sheets, both complete.
-- **264 tests** over the domain layer, run in CI on every push.
+- **264 tests** over the domain layer, run in CI on every pull request.
 
 ## What is not built yet
 

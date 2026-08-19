@@ -84,10 +84,18 @@ so the rules of the shop are checkable in seconds on any machine with a JDK. The
 part where a wrong answer costs somebody their stock count is the part that does
 not need a device to test.
 
-CI builds and tests both apps on every push —
-[`ios.yml`](.github/workflows/ios.yml),
-[`android.yml`](.github/workflows/android.yml), and
-[`testflight.yml`](.github/workflows/testflight.yml) for releases.
+CI runs on different schedules for the two, and the reason is money.
+[`android.yml`](.github/workflows/android.yml) builds and tests on **every
+push**: Linux runners bill at 1x and finish in about ninety seconds.
+[`ios.yml`](.github/workflows/ios.yml) runs **once per pull request** and not on
+push at all, because macOS bills at 10x on a private repository — a seven-minute
+build spends seventy minutes of the monthly allowance, and triggering on both
+would spend it twice for one change.
+
+**A change that never opens a pull request is never built on iOS.** Open the
+pull request, wait for it, then merge — or run the workflow by hand from the
+Actions tab. [`testflight.yml`](.github/workflows/testflight.yml) handles
+releases.
 
 ## Status
 

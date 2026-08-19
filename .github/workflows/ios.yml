@@ -1,17 +1,27 @@
 name: iOS
 
-# Builds and tests the app on every push and pull request.
+# Builds and tests the app, **once per pull request**.
 #
 # This exists because the app is often written from a phone, where nothing can be
 # compiled. CI is the first thing that actually runs the code, so a failure here
 # is the feedback loop — not a formality.
+#
+# Deliberately not on `push`. macOS runners bill at **10x** on a private
+# repository, so a seven-minute build costs seventy minutes of the monthly
+# allowance — roughly twenty-five builds a month before it runs out. Triggering
+# on both `push` and `pull_request` would spend that twice for one change: once
+# on the branch, once again on the merge that contains the identical commits.
+#
+# The consequence is worth stating plainly: **a change that never opens a pull
+# request is never built here.** Merging a branch straight into `main` skips iOS
+# entirely. Open the pull request, wait for this, then merge — or run it by hand
+# from the Actions tab.
+#
+# Android is untouched by any of this and still runs on every push: Linux bills
+# at 1x and finishes in about ninety seconds, so the cheap half of the signal
+# stays immediate.
 
 on:
-  push:
-    branches: ["**"]
-    paths:
-      - "ios/**"
-      - ".github/workflows/ios.yml"
   pull_request:
     paths:
       - "ios/**"
@@ -19,8 +29,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # A newer push makes an in-flight run pointless. On a private repo macOS
-  # minutes bill at 10x, so cancelling matters.
+  # A newer commit on the same pull request makes an in-flight run pointless,
+  # and at 10x it is an expensive kind of pointless.
   group: ios-${{ github.ref }}
   cancel-in-progress: true
 
