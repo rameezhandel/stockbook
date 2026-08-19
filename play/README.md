@@ -4,7 +4,7 @@
 
 Play requires a policy URL from every app, including one that collects nothing.
 
-**Published at:** <https://sites.google.com/view/stockbook-privacy/home>
+**Published at:** <https://sites.google.com/view/stockbook-privacy/home> — confirmed reachable signed out, which is the check that matters.
 
 Hosted on Google Sites rather than from this repository: GitHub Pages needs a
 public repo, and this one is private. The **source of truth is still
