@@ -251,7 +251,9 @@ class StockbookStore(private val repository: StockbookRepository) {
          */
         createdAt: Instant = Timestamps.now(),
         /** The number on the paper bill, when the shop wrote one. */
-        invoiceNo: String? = null
+        invoiceNo: String? = null,
+        /** Photographs of that paper, by id. The files are the app's to keep. */
+        photoIds: List<String> = emptyList()
     ): Bill? {
         val name = customer.trim()
         if (name.isEmpty()) return null
@@ -278,6 +280,7 @@ class StockbookStore(private val repository: StockbookRepository) {
             paid = paid?.takeIf { it < total }?.coerceIn(0.0, total),
             who = name,
             invoiceNo = CustomerRecord.tidied(invoiceNo),
+            photoIds = photoIds.distinct(),
             createdAt = createdAt
         )
 
@@ -305,6 +308,15 @@ class StockbookStore(private val repository: StockbookRepository) {
      * correcting a bill possible at all: neither the old record nor the bill in
      * front of the owner may hold the paper's number hostage.
      */
+    /**
+     * One bill, by the app's own number.
+     *
+     * The sheets re-read through this rather than holding the copy they were
+     * opened with, so a bill edited behind an open screen does not go on showing
+     * what it used to say.
+     */
+    fun bill(number: Int): Bill? = bills.firstOrNull { it.number == number }
+
     fun billWithInvoiceNo(invoiceNo: String?, exceptNumber: Int? = null): Bill? {
         val key = InvoiceNo.key(invoiceNo)
         if (key.isEmpty()) return null
@@ -356,6 +368,9 @@ class StockbookStore(private val repository: StockbookRepository) {
         amount: Double? = null,
         createdAt: Instant,
         invoiceNo: String? = null
+        // Photographs are deliberately not a parameter here. They are added and
+        // removed one at a time by [attachPhoto] and [detachPhoto], so an edit
+        // form that knows nothing about them cannot wipe them by omission.
     ): Bill? {
         val existing = bills.firstOrNull { it.number == number } ?: return null
         val name = customer.trim()
@@ -408,6 +423,52 @@ class StockbookStore(private val repository: StockbookRepository) {
         }
         _state.value = _state.value.copy(bills = bills.filterNot { it.number == number })
         attempt { repository.deleteBill(number) }
+    }
+
+    // --- Photographs of the paper
+    //
+    // Ids only. The files are the platform's to write, because an image codec is
+    // not domain work, and they are kept out of [ShopState] because this whole
+    // record is rewritten every time stock moves.
+
+    /** Records that a photograph belongs to this bill. Adding the same one twice is a no-op. */
+    fun attachPhoto(billNumber: Int, photoId: String): Bill? {
+        val id = photoId.trim()
+        if (id.isEmpty()) return null
+        val existing = bills.firstOrNull { it.number == billNumber } ?: return null
+        if (id in existing.photoIds) return existing
+        return replaceBill(existing.copy(photoIds = existing.photoIds + id))
+    }
+
+    /**
+     * Forgets a photograph.
+     *
+     * Deleting the file is the caller's job and happens after this, so a crash in
+     * between leaves a file nothing points at — which the sweep collects — rather
+     * than a bill pointing at nothing.
+     */
+    fun detachPhoto(billNumber: Int, photoId: String): Bill? {
+        val existing = bills.firstOrNull { it.number == billNumber } ?: return null
+        if (photoId !in existing.photoIds) return existing
+        return replaceBill(existing.copy(photoIds = existing.photoIds - photoId))
+    }
+
+    /**
+     * Every photograph the book still refers to.
+     *
+     * What the sweep is allowed to keep, and the only direction cleanup ever
+     * runs: files nothing refers to are deleted, but an id whose file is missing
+     * is **never** deleted. A book restored ahead of its pictures has to re-adopt
+     * them the moment they arrive, and pruning would sever that permanently.
+     */
+    fun photoIdsInUse(): Set<String> = bills.flatMap { it.photoIds }.toSet()
+
+    private fun replaceBill(updated: Bill): Bill {
+        _state.value = _state.value.copy(
+            bills = bills.map { if (it.number == updated.number) updated else it }
+        )
+        attempt { repository.update(updated) }
+        return updated
     }
 
     // --- Customers
@@ -1302,6 +1363,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                     paid = record.paid,
                     who = record.who,
                     invoiceNo = record.invoiceNo,
+                    photoIds = record.photoIds.orEmpty(),
                     createdAt = record.createdAt
                 )
             }.sortedByDescending { it.createdAt },
@@ -1411,6 +1473,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 paid = bill.paid,
                 who = bill.who,
                 invoiceNo = bill.invoiceNo,
+                photoIds = bill.photoIds.takeIf { it.isNotEmpty() },
                 lines = bill.lines.map {
                     BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price)
                 }

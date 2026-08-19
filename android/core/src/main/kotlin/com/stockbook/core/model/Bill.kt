@@ -1,5 +1,6 @@
 package com.stockbook.core.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
 
@@ -53,6 +54,23 @@ data class Bill(
      * handle. This is a label the owner recognises; that is a key.
      */
     val invoiceNo: String? = null,
+    /**
+     * Photographs of the paper bill, by id — **not** the pictures themselves.
+     *
+     * The bytes live on disk under the app's own storage, because this record is
+     * rewritten every time stock moves and a photograph is a thousand times the
+     * size of everything else in the book. An id here says a photograph was
+     * taken; whether the file is still on *this* phone is a separate question,
+     * asked of the disk. Nothing in this app may prune an id because its file is
+     * missing — a book restored ahead of its pictures re-adopts them the moment
+     * they arrive.
+     *
+     * A list rather than one, so a two-page invoice never forces a change to the
+     * file format. Spelled `photoIDs` on the wire, the way Swift spells it, for
+     * the same reason `productUID` is.
+     */
+    @SerialName("photoIDs")
+    val photoIds: List<String> = emptyList(),
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant = Timestamps.now()
 ) {

@@ -41,6 +41,20 @@ struct Bill: Identifiable, Codable, Equatable {
     /// handle. This is a label the owner recognises; that is a key.
     var invoiceNo: String?
 
+    /// Photographs of the paper bill, by id — **not** the pictures themselves.
+    ///
+    /// The bytes live on disk under the app's own storage, because this record is
+    /// rewritten every time stock moves and a photograph is a thousand times the
+    /// size of everything else in the book. An id here says a photograph was
+    /// taken; whether the file is still on *this* phone is a separate question,
+    /// asked of the disk. Nothing in this app may prune an id because its file is
+    /// missing — a book restored ahead of its pictures re-adopts them the moment
+    /// they arrive.
+    ///
+    /// A list rather than one, so a two-page invoice never forces a change to the
+    /// file format.
+    var photoIDs: [String] = []
+
     /// Customer name, trimmed. Required on every bill.
     var who: String
 
@@ -55,6 +69,7 @@ struct Bill: Identifiable, Codable, Equatable {
         paid: Double?,
         who: String,
         invoiceNo: String? = nil,
+        photoIDs: [String] = [],
         createdAt: Date = .now
     ) {
         self.number = number
@@ -63,6 +78,7 @@ struct Bill: Identifiable, Codable, Equatable {
         self.paid = paid
         self.who = who
         self.invoiceNo = CustomerRecord.tidied(invoiceNo)
+        self.photoIDs = photoIDs
         self.createdAt = createdAt
     }
 
@@ -87,6 +103,12 @@ struct Bill: Identifiable, Codable, Equatable {
         paid = try container.decodeIfPresent(Double.self, forKey: .paid)
         who = try container.decode(String.self, forKey: .who)
         invoiceNo = try container.decodeIfPresent(String.self, forKey: .invoiceNo)
+        // Tolerant for the same reason as everything above it, and for one more:
+        // every bill already on every phone was written before photographs
+        // existed. A default alone would not save this — the synthesised decoder
+        // throws on a missing key regardless, which is how adding credit notes
+        // once made every older backup unreadable.
+        photoIDs = try container.decodeIfPresent([String].self, forKey: .photoIDs) ?? []
         createdAt = try container.decode(Date.self, forKey: .createdAt)
     }
 

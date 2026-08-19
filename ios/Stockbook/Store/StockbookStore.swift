@@ -228,7 +228,9 @@ final class StockbookStore {
         /// which are what somebody settles up against, would inherit that.
         createdAt: Date = .now,
         /// The number on the paper bill, when the shop wrote one.
-        invoiceNo: String? = nil
+        invoiceNo: String? = nil,
+        /// Photographs of that paper, by id. The files are the app's to keep.
+        photoIDs: [String] = []
     ) -> Bill? {
         let name = customer.trimmed
         guard !name.isEmpty else { return nil }
@@ -261,6 +263,9 @@ final class StockbookStore {
             paid: paid.flatMap { $0 < total ? min(max(0, $0), total) : nil },
             who: name,
             invoiceNo: invoiceNo,
+            photoIDs: photoIDs.reduce(into: []) { seen, id in
+                if !seen.contains(id) { seen.append(id) }
+            },
             createdAt: createdAt
         )
 
@@ -328,6 +333,9 @@ final class StockbookStore {
         amount: Double? = nil,
         createdAt: Date,
         invoiceNo: String? = nil
+        // Photographs are deliberately not a parameter here. They are added and
+        // removed one at a time by `attachPhoto`/`detachPhoto`, so an edit form
+        // that knows nothing about them cannot wipe them by omission.
     ) -> Bill? {
         // The index is taken once and stays valid: nothing below writes to `bills`
         // until the last line, and `replace` moves products rather than bills.
@@ -382,6 +390,61 @@ final class StockbookStore {
         }
         bills.removeAll { $0.number == number }
         attempt { try repository.deleteBill(number: number) }
+    }
+
+    /// One bill, by the app's own number.
+    ///
+    /// The sheets re-read through this rather than holding the copy they were
+    /// opened with, so a bill edited behind an open screen does not go on showing
+    /// what it used to say.
+    func bill(number: Int) -> Bill? {
+        bills.first { $0.number == number }
+    }
+
+    // MARK: - Photographs of the paper
+    //
+    // Ids only. The files are the platform's to write, because an image codec is
+    // not domain work, and they are kept out of the shop file because that whole
+    // record is rewritten every time stock moves.
+
+    /// Records that a photograph belongs to this bill. Adding the same one twice
+    /// is a no-op.
+    @discardableResult
+    func attachPhoto(billNumber: Int, photoID: String) -> Bill? {
+        let id = photoID.trimmed
+        guard !id.isEmpty,
+              let index = bills.firstIndex(where: { $0.number == billNumber }) else { return nil }
+        guard !bills[index].photoIDs.contains(id) else { return bills[index] }
+        bills[index].photoIDs.append(id)
+        let updated = bills[index]
+        attempt { try repository.update(updated) }
+        return updated
+    }
+
+    /// Forgets a photograph.
+    ///
+    /// Deleting the file is the caller's job and happens after this, so a crash
+    /// in between leaves a file nothing points at — which the sweep collects —
+    /// rather than a bill pointing at nothing.
+    @discardableResult
+    func detachPhoto(billNumber: Int, photoID: String) -> Bill? {
+        guard let index = bills.firstIndex(where: { $0.number == billNumber }) else { return nil }
+        guard bills[index].photoIDs.contains(photoID) else { return bills[index] }
+        bills[index].photoIDs.removeAll { $0 == photoID }
+        let updated = bills[index]
+        attempt { try repository.update(updated) }
+        return updated
+    }
+
+    /// Every photograph the book still refers to.
+    ///
+    /// What the sweep is allowed to keep, and the only direction cleanup ever
+    /// runs: files nothing refers to are deleted, but an id whose file is missing
+    /// is **never** deleted. A book restored ahead of its pictures has to
+    /// re-adopt them the moment they arrive, and pruning would sever that
+    /// permanently.
+    func photoIDsInUse() -> Set<String> {
+        Set(bills.flatMap(\.photoIDs))
     }
 
     // MARK: - Customers
@@ -1303,6 +1366,7 @@ final class StockbookStore {
                     paid: record.paid,
                     who: record.who,
                     invoiceNo: record.invoiceNo,
+                    photoIDs: record.photoIDs ?? [],
                     createdAt: record.createdAt
                 )
             },
@@ -1428,6 +1492,10 @@ final class StockbookStore {
                     paid: bill.paid,
                     who: bill.who,
                     invoiceNo: bill.invoiceNo,
+                    // Absent rather than empty, so a shop with no photographs
+                    // writes the same bytes it always did — and the same bytes
+                    // Kotlin writes, where `explicitNulls = false` drops it too.
+                    photoIDs: bill.photoIDs.isEmpty ? nil : bill.photoIDs,
                     lines: bill.lines.map {
                         BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price)
                     }

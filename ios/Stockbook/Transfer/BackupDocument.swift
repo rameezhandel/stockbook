@@ -230,6 +230,19 @@ struct BackupDocument: Codable, Equatable {
         var who: String
         /// The number on the paper bill. Absent when the shop wrote none.
         var invoiceNo: String?
+        /// Photographs of that paper, by id — the references, not the pictures.
+        ///
+        /// This file carries no image bytes. Written anyway, because an id that
+        /// survives the crossing is what lets a bill re-adopt its photograph the
+        /// day the pictures travel too; dropping it here would make that
+        /// impossible after the fact.
+        ///
+        /// Optional rather than a defaulted array, so the synthesised decoder
+        /// reaches for `decodeIfPresent` and every file written before
+        /// photographs still reads. A defaulted non-optional array would throw —
+        /// which is exactly how the credit-note array once broke every older
+        /// backup.
+        var photoIDs: [String]?
         var lines: [LineRecord]
     }
 

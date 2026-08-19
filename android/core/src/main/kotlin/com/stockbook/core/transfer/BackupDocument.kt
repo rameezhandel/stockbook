@@ -163,6 +163,22 @@ data class BackupDocument(
         val who: String,
         /** The number on the paper bill. Absent when the shop wrote none. */
         val invoiceNo: String? = null,
+        /**
+         * Photographs of that paper, by id — the references, not the pictures.
+         *
+         * This file carries no image bytes. Written anyway, because an id that
+         * survives the crossing is what lets a bill re-adopt its photograph the
+         * day the pictures travel too; dropping it here would make that
+         * impossible after the fact.
+         *
+         * Absent rather than empty on a bill with no photographs, so a shop that
+         * has taken none writes exactly the bytes it always did — and the same
+         * bytes the iPhone writes, where a nil optional is dropped by the
+         * encoder. `encodeDefaults` is on here, so an empty list would be
+         * written as `[]` and the two builds would stop agreeing.
+         */
+        @SerialName("photoIDs")
+        val photoIds: List<String>? = null,
         val lines: List<LineRecord> = emptyList()
     )
 
