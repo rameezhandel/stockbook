@@ -387,7 +387,12 @@ struct Strings {
     var chooseDates: String { pick("Choose dates", "ದಿನಾಂಕ ಆರಿಸಿ") }
     var fromDate: String { pick("From", "ಇಂದ") }
     var toDate: String { pick("To", "ವರೆಗೆ") }
-    var openingBalance: String { pick("Brought forward", "ಹಿಂದಿನ ಬಾಕಿ") }
+    /// What the account stood at when the period began.
+    ///
+    /// The same words the customer editor's own field uses — the figure typed
+    /// there *is* this row on the first statement, and calling it two things was
+    /// asking the owner to work that out for themselves.
+    var openingBalance: String { pick("Opening balance", "ಪ್ರಾರಂಭಿಕ ಬಾಕಿ") }
     var billedInPeriod: String { pick("Billed", "ಬಿಲ್ ಮಾಡಿದ್ದು") }
     var receivedInPeriod: String { pick("Received", "ಸ್ವೀಕರಿಸಿದ್ದು") }
 

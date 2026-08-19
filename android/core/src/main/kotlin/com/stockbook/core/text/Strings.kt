@@ -355,7 +355,14 @@ class Strings(val language: AppLanguage) {
     val chooseDates: String get() = pick("Choose dates", "ದಿನಾಂಕ ಆರಿಸಿ")
     val fromDate: String get() = pick("From", "ಇಂದ")
     val toDate: String get() = pick("To", "ವರೆಗೆ")
-    val openingBalance: String get() = pick("Brought forward", "ಹಿಂದಿನ ಬಾಕಿ")
+    /**
+     * What the account stood at when the period began.
+     *
+     * The same words the customer editor's own field uses — the figure typed
+     * there *is* this row on the first statement, and calling it two things was
+     * asking the owner to work that out for themselves.
+     */
+    val openingBalance: String get() = pick("Opening balance", "ಪ್ರಾರಂಭಿಕ ಬಾಕಿ")
     val billedInPeriod: String get() = pick("Billed", "ಬಿಲ್ ಮಾಡಿದ್ದು")
     val receivedInPeriod: String get() = pick("Received", "ಸ್ವೀಕರಿಸಿದ್ದು")
 
