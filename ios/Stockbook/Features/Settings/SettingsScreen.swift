@@ -14,6 +14,7 @@ struct SettingsScreen: View {
     @State private var ownerName = ""
     @State private var shopAddress = ""
     @State private var seeded = false
+    @State private var confirmingPhotoRemoval = false
 
     private var settings: Settings { store.settings }
     private var products: [Product] { store.products }
@@ -31,6 +32,7 @@ struct SettingsScreen: View {
                     languageAndCurrency
                     theme
                     backupRow
+                    photoStorageRow
                     #if DEBUG
                     startAgain
                     #endif
@@ -210,6 +212,73 @@ struct SettingsScreen: View {
         }
         .buttonStyle(.plain)
         .padding(.bottom, 20)
+    }
+
+    /// What the photographs are costing, and what is missing.
+    ///
+    /// Storage that grows where nobody can see it is what gets an app deleted, so
+    /// the figure is shown plainly. The missing count matters more than it looks:
+    /// it is the only place a book that arrived from another phone says so, and
+    /// without it an incomplete transfer is something the owner discovers a year
+    /// later, one bill at a time.
+    ///
+    /// Absent entirely on a shop that has never taken one — an empty row about a
+    /// feature somebody is not using is noise.
+    @ViewBuilder
+    private var photoStorageRow: some View {
+        let named = store.photoIDsInUse()
+        if !named.isEmpty {
+            let photos = PhotoStore()
+            let usage = photos.usage()
+            let missing = named.filter { !photos.has(id: $0) }.count
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 11) {
+                    Glyph(Icon.items, size: 20).foregroundStyle(Nocturne.accent400)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(Loc.photoStorage).nocturneText(.rowPrimary)
+                        Text(
+                            [
+                                Loc.photosOnThisPhone(count: usage.count, size: Bytes.text(usage.bytes)),
+                                missing > 0 ? Loc.photosMissing(missing) : nil
+                            ].compactMap { $0 }.joined(separator: " · ")
+                        )
+                        .nocturneText(.meta)
+                        .foregroundStyle(missing > 0 ? Nocturne.accent400 : Nocturne.neutral500)
+                        .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if usage.count > 0 {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Button(confirmingPhotoRemoval ? Loc.tapAgainToRemove : Loc.removeAllPhotos) {
+                            if confirmingPhotoRemoval {
+                                // The book keeps its ids. Only the files go —
+                                // which is the same state a phone is in when a
+                                // backup arrives ahead of its pictures, and the
+                                // same thing brings them back.
+                                photos.sweep(keeping: [])
+                                confirmingPhotoRemoval = false
+                            } else {
+                                withAnimation(Metrics.quick) { confirmingPhotoRemoval = true }
+                            }
+                        }
+                        .buttonStyle(GhostButtonStyle(
+                            fontSize: 12,
+                            tint: confirmingPhotoRemoval ? Nocturne.accent400 : Nocturne.neutral500,
+                            horizontalPadding: 0
+                        ))
+
+                        Text(Loc.removeAllPhotosNote).nocturneText(.meta)
+                    }
+                }
+            }
+            .padding(13)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+            .padding(.bottom, 20)
+        }
     }
 
     private var backupState: String {

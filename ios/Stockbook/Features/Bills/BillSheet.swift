@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 /// Opening a bill from history.
 ///
@@ -22,6 +23,13 @@ struct BillSheet: View {
     /// moves the shelf as well as the money.
     @State private var confirmingRemoval = false
 
+    @State private var viewing: String?
+    @State private var picked: PhotosPickerItem?
+    @State private var takingPhoto = false
+    @State private var trouble: String?
+
+    private let photos = PhotoStore()
+
     /// Falls back to the value it was opened with, which matters after a
     /// database replace has removed it from under the sheet.
     private var live: Bill {
@@ -29,6 +37,29 @@ struct BillSheet: View {
     }
 
     var body: some View {
+        // One photograph, filling the sheet. Opening it replaces what is under it
+        // rather than stacking a second sheet on top: there is one thing to look
+        // at, and a way back.
+        if let viewing {
+            PhotoViewer(
+                id: viewing,
+                onRemove: {
+                    // The book forgets it first, then the file goes. In that
+                    // order a crash in between leaves a picture nothing points at
+                    // — which the sweep collects — rather than a bill pointing at
+                    // nothing.
+                    store.detachPhoto(billNumber: live.number, photoID: viewing)
+                    photos.delete(id: viewing)
+                    self.viewing = nil
+                },
+                onClose: { self.viewing = nil }
+            )
+        } else {
+            details
+        }
+    }
+
+    private var details: some View {
         VStack(alignment: .leading, spacing: 14) {
             SheetHeader(
                 title: Loc.billDetailTitle,
@@ -43,6 +74,34 @@ struct BillSheet: View {
             }
 
             BillTemplate(bill: live, shopName: store.settings.ownerName)
+
+            // The paper itself, where the owner photographed it. Under the bill
+            // rather than beside it: the figures are what the sheet is for, and
+            // the picture is the evidence behind them.
+            if !live.photoIDs.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Kicker(Loc.billPhotos)
+                    PhotoStrip(ids: live.photoIDs) { viewing = $0 }
+                }
+            }
+
+            HStack(spacing: 12) {
+                // Absent on a phone with no camera — a simulator, mostly — rather
+                // than offered and then failing.
+                if CameraSheet.isAvailable {
+                    Button(Loc.takePhoto) { takingPhoto = true }
+                        .buttonStyle(GhostButtonStyle(fontSize: 12.5, horizontalPadding: 0))
+                }
+                PhotosPicker(selection: $picked, matching: .images, photoLibrary: .shared()) {
+                    Text(Loc.chooseFromPhotos)
+                        .font(NocturneType.inter(12.5, .medium))
+                        .foregroundStyle(Nocturne.accent)
+                }
+            }
+
+            if let trouble {
+                Text(trouble).nocturneText(.meta).foregroundStyle(Nocturne.accent400)
+            }
 
             // The bill as something to send: the customer asking for "the
             // invoice" wants it on their phone, and plain text is what reaches
@@ -68,6 +127,10 @@ struct BillSheet: View {
                 Button(confirmingRemoval ? Loc.tapAgainToRemove : Loc.removeBill) {
                     if confirmingRemoval {
                         store.deleteBill(number: live.number)
+                        // Its pictures go with it. Swept rather than deleted by
+                        // name, so a photograph another bill also names — after
+                        // a restore, say — is not taken away from that one.
+                        photos.sweep(keeping: store.photoIDsInUse())
                         router.billDetail = nil
                     } else {
                         withAnimation(Metrics.quick) { confirmingRemoval = true }
@@ -78,6 +141,43 @@ struct BillSheet: View {
                 Text(Loc.removeBillNote).nocturneText(.meta)
             }
         }
+        .fullScreenCover(isPresented: $takingPhoto) {
+            CameraSheet { data in
+                takingPhoto = false
+                guard let data else { return }
+                keep(data)
+            }
+            .ignoresSafeArea()
+        }
+        .onChange(of: picked) { _, item in
+            guard let item else { return }
+            Task {
+                // Loaded as `Data` rather than as an `Image`: the picker can hand
+                // back something that is not readable as one, and `PhotoStore` is
+                // where a photograph is measured and shrunk.
+                let data = try? await item.loadTransferable(type: Data.self)
+                picked = nil
+                guard let data else {
+                    trouble = Loc.couldNotReadThatPhoto
+                    return
+                }
+                keep(data)
+            }
+        }
+    }
+
+    /// Shrinks and keeps one photograph, then tells the bill about it.
+    ///
+    /// The file is written before the book names it, so a crash in between leaves
+    /// a picture nothing points at — which the sweep collects — rather than a
+    /// bill pointing at nothing.
+    private func keep(_ data: Data) {
+        guard let id = photos.save(data) else {
+            trouble = Loc.couldNotReadThatPhoto
+            return
+        }
+        store.attachPhoto(billNumber: live.number, photoID: id)
+        trouble = nil
     }
 
     private func plainText(_ bill: Bill) -> String {

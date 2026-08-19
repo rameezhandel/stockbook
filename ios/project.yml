@@ -48,6 +48,10 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        # The one thing this app ever asks the phone for. Photographing the
+        # paper bill needs the camera; choosing a picture already taken does
+        # not, and neither does anything else in here.
+        INFOPLIST_KEY_NSCameraUsageDescription: Take a photo of a paper bill to keep with it.
 
   StockbookTests:
     type: bundle.unit-test

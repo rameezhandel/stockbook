@@ -204,7 +204,7 @@ struct BillPhotoTests {
         }
         """
 
-        let document = try BackupService.decode(json)
+        let document = try BackupService.decode(Data(json.utf8))
 
         #expect(document.bills.first?.photoIDs == nil)
     }
@@ -218,7 +218,9 @@ struct BillPhotoTests {
         let store = makeStore()
         try aBill(store)
 
-        let json = try BackupService.encode(store.makeBackupDocument())
+        let json = try #require(
+            String(data: try BackupService.encode(store.makeBackupDocument()), encoding: .utf8)
+        )
 
         #expect(!json.contains("photoIDs"))
     }

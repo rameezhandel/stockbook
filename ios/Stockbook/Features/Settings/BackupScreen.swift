@@ -43,6 +43,17 @@ struct BackupScreen: View {
                         .font(NocturneType.inter(12.5))
                         .foregroundStyle(Nocturne.neutral500)
                         .lineSpacing(3)
+                        .padding(.bottom, 8)
+
+                    // Said plainly, not as a footnote, for as long as it is true.
+                    // This file carries the book and not the pictures, and
+                    // somebody who moves phone believing otherwise finds out at
+                    // the worst possible moment. The line goes when the pictures
+                    // travel too.
+                    Text(Loc.photosStayOnThisPhone)
+                        .font(NocturneType.inter(12.5))
+                        .foregroundStyle(Nocturne.accent400)
+                        .lineSpacing(3)
                         .padding(.bottom, 14)
 
                     exportCard.padding(.bottom, 10)
