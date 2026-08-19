@@ -1,12 +1,11 @@
 # Backlog — before going live
 
-Three things deliberately left until the end. Recorded here because the work
+Four things deliberately left until the end. Recorded here because the work
 happens in throwaway containers, and anything not written down is gone with
 them.
 
-Two are not code problems at all — one-time account setup and housekeeping. The
-third is: photographs do not travel in the backup file yet, and that is the one
-with a date on it.
+Three are not code problems at all — account setup, store paperwork and
+housekeeping. The fourth is: photographs do not travel in the backup file yet.
 
 ## 1. TestFlight — Apple account setup
 
@@ -24,7 +23,25 @@ in Apple's web console — nothing in this repo can do them.
 
 **Done when** a push to `main` uploads a build that appears in TestFlight.
 
-## 2. Stale remote branches
+## 2. Google Play — the parts only a person can do
+
+The signing config and the bundle workflow are written; see
+[`android/keystore/README.md`](android/keystore/README.md).
+
+1. **Generate the upload key** with the `keytool` command in that file, and back
+   it up somewhere that is not this machine. Lost before the first upload, the
+   listing can never be updated by anyone.
+2. **Set the four repository secrets** the same file lists.
+3. **Screenshots** — at least two, from a real phone. See
+   [`play/README.md`](play/README.md).
+4. **Console forms** — Data safety (*no data collected, no data shared*),
+   content rating, target audience, ads: none.
+5. **Install the release build and use it** before uploading. It differs from
+   debug: no "Start over", a different signature.
+
+**Done when** `Play bundle` produces a signed `.aab` that the Console accepts.
+
+## 3. Stale remote branches
 
 Roughly two dozen merged feature branches are still on the remote. Harmless, but
 they make the branch list useless for seeing what is actually in flight, and it
@@ -33,7 +50,7 @@ gets worse every week.
 **Done when** every branch whose commits are already on `main` is deleted.
 `git branch -r --merged origin/main` lists them.
 
-## 3. Photographs do not travel in the backup file
+## 4. Photographs do not travel in the backup file
 
 A bill carries the **ids** of its photographs in the export, but not the
 pictures. Move to a new phone today and every bill says "not on this phone"

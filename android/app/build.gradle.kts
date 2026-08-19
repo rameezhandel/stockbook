@@ -1,8 +1,39 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
+
+/**
+ * The release signing key, from the environment or an untracked properties file.
+ *
+ * Never from the repository. The debug key below is committed on purpose and
+ * protects nothing; this one is the permanent identity of the app on Google
+ * Play, and a copy of it in git history cannot be taken back — history outlives
+ * whatever the repository's visibility happens to be today.
+ *
+ * Absent is not an error. A build with no key produces an unsigned release,
+ * which is what a machine that has no business signing anything should get.
+ * Only the workflow that uploads insists on it.
+ */
+val releaseKeyProperties = Properties().apply {
+    val file = rootProject.file("keystore/release.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun releaseSecret(environmentVariable: String, propertyName: String): String? =
+    System.getenv(environmentVariable) ?: releaseKeyProperties.getProperty(propertyName)
+
+val releaseStoreFile = releaseSecret("STOCKBOOK_KEYSTORE_FILE", "storeFile")
+val releaseStorePassword = releaseSecret("STOCKBOOK_KEYSTORE_PASSWORD", "storePassword")
+val releaseKeyAlias = releaseSecret("STOCKBOOK_KEY_ALIAS", "keyAlias")
+val releaseKeyPassword = releaseSecret("STOCKBOOK_KEY_PASSWORD", "keyPassword")
+
+val canSignRelease = listOf(
+    releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword
+).none { it.isNullOrBlank() }
 
 android {
     namespace = "com.stockbook.app"
@@ -16,8 +47,11 @@ android {
         // must get exactly right.
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // The number Play orders uploads by. It must increase with every upload
+        // and can never be reused or lowered, so the release workflow passes it
+        // in rather than relying on somebody remembering to edit this line.
+        versionCode = (findProperty("stockbook.versionCode") as String?)?.toInt() ?: 1
+        versionName = (findProperty("stockbook.versionName") as String?) ?: "1.0"
     }
 
     signingConfigs {
@@ -40,6 +74,17 @@ android {
             keyAlias = "stockbook"
             keyPassword = "stockbook"
         }
+
+        // Created only when there is something to create it from, so a checkout
+        // without the key still builds.
+        if (canSignRelease) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -50,7 +95,12 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
+            // Left off deliberately. R8 would need keep rules for
+            // kotlinx.serialization, and getting those wrong does not crash — it
+            // silently changes what the backup file contains, which is the one
+            // failure this app cannot afford. Nothing about Play requires it.
             isMinifyEnabled = false
+            signingConfig = if (canSignRelease) signingConfigs.getByName("release") else null
         }
     }
 

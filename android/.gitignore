@@ -3,3 +3,12 @@ build/
 local.properties
 *.iml
 .idea/
+
+# The release signing key and its passwords.
+#
+# The debug keystore beside it is committed on purpose and protects nothing.
+# This one is the permanent identity of the app on Google Play: a copy in git
+# history cannot be taken back, and history outlives whatever the repository's
+# visibility happens to be today.
+keystore/release.jks
+keystore/release.properties
