@@ -24,6 +24,19 @@ struct RootView: View {
             .environment(\.bottomSafeInset, proxy.safeAreaInsets.bottom)
         }
         .background(Nocturne.bg)
+        // The keyboard must not resize the app, and this is the only level that
+        // can say so.
+        //
+        // `AppShell` already asks for the same thing around the tab bar, but a
+        // `GeometryReader` is itself laid out inside the keyboard's safe area:
+        // when the keyboard appeared this one shrank, everything below was
+        // measured into a shorter box, and the tab bar rode up with it. A child
+        // cannot undo a parent that has already been resized.
+        //
+        // It also makes `bottomSafeInset` mean what its comment says. Measured
+        // from a shrinking proxy it became the keyboard's height mid-edit,
+        // rather than the distance to the physical bottom edge.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .task {
             guard store == nil else { return }
             // A repository that cannot open its file is unrecoverable — there is
