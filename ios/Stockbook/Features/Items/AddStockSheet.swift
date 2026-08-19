@@ -129,6 +129,9 @@ struct AddStockSheet: View {
                         label: Loc.invoiceNoField,
                         placeholder: Loc.invoiceNoHint,
                         text: $invoiceNo,
+                        // Digits first, letters a tap away — the same keyboard
+                        // every other typed number in the app gets.
+                        keyboard: .numbersAndPunctuation,
                         isRequiredAndEmpty: invoiceNo.isBlank,
                         identifier: "purchase.invoiceNo"
                     )

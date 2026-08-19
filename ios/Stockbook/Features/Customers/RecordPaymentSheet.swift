@@ -236,6 +236,11 @@ private struct PaymentSheet: View {
                 placeholder: Loc.paymentNoHint,
                 text: $paymentNo,
                 height: 40,
+                // Opens on digits, with letters a tap away. A receipt book is
+                // numbered "1024" far more often than "A-1024", so a full
+                // alphabetic keyboard makes the common case the slow one —
+                // and a pure number pad would make the other case impossible.
+                keyboard: .numbersAndPunctuation,
                 isRequiredAndEmpty: paymentNo.isBlank,
                 fontSize: 13.5,
                 identifier: "payment.no"

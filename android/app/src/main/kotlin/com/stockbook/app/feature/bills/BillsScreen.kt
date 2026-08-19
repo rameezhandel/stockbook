@@ -248,20 +248,23 @@ private fun CustomerSummary(
         )
 
         Row(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
-            // Offered only when there is something to settle. A payment against a
-            // customer who owes nothing is an advance, which is real but not what
-            // this button is for.
-            if (customer.owed > 0) {
-                PrimaryButton(
-                    strings.recordAPayment,
-                    onClick = onRecordPayment,
-                    fullWidth = true,
-                    height = 38.dp,
-                    fontSize = 12.5,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(6.dp))
-            }
+            // Always offered, including to somebody who owes nothing.
+            //
+            // It used to appear only while there was a balance, which meant that
+            // settling up in full took the button away — and money comes over a
+            // counter in more than one instalment, sometimes ahead of the bill.
+            // The sheet has always handled that case: pay more than is owed and
+            // it says so, "SAR 200 in advance". Hiding the way in while the sheet
+            // knew what to do was the app disagreeing with itself.
+            PrimaryButton(
+                strings.recordAPayment,
+                onClick = onRecordPayment,
+                fullWidth = true,
+                height = 38.dp,
+                fontSize = 12.5,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(6.dp))
             // Offered even to somebody who owes nothing: goods come back after a
             // bill has been settled, and that leaves them in credit. Secondary
             // beside the payment, because taking money is the daily act and
