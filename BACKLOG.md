@@ -33,19 +33,19 @@ gets worse every week.
 **Done when** every branch whose commits are already on `main` is deleted.
 `git branch -r --merged origin/main` lists them.
 
-## 3. Launcher icon and bundled fonts
+## 3. Bundled fonts
 
-Two cosmetic gaps that are only cosmetic until somebody installs the app.
+**Inter is not bundled on either platform.** Every type style names it, so both
+apps fall back to the system face — San Francisco on iOS, Roboto on Android. The
+layouts were designed against Inter's metrics, so spacing is slightly off from
+the prototype everywhere. Cosmetic, and only cosmetic until somebody installs
+the app beside the prototype and compares.
 
-- **Android's launcher icon is the template placeholder.** iOS has a real one.
-  A shop owner finding this on their home screen sees a generic Android robot.
-- **Inter is not bundled on either platform.** Every type style names it, so both
-  apps fall back to the system face — San Francisco on iOS, Roboto on Android.
-  The layouts were designed against Inter's metrics, so spacing is slightly off
-  from the prototype everywhere.
+**Done when** both apps bundle the Inter weights the type scale actually uses.
 
-**Done when** Android ships a real adaptive icon and both apps bundle the Inter
-weights the type scale actually uses.
+*The launcher icon that used to sit here is done: the iOS mark redrawn for
+Android's adaptive shapes, plus a themed-icon silhouette for Android 13+. See
+[`../tools/make_play_assets.py`](tools/make_play_assets.py).*
 
 ## 4. Photographs do not travel in the backup file
 

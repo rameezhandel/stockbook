@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!--
+      The launcher icon's flat fallback, and the window background the very first
+      frame is painted on before Compose has drawn anything.
+
+      The icon itself uses `@drawable/ic_launcher_background`, which carries the
+      same colour as a gradient. This stays because a flat value is what a
+      pre-API-26 launcher and the splash window can both use, and because it is
+      `Nocturne.bg` — the two must not drift, or the app opens on a rectangle
+      that is nearly but not quite its own background.
+    -->
     <color name="launcher_background">#161826</color>
 </resources>
