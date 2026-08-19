@@ -249,7 +249,7 @@ struct TodayScreen: View {
     private var runningLow: some View {
         // Emptiest first: the shelf closest to costing a sale.
         let low = store.products
-            .filter { $0.isLow(store.settings.lowStockAt) }
+            .filter { $0.isLow(threshold: store.settings.lowStockAt) }
             .sorted { $0.stock < $1.stock }
 
         return VStack(spacing: 0) {
