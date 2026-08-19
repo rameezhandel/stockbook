@@ -472,6 +472,7 @@ private fun Shell(store: StockbookStore) {
                     store = store,
                     strings = strings,
                     onShare = { text -> shareText(context, text) },
+                    onSharePhoto = { id -> sharePhoto(context, PhotoStore(context).file(id)) },
                     onEdit = { existing ->
                         // Filled here rather than inside the router, which is the
                         // only place that holds both. Whatever was half-typed on
@@ -510,14 +511,27 @@ private fun shareText(context: android.content.Context, text: String) {
  * picks, and making the file readable any other way would need a storage
  * permission this app does not have.
  */
-private fun sharePdf(context: android.content.Context, file: java.io.File) {
+private fun sharePdf(context: android.content.Context, file: java.io.File) =
+    shareFile(context, file, "application/pdf")
+
+/**
+ * A photograph of a bill, on its way to whoever asked for it.
+ *
+ * The same hand-off as the PDF's, and it works for the same reason: the photo
+ * directory is named in `shared_files.xml`, so a `content://` URI can be granted
+ * for one file without the app holding any storage permission.
+ */
+private fun sharePhoto(context: android.content.Context, file: java.io.File) =
+    shareFile(context, file, "image/jpeg")
+
+private fun shareFile(context: android.content.Context, file: java.io.File, type: String) {
     val uri = androidx.core.content.FileProvider.getUriForFile(
         context,
         "${context.packageName}.files",
         file
     )
     val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-        type = "application/pdf"
+        this.type = type
         putExtra(android.content.Intent.EXTRA_STREAM, uri)
         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }

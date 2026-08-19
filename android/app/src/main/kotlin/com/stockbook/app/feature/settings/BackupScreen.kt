@@ -100,6 +100,17 @@ fun BackupScreen(
                 strings.moveToAnotherPhoneNote,
                 style = NocturneType.inter(12.5),
                 color = Nocturne.neutral500,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            // Said plainly, not as a footnote, for as long as it is true. This
+            // file carries the book and not the pictures, and somebody who moves
+            // phone believing otherwise finds out at the worst possible moment.
+            // The line goes when the pictures travel too.
+            Text(
+                strings.photosStayOnThisPhone,
+                style = NocturneType.inter(12.5),
+                color = Nocturne.accent400,
                 modifier = Modifier.padding(bottom = 14.dp)
             )
 

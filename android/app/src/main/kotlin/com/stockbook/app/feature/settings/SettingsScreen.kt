@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -39,6 +40,7 @@ import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.ScreenHeader
 import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.card
+import com.stockbook.app.photos.PhotoStore
 import com.stockbook.core.model.AppTheme
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.ShopState
@@ -220,6 +222,8 @@ fun SettingsScreen(
                 Glyph(Icon.openRow, size = 12.dp, tint = Nocturne.neutral600)
             }
 
+            PhotoStorageRow(state, strings)
+
             // Debug builds only. One tap, no confirmation, and every product,
             // price and bill is gone — right for resetting to first-run during
             // development, wrong on a counter holding the only copy of a shop.
@@ -243,5 +247,90 @@ private fun Stat(label: String, value: Int, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
         Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
         Text("$value", style = NocturneType.inter(17.0), color = Nocturne.text)
+    }
+}
+
+/**
+ * What the photographs are costing, and what is missing.
+ *
+ * Storage that grows where nobody can see it is what gets an app deleted, so the
+ * figure is shown plainly. The missing count matters more than it looks: it is
+ * the only place a book that arrived from another phone says so, and without it
+ * an incomplete transfer is something the owner discovers a year later, one bill
+ * at a time.
+ *
+ * Absent entirely on a shop that has never taken one — an empty row about a
+ * feature somebody is not using is noise.
+ */
+@Composable
+private fun PhotoStorageRow(state: ShopState, strings: Strings) {
+    val context = LocalContext.current
+    val photos = remember(context) { PhotoStore(context) }
+
+    val named = remember(state.bills) { state.bills.flatMap { it.photoIds }.toSet() }
+    if (named.isEmpty()) return
+
+    // Recounted whenever the book changes, which is when a picture can have
+    // arrived or gone.
+    val usage = remember(state.bills) { photos.usage() }
+    val missing = remember(state.bills, usage) { named.count { !photos.has(it) } }
+
+    var confirmingRemoval by remember { mutableStateOf(false) }
+
+    Spacer(Modifier.height(10.dp))
+    Column(modifier = Modifier.fillMaxWidth().card().padding(13.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Glyph(Icon.items, size = 20.dp, tint = Nocturne.accent400)
+            Spacer(Modifier.width(11.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(strings.photoStorage, style = NocturneType.rowPrimary, color = Nocturne.text)
+                Text(
+                    listOfNotNull(
+                        strings.photosOnThisPhone(usage.count, Bytes.text(usage.bytes)),
+                        strings.photosMissing(missing).takeIf { missing > 0 }
+                    ).joinToString(" · "),
+                    style = NocturneType.meta,
+                    color = if (missing > 0) Nocturne.accent400 else Nocturne.neutral500,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        if (usage.count > 0) {
+            Spacer(Modifier.height(10.dp))
+            GhostButton(
+                if (confirmingRemoval) strings.tapAgainToRemove else strings.removeAllPhotos,
+                onClick = {
+                    if (confirmingRemoval) {
+                        // The book keeps its ids. Only the files go — which is
+                        // the same state a phone is in when a backup arrives
+                        // ahead of its pictures, and the same thing brings them
+                        // back.
+                        photos.sweep(keeping = emptySet())
+                        confirmingRemoval = false
+                    } else {
+                        confirmingRemoval = true
+                    }
+                },
+                tint = if (confirmingRemoval) Nocturne.accent400 else Nocturne.neutral500,
+                fontSize = 12.0
+            )
+            Text(
+                strings.removeAllPhotosNote,
+                style = NocturneType.meta,
+                color = Nocturne.neutral500,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        }
+    }
+}
+
+/** Bytes as something a shopkeeper reads: `8.4 MB`, not `8804400`. */
+private object Bytes {
+    fun text(bytes: Long): String = when {
+        bytes >= 1_000_000 -> String.format("%.1f MB", bytes / 1_000_000.0)
+        bytes >= 1_000 -> "${bytes / 1_000} KB"
+        else -> "$bytes B"
     }
 }

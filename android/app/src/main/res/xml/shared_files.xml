@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The one directory this app ever hands a file out of.
+  The only two directories this app ever hands a file out of.
 
-  `cache-path` is the app's own cache, which needs no storage permission to
-  write and no permission for anything else to read once a `content://` URI has
-  been granted for it. Nothing outside this path is exposed, and the app holds no
-  storage permission to expose anything with.
+  `cache-path` is the app's own cache — where a statement PDF is written before
+  it goes to the share sheet, and where the camera app is told to put a photo
+  before it is shrunk and kept.
+
+  `files-path` names the photo directory alone, so a picture of a bill can be
+  shared without first being copied. It is one directory deep on purpose: the
+  shop's book sits in the parent, and nothing should be able to hand that out.
+
+  Both need no storage permission to write, and nothing outside these paths is
+  exposed. The app holds no storage permission to expose anything with.
 -->
 <paths>
     <cache-path name="shared" path="." />
+    <files-path name="photos" path="stockbook/photos/" />
 </paths>

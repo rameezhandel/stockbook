@@ -73,6 +73,33 @@ class PhotoStore(private val context: Context) {
     }
 
     /**
+     * A stored photograph, decoded for the screen.
+     *
+     * [edge] is what the caller is about to draw into. A row of thumbnails asking
+     * for full-size bitmaps would hold tens of megabytes to draw a strip of
+     * postage stamps, so the decoder is told what is actually wanted and does the
+     * throwing away itself.
+     *
+     * Null when the file is not on this phone, which is an ordinary answer rather
+     * than an error — a book can arrive ahead of its pictures.
+     */
+    fun bitmap(id: String, edge: Int = PhotoPolicy.maxEdge): Bitmap? {
+        val file = file(id)
+        if (!file.isFile) return null
+
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.path, bounds)
+        if (bounds.outWidth <= 0) return null
+
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= edge) sample *= 2
+        return BitmapFactory.decodeFile(
+            file.path,
+            BitmapFactory.Options().apply { inSampleSize = sample }
+        )
+    }
+
+    /**
      * Collects pictures the book no longer refers to.
      *
      * Runs one way only, and the asymmetry is the point: a file nothing points at

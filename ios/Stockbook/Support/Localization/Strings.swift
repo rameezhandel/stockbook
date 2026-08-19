@@ -184,6 +184,65 @@ struct Strings {
         )
     }
 
+    // MARK: - Photographs of the paper bill
+    //
+    // "Photo", never "attachment" or "image". The owner is taking a picture of a
+    // piece of paper, and the word for that is the one they already use.
+
+    var addPhoto: String { pick("Add photo", "ಫೋಟೋ ಸೇರಿಸಿ") }
+    var takePhoto: String { pick("Take a photo", "ಫೋಟೋ ತೆಗೆಯಿರಿ") }
+    var chooseFromPhotos: String { pick("Choose from photos", "ಫೋಟೋಗಳಿಂದ ಆರಿಸಿ") }
+    var removePhoto: String { pick("Remove photo", "ಫೋಟೋ ತೆಗೆದುಹಾಕಿ") }
+    var billPhotos: String { pick("Photo of the bill", "ಬಿಲ್‌ನ ಫೋಟೋ") }
+    var photoLabel: String { pick("Photo", "ಫೋಟೋ") }
+
+    /// Shown in place of a picture whose file is not on this phone.
+    var photoNotOnThisPhone: String { pick("Not on this phone", "ಈ ಫೋನಿನಲ್ಲಿ ಇಲ್ಲ") }
+
+    var couldNotReadThatPhoto: String {
+        pick("That photo could not be read", "ಆ ಫೋಟೋ ಓದಲು ಆಗಲಿಲ್ಲ")
+    }
+
+    var noCameraOnThisPhone: String {
+        pick("No camera on this phone", "ಈ ಫೋನಿನಲ್ಲಿ ಕ್ಯಾಮೆರಾ ಇಲ್ಲ")
+    }
+
+    /// `2 photos` — how many pictures a bill carries, on the row that opens them.
+    func photos(_ count: Int) -> String {
+        count == 1 ? pick("1 photo", "1 ಫೋಟೋ") : pick("\(count) photos", "\(count) ಫೋಟೋಗಳು")
+    }
+
+    // The Settings row. Storage that grows where nobody can see it is what gets
+    // an app deleted, so the figure is shown plainly and the missing ones are
+    // named — an incomplete transfer should be visible now, not discovered in a
+    // year.
+    var photoStorage: String { pick("Photos", "ಫೋಟೋಗಳು") }
+
+    func photosOnThisPhone(count: Int, size: String) -> String {
+        pick("\(count) on this phone · \(size)", "ಈ ಫೋನಿನಲ್ಲಿ \(count) · \(size)")
+    }
+
+    func photosMissing(_ count: Int) -> String {
+        pick("\(count) missing", "\(count) ಇಲ್ಲ")
+    }
+
+    var removeAllPhotos: String { pick("Remove all photos", "ಎಲ್ಲಾ ಫೋಟೋ ತೆಗೆದುಹಾಕಿ") }
+
+    var removeAllPhotosNote: String {
+        pick(
+            "The bills stay. Only the pictures go, and they cannot be got back.",
+            "ಬಿಲ್‌ಗಳು ಉಳಿಯುತ್ತವೆ. ಫೋಟೋಗಳು ಮಾತ್ರ ಹೋಗುತ್ತವೆ, ಮತ್ತೆ ಸಿಗುವುದಿಲ್ಲ."
+        )
+    }
+
+    /// Said on the backup screen for as long as photographs do not travel in the file.
+    var photosStayOnThisPhone: String {
+        pick(
+            "Photos stay on this phone — this file holds the book, not the pictures.",
+            "ಫೋಟೋಗಳು ಈ ಫೋನಿನಲ್ಲೇ ಉಳಿಯುತ್ತವೆ — ಈ ಫೈಲಿನಲ್ಲಿ ಲೆಕ್ಕ ಇದೆ, ಚಿತ್ರಗಳಲ್ಲ."
+        )
+    }
+
     func owes(_ amount: String) -> String {
         pick("owes \(amount)", "\(amount) ಬಾಕಿ")
     }

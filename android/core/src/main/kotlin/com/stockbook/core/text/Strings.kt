@@ -171,6 +171,60 @@ class Strings(val language: AppLanguage) {
             "ಶಾಶ್ವತವಾಗಿ ಹೋಗುತ್ತದೆ, ಮತ್ತು ಅದರಲ್ಲಿನ ಸಾಮಾನು ಶೆಲ್ಫಿಗೆ ವಾಪಸ್."
         )
 
+    // --- Photographs of the paper bill
+    //
+    // "Photo", never "attachment" or "image". The owner is taking a picture of a
+    // piece of paper, and the word for that is the one they already use.
+
+    val addPhoto: String get() = pick("Add photo", "ಫೋಟೋ ಸೇರಿಸಿ")
+    val takePhoto: String get() = pick("Take a photo", "ಫೋಟೋ ತೆಗೆಯಿರಿ")
+    val chooseFromPhotos: String get() = pick("Choose from photos", "ಫೋಟೋಗಳಿಂದ ಆರಿಸಿ")
+    val removePhoto: String get() = pick("Remove photo", "ಫೋಟೋ ತೆಗೆದುಹಾಕಿ")
+    val billPhotos: String get() = pick("Photo of the bill", "ಬಿಲ್‌ನ ಫೋಟೋ")
+    val photoLabel: String get() = pick("Photo", "ಫೋಟೋ")
+
+    /** Shown in place of a picture whose file is not on this phone. */
+    val photoNotOnThisPhone: String get() = pick("Not on this phone", "ಈ ಫೋನಿನಲ್ಲಿ ಇಲ್ಲ")
+
+    val couldNotReadThatPhoto: String
+        get() = pick("That photo could not be read", "ಆ ಫೋಟೋ ಓದಲು ಆಗಲಿಲ್ಲ")
+
+    val noCameraOnThisPhone: String
+        get() = pick("No camera on this phone", "ಈ ಫೋನಿನಲ್ಲಿ ಕ್ಯಾಮೆರಾ ಇಲ್ಲ")
+
+    /** `2 photos` — how many pictures a bill carries, on the row that opens them. */
+    fun photos(count: Int): String = when {
+        count == 1 -> pick("1 photo", "1 ಫೋಟೋ")
+        else -> pick("$count photos", "$count ಫೋಟೋಗಳು")
+    }
+
+    // The Settings row. Storage that grows where nobody can see it is what gets
+    // an app deleted, so the figure is shown plainly and the missing ones are
+    // named — an incomplete transfer should be visible now, not discovered in a
+    // year.
+    val photoStorage: String get() = pick("Photos", "ಫೋಟೋಗಳು")
+
+    fun photosOnThisPhone(count: Int, size: String): String =
+            pick("$count on this phone · $size", "ಈ ಫೋನಿನಲ್ಲಿ $count · $size")
+
+    fun photosMissing(count: Int): String =
+            pick("$count missing", "$count ಇಲ್ಲ")
+
+    val removeAllPhotos: String get() = pick("Remove all photos", "ಎಲ್ಲಾ ಫೋಟೋ ತೆಗೆದುಹಾಕಿ")
+
+    val removeAllPhotosNote: String
+        get() = pick(
+            "The bills stay. Only the pictures go, and they cannot be got back.",
+            "ಬಿಲ್‌ಗಳು ಉಳಿಯುತ್ತವೆ. ಫೋಟೋಗಳು ಮಾತ್ರ ಹೋಗುತ್ತವೆ, ಮತ್ತೆ ಸಿಗುವುದಿಲ್ಲ."
+        )
+
+    /** Said on the backup screen for as long as photographs do not travel in the file. */
+    val photosStayOnThisPhone: String
+        get() = pick(
+            "Photos stay on this phone — this file holds the book, not the pictures.",
+            "ಫೋಟೋಗಳು ಈ ಫೋನಿನಲ್ಲೇ ಉಳಿಯುತ್ತವೆ — ಈ ಫೈಲಿನಲ್ಲಿ ಲೆಕ್ಕ ಇದೆ, ಚಿತ್ರಗಳಲ್ಲ."
+        )
+
     fun owes(amount: String): String =
             pick("owes $amount", "$amount ಬಾಕಿ")
 
