@@ -43,6 +43,18 @@ whether a value is `Data` or `String`.
   conforming retroactively — `StatementFile` exists for exactly this.
 - `Statement.Entry` is an enum with no `default` branch anywhere on purpose.
   Adding a case is *meant* to break every rendering site.
+- **A `.transition` only runs when *that* view is inserted.** Written on a child
+  of a custom view, it never fires — SwiftUI animates the inserted parent with
+  the default `.opacity` instead. Every bottom sheet faded in for months with
+  `.transition(.move(edge: .bottom))` on the panel. Keep the `if` and the
+  `.transition` at the same level, in a container that stays mounted.
+- **Memberwise initialisers take their arguments in declaration order.** Four
+  `NocturneField` call sites went in with `keyboard:` before `height:` and none
+  of them would have compiled. Check the property order, not your memory of it.
+- **A compact `DatePicker` draws its own label from the phone's region**, which
+  is why the app stopped using one: the same date read three ways on three
+  phones. `NocturneDateField` draws `Loc.pickedDate` and keeps Apple's calendar
+  behind it.
 
 ## The project file
 

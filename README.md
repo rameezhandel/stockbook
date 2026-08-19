@@ -75,7 +75,7 @@ xcodebuild test -scheme Stockbook \
 **Android** — JDK 17+, Android Studio only for the UI:
 
 ```sh
-cd android && ./gradlew :core:test     # 251 tests, ~15s, no SDK or emulator needed
+cd android && ./gradlew :core:test     # 272 tests, ~15s, no SDK or emulator needed
 cd android && ./gradlew :app:assembleDebug
 ```
 
@@ -102,6 +102,13 @@ releases.
 Both apps are feature-complete and at parity with each other. Four tabs —
 **Home**, **Items**, **Sales** and **Reports** — plus first-run setup, Settings,
 and backup export and import.
+
+Each half of Reports opens on the **people** it is about — customers on one
+side, suppliers on the other — and a row opens that person's own screen: what
+they have bought, what is outstanding, their statement, their payments, and
+every document between them and the shop. They used to be a dropdown filter
+above a list of bills, which made a person something you narrowed a list by
+rather than something you could go and look at.
 
 Built on top of the original spec since:
 

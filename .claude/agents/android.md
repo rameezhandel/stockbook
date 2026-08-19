@@ -47,6 +47,9 @@ anything with a rule in it belongs one module down.
   half the world.
 - `NocturneField` is `singleLine` unless told otherwise, and that beats whatever
   `ImeAction` says. A multi-line box needs `multiline = true`.
+- **`private` in Kotlin is file-private, not package-private.** A composable two
+  files away in the same package cannot see it — `DeliveryRow` had to become
+  `internal` before `PartyScreen` could draw the same row.
 
 ## The permission promise is Android's to keep
 

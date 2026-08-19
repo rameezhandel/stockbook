@@ -31,7 +31,7 @@ else.
 
 | | Build locally? |
 | --- | --- |
-| `android/core` | **Yes.** `cd android && ./gradlew :core:test` — 251 tests, ~15s |
+| `android/core` | **Yes.** `cd android && ./gradlew :core:test` — 272 tests, ~15s |
 | `android/app` | **No.** `dl.google.com` is 403 here; the Android Gradle Plugin cannot resolve |
 | `ios/` | **No.** No macOS, no Xcode, no Swift compiler |
 
@@ -75,6 +75,16 @@ wrong. Neither command replaces the other.
 - An optional property *is* tolerated when missing — the synthesised decoder uses
   `decodeIfPresent` for optionals. That asymmetry with defaulted non-optionals is
   the whole trap.
+- **A `.transition` only runs when *that* view is the one being inserted.** Put
+  it on a child of a custom view and insert the custom view, and SwiftUI animates
+  the parent with the default `.opacity` while the child's transition never gets a
+  turn. Every bottom sheet in the app faded in for months with
+  `.transition(.move(edge: .bottom))` written on it. The `if` and the
+  `.transition` have to sit at the same level, inside a container that is always
+  mounted.
+- The memberwise initialiser takes its arguments **in declaration order**.
+  `NocturneField(text:keyboard:height:)` does not compile when `height` is
+  declared first — and the error points at the call, not at the swap.
 
 **Kotlin / Compose**
 
@@ -107,6 +117,13 @@ wrong. Neither command replaces the other.
   did not.
 - `Customer.key` / `Supplier.key` are trimmed and lowercased. Identity is never
   the typed string.
+- **There are two orders for people and neither is the other's default.**
+  `customers()` / `suppliers()` are biggest-debt-first, which is what Today's
+  banner and both owed sheets are built on. `customers(matching:)` /
+  `suppliers(matching:)` are the directory: by name, filtered on name and phone,
+  for a screen you go to in order to *find* somebody. `PartyDirectoryTests` pins
+  that they stay apart — collapsing them would silently rename whoever Today's
+  banner points at.
 - `Bill.number` is the app's own counter and what identity is built on. The typed
   `invoiceNo` is a **label**. Never conflate them.
 - **A mistake is edited or removed, not voided.** `deleteBill` returns the stock
@@ -171,6 +188,7 @@ context than it saves.
 | --- | --- |
 | `android/core` | Pure Kotlin JVM: models, store, statements, money, `Strings`, backup |
 | `android/app` | Compose UI, `MainActivity`, design system, photo storage |
+| `…/feature/book` | The Book: the party directory, one party's screen, the two panes |
 | `ios/Stockbook` | SwiftUI app; `Model`, `Store`, `Transfer`, `Features`, `Support` |
 | `tools/check.py` | The cross-platform invariants |
 | `tools/make_play_assets.py` | Launcher icon and Play listing artwork |
