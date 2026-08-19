@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
 import com.stockbook.app.design.DropdownField
 import com.stockbook.app.design.EmptyStateBox
-import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Glyph
 import com.stockbook.app.design.IconButton
 import com.stockbook.app.design.Icon
@@ -235,20 +234,24 @@ private fun CustomerSummary(
             )
         }
 
-        Row(modifier = Modifier.fillMaxWidth().padding(top = 11.dp)) {
-            SecondaryButton(
-                strings.statement,
-                onClick = onStatement,
-                fullWidth = true,
-                height = 38.dp,
-                fontSize = 12.5,
-                modifier = Modifier.weight(1f)
-            )
+        // The statement across the whole width, and the two things that write to
+        // the account beneath it. The statement is the one that only *reads* —
+        // it is what somebody opens to answer a question, where the two below it
+        // change what the customer owes.
+        SecondaryButton(
+            strings.statement,
+            onClick = onStatement,
+            fullWidth = true,
+            height = 38.dp,
+            fontSize = 12.5,
+            modifier = Modifier.fillMaxWidth().padding(top = 11.dp)
+        )
+
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
             // Offered only when there is something to settle. A payment against a
             // customer who owes nothing is an advance, which is real but not what
             // this button is for.
             if (customer.owed > 0) {
-                Spacer(Modifier.width(6.dp))
                 PrimaryButton(
                     strings.recordAPayment,
                     onClick = onRecordPayment,
@@ -257,19 +260,21 @@ private fun CustomerSummary(
                     fontSize = 12.5,
                     modifier = Modifier.weight(1f)
                 )
+                Spacer(Modifier.width(6.dp))
             }
+            // Offered even to somebody who owes nothing: goods come back after a
+            // bill has been settled, and that leaves them in credit. Secondary
+            // beside the payment, because taking money is the daily act and
+            // writing some off is the occasional one.
+            SecondaryButton(
+                strings.issueACreditNote,
+                onClick = onCreditNote,
+                fullWidth = true,
+                height = 38.dp,
+                fontSize = 12.5,
+                modifier = Modifier.weight(1f)
+            )
         }
-
-        // On its own line and quiet, unlike the two above it. Taking money is
-        // the daily act; writing some off is the occasional one — and unlike a
-        // payment it is offered even to somebody who owes nothing, because goods
-        // come back after a bill has been settled and that leaves them in credit.
-        GhostButton(
-            strings.issueACreditNote,
-            onClick = onCreditNote,
-            fontSize = 12.5,
-            modifier = Modifier.padding(top = 2.dp)
-        )
     }
 }
 

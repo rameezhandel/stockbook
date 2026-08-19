@@ -157,9 +157,15 @@ struct BillsScreen: View {
                 )
             }
 
+            // The statement across the whole width, and the two things that write
+            // to the account beneath it. The statement is the one that only
+            // *reads* — it is what somebody opens to answer a question, where the
+            // two below it change what the customer owes.
+            Button(Loc.statement) { router.openStatement(for: customer) }
+                .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 38, fontSize: 12.5))
+                .padding(.top, 11)
+
             HStack(spacing: 6) {
-                Button(Loc.statement) { router.openStatement(for: customer) }
-                    .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 38, fontSize: 12.5))
                 // Offered only when there is something to settle. A payment
                 // against a customer who owes nothing is an advance, which is
                 // real but not what this button is for.
@@ -167,19 +173,16 @@ struct BillsScreen: View {
                     Button(Loc.recordAPayment) { router.paymentFor = customer }
                         .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 38, fontSize: 12.5))
                 }
+                // Offered even to somebody who owes nothing: goods come back
+                // after a bill has been settled, and that leaves them in credit.
+                // Secondary beside the payment, because taking money is the daily
+                // act and writing some off is the occasional one.
+                Button(Loc.issueACreditNote) {
+                    router.creditNoteFor = CreditNoteTarget(customer: customer)
+                }
+                .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 38, fontSize: 12.5))
             }
-            .padding(.top, 11)
-
-            // On its own line and quiet, unlike the two above it. Taking money
-            // is the daily act; writing some off is the occasional one — and
-            // unlike a payment it is offered even to somebody who owes nothing,
-            // because goods come back after a bill has been settled and that
-            // leaves them in credit.
-            Button(Loc.issueACreditNote) {
-                router.creditNoteFor = CreditNoteTarget(customer: customer)
-            }
-            .buttonStyle(GhostButtonStyle(fontSize: 12.5, horizontalPadding: 0))
-            .padding(.top, 2)
+            .padding(.top, 6)
         }
         .padding(13)
         .frame(maxWidth: .infinity, alignment: .leading)
