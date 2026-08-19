@@ -24,9 +24,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
+import com.stockbook.app.photos.PhotoStore
 import com.stockbook.app.design.EmptyStateBox
 import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Glyph
@@ -67,6 +69,7 @@ fun SellScreen(
     strings: Strings,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var query by remember { mutableStateOf("") }
     // Set by "Add items", cleared by "Done adding". On the router rather than in
     // here because the shell draws the tab bar and must not stack it under the
@@ -198,7 +201,22 @@ fun SellScreen(
                                 amount = cart.typedAmount,
                                 createdAt = cart.soldAt,
                                 invoiceNo = cart.invoiceNo
-                            )
+                            )?.also { corrected ->
+                                // `updateBill` deliberately does not take
+                                // photographs — an edit form that omitted them
+                                // would wipe them. So the difference is applied
+                                // here instead: what the form gained is attached,
+                                // what it lost is let go, and the sweep collects
+                                // any file nothing names any more.
+                                val before = corrected.photoIds
+                                (cart.photoIds - before.toSet()).forEach {
+                                    store.attachPhoto(corrected.number, it)
+                                }
+                                (before - cart.photoIds.toSet()).forEach {
+                                    store.detachPhoto(corrected.number, it)
+                                }
+                                PhotoStore(context).sweep(store.photoIdsInUse())
+                            }
                         } else {
                             store.saveBill(
                                 lines = cart.draftLines,
@@ -210,7 +228,8 @@ fun SellScreen(
                                 // figure is real.
                                 amount = cart.typedAmount,
                                 createdAt = cart.soldAt,
-                                invoiceNo = cart.invoiceNo
+                                invoiceNo = cart.invoiceNo,
+                                photoIds = cart.photoIds
                             )
                         }
                         if (bill != null) {

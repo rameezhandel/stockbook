@@ -107,8 +107,9 @@ class Strings(val language: AppLanguage) {
     val nothingAddedYet: String get() = pick("nothing added yet", "ಇನ್ನೂ ಏನೂ ಸೇರಿಸಿಲ್ಲ")
     /**
      * The Items header's own name for [recordDelivery] — same sheet, same
-     * action, but a header button reads as a section of the app rather than a
-     * verb the way the Book's empty-state button does.
+     * action, and now the same word. Kept as its own key because the two are
+     * different buttons on different screens, and one of them may yet need to
+     * read differently.
      */
     val itemsRecordDelivery: String get() = pick("Inventory", "ದಾಸ್ತಾನು")
 
@@ -142,12 +143,13 @@ class Strings(val language: AppLanguage) {
     val salesSide: String get() = pick("Sales", "ಮಾರಾಟ")
     val purchasesSide: String get() = pick("Purchases", "ಖರೀದಿ")
 
-    // On the Items header. Says "delivery" rather than "purchase" because that is
-    // the word for the thing arriving at the door.
-    val recordDelivery: String get() = pick("Delivery", "ಡೆಲಿವರಿ")
+    // The other way into the same sheet the Items header opens, so it is called
+    // the same thing. Two buttons that do one job under two names is how somebody
+    // concludes there are two jobs.
+    val recordDelivery: String get() = pick("Inventory", "ದಾಸ್ತಾನು")
     val whichProductArrived: String get() = pick("What arrived?", "ಏನು ಬಂತು?")
     val noDeliveriesYet: String get() = pick("No deliveries yet", "ಇನ್ನೂ ಡೆಲಿವರಿ ಇಲ್ಲ")
-    val deliveryDetail: String get() = pick("Delivery", "ಡೆಲಿವರಿ")
+    val deliveryDetail: String get() = pick("Inventory", "ದಾಸ್ತಾನು")
 
     // `12 × SAR 60` — what a delivery row says under the product's name.
     fun perPiece(qty: Int, cost: String): String = "$qty × $cost"

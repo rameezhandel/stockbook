@@ -245,8 +245,11 @@ struct BillPhotoTests {
     @Test("Ids are lowercase, so both phones write the same name")
     func idsAreLowercase() {
         // `UUID` prints uppercase here and lowercase in Kotlin, and these names
-        // travel between the two.
-        #expect(PhotoPolicy.newID() == PhotoPolicy.newID().lowercased())
+        // travel between the two. Compared against *its own* lowercased form —
+        // two separate ids are two different strings whatever their case.
+        let id = PhotoPolicy.newID()
+
+        #expect(id == id.lowercased())
     }
 
     @Test("Ids are not reused")

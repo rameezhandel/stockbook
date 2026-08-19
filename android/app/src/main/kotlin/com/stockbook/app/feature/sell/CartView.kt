@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.design.FieldEmphasis
@@ -55,6 +56,10 @@ import com.stockbook.core.model.Bill
 import com.stockbook.core.model.Customer
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.model.Currency
+import com.stockbook.app.photos.PhotoFailure
+import com.stockbook.app.photos.PhotoStore
+import com.stockbook.app.photos.PhotoStrip
+import com.stockbook.app.photos.rememberPhotoCapture
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.money.Money
 import com.stockbook.core.text.Strings
@@ -269,6 +274,66 @@ private fun PaperRow(
                 color = Nocturne.accent400,
                 modifier = Modifier.padding(top = 6.dp)
             )
+        }
+
+        // The paper, photographed while it is being written — which is when the
+        // owner is holding it. Directly under its number, because that is the
+        // other thing on this form that describes the document rather than the
+        // money.
+        BillPhotoRow(cart = cart, strings = strings, modifier = Modifier.padding(top = 12.dp))
+    }
+}
+
+/**
+ * Taking a photograph of the bill from the form it is being written on.
+ *
+ * The strip is what has been taken so far, tappable to take one back off. There
+ * is no viewer here: the form is for writing the bill, and looking closely at the
+ * paper is what opening the saved bill is for.
+ */
+@Composable
+private fun BillPhotoRow(cart: Cart, strings: Strings, modifier: Modifier = Modifier) {
+    var trouble by remember { mutableStateOf<String?>(null) }
+
+    val capture = rememberPhotoCapture(
+        onSaved = { id -> cart.addPhoto(id); trouble = null },
+        onFailed = { reason ->
+            trouble = when (reason) {
+                PhotoFailure.NO_CAMERA -> strings.noCameraOnThisPhone
+                else -> strings.couldNotReadThatPhoto
+            }
+        }
+    )
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                strings.billPhotos,
+                style = NocturneType.fieldLabel,
+                color = Nocturne.neutral400,
+                modifier = Modifier.weight(1f)
+            )
+            GhostButton(strings.takePhoto, onClick = capture.takePhoto, fontSize = 12.0)
+            Spacer(Modifier.width(10.dp))
+            GhostButton(strings.chooseFromPhotos, onClick = capture.chooseFromPhotos, fontSize = 12.0)
+        }
+
+        if (cart.photoIds.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            PhotoStrip(
+                ids = cart.photoIds,
+                strings = strings,
+                // Tapping takes it off the form — and only off the form. The
+                // file stays until a save reconciles it or the next launch
+                // sweeps it, because a correction the owner then abandons must
+                // not have already destroyed a picture the bill still names.
+                onOpen = { id -> cart.removePhoto(id) }
+            )
+        }
+
+        trouble?.let {
+            Spacer(Modifier.height(6.dp))
+            Text(it, style = NocturneType.meta, color = Nocturne.accent400)
         }
     }
 }

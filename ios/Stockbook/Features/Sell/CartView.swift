@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 /// The bill being written. The most important screen in the app: it is what the
 /// owner is looking at while a customer waits.
@@ -14,6 +15,10 @@ struct CartView: View {
     @Environment(Cart.self) private var cart
     @Environment(StockbookStore.self) private var store
     @Environment(\.currency) private var currency
+
+    @State private var picked: PhotosPickerItem?
+    @State private var takingPhoto = false
+    @State private var photoTrouble: String?
 
     var body: some View {
         @Bindable var cart = cart
@@ -140,7 +145,87 @@ struct CartView: View {
                     .foregroundStyle(Nocturne.accent400)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+
+            // The paper, photographed while it is being written — which is when
+            // the owner is holding it. Directly under its number, because that is
+            // the other thing on this form that describes the document rather
+            // than the money.
+            billPhotoRow(chooseTitle: Loc.chooseFromPhotos)
+                .padding(.top, 12)
         }
+    }
+
+    /// Taking a photograph of the bill from the form it is being written on.
+    ///
+    /// The strip is what has been taken so far, tappable to take one back off.
+    /// There is no viewer here: the form is for writing the bill, and looking
+    /// closely at the paper is what opening the saved bill is for.
+    ///
+    /// `chooseTitle` is passed rather than read inside, because `PhotosPicker`'s
+    /// label is a plain closure and `Loc` is main-actor isolated.
+    @ViewBuilder
+    private func billPhotoRow(chooseTitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(Loc.billPhotos).nocturneText(.fieldLabel)
+                Spacer()
+                if CameraSheet.isAvailable {
+                    Button(Loc.takePhoto) { takingPhoto = true }
+                        .buttonStyle(GhostButtonStyle(fontSize: 12, horizontalPadding: 0))
+                }
+                PhotosPicker(selection: $picked, matching: .images, photoLibrary: .shared()) {
+                    Text(chooseTitle)
+                        .font(NocturneType.inter(12, .medium))
+                        .foregroundStyle(Nocturne.accent)
+                }
+            }
+
+            if !cart.photoIDs.isEmpty {
+                // Tapping takes it off the form — and only off the form. The
+                // file stays until a save reconciles it or the next launch
+                // sweeps it, because a correction the owner then abandons must
+                // not have already destroyed a picture the bill still names.
+                PhotoStrip(ids: cart.photoIDs) { cart.removePhoto($0) }
+            }
+
+            if let photoTrouble {
+                Text(photoTrouble).nocturneText(.meta).foregroundStyle(Nocturne.accent400)
+            }
+        }
+        .fullScreenCover(isPresented: $takingPhoto) {
+            CameraSheet { data in
+                takingPhoto = false
+                guard let data else { return }
+                keepPhoto(data)
+            }
+            .ignoresSafeArea()
+        }
+        .onChange(of: picked) { _, item in
+            guard let item else { return }
+            Task {
+                let data = try? await item.loadTransferable(type: Data.self)
+                picked = nil
+                guard let data else {
+                    photoTrouble = Loc.couldNotReadThatPhoto
+                    return
+                }
+                keepPhoto(data)
+            }
+        }
+    }
+
+    /// Shrinks and keeps one photograph, then puts its id on the form.
+    ///
+    /// The file exists before the form names it, so an abandoned bill leaves a
+    /// picture nothing refers to — which the sweep collects — rather than a bill
+    /// pointing at nothing.
+    private func keepPhoto(_ data: Data) {
+        guard let id = PhotoStore().save(data) else {
+            photoTrouble = Loc.couldNotReadThatPhoto
+            return
+        }
+        cart.addPhoto(id)
+        photoTrouble = nil
     }
 
     /// The total, once the bill has been itemised.

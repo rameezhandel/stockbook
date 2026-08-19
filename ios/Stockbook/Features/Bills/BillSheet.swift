@@ -85,19 +85,7 @@ struct BillSheet: View {
                 }
             }
 
-            HStack(spacing: 12) {
-                // Absent on a phone with no camera — a simulator, mostly — rather
-                // than offered and then failing.
-                if CameraSheet.isAvailable {
-                    Button(Loc.takePhoto) { takingPhoto = true }
-                        .buttonStyle(GhostButtonStyle(fontSize: 12.5, horizontalPadding: 0))
-                }
-                PhotosPicker(selection: $picked, matching: .images, photoLibrary: .shared()) {
-                    Text(Loc.chooseFromPhotos)
-                        .font(NocturneType.inter(12.5, .medium))
-                        .foregroundStyle(Nocturne.accent)
-                }
-            }
+            photoButtons(chooseTitle: Loc.chooseFromPhotos)
 
             if let trouble {
                 Text(trouble).nocturneText(.meta).foregroundStyle(Nocturne.accent400)
@@ -162,6 +150,28 @@ struct BillSheet: View {
                     return
                 }
                 keep(data)
+            }
+        }
+    }
+
+    /// The two ways in.
+    ///
+    /// `chooseTitle` is passed rather than read inside: `PhotosPicker`'s label is
+    /// a plain closure, not a main-actor one, and `Loc` is main-actor isolated —
+    /// so the string is read out here, where the isolation holds, and the closure
+    /// captures an ordinary `String`.
+    private func photoButtons(chooseTitle: String) -> some View {
+        HStack(spacing: 12) {
+            // Absent on a phone with no camera — a simulator, mostly — rather
+            // than offered and then failing.
+            if CameraSheet.isAvailable {
+                Button(Loc.takePhoto) { takingPhoto = true }
+                    .buttonStyle(GhostButtonStyle(fontSize: 12.5, horizontalPadding: 0))
+            }
+            PhotosPicker(selection: $picked, matching: .images, photoLibrary: .shared()) {
+                Text(chooseTitle)
+                    .font(NocturneType.inter(12.5, .medium))
+                    .foregroundStyle(Nocturne.accent)
             }
         }
     }

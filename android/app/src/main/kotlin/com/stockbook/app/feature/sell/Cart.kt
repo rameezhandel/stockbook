@@ -41,6 +41,30 @@ class Cart {
     val lines: List<Line> get() = _lines
 
     /**
+     * Photographs of the paper bill, taken while it is being written.
+     *
+     * Ids, not pictures — the files are already on disk by the time one lands
+     * here, written by `PhotoStore`. Held on the form rather than attached
+     * straight away because on a new bill there is nothing to attach them to
+     * yet: the bill does not exist until Save.
+     *
+     * A photograph taken against a bill that is then abandoned leaves a file
+     * nothing refers to, which the sweep collects on the next launch. That is
+     * the right way round — the alternative is deleting a picture the owner
+     * might have meant to keep.
+     */
+    private val _photoIds = mutableStateListOf<String>()
+    val photoIds: List<String> get() = _photoIds
+
+    fun addPhoto(id: String) {
+        if (id !in _photoIds) _photoIds.add(id)
+    }
+
+    fun removePhoto(id: String) {
+        _photoIds.remove(id)
+    }
+
+    /**
      * The customer's name as it will be written on the bill.
      *
      * Set either by typing or by choosing from the list, but only a *choice*
@@ -261,6 +285,11 @@ class Cart {
         customerKey = Customer.key(bill.who)
         payMode = if (bill.paid == null) PayMode.FULL else PayMode.PART
         paidText = bill.paid?.let { Money.amount(it, currency) }.orEmpty()
+        // The ones already on it, so a correction can take one off as well as add
+        // one. What the form ends up holding is reconciled against the bill on
+        // the way out.
+        _photoIds.clear()
+        _photoIds.addAll(bill.photoIds)
     }
 
     /**
@@ -275,7 +304,8 @@ class Cart {
         val customer: String,
         val customerKey: String?,
         val payMode: PayMode,
-        val paidText: String
+        val paidText: String,
+        val photoIds: List<String>
     )
 
     /**
@@ -296,7 +326,8 @@ class Cart {
         customer = customer,
         customerKey = customerKey,
         payMode = payMode,
-        paidText = paidText
+        paidText = paidText,
+        photoIds = _photoIds.toList()
     )
 
     private fun restore(draft: Draft) {
@@ -309,6 +340,8 @@ class Cart {
         customerKey = draft.customerKey
         payMode = draft.payMode
         paidText = draft.paidText
+        _photoIds.clear()
+        _photoIds.addAll(draft.photoIds)
     }
 
     /**
@@ -333,5 +366,6 @@ class Cart {
         customerKey = null
         payMode = PayMode.FULL
         paidText = ""
+        _photoIds.clear()
     }
 }

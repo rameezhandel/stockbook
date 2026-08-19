@@ -149,6 +149,19 @@ struct SellScreen: View {
                 invoiceNo: cart.invoiceNo
             ) else { return }
 
+            // `updateBill` deliberately does not take photographs — an edit form
+            // that omitted them would wipe them. So the difference is applied
+            // here instead: what the form gained is attached, what it lost is let
+            // go, and the sweep collects any file nothing names any more.
+            let before = corrected.photoIDs
+            for id in cart.photoIDs where !before.contains(id) {
+                store.attachPhoto(billNumber: corrected.number, photoID: id)
+            }
+            for id in before where !cart.photoIDs.contains(id) {
+                store.detachPhoto(billNumber: corrected.number, photoID: id)
+            }
+            PhotoStore().sweep(keeping: store.photoIDsInUse())
+
             cart.release()
             closePicker()
             router.tab = .book
@@ -162,7 +175,8 @@ struct SellScreen: View {
             paid: cart.paidForStorage,
             amount: cart.typedAmount,
             createdAt: cart.soldAt,
-            invoiceNo: cart.invoiceNo
+            invoiceNo: cart.invoiceNo,
+            photoIDs: cart.photoIDs
         ) else { return }
 
         cart.clear()

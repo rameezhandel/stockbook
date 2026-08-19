@@ -113,8 +113,9 @@ struct Strings {
     var search: String { pick("Search", "ಹುಡುಕಿ") }
     var nothingAddedYet: String { pick("nothing added yet", "ಇನ್ನೂ ಏನೂ ಸೇರಿಸಿಲ್ಲ") }
     /// The Items header's own name for `recordDelivery` — same sheet, same
-    /// action, but a header button reads as a section of the app rather than a
-    /// verb the way the Book's empty-state button does.
+    /// action, and now the same word. Kept as its own key because the two are
+    /// different buttons on different screens, and one of them may yet need to
+    /// read differently.
     var itemsRecordDelivery: String { pick("Inventory", "ದಾಸ್ತಾನು") }
 
     func itemsSubtitle(total: Int, low: Int) -> String {
@@ -155,10 +156,10 @@ struct Strings {
 
     /// On the Items header. Says "delivery" rather than "purchase" because that
     /// is the word for the thing arriving at the door.
-    var recordDelivery: String { pick("Delivery", "ಡೆಲಿವರಿ") }
+    var recordDelivery: String { pick("Inventory", "ದಾಸ್ತಾನು") }
     var whichProductArrived: String { pick("What arrived?", "ಏನು ಬಂತು?") }
     var noDeliveriesYet: String { pick("No deliveries yet", "ಇನ್ನೂ ಡೆಲಿವರಿ ಇಲ್ಲ") }
-    var deliveryDetail: String { pick("Delivery", "ಡೆಲಿವರಿ") }
+    var deliveryDetail: String { pick("Inventory", "ದಾಸ್ತಾನು") }
 
     /// `12 × SAR 60` — what a delivery row says under the product's name.
     func perPiece(qty: Int, cost: String) -> String { "\(qty) × \(cost)" }

@@ -82,6 +82,28 @@ final class Cart {
     /// once, and the statements would inherit it.
     var soldAt: Date = .now
 
+    /// Photographs of the paper bill, taken while it is being written.
+    ///
+    /// Ids, not pictures — the files are already on disk by the time one lands
+    /// here, written by `PhotoStore`. Held on the form rather than attached
+    /// straight away because on a new bill there is nothing to attach them to
+    /// yet: the bill does not exist until Save.
+    ///
+    /// A photograph taken against a bill that is then abandoned leaves a file
+    /// nothing refers to, which the sweep collects on the next launch. That is
+    /// the right way round — the alternative is deleting a picture the owner
+    /// might have meant to keep.
+    private(set) var photoIDs: [String] = []
+
+    func addPhoto(_ id: String) {
+        guard !photoIDs.contains(id) else { return }
+        photoIDs.append(id)
+    }
+
+    func removePhoto(_ id: String) {
+        photoIDs.removeAll { $0 == id }
+    }
+
     var isEmpty: Bool { lines.isEmpty }
 
     /// What the bill comes to: the typed figure until something is on it, the sum
@@ -229,6 +251,10 @@ final class Cart {
         paidText = bill.paid.map { Money.amount($0, in: store.settings.currency) } ?? ""
         invoiceNo = bill.invoiceNo ?? ""
         soldAt = bill.createdAt
+        // The ones already on it, so a correction can take one off as well as add
+        // one. What the form ends up holding is reconciled against the bill on
+        // the way out.
+        photoIDs = bill.photoIDs
     }
 
     /// Everything the form was holding, so a correction can borrow the screen and
@@ -242,6 +268,7 @@ final class Cart {
         let customerKey: String?
         let payMode: PayMode
         let paidText: String
+        let photoIDs: [String]
     }
 
     /// The half-typed bill a correction interrupted, if there was one.
@@ -261,7 +288,8 @@ final class Cart {
             customer: customer,
             customerKey: customerKey,
             payMode: payMode,
-            paidText: paidText
+            paidText: paidText,
+            photoIDs: photoIDs
         )
     }
 
@@ -284,6 +312,7 @@ final class Cart {
         customerKey = draft.customerKey
         payMode = draft.payMode
         paidText = draft.paidText
+        photoIDs = draft.photoIDs
         editing = nil
     }
 
@@ -297,6 +326,7 @@ final class Cart {
         paidText = ""
         invoiceNo = ""
         soldAt = .now
+        photoIDs = []
         editing = nil
     }
 
