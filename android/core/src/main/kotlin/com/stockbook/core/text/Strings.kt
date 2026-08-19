@@ -897,4 +897,7 @@ class Strings(val language: AppLanguage) {
     /** `19/05/2026`, for the statement table's narrow date column. */
     fun shortDate(date: java.time.Instant): String = Dates.shortDate(date)
 
+    /** `Aug 13, 2026` — the date shown in a date field the owner can change. */
+    fun pickedDate(date: java.time.Instant): String = Dates.pickedDate(date, language.locale)
+
 }

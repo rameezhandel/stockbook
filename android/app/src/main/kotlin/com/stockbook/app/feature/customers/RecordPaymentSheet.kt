@@ -208,7 +208,7 @@ private fun PaymentSheet(
                 Text(dateLabel, style = NocturneType.fieldLabel, color = Nocturne.neutral400)
                 Spacer(Modifier.height(5.dp))
                 Text(
-                    strings.longDate(receivedAt),
+                    strings.pickedDate(receivedAt),
                     style = NocturneType.inter(13.0),
                     color = Nocturne.accent,
                     modifier = Modifier

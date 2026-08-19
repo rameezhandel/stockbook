@@ -26,6 +26,18 @@ enum Copy {
         formatter("d MMMM yyyy", locale).string(from: date)
     }
 
+    /// `Aug 13, 2026` — the date sitting in a form the owner is filling in.
+    ///
+    /// The month is named rather than numbered because a date on a form is read
+    /// back one at a time, not scanned down a column: `08/13` and `13/08` are the
+    /// same four digits and only one of them is the date meant, where `Aug 13`
+    /// cannot be read two ways. Written here rather than left to
+    /// `DatePicker`'s own label, which takes its shape from the phone's region
+    /// and so said something different on two phones running the same app.
+    static func pickedDate(_ date: Date, locale: Locale) -> String {
+        formatter("MMM d, yyyy", locale).string(from: date)
+    }
+
     /// `19/05/2026` — the compact form a table column has room for.
     ///
     /// Numeric and fixed-width rather than localised word order, because it sits

@@ -316,7 +316,7 @@ fun AddStockSheet(
                         .padding(horizontal = 10.dp)
                 ) {
                     Text(
-                        strings.longDate(arrivedAt),
+                        strings.pickedDate(arrivedAt),
                         style = NocturneType.inter(13.0),
                         color = Nocturne.text,
                         maxLines = 1,

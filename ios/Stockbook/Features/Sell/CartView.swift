@@ -132,15 +132,11 @@ struct CartView: View {
                     fontSize: 13.5,
                     identifier: "cart.invoiceNo"
                 )
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(Loc.billDate).nocturneText(.fieldLabel)
-                    DatePicker("", selection: $cart.soldAt, displayedComponents: .date)
-                        .labelsHidden()
-                        .datePickerStyle(.compact)
-                        .font(NocturneType.inter(13))
-                        .tint(Nocturne.accent)
-                        .frame(height: 40)
-                }
+                NocturneDateField(
+                    label: Loc.billDate,
+                    date: $cart.soldAt,
+                    identifier: "cart.soldAt"
+                )
             }
 
             // Named, not merely reported: "already used" leaves the owner

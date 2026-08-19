@@ -34,6 +34,18 @@ object Dates {
         formatter("d MMMM yyyy", locale).format(at.atZone(ZoneId.systemDefault()))
 
     /**
+     * `Aug 13, 2026` — the date sitting in a form the owner is filling in.
+     *
+     * The month is named rather than numbered because a date on a form is read
+     * back one at a time, not scanned down a column: `08/13` and `13/08` are the
+     * same four digits and only one of them is the date meant, where `Aug 13`
+     * cannot be read two ways. Both apps show the same thing, and neither asks
+     * the phone what shape a date should be.
+     */
+    fun pickedDate(at: Instant, locale: Locale): String =
+        formatter("MMM d, yyyy", locale).format(at.atZone(ZoneId.systemDefault()))
+
+    /**
      * `19/05/2026` — the compact form a table column has room for.
      *
      * Numeric and fixed-width rather than localised word order, because it sits

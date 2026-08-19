@@ -255,7 +255,7 @@ private fun PaperRow(
                         .padding(horizontal = 10.dp)
                 ) {
                     Text(
-                        strings.longDate(cart.soldAt),
+                        strings.pickedDate(cart.soldAt),
                         style = NocturneType.inter(13.0),
                         color = Nocturne.text,
                         maxLines = 1,

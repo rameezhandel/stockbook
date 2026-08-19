@@ -245,15 +245,11 @@ private struct PaymentSheet: View {
                 fontSize: 13.5,
                 identifier: "payment.no"
             )
-            VStack(alignment: .leading, spacing: 5) {
-                Text(dateLabel).nocturneText(.fieldLabel)
-                DatePicker("", selection: $receivedAt, displayedComponents: .date)
-                    .labelsHidden()
-                    .datePickerStyle(.compact)
-                    .font(NocturneType.inter(13))
-                    .tint(Nocturne.accent)
-                    .frame(height: 40)
-            }
+            NocturneDateField(
+                label: dateLabel,
+                date: $receivedAt,
+                identifier: "payment.receivedAt"
+            )
         }
     }
 

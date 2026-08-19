@@ -135,15 +135,11 @@ struct AddStockSheet: View {
                         isRequiredAndEmpty: invoiceNo.isBlank,
                         identifier: "purchase.invoiceNo"
                     )
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(Loc.billDate).nocturneText(.fieldLabel)
-                        DatePicker("", selection: $arrivedAt, displayedComponents: .date)
-                            .labelsHidden()
-                            .datePickerStyle(.compact)
-                            .font(NocturneType.inter(13))
-                            .tint(Nocturne.accent)
-                            .frame(height: Metrics.inputHeight)
-                    }
+                    NocturneDateField(
+                        label: Loc.billDate,
+                        date: $arrivedAt,
+                        identifier: "purchase.arrivedAt"
+                    )
                 }
 
                 if let clash {

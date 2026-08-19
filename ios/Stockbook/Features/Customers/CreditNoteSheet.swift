@@ -181,15 +181,11 @@ struct CreditNoteSheet: View {
                 fontSize: 13.5,
                 identifier: "creditNote.no"
             )
-            VStack(alignment: .leading, spacing: 5) {
-                Text(Loc.creditedOn).nocturneText(.fieldLabel)
-                DatePicker("", selection: $issuedAt, displayedComponents: .date)
-                    .labelsHidden()
-                    .datePickerStyle(.compact)
-                    .font(NocturneType.inter(13))
-                    .tint(Nocturne.accent)
-                    .frame(height: 40)
-            }
+            NocturneDateField(
+                label: Loc.creditedOn,
+                date: $issuedAt,
+                identifier: "creditNote.issuedAt"
+            )
         }
     }
 

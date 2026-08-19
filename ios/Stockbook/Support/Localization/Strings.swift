@@ -983,4 +983,9 @@ struct Strings {
     func longDate(_ date: Date) -> String {
         Copy.longDate(date, locale: language.locale)
     }
+
+    /// `Aug 13, 2026` — the date shown in a date field the owner can change.
+    func pickedDate(_ date: Date) -> String {
+        Copy.pickedDate(date, locale: language.locale)
+    }
 }
