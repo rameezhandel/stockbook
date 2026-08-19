@@ -56,8 +56,15 @@ class PhotoStore(private val context: Context) {
         val bitmap = decodeScaled(source) ?: return null
         val id = PhotoPolicy.newId()
         return try {
-            file(id).outputStream().use { out ->
+            val written = file(id).outputStream().use { out ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, PhotoPolicy.qualityOutOfHundred, out)
+            }
+            // `compress` reports failure by returning false rather than throwing.
+            // Ignoring that leaves an empty file the bill then names for good —
+            // a thumbnail that can never load and never explains why.
+            if (!written) {
+                file(id).delete()
+                return null
             }
             id
         } catch (_: Exception) {
@@ -138,8 +145,17 @@ class PhotoStore(private val context: Context) {
      */
     private fun decodeScaled(source: Uri): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        read(source) { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        // The measuring pass returns **null by contract** — with
+        // `inJustDecodeBounds` set, `decodeStream` fills in `outWidth`/`outHeight`
+        // and hands back no bitmap at all. Reading that null as failure is what
+        // made every photograph on Android say it could not be read. What is
+        // being checked here is only whether the stream opened; the answer is in
+        // `bounds` afterwards.
+        val opened = read(source) {
+            BitmapFactory.decodeStream(it, null, bounds)
+            true
+        }
+        if (opened != true || bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
         val options = BitmapFactory.Options().apply {
             inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight)
