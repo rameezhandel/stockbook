@@ -1,112 +1,63 @@
 ---
 name: ios
-description: Any work on the iOS half of Stockbook — SwiftUI screens in ios/Stockbook, the model and store, Swift Testing suites in ios/StockbookTests, or the iOS/TestFlight workflows. Use for implementing a feature on iOS, porting one from Android, or diagnosing a failed iOS build.
+description: Any work on the iOS half of Stockbook — SwiftUI screens, the Swift domain twin, the backup format, or the iOS CI workflow. Use for implementing a feature on iOS, porting one from Android, or diagnosing a failed iOS build.
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch
 ---
 
-You are working on the iOS half of **Stockbook**: an offline inventory and
-billing app for a single-owner hardware and lock shop in Saudi Arabia. There is
-one user — the owner — standing at a counter with a customer waiting.
+The project's rules, constraints, traps and verification loop are in
+**[`CLAUDE.md`](../../CLAUDE.md)** at the repository root. Read it first; it
+applies here unchanged and is the one copy. This file is only what is specific to
+iOS.
 
-## The constraints that are not yours to relax
+## Nothing here compiles locally, and that governs everything
 
-- **No network calls, ever.** The app must work in airplane mode on first launch.
-  No analytics, no crash reporting, no font or asset fetching, no update check.
-- **All persistence is local.** A dropped phone loses everything unless the owner
-  exported a file. That is the accepted trade, and it is why the backup file
-  matters more than it looks.
-- **Single user.** No login, no roles, no accounts.
-- **The two apps are one product.** Every model, store method and string here has
-  a Kotlin twin in `android/core`. The `Strings` table (English + Kannada) must
-  stay identical across platforms, key for key. The backup JSON must stay
-  byte-compatible — same keys, same shapes, same version number.
+There is no macOS, no Xcode and no Swift compiler in this container. **CI is the
+only thing that has ever compiled this code**, at five to ten minutes a round
+trip — and iOS now builds only on a pull request, so a change pushed straight to
+a branch is never built at all.
 
-## Where things live
+Of the eight CI failures during the photo feature, seven were here. Every one was
+a mechanical mistake that a compiler would have caught in a second. So read
+twice, and prefer the shape that already exists in the file over the shape you
+would write from memory.
 
-| Path | What it is |
-| --- | --- |
-| `ios/Stockbook/Model` | Models, `Statement`, `InvoiceNo`, `BillText` — the pure parts |
-| `ios/Stockbook/Store` | `StockbookStore` (`@Observable`), `Cart`, repositories |
-| `ios/Stockbook/Features/<area>` | Screens and sheets |
-| `ios/Stockbook/DesignSystem` | `NocturneField`, buttons, `Metrics`, palette |
-| `ios/Stockbook/Support/Localization/Strings.swift` | The bilingual table |
-| `ios/StockbookTests` | Swift Testing suites |
-| `ios/README.md` | The long-form design record — keep it current for real behaviour changes |
+Before pushing, at minimum: `python3 tools/check.py`, and re-read every symbol
+you introduced against its declaration — argument labels, return types, and
+whether a value is `Data` or `String`.
 
-**There is no Xcode in this container.** You cannot compile or run tests here;
-GitHub Actions is the only compiler. That makes two habits non-negotiable:
+## Swift traps this repo has actually shipped
 
-1. **Port from Kotlin where possible.** `android/core` tests run locally in
-   seconds. Get the domain right there, then mirror it — assertion for assertion.
-2. **Scan mechanically before pushing.** After any rename or signature change,
-   grep both `ios/Stockbook` **and** `ios/StockbookTests`; a sweep that covers
-   only the app target has already shipped a broken build here. Check that the
-   *type* is visible too, not just the member — a missing `import`/namespace is
-   invisible to a member-name grep.
+- **A default does not make the synthesised decoder tolerate a missing key.** It
+  throws. Adding `creditNotes` made every version-2 backup unreadable. An
+  *optional* property is tolerated, because the compiler reaches for
+  `decodeIfPresent`; a defaulted non-optional is not. That asymmetry is the whole
+  trap. Where a type already has a hand-written `init(from:)`, add the line
+  yourself — and put the init in an **extension** if the memberwise initialiser
+  must survive.
+- **`Loc` is main-actor isolated.** Reading it inside a closure that is not —
+  `PhotosPicker`'s label, a nested type's method — fails to compile. Read the
+  string in the enclosing view and pass it in as a plain `String`.
+- **`BackupService.encode` returns `Data` here and `String` in Kotlin.** A test
+  ported across without noticing does not compile.
+- **Swift 5 language mode: no `@retroactive`.** Wrap the type instead of
+  conforming retroactively — `StatementFile` exists for exactly this.
+- `Statement.Entry` is an enum with no `default` branch anywhere on purpose.
+  Adding a case is *meant* to break every rendering site.
 
-## Swift traps this repo has actually hit
+## The project file
 
-- **A default value does not make Swift's synthesised decoder tolerate a missing
-  key.** Kotlin's does; Swift's does not. Any type that gained a field after a
-  backup file existed needs a hand-written `init(from:)` — `Settings`,
-  `ShopState`, `CustomerRecord`, `SupplierRecord` and `Bill` all have one, and a
-  new field on any of them means editing that decoder, not just the property.
-- **Argument order must match declaration order** at every call site, or you get
-  "argument 'x' must precede argument 'y'". When that error appears, check what
-  the reordering was hiding — the last time, it sat on top of a real bug where a
-  restore refreshed only half the in-memory arrays.
-- `NocturneField` is used through its **memberwise init**: parameters may be
-  skipped but never reordered.
-- New files are picked up automatically — the project uses
-  `PBXFileSystemSynchronizedRootGroup`, so **do not hand-edit the `.pbxproj`** to
-  add a file.
-- Tests are Swift Testing: `@Test`, `#expect`, `try #require`. Suites touching the
-  store are `@MainActor`. A `try #require(...)` whose value is unused needs
-  `_ =`.
+Files are picked up by **synchronized folder groups**: adding a `.swift` file
+anywhere under `Stockbook/` puts it in the target with no `.pbxproj` edit. Never
+hand-edit the file references.
 
-## Domain rules worth knowing before you edit
+Build *settings* are the exception — `Info.plist` is generated, so keys live as
+`INFOPLIST_KEY_*` in **both** `ios/project.yml` and **both** configuration blocks
+of `project.pbxproj`. Three places, and they drift: two keys already exist in one
+and not the other.
 
-- **Backup version bumps only when an older reader would *misinterpret* the new
-  shape.** A field an old reader drops is a label lost, not a figure misread —
-  that is not a bump.
-- `Customer.key` / `Supplier.key` are trimmed + lowercased, one implementation
-  each. Identity is never the typed string.
-- `Bill.number` is the app's own counter and the thing identity is built on. The
-  typed `invoiceNo` is a **label**. Never conflate them.
-- History is **voided, never deleted** — voiding a bill returns stock, voiding a
-  purchase removes it.
-- `Statement.Entry` is an enum with no `default:` anywhere on purpose: adding a
-  case must break every `switch` that renders one, including the plain-text
-  document. Do not add a `default:` to silence it.
+## Twinning
 
-## Working style
-
-Match the surrounding code: comments explain **why**, in full sentences, and
-often name the wrong thing they exist to prevent. Validation is a button's label
-and a disabled state, never a toast or an alert. Screens read the live store
-rather than a captured value, so an action redraws the thing under the owner's
-thumb.
-
-New user-visible text goes in `Strings.swift` in **both** English and Kannada,
-must be registered in `LocalizationTests.everyString` (which fails on an
-untranslated or English-only entry), and the identical key must exist in
-`android/core/.../text/Strings.kt`.
-
-## Verifying
-
-1. Mirror any new domain test from `android/core/src/test` into
-   `ios/StockbookTests`, then push — CI is the only way to run it.
-2. **The GitHub Actions status column lies.** Only server-side filters are
-   trustworthy:
-   - `https://github.com/rameezhandel/stockbook/actions?query=branch%3A<branch>+is%3Afailure`
-   - `https://github.com/rameezhandel/stockbook/actions?query=branch%3A<branch>+is%3Asuccess`
-
-   `gh` is unavailable here and the API is rate-limited; use `WebFetch`, and vary
-   a dummy query parameter to bust its 15-minute per-URL cache. An iOS run takes
-   roughly 4–6 minutes.
-3. The run page names the failing file and line; `Report the errors where they
-   can be read` surfaces them as annotations.
-4. Merge to main by fast-forward: `git push origin <sha>:main`.
-
-Report failures plainly, including the output. A green column you did not verify
-through a filter is not a pass.
+Anything in `Model` or `Store` has a Kotlin counterpart, usually written first.
+Port assertion for assertion — `StoreTests` and its siblings are deliberate
+ports, and a figure the two disagree on is a bug in one of them. That is how the
+paid-in-full divergence was caught.
