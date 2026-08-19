@@ -142,6 +142,34 @@ class AppRouter {
     var statementFor by mutableStateOf<String?>(null)
 
     /**
+     * One party's screen, full width: a customer key, or a supplier key with
+     * [partyIsSupplier] set.
+     *
+     * A key rather than the `Customer` itself, for the same reason [statementFor]
+     * is a key — taking a payment while the screen is open changes every figure on
+     * it, so the screen has to re-read the person rather than show a copy taken
+     * when it opened.
+     *
+     * One field and a flag rather than two fields, unlike the statements above:
+     * the two statements really are two presentations because only one of them
+     * can be open at a time *per side*, whereas a party screen is one place with a
+     * direction. Both spellings work; this is the one that stops the two from
+     * being open at once.
+     */
+    var partyFor by mutableStateOf<String?>(null)
+    var partyIsSupplier by mutableStateOf(false)
+
+    fun openCustomerScreen(key: String) {
+        partyIsSupplier = false
+        partyFor = key
+    }
+
+    fun openSupplierScreen(key: String) {
+        partyIsSupplier = true
+        partyFor = key
+    }
+
+    /**
      * The supplier editor sheet. The customer editor's mirror, kept as its own
      * pair of fields rather than one editor with a direction on it: the two
      * sheets say different words and gate on different figures.
@@ -260,6 +288,7 @@ class AppRouter {
     }
 
     fun closeOverlays() {
+        partyFor = null
         productEditor = null
         creatingProduct = false
         addStock = null

@@ -281,6 +281,11 @@ struct Strings {
 
     var customersTitle: String { pick("Customers", "ಗ್ರಾಹಕರು") }
     var addACustomer: String { pick("Add a customer", "ಗ್ರಾಹಕರನ್ನು ಸೇರಿಸಿ") }
+    var noCustomersYet: String { pick("No customers yet", "ಇನ್ನೂ ಗ್ರಾಹಕರು ಇಲ್ಲ") }
+    var noSuppliersYet: String { pick("No suppliers yet", "ಇನ್ನೂ ಪೂರೈಕೆದಾರರು ಇಲ್ಲ") }
+
+    /// A search that found nobody. Said for customers and suppliers alike.
+    var nobodyMatches: String { pick("Nobody by that name", "ಆ ಹೆಸರಿನವರು ಯಾರೂ ಇಲ್ಲ") }
     var newCustomer: String { pick("New customer", "ಹೊಸ ಗ್ರಾಹಕ") }
     var editCustomer: String { pick("Edit customer", "ಗ್ರಾಹಕರ ವಿವರ ಬದಲಿಸಿ") }
     var customerPhone: String { pick("Phone", "ಫೋನ್") }

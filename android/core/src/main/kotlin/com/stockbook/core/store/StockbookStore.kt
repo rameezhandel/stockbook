@@ -554,6 +554,21 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun customer(key: String): Customer? = customers().firstOrNull { it.key == key }
 
     /**
+     * The customer directory: everybody, filtered by what has been typed, in the
+     * order somebody looks a person up.
+     *
+     * A separate function rather than a flag on [customers], because the two
+     * orders answer different questions and neither can be the other's default.
+     * [customers] is biggest-debt-first, which is what Today's banner and the
+     * owed sheets are built on. This one is by name, because a screen you go to
+     * in order to find Fatima is no use sorted by what Fatima happens to owe.
+     */
+    fun customers(matching: String): List<Customer> =
+        customers()
+            .filter { partyMatches(it.name, it.phone, matching) }
+            .sortedBy { it.name.lowercase() }
+
+    /**
      * Adds a customer to the roster. A key already present is updated rather than
      * duplicated — typing a name that is already there is a correction, not a
      * second person. Returns null for a blank name.
@@ -1010,6 +1025,28 @@ class StockbookStore(private val repository: StockbookRepository) {
     }
 
     fun supplier(key: String): Supplier? = suppliers().firstOrNull { it.key == key }
+
+    /** The supplier directory. [customers] with a `matching` argument, mirrored. */
+    fun suppliers(matching: String): List<Supplier> =
+        suppliers()
+            .filter { partyMatches(it.name, it.phone, matching) }
+            .sortedBy { it.name.lowercase() }
+
+    /**
+     * Whether one person answers to what has been typed.
+     *
+     * Name and phone, because those are the two things written on the paper the
+     * owner is holding. A blank query matches everybody — the box is empty far
+     * more often than it is full, and a stray space must not empty the screen.
+     */
+    private fun partyMatches(name: String, phone: String?, query: String): Boolean {
+        val wanted = query.trim().lowercase()
+        if (wanted.isEmpty()) return true
+        if (name.lowercase().contains(wanted)) return true
+        // Not `orEmpty()`: an absent phone must read as "no match" rather than as
+        // an empty string that every query is a substring of.
+        return phone?.lowercase()?.contains(wanted) == true
+    }
 
     /**
      * Adds a supplier to the roster. A key already there is corrected rather than

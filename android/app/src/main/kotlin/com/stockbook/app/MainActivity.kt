@@ -38,6 +38,7 @@ import com.stockbook.app.feature.customers.RecordPaymentSheet
 import com.stockbook.app.feature.customers.PaySupplierSheet
 import com.stockbook.app.feature.customers.SupplierEditorSheet
 import com.stockbook.app.feature.customers.StatementPdf
+import com.stockbook.app.feature.book.PartyScreen
 import com.stockbook.app.feature.customers.StatementScreen
 import com.stockbook.app.feature.items.AddStockSheet
 import com.stockbook.app.feature.items.ItemsScreen
@@ -223,6 +224,21 @@ private fun Shell(store: StockbookStore) {
                 store = store,
                 strings = strings,
                 onClose = { router.showingBackup = false }
+            )
+        }
+
+        // One person, full screen, over whichever half of the book they were
+        // opened from. Above the tab bar and below the statement: the statement is
+        // reached *from* here and has to sit on top of it.
+        router.partyFor?.let { key ->
+            PartyScreen(
+                partyKey = key,
+                isSupplier = router.partyIsSupplier,
+                state = state,
+                store = store,
+                router = router,
+                strings = strings,
+                onClose = { router.partyFor = null }
             )
         }
 

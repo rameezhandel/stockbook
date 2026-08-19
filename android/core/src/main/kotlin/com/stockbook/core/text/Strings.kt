@@ -263,6 +263,11 @@ class Strings(val language: AppLanguage) {
 
     val customersTitle: String get() = pick("Customers", "ಗ್ರಾಹಕರು")
     val addACustomer: String get() = pick("Add a customer", "ಗ್ರಾಹಕರನ್ನು ಸೇರಿಸಿ")
+    val noCustomersYet: String get() = pick("No customers yet", "ಇನ್ನೂ ಗ್ರಾಹಕರು ಇಲ್ಲ")
+    val noSuppliersYet: String get() = pick("No suppliers yet", "ಇನ್ನೂ ಪೂರೈಕೆದಾರರು ಇಲ್ಲ")
+
+    /** A search that found nobody. Said for customers and suppliers alike. */
+    val nobodyMatches: String get() = pick("Nobody by that name", "ಆ ಹೆಸರಿನವರು ಯಾರೂ ಇಲ್ಲ")
     val newCustomer: String get() = pick("New customer", "ಹೊಸ ಗ್ರಾಹಕ")
     val editCustomer: String get() = pick("Edit customer", "ಗ್ರಾಹಕರ ವಿವರ ಬದಲಿಸಿ")
     val customerPhone: String get() = pick("Phone", "ಫೋನ್")
