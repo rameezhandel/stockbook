@@ -5,10 +5,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.stockbook.core.model.Bill
 import com.stockbook.core.model.CreditNote
+import com.stockbook.core.model.Payment
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Product
 import com.stockbook.core.model.Purchase
 import com.stockbook.core.model.Supplier
+import com.stockbook.core.model.SupplierPayment
 import com.stockbook.core.text.AppTab
 
 /**
@@ -125,6 +127,13 @@ class AppRouter {
     var editingCreditNote by mutableStateOf<CreditNote?>(null)
 
     /**
+     * The payment being corrected, if one is. Held beside [paymentFor] rather
+     * than replacing it: the sheet needs the customer either way, because it
+     * shows what will still be owed once the correction is saved.
+     */
+    var editingPayment by mutableStateOf<Payment?>(null)
+
+    /**
      * A customer's statement, full screen. Held as a **key** rather than a
      * [Customer], because recording a payment while it is open changes every
      * derived figure on it — the screen has to re-read the customer, not show a
@@ -142,6 +151,9 @@ class AppRouter {
 
     /** The pay-a-supplier sheet. */
     var supplierPaymentFor by mutableStateOf<Supplier?>(null)
+
+    /** The money-out twin of [editingPayment]. */
+    var editingSupplierPayment by mutableStateOf<SupplierPayment?>(null)
 
     /**
      * A supplier's statement, full screen — a key for the same reason
@@ -263,12 +275,14 @@ class AppRouter {
         customerEditor = null
         creatingCustomer = false
         paymentFor = null
+        editingPayment = null
         creditNoteFor = null
         editingCreditNote = null
         statementFor = null
         supplierEditor = null
         creatingSupplier = false
         supplierPaymentFor = null
+        editingSupplierPayment = null
         supplierStatementFor = null
     }
 }

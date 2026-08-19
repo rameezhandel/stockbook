@@ -34,7 +34,7 @@ struct LocalizationTests {
         \.creditReason, \.creditReasonExample, \.saveCreditNote, \.removeCreditNote,
         \.enterCreditNoteNumber, \.changeTheCreditNoteNo, \.itemsReturned,
         \.addReturnedItems, \.noCreditNotesYet, \.creditNoteNotAPayment,
-        \.recordAPayment, \.amountReceived, \.receivedOn, \.paymentNote,
+        \.recordAPayment, \.correctAPayment, \.amountReceived, \.receivedOn, \.paymentNote,
         \.paymentNoteExample, \.savePayment, \.paymentLabel, \.deleteThisPayment,
         \.enterAnAmount, \.paymentNotAgainstOneBill,
         \.paymentNoField, \.paymentNoHint, \.enterPaymentNumber, \.changeThePaymentNo,

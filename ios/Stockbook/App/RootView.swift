@@ -176,7 +176,10 @@ private struct AppShell: View {
             CustomerEditorSheet(existing: target.customer) { router.customerEditor = nil }
         }
         .nocturneSheet(item: $router.paymentFor) { customer in
-            RecordPaymentSheet(customer: customer) { router.paymentFor = nil }
+            RecordPaymentSheet(customer: customer, editing: router.editingPayment) {
+                router.paymentFor = nil
+                router.editingPayment = nil
+            }
         }
         // The payment sheet's sibling: the same act with no money in it. The
         // customer is re-read so the sheet's "what will be left" line is not a
@@ -191,7 +194,10 @@ private struct AppShell: View {
             SupplierEditorSheet(existing: target.supplier) { router.supplierEditor = nil }
         }
         .nocturneSheet(item: $router.supplierPaymentFor) { supplier in
-            PaySupplierSheet(supplier: supplier) { router.supplierPaymentFor = nil }
+            PaySupplierSheet(supplier: supplier, editing: router.editingSupplierPayment) {
+                router.supplierPaymentFor = nil
+                router.editingSupplierPayment = nil
+            }
         }
         .nocturneSheet(isPresented: $router.showingDebtors) {
             WhoOwesYouSheet { router.showingDebtors = false }

@@ -33,8 +33,10 @@ import com.stockbook.app.design.PrimaryButton
 import com.stockbook.app.design.SheetHeader
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
+import com.stockbook.core.model.Payment
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.Supplier
+import com.stockbook.core.model.SupplierPayment
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
@@ -66,19 +68,31 @@ fun RecordPaymentSheet(
     store: StockbookStore,
     currency: Currency,
     strings: Strings,
+    /** The payment being corrected, or null to take a new one. */
+    editing: Payment? = null,
     onClose: () -> Unit
 ) {
     PaymentSheet(
         name = customer.name,
-        key = customer.key,
+        key = editing?.id ?: customer.key,
         owed = customer.owed,
         dateLabel = strings.receivedOn,
         footnote = strings.paymentNotAgainstOneBill,
         currency = currency,
         strings = strings,
         state = state,
-        clashDate = { store.paymentWithNo(it)?.receivedAt },
-        onSave = { amount, at, note, no -> store.recordPayment(customer.key, amount, at, note, no) },
+        existingAmount = editing?.amount,
+        existingNote = editing?.note,
+        existingNo = editing?.paymentNo,
+        existingDate = editing?.receivedAt,
+        // Never counting the one being corrected, or opening 008455 to fix its
+        // amount would be told 008455 is taken — by itself.
+        clashDate = { store.paymentWithNo(it, exceptId = editing?.id)?.receivedAt },
+        onSave = { amount, at, note, no ->
+            if (editing != null) store.updatePayment(editing.id, amount, at, note, no)
+            else store.recordPayment(customer.key, amount, at, note, no)
+        },
+        onDelete = editing?.let { { store.deletePayment(it.id) } },
         onClose = onClose
     )
 }
@@ -97,19 +111,28 @@ fun PaySupplierSheet(
     store: StockbookStore,
     currency: Currency,
     strings: Strings,
+    editing: SupplierPayment? = null,
     onClose: () -> Unit
 ) {
     PaymentSheet(
         name = supplier.name,
-        key = supplier.key,
+        key = editing?.id ?: supplier.key,
         owed = supplier.owed,
         dateLabel = strings.paidOn,
         footnote = strings.paymentNotAgainstOnePurchase,
         currency = currency,
         strings = strings,
         state = state,
-        clashDate = { store.supplierPaymentWithNo(it)?.paidAt },
-        onSave = { amount, at, note, no -> store.recordSupplierPayment(supplier.key, amount, at, note, no) },
+        existingAmount = editing?.amount,
+        existingNote = editing?.note,
+        existingNo = editing?.paymentNo,
+        existingDate = editing?.paidAt,
+        clashDate = { store.supplierPaymentWithNo(it, exceptId = editing?.id)?.paidAt },
+        onSave = { amount, at, note, no ->
+            if (editing != null) store.updateSupplierPayment(editing.id, amount, at, note, no)
+            else store.recordSupplierPayment(supplier.key, amount, at, note, no)
+        },
+        onDelete = editing?.let { { store.deleteSupplierPayment(it.id) } },
         onClose = onClose
     )
 }
@@ -125,14 +148,23 @@ private fun PaymentSheet(
     currency: Currency,
     strings: Strings,
     state: ShopState,
+    existingAmount: Double?,
+    existingNote: String?,
+    existingNo: String?,
+    existingDate: Instant?,
     clashDate: (String) -> Instant?,
     onSave: (amount: Double, at: Instant, note: String, paymentNo: String) -> Unit,
+    /** Present only when correcting: a payment being taken has nothing to remove. */
+    onDelete: (() -> Unit)?,
     onClose: () -> Unit
 ) {
-    var paymentNo by remember(key) { mutableStateOf("") }
-    var amount by remember(key) { mutableStateOf("") }
-    var note by remember(key) { mutableStateOf("") }
-    var receivedAt by remember(key) { mutableStateOf(Timestamps.now()) }
+    var paymentNo by remember(key) { mutableStateOf(existingNo.orEmpty()) }
+    var amount by remember(key) {
+        mutableStateOf(existingAmount?.let { Money.amount(it, currency) }.orEmpty())
+    }
+    var note by remember(key) { mutableStateOf(existingNote.orEmpty()) }
+    var receivedAt by remember(key) { mutableStateOf(existingDate ?: Timestamps.now()) }
+    var confirmingRemoval by remember(key) { mutableStateOf(false) }
     var pickingDate by remember { mutableStateOf(false) }
 
     // Recomputed against the whole state so a number freed by deleting the
@@ -141,11 +173,21 @@ private fun PaymentSheet(
 
     val typed = Money.parse(amount) ?: 0.0
     val canSave = typed > 0 && paymentNo.isNotBlank() && clash == null
-    /** What will still be owed once this is saved — usually the target is zero. */
-    val remaining = owed - typed
+    /**
+     * What will still be owed once this is saved.
+     *
+     * A payment being corrected is already inside `owed`, so its old amount is
+     * added back before the new one comes off — otherwise correcting 300 to 350
+     * would read as though 650 had been paid.
+     */
+    val remaining = owed + (existingAmount ?: 0.0) - typed
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        SheetHeader(title = strings.recordAPayment, subtitle = name, onClose = onClose)
+        SheetHeader(
+            title = if (onDelete != null) strings.correctAPayment else strings.recordAPayment,
+            subtitle = name,
+            onClose = onClose
+        )
 
         // The paper first: which receipt this is, and the day it was written.
         // Same row, same order as the credit note's, because it is the same act
@@ -269,6 +311,7 @@ private fun PaymentSheet(
                 clash != null -> strings.changeThePaymentNo
                 paymentNo.isBlank() -> strings.enterPaymentNumber
                 typed <= 0 -> strings.enterAnAmount
+                onDelete != null -> strings.saveChanges
                 else -> strings.savePayment
             },
             onClick = {
@@ -281,5 +324,24 @@ private fun PaymentSheet(
             height = 48.dp,
             fontSize = 15.0
         )
+
+        // Removal lives inside the correction, exactly as the credit note's does.
+        // Two taps, because it takes a figure out of somebody's account.
+        if (onDelete != null) {
+            Spacer(Modifier.height(6.dp))
+            GhostButton(
+                if (confirmingRemoval) strings.tapAgainToRemove else strings.deleteThisPayment,
+                onClick = {
+                    if (confirmingRemoval) {
+                        onDelete()
+                        onClose()
+                    } else {
+                        confirmingRemoval = true
+                    }
+                },
+                tint = if (confirmingRemoval) Nocturne.accent400 else Nocturne.neutral500,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }

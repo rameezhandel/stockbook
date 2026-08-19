@@ -347,6 +347,15 @@ class Strings(val language: AppLanguage) {
     // --- Payments
 
     val recordAPayment: String get() = pick("Record a payment", "ಪಾವತಿ ದಾಖಲಿಸಿ")
+
+    /**
+     * The same sheet, opened on one that already exists.
+     *
+     * "Correct", not "Edit": the owner is fixing something written down wrong,
+     * which is a different act from changing their mind — and the word the paper
+     * book would use.
+     */
+    val correctAPayment: String get() = pick("Correct a payment", "ಪಾವತಿ ಸರಿಪಡಿಸಿ")
     val amountReceived: String get() = pick("Amount received", "ಸ್ವೀಕರಿಸಿದ ಮೊತ್ತ")
     val receivedOn: String get() = pick("Received on", "ಸ್ವೀಕರಿಸಿದ ದಿನ")
     val paymentNote: String get() = pick("Note", "ಟಿಪ್ಪಣಿ")

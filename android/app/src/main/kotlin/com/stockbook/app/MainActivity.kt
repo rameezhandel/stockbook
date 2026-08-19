@@ -254,6 +254,17 @@ private fun Shell(store: StockbookStore) {
                         router.creditNoteFor = customer
                     }
                 },
+                onEditPayment = { id ->
+                    // The customer comes with it: the sheet shows what will still
+                    // be owed once the correction is saved, which needs the whole
+                    // account rather than the one payment.
+                    state.payments.firstOrNull { it.id == id }?.let { payment ->
+                        store.customer(payment.customerKey)?.let { customer ->
+                            router.editingPayment = payment
+                            router.paymentFor = customer
+                        }
+                    }
+                },
                 onClose = { router.statementFor = null }
             )
         }
@@ -278,6 +289,14 @@ private fun Shell(store: StockbookStore) {
                             )
                         )
                     )
+                },
+                onEditPayment = { id ->
+                    state.supplierPayments.firstOrNull { it.id == id }?.let { payment ->
+                        store.supplier(payment.supplierKey)?.let { supplier ->
+                            router.editingSupplierPayment = payment
+                            router.supplierPaymentFor = supplier
+                        }
+                    }
                 },
                 onClose = { router.supplierStatementFor = null }
             )
@@ -396,7 +415,7 @@ private fun Shell(store: StockbookStore) {
 
         BottomSheet(
             visible = router.paymentFor != null,
-            onDismiss = { router.paymentFor = null }
+            onDismiss = { router.paymentFor = null; router.editingPayment = null }
         ) {
             router.paymentFor?.let { customer ->
                 RecordPaymentSheet(
@@ -407,7 +426,8 @@ private fun Shell(store: StockbookStore) {
                     store = store,
                     currency = state.settings.currency,
                     strings = strings,
-                    onClose = { router.paymentFor = null }
+                    editing = router.editingPayment,
+                    onClose = { router.paymentFor = null; router.editingPayment = null }
                 )
             }
         }
@@ -445,7 +465,7 @@ private fun Shell(store: StockbookStore) {
 
         BottomSheet(
             visible = router.supplierPaymentFor != null,
-            onDismiss = { router.supplierPaymentFor = null }
+            onDismiss = { router.supplierPaymentFor = null; router.editingSupplierPayment = null }
         ) {
             router.supplierPaymentFor?.let { supplier ->
                 PaySupplierSheet(
@@ -456,7 +476,8 @@ private fun Shell(store: StockbookStore) {
                     store = store,
                     currency = state.settings.currency,
                     strings = strings,
-                    onClose = { router.supplierPaymentFor = null }
+                    editing = router.editingSupplierPayment,
+                    onClose = { router.supplierPaymentFor = null; router.editingSupplierPayment = null }
                 )
             }
         }

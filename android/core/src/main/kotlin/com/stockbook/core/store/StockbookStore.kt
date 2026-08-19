@@ -685,6 +685,44 @@ class StockbookStore(private val repository: StockbookRepository) {
         return payment
     }
 
+    /**
+     * Corrects a payment that was written down wrong.
+     *
+     * Every part of it, because every part can be mistyped: the amount, the day
+     * the money actually arrived, the note, and the number off the receipt book.
+     *
+     * This did not exist while a payment was an amount and a date — deleting and
+     * re-entering was the honest answer to a record with two fields. A receipt
+     * number changed that: a wrong one is spotted weeks later, reconciling
+     * against the paper book, and re-entering by then means re-picking the
+     * original date and hoping. That is how a statement starts claiming money
+     * arrived on the day it was corrected.
+     */
+    fun updatePayment(
+        id: String,
+        amount: Double,
+        receivedAt: Instant,
+        note: String? = null,
+        paymentNo: String? = null
+    ): Payment? {
+        val existing = payments.firstOrNull { it.id == id } ?: return null
+        if (amount <= 0) return null
+
+        val updated = existing.copy(
+            amount = amount,
+            paymentNo = paymentNo?.trim()?.takeIf { it.isNotEmpty() },
+            receivedAt = receivedAt,
+            note = CustomerRecord.tidied(note)
+        )
+        _state.value = _state.value.copy(
+            payments = payments
+                .map { if (it.id == id) updated else it }
+                .sortedByDescending { it.receivedAt }
+        )
+        attempt { repository.replaceAll(_state.value) }
+        return updated
+    }
+
     fun deletePayment(id: String) {
         _state.value = _state.value.copy(payments = payments.filterNot { it.id == id })
         attempt { repository.deletePayment(id) }
@@ -1250,6 +1288,32 @@ class StockbookStore(private val repository: StockbookRepository) {
         val key = InvoiceNo.key(paymentNo)
         if (key.isEmpty()) return null
         return supplierPayments.firstOrNull { it.id != exceptId && InvoiceNo.key(it.paymentNo) == key }
+    }
+
+    /** The same correction, on the money-out side — see [updatePayment]. */
+    fun updateSupplierPayment(
+        id: String,
+        amount: Double,
+        paidAt: Instant,
+        note: String? = null,
+        paymentNo: String? = null
+    ): SupplierPayment? {
+        val existing = supplierPayments.firstOrNull { it.id == id } ?: return null
+        if (amount <= 0) return null
+
+        val updated = existing.copy(
+            amount = amount,
+            paymentNo = paymentNo?.trim()?.takeIf { it.isNotEmpty() },
+            paidAt = paidAt,
+            note = CustomerRecord.tidied(note)
+        )
+        _state.value = _state.value.copy(
+            supplierPayments = supplierPayments
+                .map { if (it.id == id) updated else it }
+                .sortedByDescending { it.paidAt }
+        )
+        attempt { repository.replaceAll(_state.value) }
+        return updated
     }
 
     fun deleteSupplierPayment(id: String) {

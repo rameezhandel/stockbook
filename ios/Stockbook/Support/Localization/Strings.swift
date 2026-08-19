@@ -378,6 +378,13 @@ struct Strings {
     // MARK: - Payments
 
     var recordAPayment: String { pick("Record a payment", "ಪಾವತಿ ದಾಖಲಿಸಿ") }
+
+    /// The same sheet, opened on one that already exists.
+    ///
+    /// "Correct", not "Edit": the owner is fixing something written down wrong,
+    /// which is a different act from changing their mind — and the word the paper
+    /// book would use.
+    var correctAPayment: String { pick("Correct a payment", "ಪಾವತಿ ಸರಿಪಡಿಸಿ") }
     var amountReceived: String { pick("Amount received", "ಸ್ವೀಕರಿಸಿದ ಮೊತ್ತ") }
     var receivedOn: String { pick("Received on", "ಸ್ವೀಕರಿಸಿದ ದಿನ") }
     var paymentNote: String { pick("Note", "ಟಿಪ್ಪಣಿ") }

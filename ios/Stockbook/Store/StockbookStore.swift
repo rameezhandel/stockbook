@@ -681,6 +681,37 @@ final class StockbookStore {
         return payment
     }
 
+    /// Corrects a payment that was written down wrong.
+    ///
+    /// Every part of it, because every part can be mistyped: the amount, the day
+    /// the money actually arrived, the note, and the number off the receipt book.
+    ///
+    /// This did not exist while a payment was an amount and a date — deleting and
+    /// re-entering was the honest answer to a record with two fields. A receipt
+    /// number changed that: a wrong one is spotted weeks later, reconciling
+    /// against the paper book, and re-entering by then means re-picking the
+    /// original date and hoping. That is how a statement starts claiming money
+    /// arrived on the day it was corrected.
+    @discardableResult
+    func updatePayment(
+        id: UUID,
+        amount: Double,
+        receivedAt: Date,
+        note: String? = nil,
+        paymentNo: String? = nil
+    ) -> Payment? {
+        guard amount > 0, let index = payments.firstIndex(where: { $0.id == id }) else { return nil }
+
+        payments[index].amount = amount
+        payments[index].paymentNo = paymentNo?.trimmed.isBlank == false ? paymentNo?.trimmed : nil
+        payments[index].receivedAt = receivedAt
+        payments[index].note = CustomerRecord.tidied(note)
+        payments.sort { $0.receivedAt > $1.receivedAt }
+
+        persistEverything()
+        return payments.first { $0.id == id }
+    }
+
     func deletePayment(id: UUID) {
         payments.removeAll { $0.id == id }
         attempt { try repository.delete(paymentID: id) }
@@ -1271,6 +1302,28 @@ final class StockbookStore {
         supplierPayments.insert(payment, at: 0)
         attempt { try repository.append(payment) }
         return payment
+    }
+
+    /// The same correction, on the money-out side — see `updatePayment`.
+    @discardableResult
+    func updateSupplierPayment(
+        id: UUID,
+        amount: Double,
+        paidAt: Date,
+        note: String? = nil,
+        paymentNo: String? = nil
+    ) -> SupplierPayment? {
+        guard amount > 0,
+              let index = supplierPayments.firstIndex(where: { $0.id == id }) else { return nil }
+
+        supplierPayments[index].amount = amount
+        supplierPayments[index].paymentNo = paymentNo?.trimmed.isBlank == false ? paymentNo?.trimmed : nil
+        supplierPayments[index].paidAt = paidAt
+        supplierPayments[index].note = CustomerRecord.tidied(note)
+        supplierPayments.sort { $0.paidAt > $1.paidAt }
+
+        persistEverything()
+        return supplierPayments.first { $0.id == id }
     }
 
     func deleteSupplierPayment(id: UUID) {

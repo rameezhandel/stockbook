@@ -315,6 +315,124 @@ struct InvoiceNumberTests {
         #expect(store.paymentWithNo(nil) == nil)
     }
 
+    // MARK: Correcting one
+
+    @Test("A payment can be corrected in every part")
+    func paymentCorrectsWholly() throws {
+        // All four, because all four can be mistyped. This did not exist while a
+        // payment was an amount and a date; a receipt number is what made
+        // deleting and re-entering the wrong answer.
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        let payment = try #require(
+            store.recordPayment(customerKey: "ahmed", amount: 300, receivedAt: date("2026-08-01T09:00:00Z"), paymentNo: "1")
+        )
+
+        let corrected = try #require(
+            store.updatePayment(
+                id: payment.id,
+                amount: 350,
+                receivedAt: date("2026-08-03T09:00:00Z"),
+                note: "cheque",
+                paymentNo: "008455"
+            )
+        )
+
+        #expect(corrected.id == payment.id, "correcting is not re-recording")
+        #expect(corrected.amount == 350)
+        #expect(corrected.paymentNo == "008455")
+        #expect(corrected.note == "cheque")
+        #expect(corrected.receivedAt == date("2026-08-03T09:00:00Z"))
+    }
+
+    @Test("Correcting a payment moves what the customer owes")
+    func correctionMovesTheBalance() throws {
+        // The figure on the statement is the point. A correction that left the
+        // balance where it was would be a correction in name only.
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        store.saveBill(customer: "Ahmed", paid: 0, amount: 1000, invoiceNo: "1")
+        let payment = try #require(store.recordPayment(customerKey: "ahmed", amount: 300, paymentNo: "R-1"))
+
+        #expect(try #require(store.customer(key: "ahmed")).owed == 700)
+
+        store.updatePayment(id: payment.id, amount: 400, receivedAt: payment.receivedAt, paymentNo: "R-1")
+
+        #expect(try #require(store.customer(key: "ahmed")).owed == 600)
+    }
+
+    @Test("A corrected receipt never clashes with itself")
+    func correctedReceiptExcludesItself() throws {
+        // What the sheet asks while the payment is open. Without the exception,
+        // fixing the amount would be refused because the number is "taken" — by
+        // the very record being edited.
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        let payment = try #require(store.recordPayment(customerKey: "ahmed", amount: 300, paymentNo: "008455"))
+
+        #expect(store.paymentWithNo("008455", exceptId: payment.id) == nil)
+
+        store.updatePayment(id: payment.id, amount: 300, receivedAt: payment.receivedAt, paymentNo: "008455")
+        #expect(store.payments.first?.paymentNo == "008455")
+    }
+
+    @Test("A payment cannot be corrected to nothing")
+    func correctionRefusesZero() throws {
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        let payment = try #require(store.recordPayment(customerKey: "ahmed", amount: 300, paymentNo: "R-1"))
+
+        #expect(store.updatePayment(id: payment.id, amount: 0, receivedAt: payment.receivedAt) == nil)
+        #expect(store.payments.first?.amount == 300)
+    }
+
+    @Test("Correcting one that is not there changes nothing")
+    func correctionOfNothing() throws {
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        store.recordPayment(customerKey: "ahmed", amount: 300, paymentNo: "R-1")
+
+        #expect(store.updatePayment(id: UUID(), amount: 999, receivedAt: .now) == nil)
+        #expect(store.payments.count == 1)
+    }
+
+    @Test("Money paid out corrects the same way")
+    func supplierPaymentCorrects() throws {
+        let store = makeStore()
+        let supplier = try #require(store.addSupplier(name: "Al Faisal"))
+        let product = store.addProduct(name: "Cisa lock", stock: 0, cost: 60, price: 95)
+        store.recordPurchase(product: product, supplierKey: supplier.key, quantity: 10, unitCost: 60, paid: 0, invoiceNo: "INV-1")
+        let payment = try #require(store.recordSupplierPayment(supplierKey: supplier.key, amount: 200, paymentNo: "P-1"))
+
+        #expect(try #require(store.supplier(key: supplier.key)).owed == 400)
+
+        let corrected = try #require(
+            store.updateSupplierPayment(
+                id: payment.id,
+                amount: 500,
+                paidAt: date("2026-08-05T09:00:00Z"),
+                paymentNo: "P-2"
+            )
+        )
+
+        #expect(corrected.paymentNo == "P-2")
+        #expect(try #require(store.supplier(key: supplier.key)).owed == 100)
+    }
+
+    @Test("A corrected payment survives a backup round trip")
+    func correctedPaymentRoundTrips() throws {
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed")
+        let payment = try #require(store.recordPayment(customerKey: "ahmed", amount: 300, paymentNo: "R-1"))
+        store.updatePayment(id: payment.id, amount: 450, receivedAt: payment.receivedAt, paymentNo: "008455")
+
+        let restored = makeStore()
+        restored.replaceEverything(with: try BackupService.decode(try BackupService.encode(store.makeBackupDocument())))
+
+        #expect(restored.payments.first?.amount == 450)
+        #expect(restored.payments.first?.paymentNo == "008455")
+    }
+
     // MARK: The file
 
     @Test("Receipt numbers survive a backup round trip")

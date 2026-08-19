@@ -288,6 +288,126 @@ class InvoiceNumberTests {
         assertNull(store.paymentWithNo(null))
     }
 
+    // --- Correcting one
+
+    @Test
+    fun `a payment can be corrected in every part`() {
+        // All four, because all four can be mistyped. This did not exist while a
+        // payment was an amount and a date; a receipt number is what made
+        // deleting and re-entering the wrong answer.
+        val store = store()
+        store.addCustomer("Ahmed")
+        val payment = assertNotNull(
+            store.recordPayment("ahmed", 300.0, receivedAt = Instant.parse("2026-08-01T09:00:00Z"), paymentNo = "1")
+        )
+
+        val corrected = assertNotNull(
+            store.updatePayment(
+                id = payment.id,
+                amount = 350.0,
+                receivedAt = Instant.parse("2026-08-03T09:00:00Z"),
+                note = "cheque",
+                paymentNo = "008455"
+            )
+        )
+
+        assertEquals(payment.id, corrected.id, "correcting is not re-recording")
+        assertEquals(350.0, corrected.amount)
+        assertEquals("008455", corrected.paymentNo)
+        assertEquals("cheque", corrected.note)
+        assertEquals(Instant.parse("2026-08-03T09:00:00Z"), corrected.receivedAt)
+    }
+
+    @Test
+    fun `correcting a payment moves what the customer owes`() {
+        // The figure on the statement is the point. A correction that left the
+        // balance where it was would be a correction in name only.
+        val store = store()
+        store.addCustomer("Ahmed")
+        store.saveBill(customer = "Ahmed", paid = 0.0, amount = 1000.0, invoiceNo = "1")
+        val payment = assertNotNull(store.recordPayment("ahmed", 300.0, paymentNo = "R-1"))
+
+        assertEquals(700.0, assertNotNull(store.customer("ahmed")).owed)
+
+        store.updatePayment(payment.id, amount = 400.0, receivedAt = payment.receivedAt, paymentNo = "R-1")
+
+        assertEquals(600.0, assertNotNull(store.customer("ahmed")).owed)
+    }
+
+    @Test
+    fun `a corrected receipt never clashes with itself`() {
+        // What the sheet asks while the payment is open. Without the exception,
+        // fixing the amount would be refused because the number is "taken" — by
+        // the very record being edited.
+        val store = store()
+        store.addCustomer("Ahmed")
+        val payment = assertNotNull(store.recordPayment("ahmed", 300.0, paymentNo = "008455"))
+
+        assertNull(store.paymentWithNo("008455", exceptId = payment.id))
+
+        store.updatePayment(payment.id, amount = 300.0, receivedAt = payment.receivedAt, paymentNo = "008455")
+        assertEquals("008455", assertNotNull(store.payments.firstOrNull()).paymentNo)
+    }
+
+    @Test
+    fun `a payment cannot be corrected to nothing`() {
+        // Zero is not a payment. The sheet cannot save it either, but the rule
+        // belongs here where both platforms share it.
+        val store = store()
+        store.addCustomer("Ahmed")
+        val payment = assertNotNull(store.recordPayment("ahmed", 300.0, paymentNo = "R-1"))
+
+        assertNull(store.updatePayment(payment.id, amount = 0.0, receivedAt = payment.receivedAt))
+        assertEquals(300.0, assertNotNull(store.payments.firstOrNull()).amount)
+    }
+
+    @Test
+    fun `correcting one that is not there changes nothing`() {
+        val store = store()
+        store.addCustomer("Ahmed")
+        store.recordPayment("ahmed", 300.0, paymentNo = "R-1")
+
+        assertNull(store.updatePayment("no such payment", 999.0, Instant.parse("2026-08-01T09:00:00Z")))
+        assertEquals(1, store.payments.size)
+    }
+
+    @Test
+    fun `money paid out corrects the same way`() {
+        val store = store()
+        val supplier = assertNotNull(store.addSupplier("Al Faisal"))
+        val product = store.addProduct("Cisa lock", 0, 60.0, 95.0)
+        store.recordPurchase(product, supplier.key, quantity = 10, unitCost = 60.0, paid = 0.0, invoiceNo = "INV-1")
+        val payment = assertNotNull(store.recordSupplierPayment(supplier.key, 200.0, paymentNo = "P-1"))
+
+        assertEquals(400.0, assertNotNull(store.supplier(supplier.key)).owed)
+
+        val corrected = assertNotNull(
+            store.updateSupplierPayment(
+                id = payment.id,
+                amount = 500.0,
+                paidAt = Instant.parse("2026-08-05T09:00:00Z"),
+                paymentNo = "P-2"
+            )
+        )
+
+        assertEquals("P-2", corrected.paymentNo)
+        assertEquals(100.0, assertNotNull(store.supplier(supplier.key)).owed)
+    }
+
+    @Test
+    fun `a corrected payment survives a backup round trip`() {
+        val store = store()
+        store.addCustomer("Ahmed")
+        val payment = assertNotNull(store.recordPayment("ahmed", 300.0, paymentNo = "R-1"))
+        store.updatePayment(payment.id, amount = 450.0, receivedAt = payment.receivedAt, paymentNo = "008455")
+
+        val restored = store()
+        restored.replaceEverything(BackupService.decode(BackupService.encode(store.makeBackupDocument())))
+
+        assertEquals(450.0, restored.payments.first().amount)
+        assertEquals("008455", restored.payments.first().paymentNo)
+    }
+
     // --- The file
 
     @Test

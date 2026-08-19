@@ -23,7 +23,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -91,6 +90,11 @@ fun StatementScreen(
      * this is the document it appears on — the same place a bill is opened from.
      */
     onEditCreditNote: (com.stockbook.core.model.CreditNote) -> Unit = {},
+    /**
+     * Opens a payment for correction, by id. Same reasoning as the credit note
+     * above it: this is the document the payment appears on.
+     */
+    onEditPayment: (String) -> Unit = {},
     onClose: () -> Unit
 ) {
     /**
@@ -111,15 +115,6 @@ fun StatementScreen(
     }
     var to by remember { mutableStateOf(Timestamps.now()) }
 
-    /**
-     * The payment the owner has tapped, waiting for a second tap to remove.
-     *
-     * A mistyped payment would otherwise misstate a customer's balance for good —
-     * and unlike a bill, a payment has nothing to void: it is one number and one
-     * date, so the honest correction is to delete it and enter it again.
-     */
-    var deleting by remember { mutableStateOf<String?>(null) }
-
     val period = when (choice) {
         Choice.THIS_MONTH -> StatementPeriod.thisMonth()
         Choice.LAST_MONTH -> StatementPeriod.lastMonth()
@@ -132,10 +127,6 @@ fun StatementScreen(
     } else {
         store.statementForCustomer(partyKey, period)
     }
-
-    // A period change re-draws the whole document; a row still armed for deletion
-    // in the old one would be armed against a row that has moved.
-    LaunchedEffect(choice) { deleting = null }
 
     Column(
         modifier = Modifier
@@ -175,12 +166,7 @@ fun StatementScreen(
                     statement = statement,
                     currency = currency,
                     strings = strings,
-                    deleting = deleting,
-                    onArm = { deleting = it },
-                    onDelete = { id ->
-                        if (isSupplier) store.deleteSupplierPayment(id) else store.deletePayment(id)
-                        deleting = null
-                    },
+                    onEditPayment = onEditPayment,
                     onEditCreditNote = onEditCreditNote
                 )
                 Spacer(Modifier.height(10.dp))
@@ -322,10 +308,8 @@ private fun Document(
     statement: Statement,
     currency: Currency,
     strings: Strings,
-    deleting: String?,
     onEditCreditNote: (com.stockbook.core.model.CreditNote) -> Unit = {},
-    onArm: (String?) -> Unit,
-    onDelete: (String) -> Unit
+    onEditPayment: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -360,9 +344,7 @@ private fun Document(
                     balance = statement.runningBalances[index],
                     currency = currency,
                     strings = strings,
-                    deleting = deleting,
-                    onArm = onArm,
-                    onDelete = onDelete,
+                    onEditPayment = onEditPayment,
                     onEditCreditNote = onEditCreditNote
                 )
                 if (index < statement.entries.lastIndex) Spacer(Modifier.height(10.dp))
@@ -424,9 +406,7 @@ private fun EntryRow(
     balance: Double,
     currency: Currency,
     strings: Strings,
-    deleting: String?,
-    onArm: (String?) -> Unit,
-    onDelete: (String) -> Unit,
+    onEditPayment: (String) -> Unit,
     onEditCreditNote: (com.stockbook.core.model.CreditNote) -> Unit = {}
 ) {
     // Either kind of payment can be deleted here; a bill or a delivery is changed
@@ -437,26 +417,24 @@ private fun EntryRow(
         is Statement.Entry.ForSupplierPayment -> entry.payment.id
         else -> null
     }
-    // A credit note opens for correction instead of arming a delete, because it
-    // is a document with a number on it rather than a bare figure: what wants
-    // fixing is usually the amount or the reason, and removing it outright is one
-    // button inside the sheet that opens.
+    // Both of the things this screen can correct open the same way: tap the row,
+    // get the sheet it was written on, with removal one button inside it. They
+    // used to differ — a credit note opened, a payment armed a delete — which
+    // meant the same gesture did two things depending on which row it landed on.
+    //
+    // A bill or a delivery is not corrected from here. Removing one puts stock
+    // back on the shelf, and offering that from a row on a document somebody is
+    // reading would be a second, worse route than the opened document itself.
     val creditNote = (entry as? Statement.Entry.ForCreditNote)?.note
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // Only a payment arms a delete here. Removing a bill puts stock back
-            // on the shelf, and offering that from a row on a document somebody
-            // is reading would be a second, worse route to it than the opened
-            // bill.
             .then(
                 when {
                     creditNote != null -> Modifier.clickable { onEditCreditNote(creditNote) }
                     paymentId == null -> Modifier
-                    else -> Modifier.clickable {
-                        onArm(if (deleting == paymentId) null else paymentId)
-                    }
+                    else -> Modifier.clickable { onEditPayment(paymentId) }
                 }
             )
     ) {
@@ -543,15 +521,6 @@ private fun EntryRow(
             }
         }
 
-        if (paymentId != null && deleting == paymentId) {
-            Spacer(Modifier.height(7.dp))
-            GhostButton(
-                strings.deleteThisPayment,
-                onClick = { onDelete(paymentId) },
-                fontSize = 12.0,
-                tint = Nocturne.neutral500
-            )
-        }
     }
 }
 

@@ -55,6 +55,11 @@ final class AppRouter {
     /// The record-a-payment sheet, for one customer.
     var paymentFor: Customer?
 
+    /// The payment being corrected, if one is. Held beside `paymentFor` rather
+    /// than replacing it: the sheet needs the customer either way, because it
+    /// shows what will still be owed once the correction is saved.
+    var editingPayment: Payment?
+
     /// The credit-note sheet. Carries the customer it is against, and — when one
     /// is being corrected rather than written — the note itself.
     var creditNoteFor: CreditNoteTarget?
@@ -78,6 +83,9 @@ final class AppRouter {
 
     /// The pay-a-supplier sheet.
     var supplierPaymentFor: Supplier?
+
+    /// The money-out twin of `editingPayment`.
+    var editingSupplierPayment: SupplierPayment?
 
     /// The two lists behind Today's banners: everyone who owes the shop, and
     /// everyone the shop owes. Booleans rather than carried values — the sheets
@@ -175,10 +183,12 @@ final class AppRouter {
         showingBackup = false
         customerEditor = nil
         paymentFor = nil
+        editingPayment = nil
         creditNoteFor = nil
         statementFor = nil
         supplierEditor = nil
         supplierPaymentFor = nil
+        editingSupplierPayment = nil
         supplierStatementFor = nil
         purchaseDetail = nil
         startingPurchase = false

@@ -49,12 +49,6 @@ struct StatementScreen: View {
 
     @State private var choice: Choice = .thisMonth
 
-    /// The payment the owner has tapped, waiting for a second tap to remove.
-    ///
-    /// A mistyped payment would otherwise misstate a customer's balance for good
-    /// — and unlike a bill, a payment has nothing to void: it is one number and
-    /// one date, so the honest correction is to delete it and enter it again.
-    @State private var deleting: UUID?
     @State private var from = Calendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now
     @State private var to = Date.now
 
@@ -101,9 +95,6 @@ struct StatementScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Nocturne.bg.ignoresSafeArea())
         .motion(Motion.list, value: choice)
-        // A period change re-draws the whole document; a row still armed for
-        // deletion in the old one would be armed against a row that has moved.
-        .onChange(of: choice) { _, _ in deleting = nil }
         // Presented off the file rather than a flag, so the sheet cannot open
         // before the PDF exists — and closing it drops the URL, so the next tap
         // renders the period the owner is looking at *then*.
@@ -245,48 +236,35 @@ struct StatementScreen: View {
 
     @ViewBuilder
     private func entryRow(_ entry: Statement.Entry, balance: Double) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            entryLine(entry, balance: balance)
-
-            // Only a payment. Correcting or removing a bill or a delivery lives
-            // inside the opened document where it belongs — offering it beside the
-            // line here would be a second, worse route to the same history.
-            if let id = paymentID(entry), deleting == id {
-                Button(Loc.deleteThisPayment) {
-                    if isSupplier {
-                        store.deleteSupplierPayment(id: id)
-                    } else {
-                        store.deletePayment(id: id)
-                    }
-                    deleting = nil
-                }
-                .buttonStyle(.ghostMuted)
-            }
-        }
+        entryLine(entry, balance: balance)
         .contentShape(Rectangle())
         .onTapGesture {
-            // A credit note opens for correction instead of arming a delete,
-            // because it is a document with a number on it rather than a bare
-            // figure: what wants fixing is usually the amount or the reason, and
-            // removing it outright is one button inside the sheet that opens.
-            if case .creditNote(let note) = entry {
+            // Both of the things this screen can correct open the same way: tap
+            // the row, get the sheet it was written on, with removal one button
+            // inside it. They used to differ — a credit note opened, a payment
+            // armed a delete — which meant the same gesture did two things
+            // depending on which row it landed on.
+            switch entry {
+            case .creditNote(let note):
                 guard let customer = store.customer(key: note.customerKey) else { return }
                 router.creditNoteFor = CreditNoteTarget(customer: customer, note: note)
-                return
+            case .payment(let payment):
+                // The customer comes with it: the sheet shows what will still be
+                // owed once the correction is saved, which needs the whole
+                // account rather than the one payment.
+                guard let customer = store.customer(key: payment.customerKey) else { return }
+                router.editingPayment = payment
+                router.paymentFor = customer
+            case .supplierPayment(let payment):
+                guard let supplier = store.supplier(key: payment.supplierKey) else { return }
+                router.editingSupplierPayment = payment
+                router.supplierPaymentFor = supplier
+            case .bill, .purchase:
+                // Not corrected from here. Removing one puts stock back on the
+                // shelf, and offering that from a row on a document somebody is
+                // reading would be a second, worse route than the opened document.
+                break
             }
-            guard let id = paymentID(entry) else { return }
-            withAnimation(Metrics.quick) {
-                deleting = deleting == id ? nil : id
-            }
-        }
-    }
-
-    /// Either kind of payment can be armed for deletion; nothing else can.
-    private func paymentID(_ entry: Statement.Entry) -> UUID? {
-        switch entry {
-        case .payment(let payment): payment.id
-        case .supplierPayment(let payment): payment.id
-        case .bill, .purchase, .creditNote: nil
         }
     }
 

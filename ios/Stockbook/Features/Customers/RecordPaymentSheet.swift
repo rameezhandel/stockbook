@@ -10,25 +10,37 @@ struct RecordPaymentSheet: View {
     @Environment(\.currency) private var currency
 
     let customer: Customer
+    /// The payment being corrected, or nil to take a new one.
+    var editing: Payment?
     let onClose: () -> Void
 
     var body: some View {
         PaymentSheet(
             name: customer.name,
-            key: customer.key,
+            key: editing?.id.uuidString ?? customer.key,
             owed: customer.owed,
             dateLabel: Loc.receivedOn,
             footnote: Loc.paymentNotAgainstOneBill,
-            clashDate: { store.paymentWithNo($0)?.receivedAt },
-            onSave: { amount, at, note, no in
-                store.recordPayment(
-                    customerKey: customer.key,
-                    amount: amount,
-                    receivedAt: at,
-                    note: note,
-                    paymentNo: no
-                )
+            existing: editing.map {
+                PaymentSheet.Existing(amount: $0.amount, note: $0.note, no: $0.paymentNo, date: $0.receivedAt)
             },
+            // Never counting the one being corrected, or opening 008455 to fix
+            // its amount would be told 008455 is taken — by itself.
+            clashDate: { store.paymentWithNo($0, exceptId: editing?.id)?.receivedAt },
+            onSave: { amount, at, note, no in
+                if let editing {
+                    store.updatePayment(id: editing.id, amount: amount, receivedAt: at, note: note, paymentNo: no)
+                } else {
+                    store.recordPayment(
+                        customerKey: customer.key,
+                        amount: amount,
+                        receivedAt: at,
+                        note: note,
+                        paymentNo: no
+                    )
+                }
+            },
+            onDelete: editing.map { payment in { store.deletePayment(id: payment.id) } },
             onClose: onClose
         )
     }
@@ -43,25 +55,34 @@ struct PaySupplierSheet: View {
     @Environment(StockbookStore.self) private var store
 
     let supplier: Supplier
+    var editing: SupplierPayment?
     let onClose: () -> Void
 
     var body: some View {
         PaymentSheet(
             name: supplier.name,
-            key: supplier.key,
+            key: editing?.id.uuidString ?? supplier.key,
             owed: supplier.owed,
             dateLabel: Loc.paidOn,
             footnote: Loc.paymentNotAgainstOnePurchase,
-            clashDate: { store.supplierPaymentWithNo($0)?.paidAt },
-            onSave: { amount, at, note, no in
-                store.recordSupplierPayment(
-                    supplierKey: supplier.key,
-                    amount: amount,
-                    paidAt: at,
-                    note: note,
-                    paymentNo: no
-                )
+            existing: editing.map {
+                PaymentSheet.Existing(amount: $0.amount, note: $0.note, no: $0.paymentNo, date: $0.paidAt)
             },
+            clashDate: { store.supplierPaymentWithNo($0, exceptId: editing?.id)?.paidAt },
+            onSave: { amount, at, note, no in
+                if let editing {
+                    store.updateSupplierPayment(id: editing.id, amount: amount, paidAt: at, note: note, paymentNo: no)
+                } else {
+                    store.recordSupplierPayment(
+                        supplierKey: supplier.key,
+                        amount: amount,
+                        paidAt: at,
+                        note: note,
+                        paymentNo: no
+                    )
+                }
+            },
+            onDelete: editing.map { payment in { store.deleteSupplierPayment(id: payment.id) } },
             onClose: onClose
         )
     }
@@ -75,15 +96,28 @@ private struct PaymentSheet: View {
     let owed: Double
     let dateLabel: String
     let footnote: String
+    /// What the sheet was opened on, when it was opened on something.
+    struct Existing {
+        let amount: Double
+        let note: String?
+        let no: String?
+        let date: Date
+    }
+
+    let existing: Existing?
     /// When the receipt book already holds this number, the day it was used.
     let clashDate: (String) -> Date?
     let onSave: (Double, Date, String, String) -> Void
+    /// Present only when correcting: a payment being taken has nothing to remove.
+    let onDelete: (() -> Void)?
     let onClose: () -> Void
 
     @State private var paymentNo = ""
     @State private var amount = ""
     @State private var receivedAt = Date.now
     @State private var note = ""
+    @State private var confirmingRemoval = false
+    @State private var seeded = false
 
     private var typed: Double { Money.parse(amount) ?? 0 }
     private var clash: Date? { clashDate(paymentNo) }
@@ -91,12 +125,16 @@ private struct PaymentSheet: View {
 
     /// What will still be owed once this is saved. Shown live, because it is the
     /// number the owner is actually trying to reach — usually zero.
-    private var remaining: Double { owed - typed }
+    ///
+    /// A payment being corrected is already inside `owed`, so its old amount is
+    /// added back before the new one comes off — otherwise correcting 300 to 350
+    /// would read as though 650 had been paid.
+    private var remaining: Double { owed + (existing?.amount ?? 0) - typed }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SheetHeader(
-                title: Loc.recordAPayment,
+                title: onDelete == nil ? Loc.recordAPayment : Loc.correctAPayment,
                 subtitle: name,
                 onClose: onClose
             )
@@ -151,8 +189,41 @@ private struct PaymentSheet: View {
             Button(saveTitle) { save() }
                 .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                 .disabled(!canSave)
+
+            // Removal lives inside the correction, exactly as the credit note's
+            // does. Two taps, because it takes a figure out of somebody's account.
+            if let onDelete {
+                Button(confirmingRemoval ? Loc.tapAgainToRemove : Loc.deleteThisPayment) {
+                    if confirmingRemoval {
+                        onDelete()
+                        onClose()
+                    } else {
+                        withAnimation(Metrics.quick) { confirmingRemoval = true }
+                    }
+                }
+                .buttonStyle(GhostButtonStyle(
+                    fontSize: 12.5,
+                    tint: confirmingRemoval ? Nocturne.accent400 : Nocturne.neutral500
+                ))
+                .frame(maxWidth: .infinity)
+                .padding(.top, 6)
+            }
         }
         .keyboardDoneButton()
+        .onAppear(perform: seed)
+    }
+
+    /// Fills the form from what it was opened on, once.
+    ///
+    /// Guarded, because `onAppear` fires again when the sheet is re-presented and
+    /// would otherwise throw away whatever the owner had just typed.
+    private func seed() {
+        guard !seeded, let existing else { return }
+        seeded = true
+        paymentNo = existing.no ?? ""
+        amount = Money.amount(existing.amount, in: currency)
+        note = existing.note ?? ""
+        receivedAt = existing.date
     }
 
     /// The paper's number and the day it was written, side by side — the credit
@@ -185,7 +256,7 @@ private struct PaymentSheet: View {
         if clash != nil { return Loc.changeThePaymentNo }
         if paymentNo.isBlank { return Loc.enterPaymentNumber }
         if typed <= 0 { return Loc.enterAnAmount }
-        return Loc.savePayment
+        return onDelete == nil ? Loc.savePayment : Loc.saveChanges
     }
 
     private var remainingText: String {
