@@ -131,10 +131,12 @@ fun TodayScreen(
             if (owedNames.isNotEmpty()) {
                 item {
                     OwedBanner(
+                        // The biggest debtor by name — `outstanding()` is sorted
+                        // by what is owed — and the rest as a count.
                         note = if (owedNames.size == 1) {
                             strings.stillOwes(owedNames.first())
                         } else {
-                            strings.stillOwe(owedNames.size)
+                            strings.stillOweWithOthers(owedNames.first(), owedNames.size - 1)
                         },
                         amount = Money.text(owedTotal, currency),
                         onClick = { router.showingDebtors = true }
@@ -152,7 +154,7 @@ fun TodayScreen(
                         note = if (payableNames.size == 1) {
                             strings.youOweOne(payableNames.first())
                         } else {
-                            strings.youOweMany(payableNames.size)
+                            strings.youOweWithOthers(payableNames.first(), payableNames.size - 1)
                         },
                         amount = Money.text(payableTotal, currency),
                         icon = Icon.items,

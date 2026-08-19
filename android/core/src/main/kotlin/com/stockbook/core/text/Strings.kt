@@ -104,8 +104,19 @@ class Strings(val language: AppLanguage) {
     fun stillOwes(name: String): String =
             pick("$name still owes", "$name ಇನ್ನೂ ಬಾಕಿ ಕೊಡಬೇಕು")
 
-    fun stillOwe(n: Int): String =
-            pick("${customers(n)} still owe", "$n ಗ್ರಾಹಕರು ಇನ್ನೂ ಬಾಕಿ ಕೊಡಬೇಕು")
+    /**
+     * The same banner when more than one person owes.
+     *
+     * **Names the biggest debtor**, then counts the rest. A bare "3 customers
+     * still owe" is a figure with nobody attached to it: the owner has to open
+     * the list to learn anything they can act on, which is the hunt this banner
+     * exists to save them. The list is already sorted by what is owed, so the
+     * first name is the one worth saying.
+     */
+    fun stillOweWithOthers(name: String, others: Int): String = pick(
+        if (others == 1) "$name and 1 other still owe" else "$name and $others others still owe",
+        "$name ಮತ್ತು ಇನ್ನೂ $others ಜನ ಬಾಕಿ ಕೊಡಬೇಕು"
+    )
 
     // --- Items
 
@@ -314,8 +325,11 @@ class Strings(val language: AppLanguage) {
     // the two lines read as a pair rather than as two unrelated notices.
     fun youOweOne(name: String): String = pick("You owe $name", "$name ಅವರಿಗೆ ನೀವು ಕೊಡಬೇಕು")
 
-    fun youOweMany(n: Int): String =
-            pick("You owe $n suppliers", "$n ಪೂರೈಕೆದಾರರಿಗೆ ನೀವು ಕೊಡಬೇಕು")
+    /** The mirror of [stillOweWithOthers]: the largest creditor, then the rest. */
+    fun youOweWithOthers(name: String, others: Int): String = pick(
+        if (others == 1) "You owe $name and 1 other" else "You owe $name and $others others",
+        "$name ಮತ್ತು ಇನ್ನೂ $others ಜನರಿಗೆ ನೀವು ಕೊಡಬೇಕು"
+    )
     val nothingOwedOut: String get() = pick("Nothing owed out", "ಕೊಡಬೇಕಾದ್ದು ಏನೂ ಇಲ್ಲ")
 
     val chooseSupplierFromTheList: String

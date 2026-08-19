@@ -90,6 +90,11 @@ class LocalizationTests {
         for (strings in listOf(english, kannada)) {
             assertTrue(strings.greeting("Khalid").contains("Khalid"))
             assertTrue(strings.stillOwes("Ahmed").contains("Ahmed"))
+            // The banner names the biggest debtor even when several owe — the
+            // whole point of it, and the part a count-only sentence dropped.
+            assertTrue(strings.stillOweWithOthers("Ahmed", 2).contains("Ahmed"))
+            assertTrue(strings.stillOweWithOthers("Ahmed", 2).contains("2"))
+            assertTrue(strings.youOweWithOthers("Al Faisal", 1).contains("Al Faisal"))
             assertTrue(strings.onlyInStock(3).contains("3"))
             assertTrue(strings.usualPriceNote("SAR 20").contains("SAR 20"))
             assertTrue(strings.youMakeAPiece("SAR 30").contains("SAR 30"))

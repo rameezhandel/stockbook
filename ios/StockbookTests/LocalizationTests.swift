@@ -135,6 +135,11 @@ struct LocalizationTests {
         for strings in [english, kannada] {
             #expect(strings.greeting("Khalid").contains("Khalid"))
             #expect(strings.stillOwes(oneName: "Ahmed").contains("Ahmed"))
+            // The banner names the biggest debtor even when several owe — the
+            // whole point of it, and the part a count-only sentence dropped.
+            #expect(strings.stillOweWithOthers("Ahmed", others: 2).contains("Ahmed"))
+            #expect(strings.stillOweWithOthers("Ahmed", others: 2).contains("2"))
+            #expect(strings.youOweWithOthers("Al Faisal", others: 1).contains("Al Faisal"))
             #expect(strings.onlyInStock(3).contains("3"))
             #expect(strings.usualPriceNote("SAR 20").contains("SAR 20"))
             #expect(strings.youMakeAPiece("SAR 30").contains("SAR 30"))

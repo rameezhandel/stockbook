@@ -110,8 +110,18 @@ struct Strings {
         pick("\(name) still owes", "\(name) ಇನ್ನೂ ಬಾಕಿ ಕೊಡಬೇಕು")
     }
 
-    func stillOwe(customerCount n: Int) -> String {
-        pick("\(customers(n)) still owe", "\(n) ಗ್ರಾಹಕರು ಇನ್ನೂ ಬಾಕಿ ಕೊಡಬೇಕು")
+    /// The same banner when more than one person owes.
+    ///
+    /// **Names the biggest debtor**, then counts the rest. A bare "3 customers
+    /// still owe" is a figure with nobody attached to it: the owner has to open
+    /// the list to learn anything they can act on, which is the hunt this banner
+    /// exists to save them. The list is already sorted by what is owed, so the
+    /// first name is the one worth saying.
+    func stillOweWithOthers(_ name: String, others: Int) -> String {
+        pick(
+            others == 1 ? "\(name) and 1 other still owe" : "\(name) and \(others) others still owe",
+            "\(name) ಮತ್ತು ಇನ್ನೂ \(others) ಜನ ಬಾಕಿ ಕೊಡಬೇಕು"
+        )
     }
 
     // MARK: - Items
@@ -341,8 +351,12 @@ struct Strings {
         pick("You owe \(name)", "\(name) ಅವರಿಗೆ ನೀವು ಕೊಡಬೇಕು")
     }
 
-    func youOweMany(_ n: Int) -> String {
-        pick("You owe \(n) suppliers", "\(n) ಪೂರೈಕೆದಾರರಿಗೆ ನೀವು ಕೊಡಬೇಕು")
+    /// The mirror of `stillOweWithOthers`: the largest creditor, then the rest.
+    func youOweWithOthers(_ name: String, others: Int) -> String {
+        pick(
+            others == 1 ? "You owe \(name) and 1 other" : "You owe \(name) and \(others) others",
+            "\(name) ಮತ್ತು ಇನ್ನೂ \(others) ಜನರಿಗೆ ನೀವು ಕೊಡಬೇಕು"
+        )
     }
     var nothingOwedOut: String { pick("Nothing owed out", "ಕೊಡಬೇಕಾದ್ದು ಏನೂ ಇಲ್ಲ") }
 

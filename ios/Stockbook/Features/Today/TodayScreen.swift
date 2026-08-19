@@ -192,7 +192,7 @@ struct TodayScreen: View {
             banner(
                 note: payable.names.count == 1
                     ? Loc.youOweOne(payable.names[0])
-                    : Loc.youOweMany(payable.names.count),
+                    : Loc.youOweWithOthers(payable.names[0], others: payable.names.count - 1),
                 amount: payable.total,
                 icon: Icon.items,
                 action: { router.showingCreditors = true }
@@ -232,10 +232,12 @@ struct TodayScreen: View {
     }
 
     /// One name reads as a name; several read as a count of **people**, not bills.
+    /// The biggest debtor by name — `outstanding()` is sorted by what is owed —
+    /// and the rest as a count.
     private func owedNote(names: [String]) -> String {
         names.count == 1
             ? Loc.stillOwes(oneName: names[0])
-            : Loc.stillOwe(customerCount: names.count)
+            : Loc.stillOweWithOthers(names[0], others: names.count - 1)
     }
 
     // MARK: Running low
