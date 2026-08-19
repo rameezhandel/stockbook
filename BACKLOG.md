@@ -120,6 +120,11 @@ read by the other in both test suites.
   <https://sites.google.com/view/stockbook-privacy/home>, with the wording kept
   under [`docs/privacy/index.html`](docs/privacy/index.html) so it stays
   versioned beside the code whose behaviour it describes.
+- **The package name is `com.stockbook.app`.** Confirmed before the first
+  upload, which is the last moment it could be. Play binds a listing to its
+  package name permanently: it cannot be renamed afterwards by anyone, and
+  changing it means a new listing with every existing install orphaned on the
+  old one.
 - **The receipt number stays required.** Consistent with invoice and credit-note
   numbers: a payment that cannot be matched to a slip in a drawer is the thing
   the number exists to prevent.
