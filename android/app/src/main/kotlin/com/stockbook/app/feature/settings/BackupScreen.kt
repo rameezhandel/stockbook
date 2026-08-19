@@ -34,6 +34,7 @@ import com.stockbook.app.design.ScreenHeader
 import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
+import com.stockbook.app.photos.PhotoStore
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
@@ -184,6 +185,12 @@ fun BackupScreen(
                             onClick = {
                                 val confirmed = importFlow.confirm() ?: return@PrimaryButton
                                 store.replaceEverything(confirmed)
+                                // A swap, not a merge: every photograph this
+                                // phone was holding belonged to the book that
+                                // was just replaced. Only ids the incoming book
+                                // names survive — and an id it names that this
+                                // phone lacks is left waiting, not tidied away.
+                                PhotoStore(context).sweep(store.photoIdsInUse())
                             },
                             fullWidth = true,
                             height = 42.dp,

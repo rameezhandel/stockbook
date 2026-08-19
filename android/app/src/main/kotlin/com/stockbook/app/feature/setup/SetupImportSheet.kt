@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.design.Metrics
@@ -20,6 +21,7 @@ import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.SheetHeader
 import com.stockbook.app.design.hairline
 import com.stockbook.app.feature.settings.ImportFlow
+import com.stockbook.app.photos.PhotoStore
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
 
@@ -45,6 +47,8 @@ fun SetupImportSheet(
     onChooseFile: () -> Unit,
     onClose: () -> Unit
 ) {
+    val context = LocalContext.current
+
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(title = strings.importABackupFile, onClose = onClose)
 
@@ -98,6 +102,10 @@ fun SetupImportSheet(
                         // Only ever acts on what confirm() hands back.
                         val confirmed = importFlow.confirm() ?: return@PrimaryButton
                         store.replaceEverything(confirmed)
+                        // Nothing should be here on a fresh install, but this is
+                        // also the path a reinstall takes over the top of an old
+                        // container.
+                        PhotoStore(context).sweep(store.photoIdsInUse())
                     },
                     fullWidth = true,
                     height = 42.dp,

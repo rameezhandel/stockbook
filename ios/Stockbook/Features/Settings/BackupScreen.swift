@@ -177,6 +177,12 @@ struct BackupScreen: View {
                         // Only ever acts on what confirm() hands back.
                         guard let confirmed = importFlow.confirm() else { return }
                         store.replaceEverything(with: confirmed)
+                        // A swap, not a merge: every photograph this phone was
+                        // holding belonged to the book that was just replaced.
+                        // Only ids the incoming book names survive — and an id
+                        // it names that this phone lacks is left waiting, not
+                        // tidied away.
+                        PhotoStore().sweep(keeping: store.photoIDsInUse())
                         refreshExportChip()
                     }
                     .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))

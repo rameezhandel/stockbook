@@ -53,6 +53,7 @@ import com.stockbook.app.feature.today.WhoOwesYouSheet
 import com.stockbook.app.feature.today.WhoYouOweSheet
 import com.stockbook.core.model.AppTheme
 import com.stockbook.core.model.Timestamps
+import com.stockbook.app.photos.PhotoStore
 import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppTab
@@ -85,6 +86,15 @@ class MainActivity : ComponentActivity() {
         // server to fall back to — so this fails loudly rather than running
         // against a store the owner would type a day's bills into and lose.
         store = StockbookStore(JsonFileRepository(File(filesDir, "stockbook/shop.json")))
+
+        // Pictures the book no longer names, collected on the way in.
+        //
+        // Every path that strands one already sweeps for itself; this is the net
+        // underneath, for the crash that happened between removing a bill and
+        // removing its photograph. Cheap — a directory listing — and it runs
+        // before the first frame precisely because it must never race the screen
+        // that is about to show those pictures.
+        PhotoStore(this).sweep(store.photoIdsInUse())
 
         // The first frame is Compose's, but the window behind it is the system's
         // and comes from `themes.xml`. Repainting it once the shop is loaded stops

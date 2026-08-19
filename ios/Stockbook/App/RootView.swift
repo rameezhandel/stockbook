@@ -31,7 +31,17 @@ struct RootView: View {
             // running against a store the owner would type a day's bills into
             // and lose.
             let repository = try! JSONFileRepository(url: try! JSONFileRepository.defaultURL())
-            store = StockbookStore(repository: repository)
+            let opened = StockbookStore(repository: repository)
+
+            // Pictures the book no longer names, collected on the way in.
+            //
+            // Every path that strands one already sweeps for itself; this is the
+            // net underneath, for the crash that happened between removing a
+            // bill and removing its photograph. Cheap — a directory listing —
+            // and it runs before anything can show those pictures.
+            PhotoStore().sweep(keeping: opened.photoIDsInUse())
+
+            store = opened
         }
     }
 }
