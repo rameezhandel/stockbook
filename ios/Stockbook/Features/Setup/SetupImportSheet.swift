@@ -55,10 +55,14 @@ struct SetupImportSheet: View {
                         // Only ever acts on what confirm() hands back.
                         guard let confirmed = importFlow.confirm() else { return }
                         store.replaceEverything(with: confirmed)
+                        let photos = PhotoStore()
+                        // The whole point of importing during setup: a new phone
+                        // starts as the old one left off, pictures included.
+                        importFlow.restorePhotos(into: photos)
                         // Nothing should be here on a fresh install, but this is
                         // also the path a reinstall takes over the top of an old
                         // container.
-                        PhotoStore().sweep(keeping: store.photoIDsInUse())
+                        photos.sweep(keeping: store.photoIDsInUse())
                     }
                     .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
                 }

@@ -73,6 +73,26 @@ final class PhotoStore {
         try? FileManager.default.removeItem(at: url(id: id))
     }
 
+    /// The stored bytes, for putting a photograph into a backup archive.
+    ///
+    /// The file as it sits on disk, not a re-encode: it was shrunk and
+    /// compressed once when it was taken, and running it through the JPEG
+    /// encoder a second time would cost quality for nothing.
+    ///
+    /// Nil when this phone has not got the picture, which is an ordinary answer.
+    func bytes(id: String) -> Data? {
+        try? Data(contentsOf: url(id: id))
+    }
+
+    /// Puts a photograph from a backup archive on disk under the id the book
+    /// already knows it by.
+    ///
+    /// Overwrites, deliberately. An import is a replacement of the whole book,
+    /// and the incoming archive is the authority on what its own ids mean.
+    func write(id: String, data: Data) {
+        try? data.write(to: url(id: id), options: .atomic)
+    }
+
     /// Collects pictures the book no longer refers to.
     ///
     /// Runs one way only, and the asymmetry is the point: a file nothing points

@@ -107,7 +107,7 @@ struct SetupFlowView: View {
         }
         .fileImporter(
             isPresented: $isImportingFile,
-            allowedContentTypes: [.json]
+            allowedContentTypes: [.zip, .json, .data]
         ) { result in
             importFlow.pick(result)
         }

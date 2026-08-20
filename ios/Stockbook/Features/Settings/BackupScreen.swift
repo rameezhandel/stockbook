@@ -69,7 +69,7 @@ struct BackupScreen: View {
         .fileExporter(
             isPresented: $isExporting,
             document: exportDocument,
-            contentType: .json,
+            contentType: .zip,
             defaultFilename: exportDocument?.document.suggestedFilename
         ) { result in
             // Only a real write counts. A cancelled save sheet must not claim a
@@ -81,7 +81,11 @@ struct BackupScreen: View {
         }
         .fileImporter(
             isPresented: $isImporting,
-            allowedContentTypes: [.json]
+            // Both, and `.data` besides: a `.zip` off another phone arrives with
+            // no type at all often enough that filtering properly would hide the
+            // owner's own backup from them. The first four bytes are what get
+            // checked.
+            allowedContentTypes: [.zip, .json, .data]
         ) { result in
             importFlow.pick(result)
         }
@@ -188,12 +192,15 @@ struct BackupScreen: View {
                         // Only ever acts on what confirm() hands back.
                         guard let confirmed = importFlow.confirm() else { return }
                         store.replaceEverything(with: confirmed)
-                        // A swap, not a merge: every photograph this phone was
-                        // holding belonged to the book that was just replaced.
-                        // Only ids the incoming book names survive — and an id
-                        // it names that this phone lacks is left waiting, not
-                        // tidied away.
-                        PhotoStore().sweep(keeping: store.photoIDsInUse())
+                        let photos = PhotoStore()
+                        // The book first, then its pictures out of the same
+                        // archive, then the sweep. In that order: the sweep keeps
+                        // what the *current* book names, so anything left over
+                        // from the replaced book goes and everything just
+                        // restored stays. An id the archive did not carry is left
+                        // waiting, not tidied away.
+                        importFlow.restorePhotos(into: photos)
+                        photos.sweep(keeping: store.photoIDsInUse())
                         refreshExportChip()
                     }
                     .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))

@@ -180,4 +180,42 @@ class ZipArchiveTests {
 
         assertContentEquals(payload, read.single().bytes)
     }
+
+    /**
+     * The archive both platforms must produce, byte for byte, and both must
+     * read.
+     *
+     * This is the only thing standing between the Swift port and silent drift.
+     * The Swift side has no `java.util.zip` to check itself against, so the same
+     * base64 string sits in `ZipArchiveTests.swift` with the same two
+     * assertions: write these entries and get exactly these bytes, read these
+     * bytes and get exactly those entries. A change to either implementation
+     * that the other did not get breaks one of the four.
+     *
+     * Only possible because the writer is deterministic — the DOS timestamp is
+     * fixed at 1980-01-01 rather than "now" precisely so that this constant can
+     * exist.
+     */
+    private val fixture = "UEsDBAoAAAAAAAAAIQCx+AZDDQAAAA0AAAAOAAAAc3RvY2tib29rLmpzb257InZlcnNpb24iOjN9UEsDBAoAAAAAAAAAIQCeOs07CAAAAAgAAAAOAAAAcGhvdG9zL29uZS5qcGcAHz5dfJu62VBLAQIKAAoAAAAAAAAAIQCx+AZDDQAAAA0AAAAOAAAAAAAAAAAAAAAAAAAAAABzdG9ja2Jvb2suanNvblBLAQIKAAoAAAAAAAAAIQCeOs07CAAAAAgAAAAOAAAAAAAAAAAAAAAAADkAAABwaG90b3Mvb25lLmpwZ1BLBQYAAAAAAgACAHgAAABtAAAAAAA="
+
+    @Test
+    fun `the shared fixture is what this platform writes`() {
+        val written = ZipArchive.write(
+            sequenceOf(
+                ZipArchive.Entry("stockbook.json", """{"version":3}""".toByteArray()),
+                ZipArchive.Entry("photos/one.jpg", ByteArray(8) { (it * 31 % 256).toByte() })
+            )
+        )
+
+        assertEquals(fixture, java.util.Base64.getEncoder().encodeToString(written))
+    }
+
+    @Test
+    fun `the shared fixture is what this platform reads`() {
+        val read = ZipArchive.read(java.util.Base64.getDecoder().decode(fixture))
+
+        assertEquals(listOf("stockbook.json", "photos/one.jpg"), read.map { it.name })
+        assertEquals("""{"version":3}""", String(read[0].bytes))
+        assertContentEquals(ByteArray(8) { (it * 31 % 256).toByte() }, read[1].bytes)
+    }
 }

@@ -43,18 +43,51 @@ final class ImportFlow {
             stage = .failed(.unreadable)
         case .success(let url):
             do {
+                // The document only. An archive's photographs are not touched
+                // until the owner has agreed to the swap — a book they look at
+                // and cancel must not leave pictures behind that nothing refers
+                // to.
                 let document = try BackupService.read(from: url)
+                source = url
                 stage = .picked(document, filename: url.lastPathComponent)
             } catch let error as BackupError {
+                source = nil
                 stage = .failed(error)
             } catch {
+                source = nil
                 stage = .failed(.unreadable)
             }
         }
     }
 
+    /// What was picked, kept so the photographs can be read after the owner
+    /// agrees rather than before.
+    ///
+    /// The URL rather than the bytes: an archive of two hundred photographs is
+    /// tens of megabytes, and holding it across a decision the owner may take a
+    /// minute over is memory this phone has better uses for.
+    private var source: URL?
+
+    /// Writes the archive's photographs to disk. Call **after**
+    /// `replaceEverything`, so the book that names them exists first.
+    ///
+    /// Silent about failure on purpose. The book is already in; a picture that
+    /// will not come out of the archive costs that picture, and the bill keeps
+    /// its id either way so the same archive can be tried again later.
+    func restorePhotos(into photos: PhotoStore) {
+        guard let url = source else { return }
+        // Picked URLs live outside the app's sandbox, so the read has to be
+        // scoped a second time — the scope taken during `pick` ended with it.
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+
+        guard let bytes = try? Data(contentsOf: url) else { return }
+        BackupArchive.photos(bytes) { id, data in photos.write(id: id, data: data) }
+    }
+
     func cancel() {
         stage = .idle
+        source = nil
     }
 
     /// The document to apply, or `nil` when there is nothing the owner has
