@@ -38,7 +38,7 @@ import com.stockbook.app.photos.PhotoStore
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
-import com.stockbook.core.transfer.BackupService
+import com.stockbook.core.transfer.BackupArchive
 
 /**
  * The export/import handoff — the app's only route onto a new phone.
@@ -59,14 +59,19 @@ fun BackupScreen(
     val importFlow = remember { ImportFlow() }
 
     val exporter = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
+        ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         // Only a real write counts. A cancelled save sheet must not claim a
         // backup exists — that is the one lie this screen must never tell.
         if (uri == null) return@rememberLauncherForActivityResult
+        val photos = PhotoStore(context)
         runCatching {
             context.contentResolver.openOutputStream(uri)?.use { out ->
-                out.write(BackupService.encode(store.makeBackupDocument()).toByteArray())
+                // The pictures are read one at a time as the writer asks for
+                // them, so a shop with two hundred of them never holds more than
+                // one. A picture this phone has lost is skipped rather than
+                // fatal, the same way the sweep leaves its id alone.
+                out.write(BackupArchive.pack(store.makeBackupDocument()) { photos.bytes(it) })
             }
         }.onSuccess { store.markExported() }
     }
@@ -103,14 +108,15 @@ fun BackupScreen(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Said plainly, not as a footnote, for as long as it is true. This
-            // file carries the book and not the pictures, and somebody who moves
-            // phone believing otherwise finds out at the worst possible moment.
-            // The line goes when the pictures travel too.
+            // This used to be an accent-coloured warning that the pictures
+            // stayed behind. They travel now, so it is a plain fact rather than
+            // something to be careful about — and worth saying at all only
+            // because a photograph of a paper bill is the thing an owner would
+            // most expect a backup to miss.
             Text(
-                strings.photosStayOnThisPhone,
+                strings.photosTravelWithTheBook,
                 style = NocturneType.inter(12.5),
-                color = Nocturne.accent400,
+                color = Nocturne.neutral500,
                 modifier = Modifier.padding(bottom = 14.dp)
             )
 
@@ -196,12 +202,14 @@ fun BackupScreen(
                             onClick = {
                                 val confirmed = importFlow.confirm() ?: return@PrimaryButton
                                 store.replaceEverything(confirmed)
-                                // A swap, not a merge: every photograph this
-                                // phone was holding belonged to the book that
-                                // was just replaced. Only ids the incoming book
-                                // names survive — and an id it names that this
-                                // phone lacks is left waiting, not tidied away.
-                                PhotoStore(context).sweep(store.photoIdsInUse())
+                                val photos = PhotoStore(context)
+                                // The book first, then its pictures out of the
+                                // same archive, then the sweep. In that order:
+                                // the sweep keeps what the *current* book names,
+                                // so anything left over from the replaced book
+                                // goes and everything just restored stays.
+                                importFlow.restorePhotos(context.contentResolver, photos)
+                                photos.sweep(store.photoIdsInUse())
                             },
                             fullWidth = true,
                             height = 42.dp,
@@ -212,7 +220,12 @@ fun BackupScreen(
                 } else {
                     SecondaryButton(
                         strings.chooseAFile,
-                        onClick = { importer.launch(arrayOf("application/json", "*/*")) },
+                        // `*/*` because the document picker is unreliable about
+                        // types — a `.zip` arrives as `application/octet-stream`
+                        // often enough that filtering on the name would hide the
+                        // owner's own backup from them. The bytes are what get
+                        // checked.
+                        onClick = { importer.launch(arrayOf("application/zip", "application/json", "*/*")) },
                         fullWidth = true,
                         height = 42.dp,
                         fontSize = 13.5

@@ -76,15 +76,14 @@ object BackupArchive {
     }
 
     /**
-     * Reads either an archive or a bare JSON file, and validates the document
-     * before a single photograph is written anywhere.
+     * The document out of either an archive or a bare JSON file.
      *
-     * Order matters: [onPhoto] is called only after the document has decoded and
-     * passed its version check. A file that turns out to be from a newer build
-     * must not leave a scattering of pictures behind on the way to being
-     * refused.
+     * Reads nothing else. The import screen shows the owner what they are about
+     * to replace their shop with *before* they agree to it, and unpacking a
+     * hundred photographs to draw that summary would be work for a decision that
+     * may well be "cancel".
      */
-    fun unpack(bytes: ByteArray, onPhoto: (id: String, data: ByteArray) -> Unit): BackupDocument {
+    fun document(bytes: ByteArray): BackupDocument {
         if (!ZipArchive.looksLikeZip(bytes)) {
             // A backup written before photographs travelled, or one somebody
             // pulled out of an archive by hand. Still ours, still readable.
@@ -94,17 +93,37 @@ object BackupArchive {
         val json = runCatching { ZipArchive.entry(bytes, documentEntry) }
             .getOrElse { throw BackupError.NotStockbookData }
             ?: throw BackupError.NotStockbookData
-        val document = BackupService.decode(json.toString(Charsets.UTF_8))
+        return BackupService.decode(json.toString(Charsets.UTF_8))
+    }
 
-        // A damaged picture costs that picture and the ones after it, never the
-        // book. The bill keeps the id either way, so the photograph can arrive
-        // later from another copy of the archive and be re-adopted — which is the
-        // same one-way rule the photo store's sweep already lives by.
+    /**
+     * Hands over each photograph in the archive, one at a time.
+     *
+     * Called **after** the owner has agreed to the import, never before: a book
+     * they look at and cancel must not leave pictures scattered across the phone
+     * that nothing in the shop refers to.
+     *
+     * Best effort by design. A damaged picture costs that picture and the ones
+     * after it, never the book — the bill keeps the id either way, so it can be
+     * re-adopted from another copy of the archive later. That is the same
+     * one-way rule the photo store's sweep already lives by.
+     */
+    fun photos(bytes: ByteArray, onPhoto: (id: String, data: ByteArray) -> Unit) {
+        if (!ZipArchive.looksLikeZip(bytes)) return
         runCatching {
             ZipArchive.forEach(bytes) { name, data ->
                 photoID(name)?.let { onPhoto(it, data) }
             }
         }
+    }
+
+    /**
+     * Both halves in order, for the tests and for anything that has already
+     * decided to import.
+     */
+    fun unpack(bytes: ByteArray, onPhoto: (id: String, data: ByteArray) -> Unit): BackupDocument {
+        val document = document(bytes)
+        photos(bytes, onPhoto)
         return document
     }
 }

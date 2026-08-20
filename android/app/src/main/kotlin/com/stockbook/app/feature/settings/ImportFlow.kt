@@ -5,9 +5,10 @@ import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.stockbook.app.photos.PhotoStore
 import com.stockbook.core.transfer.BackupDocument
 import com.stockbook.core.transfer.BackupError
-import com.stockbook.core.transfer.BackupService
+import com.stockbook.core.transfer.BackupArchive
 
 /**
  * The state machine behind importing a backup.
@@ -43,18 +44,53 @@ class ImportFlow {
     fun pick(uri: Uri?, resolver: ContentResolver) {
         if (uri == null) return
         stage = try {
-            val text = resolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
+            val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
                 ?: throw BackupError.Unreadable
-            Stage.Picked(BackupService.decode(text), uri.lastPathSegment ?: "backup.json")
+            // The document only. An archive's photographs are not touched until
+            // the owner has agreed to the swap — a book they look at and cancel
+            // must not leave pictures behind that nothing refers to.
+            val document = BackupArchive.document(bytes)
+            source = uri
+            Stage.Picked(document, uri.lastPathSegment ?: "backup")
         } catch (error: BackupError) {
+            source = null
             Stage.Failed(error)
         } catch (_: Exception) {
+            source = null
             Stage.Failed(BackupError.Unreadable)
+        }
+    }
+
+    /**
+     * What was picked, kept so the photographs can be read after the owner
+     * agrees rather than before.
+     *
+     * The `Uri` rather than the bytes: an archive of two hundred photographs is
+     * tens of megabytes, and holding it across a decision the owner may take a
+     * minute over is memory this phone has better uses for. A document picker's
+     * Uri stays readable for as long as the activity does.
+     */
+    private var source: Uri? = null
+
+    /**
+     * Writes the archive's photographs to disk. Call **after**
+     * `replaceEverything`, so the book that names them exists first.
+     *
+     * Silent about failure on purpose. The book is already in; a picture that
+     * will not come out of the archive costs that picture, and the bill keeps its
+     * id either way so the same archive can be tried again later.
+     */
+    fun restorePhotos(resolver: ContentResolver, photos: PhotoStore) {
+        val uri = source ?: return
+        runCatching {
+            val bytes = resolver.openInputStream(uri)?.use { it.readBytes() } ?: return
+            BackupArchive.photos(bytes) { id, data -> photos.write(id, data) }
         }
     }
 
     fun cancel() {
         stage = Stage.Idle
+        source = null
     }
 
     /**

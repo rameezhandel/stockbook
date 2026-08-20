@@ -254,10 +254,12 @@ struct Strings {
     }
 
     /// Said on the backup screen for as long as photographs do not travel in the file.
-    var photosStayOnThisPhone: String {
+    /// Said on the backup screen. This was the opposite sentence until the
+    /// archive arrived — a warning, in accent, that the pictures stayed behind.
+    var photosTravelWithTheBook: String {
         pick(
-            "Photos stay on this phone — this file holds the book, not the pictures.",
-            "ಫೋಟೋಗಳು ಈ ಫೋನಿನಲ್ಲೇ ಉಳಿಯುತ್ತವೆ — ಈ ಫೈಲಿನಲ್ಲಿ ಲೆಕ್ಕ ಇದೆ, ಚಿತ್ರಗಳಲ್ಲ."
+            "Photos of your bills go in the file too.",
+            "ನಿಮ್ಮ ಬಿಲ್‌ಗಳ ಫೋಟೋಗಳೂ ಈ ಫೈಲಿನಲ್ಲಿ ಹೋಗುತ್ತವೆ."
         )
     }
 

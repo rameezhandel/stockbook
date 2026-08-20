@@ -570,7 +570,7 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
                 importFlow = importFlow,
                 store = store,
                 strings = strings,
-                onChooseFile = { importer.launch(arrayOf("application/json", "*/*")) },
+                onChooseFile = { importer.launch(arrayOf("application/zip", "application/json", "*/*")) },
                 onClose = { showingImport = false }
             )
         }

@@ -45,14 +45,14 @@ struct BackupScreen: View {
                         .lineSpacing(3)
                         .padding(.bottom, 8)
 
-                    // Said plainly, not as a footnote, for as long as it is true.
-                    // This file carries the book and not the pictures, and
-                    // somebody who moves phone believing otherwise finds out at
-                    // the worst possible moment. The line goes when the pictures
-                    // travel too.
-                    Text(Loc.photosStayOnThisPhone)
+                    // This used to be an accent-coloured warning that the
+                    // pictures stayed behind. They travel now, so it is a plain
+                    // fact rather than something to be careful about — and worth
+                    // saying at all only because a photograph of a paper bill is
+                    // the thing an owner would most expect a backup to miss.
+                    Text(Loc.photosTravelWithTheBook)
                         .font(NocturneType.inter(12.5))
-                        .foregroundStyle(Nocturne.accent400)
+                        .foregroundStyle(Nocturne.neutral500)
                         .lineSpacing(3)
                         .padding(.bottom, 14)
 

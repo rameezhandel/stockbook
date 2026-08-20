@@ -73,7 +73,7 @@ class BackupTests {
             ownerName = "K",
             currencyCode = "SAR"
         )
-        assertEquals("stockbook-2026-07-28.json", document.suggestedFilename)
+        assertEquals("stockbook-2026-07-28.zip", document.suggestedFilename)
         assertTrue(document.suggestedFilename.all { it.code < 128 })
     }
 }

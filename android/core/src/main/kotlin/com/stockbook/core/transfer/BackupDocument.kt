@@ -201,7 +201,14 @@ data class BackupDocument(
     ).joinToString(" · ")
 
     /** `stockbook-2026-08-11.json` */
-    val suggestedFilename: String get() = "stockbook-${Dates.fileDate(exportedAt)}.json"
+    /**
+     * `stockbook-2026-08-20.zip`.
+     *
+     * A `.zip` since the photographs started travelling with the book. Import
+     * still takes either — it sniffs the first bytes rather than the extension —
+     * but there is one thing to export, so there is one name for it.
+     */
+    val suggestedFilename: String get() = "stockbook-${Dates.fileDate(exportedAt)}.zip"
 
     companion object {
         /**

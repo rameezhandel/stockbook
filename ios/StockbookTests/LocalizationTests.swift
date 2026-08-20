@@ -40,7 +40,7 @@ struct LocalizationTests {
         \.paymentNoField, \.paymentNoHint, \.enterPaymentNumber, \.changeThePaymentNo,
         \.addPhoto, \.takePhoto, \.chooseFromPhotos, \.removePhoto, \.billPhotos,
         \.photoLabel, \.photoNotOnThisPhone, \.couldNotReadThatPhoto, \.noCameraOnThisPhone,
-        \.photoStorage, \.removeAllPhotos, \.removeAllPhotosNote, \.photosStayOnThisPhone,
+        \.photoStorage, \.removeAllPhotos, \.removeAllPhotosNote, \.photosTravelWithTheBook,
         \.statement, \.thisMonth, \.lastMonth, \.thisYear,
         \.chooseDates, \.fromDate, \.toDate, \.openingBalance,
         \.billedInPeriod, \.receivedInPeriod, \.closingBalance, \.nothingInThisPeriod,
@@ -177,7 +177,7 @@ struct LocalizationTests {
             bills: []
         )
         let isASCII = document.suggestedFilename.allSatisfy(\.isASCII)
-        #expect(document.suggestedFilename == "stockbook-\(Copy.fileDate(date)).json")
+        #expect(document.suggestedFilename == "stockbook-\(Copy.fileDate(date)).zip")
         #expect(isASCII)
     }
 

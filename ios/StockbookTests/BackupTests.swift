@@ -217,7 +217,7 @@ struct BackupTests {
             bills: []
         )
 
-        #expect(document.suggestedFilename == "stockbook-2026-08-11.json")
+        #expect(document.suggestedFilename == "stockbook-2026-08-11.zip")
     }
 
     @Test("The summary line reads the way Settings shows it")

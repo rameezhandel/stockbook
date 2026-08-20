@@ -80,6 +80,28 @@ class PhotoStore(private val context: Context) {
     }
 
     /**
+     * The stored bytes, for putting a photograph into a backup archive.
+     *
+     * The file as it sits on disk, not a re-encode: it was shrunk and compressed
+     * once when it was taken, and running it through the JPEG encoder a second
+     * time would cost quality for nothing.
+     *
+     * Null when this phone has not got the picture, which is an ordinary answer.
+     */
+    fun bytes(id: String): ByteArray? = file(id).takeIf { it.isFile }?.readBytes()
+
+    /**
+     * Puts a photograph from a backup archive on disk under the id the book
+     * already knows it by.
+     *
+     * Overwrites, deliberately. An import is a replacement of the whole book, and
+     * the incoming archive is the authority on what its own ids mean.
+     */
+    fun write(id: String, data: ByteArray) {
+        runCatching { file(id).writeBytes(data) }
+    }
+
+    /**
      * A stored photograph, decoded for the screen.
      *
      * [edge] is what the caller is about to draw into. A row of thumbnails asking

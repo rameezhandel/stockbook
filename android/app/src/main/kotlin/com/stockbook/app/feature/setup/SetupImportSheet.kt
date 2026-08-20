@@ -102,10 +102,14 @@ fun SetupImportSheet(
                         // Only ever acts on what confirm() hands back.
                         val confirmed = importFlow.confirm() ?: return@PrimaryButton
                         store.replaceEverything(confirmed)
+                        val photos = PhotoStore(context)
+                        // The whole point of importing during setup: a new phone
+                        // starts as the old one left off, pictures included.
+                        importFlow.restorePhotos(context.contentResolver, photos)
                         // Nothing should be here on a fresh install, but this is
                         // also the path a reinstall takes over the top of an old
                         // container.
-                        PhotoStore(context).sweep(store.photoIdsInUse())
+                        photos.sweep(store.photoIdsInUse())
                     },
                     fullWidth = true,
                     height = 42.dp,

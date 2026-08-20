@@ -238,11 +238,14 @@ class Strings(val language: AppLanguage) {
             "ಬಿಲ್‌ಗಳು ಉಳಿಯುತ್ತವೆ. ಫೋಟೋಗಳು ಮಾತ್ರ ಹೋಗುತ್ತವೆ, ಮತ್ತೆ ಸಿಗುವುದಿಲ್ಲ."
         )
 
-    /** Said on the backup screen for as long as photographs do not travel in the file. */
-    val photosStayOnThisPhone: String
+    /**
+     * Said on the backup screen. This was the opposite sentence until the
+     * archive arrived — a warning, in accent, that the pictures stayed behind.
+     */
+    val photosTravelWithTheBook: String
         get() = pick(
-            "Photos stay on this phone — this file holds the book, not the pictures.",
-            "ಫೋಟೋಗಳು ಈ ಫೋನಿನಲ್ಲೇ ಉಳಿಯುತ್ತವೆ — ಈ ಫೈಲಿನಲ್ಲಿ ಲೆಕ್ಕ ಇದೆ, ಚಿತ್ರಗಳಲ್ಲ."
+            "Photos of your bills go in the file too.",
+            "ನಿಮ್ಮ ಬಿಲ್‌ಗಳ ಫೋಟೋಗಳೂ ಈ ಫೈಲಿನಲ್ಲಿ ಹೋಗುತ್ತವೆ."
         )
 
     fun owes(amount: String): String =

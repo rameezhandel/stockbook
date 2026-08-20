@@ -268,7 +268,7 @@ struct BackupDocument: Codable, Equatable {
 
     /// `stockbook-2026-08-11.json`
     var suggestedFilename: String {
-        "stockbook-\(Copy.fileDate(exportedAt)).json"
+        "stockbook-\(Copy.fileDate(exportedAt)).zip"
     }
 }
 
