@@ -31,7 +31,7 @@ else.
 
 | | Build locally? |
 | --- | --- |
-| `android/core` | **Yes.** `cd android && ./gradlew :core:test` — 272 tests, ~15s |
+| `android/core` | **Yes.** `cd android && ./gradlew :core:test` — 297 tests, ~15s |
 | `android/app` | **No.** `dl.google.com` is 403 here; the Android Gradle Plugin cannot resolve |
 | `ios/` | **No.** No macOS, no Xcode, no Swift compiler |
 
@@ -134,6 +134,19 @@ wrong. Neither command replaces the other.
 - Photographs are **ids in the book, files on disk**. Cleanup runs one way only:
   a file nothing references may be deleted; an id whose file is missing is never
   pruned, because a book restored ahead of its pictures must re-adopt them.
+- **The backup file is a store-only ZIP** — `stockbook.json` plus
+  `photos/<id>.jpg` — hand-written on both platforms from the specification.
+  `java.util.zip` is deliberately unused on Android: iOS has no zip reader, so
+  the format had to be hand-written for Swift regardless, and two independent
+  implementations would drift. Kotlin is the original because it can be tested
+  against `java.util.zip`; Swift is the port, held to it by a shared base64
+  fixture asserted in both suites. The DOS timestamp is fixed at 1980-01-01 so
+  that fixture can be a constant — do not make it "now".
+- **Which way the archive fails is decided.** A picture the phone has lost is
+  skipped on export. A damaged picture on import costs that picture, never the
+  book: the bill keeps the id either way, so it can be re-adopted later. Reading
+  the document must not walk every entry — doing so CRC-checks every photograph
+  and would refuse a whole import over one bad one.
 
 ## Working style
 

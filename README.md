@@ -36,10 +36,19 @@ languages, and the same file format.
 
 ## What the two apps share
 
-- **The backup file.** `BackupDocument` is byte-compatible across both: same
-  keys, same ISO-8601 timestamps, same absent-means-paid-in-full rule, same
-  format version — **3**. A shop exported from an iPhone opens on Android and
-  back again, and that is tested against literal files written by each.
+- **The backup file.** A store-only ZIP — `stockbook.json` plus
+  `photos/<id>.jpg` — written and read by hand on both sides, because iOS has no
+  zip reader and this project has no dependencies. `java.util.zip` is
+  deliberately unused on Android so that one implementation is ported rather
+  than two written; a shared base64 fixture is asserted in both test suites as
+  what each platform writes *and* reads.
+
+  Inside it, `BackupDocument` is byte-compatible across both: same keys, same
+  ISO-8601 timestamps, same absent-means-paid-in-full rule, same format version
+  — **3**. A shop exported from an iPhone opens on Android and back again, and
+  that is tested against literal files written by each. A bare `.json` from
+  before the pictures travelled still imports, recognised by its first four
+  bytes rather than its name.
 
   The version bumps only when an older reader would *misinterpret* the new
   shape, not merely lose a label. Credit notes bumped it, because a reader that
@@ -75,7 +84,7 @@ xcodebuild test -scheme Stockbook \
 **Android** — JDK 17+, Android Studio only for the UI:
 
 ```sh
-cd android && ./gradlew :core:test     # 272 tests, ~15s, no SDK or emulator needed
+cd android && ./gradlew :core:test     # 297 tests, ~15s, no SDK or emulator needed
 cd android && ./gradlew :app:assembleDebug
 ```
 
@@ -118,7 +127,8 @@ Built on top of the original spec since:
 - **Credit notes** — a figure, or the goods that came back, with their own
   numbering, shown on the statement and taken off what is owed.
 - **Photographs of the paper bill**, taken while writing it or added to a saved
-  one. Stored on the phone; see the note in `BACKLOG.md` about the export.
+  one — and they travel in the backup, so a new phone gets the pictures as well
+  as the book.
 - **Typed numbers throughout** — invoice, credit note and receipt numbers are
   all written by the owner, never auto-generated, each checked against its own
   series.

@@ -1,11 +1,12 @@
 # Backlog — before going live
 
-Four things deliberately left until the end. Recorded here because the work
-happens in throwaway containers, and anything not written down is gone with
-them.
+What is left, recorded here because the work happens in throwaway containers and
+anything not written down is gone with them.
 
-Three are not code problems at all — account setup, store paperwork and
-housekeeping. The fourth is: photographs do not travel in the backup file yet.
+None of it is a code problem any more: account setup, store paperwork, and
+housekeeping that is now done. The one that was — photographs not travelling in
+the backup file — is finished; see the closed item at the bottom for what was
+built and why.
 
 ## 1. TestFlight — Apple account setup
 
@@ -41,56 +42,6 @@ The signing config and the bundle workflow are written; see
 
 **Done when** `Play bundle` produces a signed `.aab` that the Console accepts.
 
-## 3. Stale remote branches
-
-Roughly two dozen merged feature branches are still on the remote. Harmless, but
-they make the branch list useless for seeing what is actually in flight, and it
-gets worse every week.
-
-**Done when** every branch whose commits are already on `main` is deleted.
-`git branch -r --merged origin/main` lists them.
-
-## 4. Photographs do not travel in the backup file
-
-A bill carries the **ids** of its photographs in the export, but not the
-pictures. Move to a new phone today and every bill says "not on this phone"
-where a photograph used to be. The backup screen says so in plain words, in
-accent colour, rather than letting anyone find out the hard way.
-
-Base64 inside the JSON is not the answer. Both platforms' encoders build the
-whole document in memory before a byte reaches disk, so 200 photographs at
-200 KB becomes 54 MB of base64 — held as a Kotlin `String`, which is UTF-16, so
-108 MB, built by a `StringBuilder` that doubles as it grows. Android hands a
-mid-range phone a 128–256 MB heap. It runs out, on the owner's only copy of
-their records.
-
-**The plan is a store-only ZIP:**
-
-```
-stockbook-2026-08-19.zip
-├── stockbook.json          ← byte-identical to today's export
-└── photos/
-    └── <id>.jpg
-```
-
-- Peak memory is **one photograph**, because each is streamed from disk straight
-  to the archive. There is no cliff to fall off.
-- JPEG is already compressed, so the archive stores rather than deflates — no
-  compression code at all, which is what makes hand-writing it on iOS
-  reasonable. Android has `java.util.zip`; iOS has no zip writer and this project
-  has no dependencies, so it is roughly 150 lines of local file header, central
-  directory, EOCD and a CRC32 table.
-- The JSON entry is unchanged, so every existing backup test and the
-  cross-platform byte guarantee survive untouched. A bare `.json` keeps
-  importing forever, and the reader sniffs the `PK` magic bytes rather than
-  trusting the extension, because SAF and Files both lie about types.
-- Photograph ids are **already in the file**, so bills re-adopt their pictures
-  the moment the pictures arrive. Nothing needs migrating.
-
-**Done when** a phone restored from a `.zip` shows the photographs, the line on
-the backup screen is deleted, and a fixture archive written by each platform is
-read by the other in both test suites.
-
 ## Parked, not blocking
 
 - **Photographs on deliveries.** `Purchase` would take `photoIDs` exactly as
@@ -105,6 +56,28 @@ read by the other in both test suites.
   it means a lost iPhone restores the whole book.
 
 ## Settled, so nobody reopens them
+
+- **Photographs travel in the backup — done.** The export is a store-only ZIP:
+  `stockbook.json`, byte-identical to what the plain export always wrote, plus
+  `photos/<id>.jpg`. Base64 inside the JSON was rejected on memory — both
+  platforms' encoders build the whole document before a byte reaches disk, so
+  200 pictures at 200 KB becomes 54 MB of base64 held as a UTF-16 Kotlin
+  `String`, which is 108 MB on a phone given a 128 MB heap. The archive streams
+  one picture at a time instead.
+
+  `java.util.zip` is deliberately **not** used on Android. iOS has no zip reader
+  and this project has no dependencies, so the format had to be hand-written for
+  Swift regardless; written twice the two would drift. It is written once in
+  Kotlin, where it is tested against `java.util.zip` in both directions, and
+  ported — with a shared base64 fixture asserted in both suites as what each
+  platform writes *and* reads. The DOS timestamp is fixed at 1980-01-01 so that
+  fixture can be a constant.
+
+  A bare `.json` still imports forever, sniffed by its magic bytes. Photograph
+  ids were already in the document, so nothing had to migrate.
+- **The stale branches — done.** Every branch whose commits were already on
+  `main` has been deleted; `git branch -r --no-merged origin/main` was empty
+  first.
 
 - **Bundled fonts — decided against.** Every type style names Inter and neither
   app bundles it, so both fall back to the system face: San Francisco on iOS,
