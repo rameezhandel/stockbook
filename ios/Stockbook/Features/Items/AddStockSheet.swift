@@ -1,5 +1,40 @@
 import SwiftUI
 
+/// One line of the delivery being entered, held as text while it is being typed.
+///
+/// Both numbers are held as **text**, so a half-typed value ("1." or "") is
+/// representable and the field is never re-formatted under the thumb that is
+/// typing into it — the lesson the bill's own line card records.
+///
+/// `fallbackCost` is what the product already costs, which is what the store
+/// falls back to when the box is empty. Held here so the sheet works the total
+/// out the way the store will: without it, clearing the box would show a total of
+/// nothing over a Save about to write the old price.
+@Observable
+private final class DeliveryLine: Identifiable {
+    let id = UUID()
+    let productUID: UUID
+    let name: String
+    let fallbackCost: Double
+    var qtyText: String
+    var costText: String
+
+    init(productUID: UUID, name: String, qty: Int, cost: Double, fallbackCost: Double, in currency: Currency) {
+        self.productUID = productUID
+        self.name = name
+        self.fallbackCost = fallbackCost
+        self.qtyText = String(qty)
+        self.costText = cost > 0 ? Money.amount(cost, in: currency) : ""
+    }
+
+    var qty: Int { max(0, Int(qtyText.trimmed) ?? 0) }
+    var cost: Double {
+        let typed = Money.parse(costText) ?? 0
+        return typed > 0 ? typed : fallbackCost
+    }
+    var lineTotal: Double { Double(qty) * cost }
+}
+
 /// A supplier's bill, and the shelf count beside it.
 ///
 /// **Set count** is what the owner types after looking at a shelf — "there are
@@ -40,13 +75,11 @@ struct AddStockSheet: View {
     /// What the owner counted on the shelf. Its own box, because "there are 12"
     /// and "add 12" are the same keystrokes and different shelves.
     @State private var count = ""
-    @State private var quantity = ""
-    @State private var unitCost = ""
-    /// What was typed into the product box, and which product was actually
-    /// chosen. Only a choice counts: a typed name matching nothing is not a
-    /// product, and stock cannot arrive against it.
-    @State private var productText = ""
-    @State private var chosenProduct: Product?
+    /// What arrived, one entry per line on the paper.
+    @State private var lines: [DeliveryLine] = []
+    /// What has been typed into the product box while looking for the next line.
+    @State private var productQuery = ""
+    @State private var addingLine = false
     /// What the supplier's bill came to, where no product and count say what it
     /// is made of. Held as text so a half-typed figure is representable.
     @State private var amountText = ""
@@ -74,14 +107,13 @@ struct AddStockSheet: View {
     /// would be offering to do something else entirely.
     private var showsModePills: Bool { product != nil && editing == nil }
 
-    private var quantityValue: Int {
-        Int(quantity.trimmed) ?? Int(Money.parse(quantity) ?? 0)
-    }
+    /// The lines with a count on them. A product with no quantity is half an
+    /// answer, and guessing the other half would put stock on the shelf nobody
+    /// said arrived.
+    private var liveLines: [DeliveryLine] { lines.filter { $0.qty > 0 } }
 
-    /// Itemised means a product **and** a count of it. A product with no quantity
-    /// is half an answer, and guessing the other half would put stock on the shelf
-    /// nobody said arrived.
-    private var isItemised: Bool { chosenProduct != nil && quantityValue > 0 }
+    /// Itemised means at least one line that says how many arrived.
+    private var isItemised: Bool { !liveLines.isEmpty }
 
     /// What the owner counted, or nil while the box says nothing readable — which
     /// is what stops an empty box reading as "there are none".
@@ -89,13 +121,10 @@ struct AddStockSheet: View {
 
     /// What the delivery is costed at, worked out the same way `recordPurchase`
     /// works it out — or the sheet shows a total the store does not save.
-    private var costValue: Double {
-        let typed = Money.parse(unitCost) ?? 0
-        return typed > 0 ? typed : (chosenProduct?.cost ?? 0)
-    }
-
     private var totalValue: Double {
-        isItemised ? Double(quantityValue) * costValue : (Money.parse(amountText) ?? 0)
+        isItemised
+            ? liveLines.reduce(0) { $0 + $1.lineTotal }
+            : (Money.parse(amountText) ?? 0)
     }
 
     var body: some View {
@@ -171,26 +200,25 @@ struct AddStockSheet: View {
                 )
             }
 
-            // Which product arrived, where the shop keeps a count of it. Optional,
-            // and labelled so: a bill for a mixed load, or for a delivery charge,
-            // names nothing and still owes money.
-            if isPurchase, product == nil {
-                ProductPicker(typed: $productText, chosen: $chosenProduct)
-            }
+            // What arrived, one card per line on the paper. Optional, all of it:
+            // a bill for a mixed load, or for a delivery charge, names nothing and
+            // still owes money.
+            if isPurchase {
+                ForEach(lines) { line in
+                    DeliveryLineCard(line: line, onRemove: { remove(line) })
+                }
 
-            if chosenProduct != nil {
-                HStack(spacing: 8) {
-                    NocturneField.number(label: Loc.howMany, text: $quantity)
-                    if isPurchase {
-                        NocturneField.number(
-                            label: Loc.paidPerPiece,
-                            text: $unitCost,
-                            // Marked only once it is the thing standing between
-                            // the owner and a saved bill: with a quantity typed
-                            // and no price on either the box or the product,
-                            // there is no figure at all.
-                            isRequiredAndEmpty: isItemised && totalValue <= 0
-                        )
+                Group {
+                    if addingLine {
+                        ProductPicker(typed: $productQuery, onChoose: addLine)
+                    } else {
+                        Button(action: { addingLine = true }) {
+                            Label(
+                                lines.isEmpty ? Loc.addItems : Loc.addAnotherItem,
+                                systemImage: Icon.add
+                            )
+                        }
+                        .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
                     }
                 }
             }
@@ -267,11 +295,37 @@ struct AddStockSheet: View {
         // ways of reaching it are derived in `isPurchase` rather than set here.
         if startInPurchase { supplierBill = true }
 
-        // The product the sheet was opened for, or the one the delivery being
-        // corrected named — nil when that product has since been deleted, which
-        // is why a delivery can come back as a bare figure.
-        chosenProduct = editing?.productUID.flatMap { store.product(uid: $0) } ?? product
-        productText = chosenProduct?.name ?? ""
+        // What the delivery said arrived, for as many of those products as are
+        // still on the books — a purchase can outlive what it bought, and the
+        // sheet cannot offer a quantity of something that no longer exists. A
+        // delivery whose every product has gone comes back as a bill for a figure,
+        // which is what saving it again would make it anyway.
+        if let editing {
+            lines = editing.items.compactMap { item in
+                guard let uid = item.productUID, let onShelf = store.product(uid: uid) else { return nil }
+                return DeliveryLine(
+                    productUID: uid,
+                    name: item.name,
+                    qty: item.qty,
+                    cost: item.unitCost,
+                    fallbackCost: onShelf.cost,
+                    in: currency
+                )
+            }
+        } else if let product {
+            // Opened from a product: that product is what the owner is looking
+            // at, so it is line one already.
+            lines = [
+                DeliveryLine(
+                    productUID: product.uid,
+                    name: product.name,
+                    qty: 1,
+                    cost: product.cost,
+                    fallbackCost: product.cost,
+                    in: currency
+                )
+            ]
+        }
 
         guard let editing else { return }
         supplier = store.supplier(key: editing.supplierKey)?.name ?? editing.supplierKey
@@ -280,10 +334,7 @@ struct AddStockSheet: View {
         arrivedAt = editing.createdAt
         settledNow = editing.paid == nil
         paidText = editing.paid.map { Money.amount($0, in: currency) } ?? ""
-        if editing.isItemised {
-            quantity = String(editing.qty)
-            unitCost = Money.amount(editing.unitCost, in: currency)
-        } else {
+        if !editing.isItemised {
             // A supplier bill entered as a figure has no lines to sum, so the
             // total goes back into the box it was typed into.
             amountText = Money.amount(editing.total, in: currency)
@@ -343,54 +394,132 @@ struct AddStockSheet: View {
         return supplierKey != nil && !invoiceNo.isBlank && totalValue > 0 && clash == nil
     }
 
+    /// Choosing something already on the note adds one more of it rather than a
+    /// second card saying the same name — the rule the cart and the credit note
+    /// both follow.
+    private func addLine(_ product: Product) {
+        if let existing = lines.first(where: { $0.productUID == product.uid }) {
+            existing.qtyText = String(existing.qty + 1)
+        } else {
+            lines.append(
+                DeliveryLine(
+                    productUID: product.uid,
+                    name: product.name,
+                    qty: 1,
+                    cost: product.cost,
+                    fallbackCost: product.cost,
+                    in: currency
+                )
+            )
+        }
+        productQuery = ""
+        addingLine = false
+    }
+
+    private func remove(_ line: DeliveryLine) {
+        lines.removeAll { $0.id == line.id }
+    }
+
     /// Zero or empty quantity just closes the sheet — the owner opened it, then
     /// thought better of it, and that should not need a Cancel button.
     private func confirm() {
         if isPurchase {
             guard let key = supplierKey else { return }
             let paid: Double? = settledNow ? nil : (Money.parse(paidText) ?? 0)
+            // Which of the two shapes this ends up as is the store's rule to
+            // apply, not the sheet's: lines are stock arriving, no lines is a
+            // figure against the account, and the amount is ignored where there is
+            // arithmetic instead. Money owed with nothing on the shelf to show for
+            // it is the same record deliberately, because a statement should not
+            // care which way a supplier's bill was entered.
+            let drafts = liveLines.map {
+                DraftPurchaseLine(productUID: $0.productUID, qty: $0.qty, unitCost: $0.cost)
+            }
             if let editing {
-                // Which of the two shapes this ends up as is the store's rule to
-                // apply, not the sheet's: a quantity of zero makes it a figure
-                // however the boxes were filled in.
                 store.updatePurchase(
                     id: editing.id,
-                    product: chosenProduct,
+                    lines: drafts,
                     supplierKey: key,
-                    quantity: quantityValue,
-                    unitCost: Money.parse(unitCost) ?? 0,
                     paid: paid,
-                    amount: Money.parse(amountText),
-                    createdAt: arrivedAt,
-                    invoiceNo: invoiceNo
-                )
-            } else if isItemised {
-                // Stock arriving, against an account and a piece of paper — which
-                // is why this is not `restock` with a supplier string that went
-                // nowhere.
-                store.recordPurchase(
-                    product: chosenProduct,
-                    supplierKey: key,
-                    quantity: quantityValue,
-                    unitCost: Money.parse(unitCost) ?? 0,
-                    paid: paid,
+                    amount: totalValue,
                     createdAt: arrivedAt,
                     invoiceNo: invoiceNo
                 )
             } else {
-                // Money owed and nothing on the shelf to show for it. The same
-                // record either way, deliberately: a statement should not care
-                // which way a supplier's bill was entered.
-                store.recordSupplierBill(
+                store.recordPurchase(
+                    lines: drafts,
                     supplierKey: key,
-                    amount: totalValue,
                     paid: paid,
+                    amount: totalValue,
                     createdAt: arrivedAt,
                     invoiceNo: invoiceNo
                 )
             }
         }
         router.addStock = nil
+    }
+}
+
+/// One line of the delivery: what it was, how many, and what each cost.
+///
+/// `ReturnedLineCard`'s shape on the credit note sheet, deliberately — the two are
+/// the same act pointed in opposite directions, and a shopkeeper who has entered
+/// one should recognise the other.
+private struct DeliveryLineCard: View {
+    @Bindable var line: DeliveryLine
+    let onRemove: () -> Void
+
+    @Environment(\.currency) private var currency
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text(line.name)
+                    .nocturneText(.rowPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .lineLimit(1)
+                Text(Money.text(line.lineTotal, in: currency))
+                    .font(NocturneType.inter(15))
+                    .rollingNumber(line.lineTotal)
+                Button(action: onRemove) {
+                    Glyph(Icon.delete, size: 15)
+                        .foregroundStyle(Nocturne.neutral500)
+                        .minimumTouchTarget()
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Loc.remove(line.name))
+            }
+            .padding(.bottom, 10)
+
+            HStack(spacing: 8) {
+                NocturneField.number(
+                    label: Loc.howMany,
+                    text: $line.qtyText,
+                    height: Metrics.compactControlHeight,
+                    // Marked while it is the thing standing between this line and
+                    // the shelf: a line with no count on it is not saved at all,
+                    // and the owner should see which one it is rather than wonder
+                    // why the total is short.
+                    isRequiredAndEmpty: line.qty <= 0,
+                    fontSize: 13.5
+                )
+                NocturneField.number(
+                    label: Loc.paidPerPiece,
+                    text: $line.costText,
+                    height: Metrics.compactControlHeight,
+                    // Only where leaving it empty would leave no figure at all: an
+                    // emptied box on a product that already has a cost means "the
+                    // same as last time", which is a real answer.
+                    isRequiredAndEmpty: line.qty > 0 && line.cost <= 0,
+                    prefix: currency.symbol.trimmed,
+                    fontSize: 13.5
+                )
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .frame(maxWidth: .infinity)
+        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
     }
 }
 
@@ -408,12 +537,20 @@ struct AddStockSheet: View {
 ///
 /// The supplier picker below, pointed at the catalogue, and optional where that
 /// one is required — a supplier's bill always has a supplier, and does not always
-/// have a product. It cannot create one either: a product carries a buying price,
-/// a selling price and a count, and inventing all three from a delivery sheet is
-/// how a catalogue fills up with half-made entries.
+/// have a product.
+///
+/// It **can** create one, which it once could not: the old note here said a
+/// product carries a buying price, a selling price and a count, and that inventing
+/// all three from a delivery sheet is how a catalogue fills up with half-made
+/// entries. Only one of those three is invented. What it cost is the box on the
+/// line below, the count is what the delivery is about to add, and the selling
+/// price is left at nothing — a question a delivery note does not answer, and one
+/// the Items screen already flags. Against that: a supplier's paper is exactly
+/// where stock the shop has never carried turns up, and without this a new line
+/// meant leaving the sheet and losing the half-typed delivery.
 private struct ProductPicker: View {
     @Binding var typed: String
-    @Binding var chosen: Product?
+    let onChoose: (Product) -> Void
 
     @Environment(StockbookStore.self) private var store
     @Environment(\.currency) private var currency
@@ -421,9 +558,13 @@ private struct ProductPicker: View {
     private static let rowHeight: CGFloat = 35
     private static let maxListHeight: CGFloat = 150
 
-    private var matches: [Product] {
-        guard chosen == nil else { return [] }
-        return store.products(matching: typed)
+    private var matches: [Product] { store.products(matching: typed) }
+
+    /// Only on an exact-name miss, so it never offers to create a second "Cisa
+    /// lock" while the first one is sitting in the list above it.
+    private var canCreate: Bool {
+        let needle = typed.trimmed.lowercased()
+        return !needle.isEmpty && !store.products.contains { $0.name.trimmed.lowercased() == needle }
     }
 
     var body: some View {
@@ -431,42 +572,67 @@ private struct ProductPicker: View {
             NocturneField(
                 label: Loc.whichProductArrived,
                 placeholder: Loc.optionalField,
-                text: Binding(get: { typed }, set: { typed = $0; chosen = nil }),
+                text: $typed,
                 identifier: "purchase.product"
             )
 
-            if !matches.isEmpty {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(matches) { product in
-                            Button { choose(product) } label: {
-                                HStack(spacing: 8) {
-                                    Glyph(Icon.items, size: 13)
-                                        .foregroundStyle(Nocturne.neutral500)
-                                    Text(product.name)
-                                        .font(NocturneType.inter(13.5))
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .lineLimit(1)
-                                    Text(Loc.stockLabel(product.stock))
-                                        .font(NocturneType.inter(11))
-                                        .foregroundStyle(Nocturne.neutral500)
-                                    // The buying price, not the selling one: this
-                                    // list exists to start a delivery, and that is
-                                    // the figure about to be typed over.
-                                    Text(Money.text(product.cost, in: currency))
-                                        .font(NocturneType.inter(11))
-                                        .foregroundStyle(Nocturne.accent400)
+            if !matches.isEmpty || canCreate {
+                VStack(spacing: 0) {
+                    if !matches.isEmpty {
+                        ScrollView {
+                            VStack(spacing: 0) {
+                                ForEach(matches) { product in
+                                    Button { choose(product) } label: {
+                                        HStack(spacing: 8) {
+                                            Glyph(Icon.items, size: 13)
+                                                .foregroundStyle(Nocturne.neutral500)
+                                            Text(product.name)
+                                                .font(NocturneType.inter(13.5))
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .lineLimit(1)
+                                            Text(Loc.stockLabel(product.stock))
+                                                .font(NocturneType.inter(11))
+                                                .foregroundStyle(Nocturne.neutral500)
+                                            // The buying price, not the selling
+                                            // one: this list exists to start a
+                                            // delivery, and that is the figure
+                                            // about to be typed over.
+                                            Text(Money.text(product.cost, in: currency))
+                                                .font(NocturneType.inter(11))
+                                                .foregroundStyle(Nocturne.accent400)
+                                        }
+                                        .padding(.horizontal, 11)
+                                        .frame(height: Self.rowHeight)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .padding(.horizontal, 11)
-                                .frame(height: Self.rowHeight)
-                                .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
                         }
+                        .frame(height: min(CGFloat(matches.count) * Self.rowHeight, Self.maxListHeight))
+                        .scrollBounceBehavior(.basedOnSize)
+                    }
+
+                    // Outside the scrolling part: it is the way out when nothing
+                    // matches, and must never be something to scroll for.
+                    if canCreate {
+                        Button(action: create) {
+                            HStack(spacing: 8) {
+                                Glyph(Icon.add, size: 12)
+                                    .foregroundStyle(Nocturne.accent)
+                                Text(Loc.addAsProduct(typed.trimmed))
+                                    .font(NocturneType.inter(13.5))
+                                    .foregroundStyle(Nocturne.accent)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 11)
+                            .frame(height: Self.rowHeight)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .frame(height: min(CGFloat(matches.count) * Self.rowHeight, Self.maxListHeight))
-                .scrollBounceBehavior(.basedOnSize)
                 .padding(.vertical, 3)
                 .frame(maxWidth: .infinity)
                 .background(Nocturne.surface)
@@ -477,9 +643,15 @@ private struct ProductPicker: View {
     }
 
     private func choose(_ product: Product) {
-        typed = product.name
-        chosen = product
+        typed = ""
         dismissKeyboard()
+        onChoose(product)
+    }
+
+    /// No cost and no selling price: the line this becomes carries what it cost,
+    /// and what it sells for is not a question a delivery note answers.
+    private func create() {
+        choose(store.addProduct(name: typed.trimmed, stock: 0, cost: 0, price: 0))
     }
 }
 

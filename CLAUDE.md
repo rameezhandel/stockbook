@@ -134,6 +134,12 @@ the other.
   `invoiceNo` is a **label**. Never conflate them.
 - **A mistake is edited or removed, not voided.** `deleteBill` returns the stock
   and frees the number. A `voided` key survives in old files and is ignored.
+- **Read `Purchase.items`, never `Purchase.lines`.** A delivery used to hold one
+  product, and those four fields — `productUid`, `name`, `qty`, `unitCost` — are
+  still on the type as the way in from records written then. `items` folds them
+  into a single line and is the only thing the app should read; `lines` is the
+  storage. Reading the old four compiles perfectly and shows nothing for every
+  delivery entered since, which is how five screens nearly shipped blank.
 - **Every number is typed by the owner, never suggested** — invoice, delivery,
   credit note and receipt numbers, each checked against its own series. Receipt
   1024 and invoice 1024 are different slips.

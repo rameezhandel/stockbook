@@ -69,7 +69,6 @@ The signing config and the bundle workflow are written; see
 - **Photographs on deliveries.** `Purchase` would take `photoIDs` exactly as
   `Bill` did — a supplier's invoice is arguably the more valuable of the two,
   since it is paper the shop cannot reprint.
-- **Multi-line supplier bills.** A delivery still records one product.
 - **iOS excludes nothing from iCloud backup.** Android is explicit that nothing
   leaves the device, including via Google's backup transport; iOS sets no
   `isExcludedFromBackup`, so the shop file — and now the photographs — ride along
@@ -79,6 +78,21 @@ The signing config and the bundle workflow are written; see
 
 ## Settled, so nobody reopens them
 
+- **Multi-line supplier bills — done.** A delivery holds `lines`, the shape
+  `Bill` already had. This was not the enhancement it looked like: the sheet
+  refuses a repeated invoice number across the whole book — one number, one piece
+  of paper — so a five-line delivery note could not be entered *at all*, not as
+  five records and not as one. The four one-product fields survive as a way in
+  from older records; `Purchase.items` folds them into a single line, and
+  correcting a delivery rewrites it into the new shape. No version bump: `total`
+  and `paid` are untouched and the shelf count lives on the product, so a reader
+  that drops the lines has every figure right.
+- **Creating a product from the delivery sheet — done.** The product list offers
+  it when nothing matches, the way the supplier list already did. It was the
+  thing that would have made a multi-line sheet worse than what it replaced: five
+  new products meant ten sheets, and the half-typed delivery did not survive the
+  trip. The new product gets no selling price, which the Items screen already
+  flags as something to fill in.
 - **Photographs travel in the backup — done.** The export is a store-only ZIP:
   `stockbook.json`, byte-identical to what the plain export always wrote, plus
   `photos/<id>.jpg`. Base64 inside the JSON was rejected on memory — both
