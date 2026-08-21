@@ -102,6 +102,11 @@ data class ShopState(
     val supplierPayments: List<SupplierPayment> = emptyList(),
     /** What has been credited back to customers, newest first. */
     val creditNotes: List<CreditNote> = emptyList(),
+    /**
+     * The owner's own spending, newest first. Joined to nothing else here —
+     * see [Expense], where that separation is the whole point.
+     */
+    val expenses: List<Expense> = emptyList(),
     val settings: Settings = Settings()
 ) {
     companion object {

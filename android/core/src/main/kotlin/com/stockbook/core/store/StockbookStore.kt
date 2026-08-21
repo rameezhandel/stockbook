@@ -7,6 +7,7 @@ import com.stockbook.core.model.CreditNote
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.CustomerRecord
+import com.stockbook.core.model.Expense
 import com.stockbook.core.model.InvoiceNo
 import com.stockbook.core.model.Payment
 import com.stockbook.core.model.Product
@@ -79,6 +80,8 @@ class StockbookStore(private val repository: StockbookRepository) {
     /** What has been credited back to customers, newest first. */
     val creditNotes: List<CreditNote> get() = _state.value.creditNotes
 
+    /** The owner's own spending, newest first. */
+    val expenses: List<Expense> get() = _state.value.expenses
 
     val settings: Settings get() = _state.value.settings
 
@@ -855,6 +858,70 @@ class StockbookStore(private val repository: StockbookRepository) {
         attempt { repository.replaceAll(_state.value) }
     }
 
+    // --- The owner's own spending
+
+    /**
+     * Writes down money the owner spent.
+     *
+     * Returns null rather than saving nonsense: an amount at or below zero is
+     * not an expense, and a blank note is a figure nobody can account for a
+     * month later. Both are refused here rather than in the sheet, so the rule
+     * holds however the store is reached.
+     *
+     * Newest first, like every other list in this store, so the screen never
+     * has to sort.
+     */
+    fun addExpense(amount: Double, note: String, spentAt: Instant = Timestamps.now()): Expense? {
+        val what = note.trim()
+        if (amount <= 0 || what.isEmpty()) return null
+
+        val expense = Expense(amount = amount, note = what, spentAt = spentAt)
+        _state.value = _state.value.copy(expenses = listOf(expense) + expenses)
+        attempt { repository.replaceAll(_state.value) }
+        return expense
+    }
+
+    /** Corrects one. Same rules as writing it: a correction cannot make it invalid. */
+    fun updateExpense(id: String, amount: Double, note: String, spentAt: Instant): Expense? {
+        val existing = expenses.firstOrNull { it.id == id } ?: return null
+        val what = note.trim()
+        if (amount <= 0 || what.isEmpty()) return null
+
+        val updated = existing.copy(amount = amount, note = what, spentAt = spentAt)
+        _state.value = _state.value.copy(
+            expenses = expenses.map { if (it.id == id) updated else it }
+        )
+        attempt { repository.replaceAll(_state.value) }
+        return updated
+    }
+
+    /**
+     * Removes one outright.
+     *
+     * Nothing to put back and nothing to recalculate — which is the dividend of
+     * an expense being attached to nothing. Deleting a bill has to return its
+     * stock and free its number; this is a line disappearing from a private
+     * list.
+     */
+    fun deleteExpense(id: String) {
+        if (expenses.none { it.id == id }) return
+        _state.value = _state.value.copy(expenses = expenses.filterNot { it.id == id })
+        attempt { repository.replaceAll(_state.value) }
+    }
+
+    /**
+     * What the owner spent inside [period].
+     *
+     * The same notion of a period as [soldIn] and [boughtIn] — there is one idea
+     * of "this month" in this app and [StatementPeriod] is it. Deliberately *not*
+     * netted against either of them: this figure stands beside the shop's, never
+     * inside it.
+     */
+    fun spentIn(period: StatementPeriod): Double {
+        val range = period.range()
+        return expenses.filter { it.spentAt in range }.sumOf { it.amount }
+    }
+
     /**
      * The note already carrying this number, if any — the same question
      * [billWithInvoiceNo] asks, on a series of its own.
@@ -1535,6 +1602,9 @@ class StockbookStore(private val repository: StockbookRepository) {
                     issuedAt = row.issuedAt
                 )
             }.sortedByDescending { it.issuedAt },
+            expenses = document.expenses.map {
+                Expense(id = it.id, amount = it.amount, note = it.note, spentAt = it.spentAt)
+            }.sortedByDescending { it.spentAt },
             settings = restored
         )
 
@@ -1549,6 +1619,14 @@ class StockbookStore(private val repository: StockbookRepository) {
         // Absent rather than blank, so the two builds write the same bytes for a
         // shop that has never typed one.
         shopAddress = settings.shopAddress.ifBlank { null },
+        expenses = expenses.map {
+            BackupDocument.ExpenseRow(
+                id = it.id,
+                amount = it.amount,
+                note = it.note,
+                spentAt = it.spentAt
+            )
+        },
         creditNotes = creditNotes.map { note ->
             BackupDocument.CreditNoteRow(
                 id = note.id,

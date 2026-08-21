@@ -57,8 +57,30 @@ data class BackupDocument(
     val purchases: List<PurchaseRow> = emptyList(),
     val supplierPayments: List<SupplierPaymentRow> = emptyList(),
     /** What has been credited back to customers. */
-    val creditNotes: List<CreditNoteRow> = emptyList()
+    val creditNotes: List<CreditNoteRow> = emptyList(),
+    /**
+     * The owner's own spending.
+     *
+     * **Does not bump [currentVersion]**, and the rule is worth restating because
+     * this is the first field added since the rule was written down. A reader
+     * built before expenses existed drops them and misreads nothing: an expense
+     * is joined to no customer, no supplier and no bill, so no balance, no
+     * statement and no month's takings moves by a riyal for its absence. What is
+     * lost is the ledger itself, which is the "loses a label" side of the line,
+     * not the "misreads a figure" side.
+     */
+    val expenses: List<ExpenseRow> = emptyList()
 ) {
+    @Serializable
+    data class ExpenseRow(
+        val id: String,
+        val amount: Double,
+        /** What it was for, in the owner's words. Never empty. */
+        val note: String,
+        @Serializable(with = InstantSerializer::class)
+        val spentAt: Instant
+    )
+
     @Serializable
     data class CreditNoteRow(
         val id: String,
