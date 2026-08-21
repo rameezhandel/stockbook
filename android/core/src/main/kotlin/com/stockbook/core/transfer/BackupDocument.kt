@@ -138,9 +138,23 @@ data class BackupDocument(
     data class PurchaseRow(
         val id: String,
         val supplierKey: String,
+        /**
+         * What arrived, one entry per product on the delivery note. Empty on a
+         * supplier bill entered as a figure.
+         *
+         * Does not bump [currentVersion]. `total` and `paid` are still here and
+         * still mean what they always did, and the shelf count lives on the
+         * product rather than being replayed from deliveries — so a reader that
+         * drops this shows every figure correctly and loses only the breakdown.
+         */
+        val lines: List<PurchaseLineRecord> = emptyList(),
+        /**
+         * The four fields a delivery had when it held one product, written by
+         * builds before this one. Read, never written: [BackupService] folds them
+         * into a single line, the same way [Purchase.items] does.
+         */
         @SerialName("productUID")
         val productUid: String? = null,
-        /** Absent on a supplier bill that named no product. */
         val name: String? = null,
         val qty: Int = 0,
         val unitCost: Double = 0.0,
@@ -232,6 +246,21 @@ data class BackupDocument(
         val name: String,
         val qty: Int,
         val price: Double
+    )
+
+    /**
+     * A delivery's line. Its own record rather than [LineRecord] because the
+     * money on it is what the shop **paid**, and calling that `price` in a file
+     * a person can open would say the opposite of what it means.
+     */
+    @Serializable
+    data class PurchaseLineRecord(
+        /** Absent when the product had already been deleted at export time. */
+        @SerialName("productUID")
+        val productUid: String? = null,
+        val name: String,
+        val qty: Int,
+        val unitCost: Double
     )
 
     /** `Khalid Al-Amri · 8 products · 4 bills · saved 28 July 2026` */

@@ -15,6 +15,7 @@ import com.stockbook.core.model.SupplierRecord
 import com.stockbook.core.model.SupplierPayment
 import com.stockbook.core.model.Supplier
 import com.stockbook.core.model.Purchase
+import com.stockbook.core.model.PurchaseLine
 import com.stockbook.core.model.Settings
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.Statement
@@ -34,6 +35,14 @@ data class DraftLine(
     val qty: Int,
     /** What is being charged — the product's price unless overridden for this bill. */
     val price: Double
+)
+
+/** One line of a delivery as the sheet holds it, before it becomes history. */
+data class DraftPurchaseLine(
+    val productUid: String,
+    val qty: Int,
+    /** What the shop paid per piece. Zero falls back to the product's own cost. */
+    val unitCost: Double = 0.0
 )
 
 /**
@@ -1249,6 +1258,46 @@ class StockbookStore(private val repository: StockbookRepository) {
      * no-op, exactly as [restock] treats one.
      */
     fun recordPurchase(
+        /** Every product on the delivery note. Empty for a bill entered as a figure. */
+        lines: List<DraftPurchaseLine>,
+        supplierKey: String,
+        paid: Double? = null,
+        /** What the bill came to, where no product was named. */
+        amount: Double? = null,
+        createdAt: Instant = Timestamps.now(),
+        /** The number on the supplier's invoice. */
+        invoiceNo: String? = null
+    ): Purchase? {
+        if (supplierKey.isBlank()) return null
+
+        val snapshots = snapshotDelivery(lines)
+        val total = if (snapshots.isEmpty()) amount ?: 0.0 else snapshots.sumOf { it.lineTotal }
+        if (total <= 0) return null
+
+        val purchase = Purchase(
+            supplierKey = supplierKey,
+            lines = snapshots,
+            total = total,
+            // Clamped to the total: a delivery cannot be overpaid, and a typo
+            // that says so would put the shop permanently in credit.
+            paid = paid?.let { maxOf(0.0, minOf(it, total)) },
+            invoiceNo = CustomerRecord.tidied(invoiceNo),
+            createdAt = createdAt
+        )
+        _state.value = _state.value.copy(purchases = listOf(purchase) + purchases)
+        attempt { repository.append(purchase) }
+        putOnShelf(snapshots)
+        return purchase
+    }
+
+    /**
+     * The one-product delivery, which is what most of them are.
+     *
+     * Kept as a way in rather than folded into the caller, because a delivery of
+     * one thing is the common case and `recordPurchase(listOf(DraftPurchaseLine(…)))`
+     * says the same thing three words longer at every call site.
+     */
+    fun recordPurchase(
         /**
          * What arrived, where the shop keeps a count of it. Null for a supplier
          * bill entered as a figure — a mixed load, or something that never sits
@@ -1259,47 +1308,67 @@ class StockbookStore(private val repository: StockbookRepository) {
         quantity: Int = 0,
         unitCost: Double = 0.0,
         paid: Double? = null,
-        /** What the bill came to, where no product was named. */
         amount: Double? = null,
         createdAt: Instant = Timestamps.now(),
-        /** The number on the supplier's invoice. */
         invoiceNo: String? = null
-    ): Purchase? {
-        if (supplierKey.isBlank()) return null
+    ): Purchase? = recordPurchase(
+        lines = draftOf(product, quantity, unitCost),
+        supplierKey = supplierKey,
+        paid = paid,
+        amount = amount,
+        createdAt = createdAt,
+        invoiceNo = invoiceNo
+    )
 
-        // Itemised only when a product was named *and* a count came with it: a
-        // product with no quantity is half an answer, and guessing the other half
-        // would put stock on the shelf nobody said arrived.
-        val current = product?.let { this.product(it.uid) }?.takeIf { quantity > 0 }
-        val cost = when {
-            current == null -> 0.0
-            unitCost > 0 -> unitCost
-            else -> current.cost
+    /**
+     * Itemised only when a product was named **and** a count came with it: a
+     * product with no quantity is half an answer, and guessing the other half
+     * would put stock on the shelf nobody said arrived.
+     */
+    private fun draftOf(product: Product?, quantity: Int, unitCost: Double): List<DraftPurchaseLine> =
+        if (product == null || quantity <= 0) {
+            emptyList()
+        } else {
+            listOf(DraftPurchaseLine(product.uid, quantity, unitCost))
         }
-        val total = if (current == null) amount ?: 0.0 else quantity * cost
-        if (total <= 0) return null
 
-        val purchase = Purchase(
-            supplierKey = supplierKey,
-            productUid = current?.uid,
-            name = current?.name,
-            qty = if (current == null) 0 else quantity,
-            unitCost = cost,
-            total = total,
-            // Clamped to the total: a delivery cannot be overpaid, and a typo
-            // that says so would put the shop permanently in credit.
-            paid = paid?.let { maxOf(0.0, minOf(it, total)) },
-            invoiceNo = CustomerRecord.tidied(invoiceNo),
-            createdAt = createdAt
-        )
-        _state.value = _state.value.copy(purchases = listOf(purchase) + purchases)
-        attempt { repository.append(purchase) }
-        // Cost is "latest paid", not a weighted average: the new figure simply
-        // takes over. Nothing to take over when no product was named.
-        if (current != null) {
-            replace(current.copy(stock = current.stock + quantity, cost = cost))
+    /**
+     * Names and costs each line from the shelf, dropping any product that is no
+     * longer there. The mirror of [snapshot], which does the same for a bill.
+     *
+     * A zero cost falls back to what the product already cost: the sheet leaves
+     * the box empty when the price has not changed since last time, and reading
+     * that as free would rewrite the product's cost to nothing.
+     */
+    private fun snapshotDelivery(lines: List<DraftPurchaseLine>): List<PurchaseLine> =
+        lines.mapNotNull { line ->
+            val product = product(line.productUid) ?: return@mapNotNull null
+            if (line.qty <= 0) return@mapNotNull null
+            PurchaseLine(
+                productUid = product.uid,
+                name = product.name,
+                qty = line.qty,
+                unitCost = if (line.unitCost > 0) line.unitCost else product.cost
+            )
         }
-        return purchase
+
+    /**
+     * Puts a delivery's lines on the shelf.
+     *
+     * Re-read one line at a time rather than mapped in one pass: a delivery note
+     * may name the same product twice — two boxes at two prices is an ordinary
+     * thing on a supplier's paper — and a stale count captured before the first
+     * line would silently swallow the second.
+     *
+     * Cost is "latest paid", not a weighted average: the new figure simply takes
+     * over, so the last line for a product is the one that sets it.
+     */
+    private fun putOnShelf(lines: List<PurchaseLine>) {
+        for (line in lines) {
+            val uid = line.productUid ?: continue
+            val onShelf = product(uid) ?: continue
+            replace(onShelf.copy(stock = onShelf.stock + line.qty, cost = line.unitCost))
+        }
     }
 
     /**
@@ -1332,10 +1401,8 @@ class StockbookStore(private val repository: StockbookRepository) {
      */
     fun updatePurchase(
         id: String,
-        product: Product?,
+        lines: List<DraftPurchaseLine>,
         supplierKey: String,
-        quantity: Int = 0,
-        unitCost: Double = 0.0,
         paid: Double? = null,
         amount: Double? = null,
         createdAt: Instant,
@@ -1344,36 +1411,31 @@ class StockbookStore(private val repository: StockbookRepository) {
         val existing = purchases.firstOrNull { it.id == id } ?: return null
         if (supplierKey.isBlank()) return null
 
-        val current = product?.let { this.product(it.uid) }?.takeIf { quantity > 0 }
-        val cost = when {
-            current == null -> 0.0
-            unitCost > 0 -> unitCost
-            else -> current.cost
-        }
-        val total = if (current == null) amount ?: 0.0 else quantity * cost
+        val snapshots = snapshotDelivery(lines)
+        val total = if (snapshots.isEmpty()) amount ?: 0.0 else snapshots.sumOf { it.lineTotal }
         if (total <= 0) return null
 
         // Reverse the old, then apply the new — the same order as on a bill, and
-        // for the same reason.
+        // for the same reason. `putOnShelf` re-reads each product, so a line the
+        // edit kept is not added to a count captured before it was taken off.
         takeBackStock(existing)
-        if (current != null) {
-            // Re-read: `current` was captured before the line above moved the
-            // shelf, and adding to that stale count would silently undo the
-            // taking-back on any delivery that kept the same product.
-            val onShelf = this.product(current.uid) ?: current
-            replace(onShelf.copy(stock = onShelf.stock + quantity, cost = cost))
-        }
+        putOnShelf(snapshots)
 
         val updated = existing.copy(
             supplierKey = supplierKey,
-            productUid = current?.uid,
-            name = current?.name,
-            qty = if (current == null) 0 else quantity,
-            unitCost = cost,
+            lines = snapshots,
             total = total,
             paid = paid?.let { maxOf(0.0, minOf(it, total)) },
             invoiceNo = CustomerRecord.tidied(invoiceNo),
-            createdAt = createdAt
+            createdAt = createdAt,
+            // A record written when a delivery held one product is rewritten into
+            // the new shape. Left in place they would be a second answer to what
+            // arrived, and `items` prefers `lines` — so the old figures would sit
+            // there unread, waiting to be believed by something.
+            productUid = null,
+            name = null,
+            qty = 0,
+            unitCost = 0.0
         )
         _state.value = _state.value.copy(
             purchases = purchases.map { if (it.id == id) updated else it }
@@ -1381,6 +1443,27 @@ class StockbookStore(private val repository: StockbookRepository) {
         attempt { repository.update(updated) }
         return updated
     }
+
+    /** The one-product correction, the way in for a screen that has one product. */
+    fun updatePurchase(
+        id: String,
+        product: Product?,
+        supplierKey: String,
+        quantity: Int = 0,
+        unitCost: Double = 0.0,
+        paid: Double? = null,
+        amount: Double? = null,
+        createdAt: Instant,
+        invoiceNo: String? = null
+    ): Purchase? = updatePurchase(
+        id = id,
+        lines = draftOf(product, quantity, unitCost),
+        supplierKey = supplierKey,
+        paid = paid,
+        amount = amount,
+        createdAt = createdAt,
+        invoiceNo = invoiceNo
+    )
 
     /** Removes a supplier's bill and takes its stock back off the shelf. */
     fun deletePurchase(id: String) {
@@ -1391,16 +1474,19 @@ class StockbookStore(private val repository: StockbookRepository) {
     }
 
     /**
-     * Unwinds what a delivery put on the shelf. Only an itemised one put anything
-     * there, so only that one has any to take back.
+     * Unwinds what a delivery put on the shelf, line by line. Only an itemised
+     * one put anything there, so only that one has any to take back.
+     *
+     * Reads [Purchase.items] rather than `lines`, so a delivery recorded when a
+     * delivery held one product still gives its stock back.
      */
     private fun takeBackStock(purchase: Purchase) {
-        purchase.productUid?.takeIf { purchase.isItemised }?.let { uid ->
-            product(uid)?.let { product ->
-                // Floored at zero. The stock may already have been sold, and a
-                // negative shelf count is a worse lie than an optimistic one.
-                replace(product.copy(stock = maxOf(0, product.stock - purchase.qty)))
-            }
+        for (line in purchase.items) {
+            val uid = line.productUid ?: continue
+            val product = product(uid) ?: continue
+            // Floored at zero. The stock may already have been sold, and a
+            // negative shelf count is a worse lie than an optimistic one.
+            replace(product.copy(stock = maxOf(0, product.stock - line.qty)))
         }
     }
 
@@ -1615,14 +1701,26 @@ class StockbookStore(private val repository: StockbookRepository) {
                 Purchase(
                     id = it.id,
                     supplierKey = it.supplierKey,
-                    productUid = it.productUid,
-                    name = it.name,
-                    qty = it.qty,
-                    unitCost = it.unitCost,
+                    lines = it.lines.map { line ->
+                        PurchaseLine(
+                            productUid = line.productUid,
+                            name = line.name,
+                            qty = line.qty,
+                            unitCost = line.unitCost
+                        )
+                    },
                     total = it.total,
                     paid = it.paid,
                     invoiceNo = it.invoiceNo,
-                    createdAt = it.createdAt
+                    createdAt = it.createdAt,
+                    // Carried through rather than dropped, so a file written by
+                    // an older build keeps what arrived on its deliveries.
+                    // `items` prefers `lines`, so on any file written since, the
+                    // four below are absent and read as nothing.
+                    productUid = it.productUid,
+                    name = it.name,
+                    qty = it.qty,
+                    unitCost = it.unitCost
                 )
             }.sortedByDescending { it.createdAt },
             supplierPayments = document.supplierPayments.map {
@@ -1739,10 +1837,18 @@ class StockbookStore(private val repository: StockbookRepository) {
             BackupDocument.PurchaseRow(
                 id = it.id,
                 supplierKey = it.supplierKey,
-                productUid = it.productUid,
-                name = it.name,
-                qty = it.qty,
-                unitCost = it.unitCost,
+                // `items`, not `lines`: a delivery recorded when a delivery held
+                // one product travels in the new shape rather than the old one,
+                // so the file coming out has exactly one way of saying what
+                // arrived.
+                lines = it.items.map { line ->
+                    BackupDocument.PurchaseLineRecord(
+                        productUid = line.productUid,
+                        name = line.name,
+                        qty = line.qty,
+                        unitCost = line.unitCost
+                    )
+                },
                 total = it.total,
                 paid = it.paid,
                 invoiceNo = it.invoiceNo,
