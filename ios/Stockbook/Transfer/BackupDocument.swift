@@ -152,8 +152,18 @@ struct BackupDocument: Codable, Equatable {
     struct PurchaseRow: Codable, Equatable {
         var id: UUID
         var supplierKey: String
+        /// What arrived, one entry per product on the delivery note. Empty on a
+        /// supplier bill entered as a figure.
+        ///
+        /// Does not bump `currentVersion`. `total` and `paid` are still here and
+        /// still mean what they always did, and the shelf count lives on the
+        /// product rather than being replayed from deliveries — so a reader that
+        /// drops this shows every figure correctly and loses only the breakdown.
+        var lines: [PurchaseLineRecord]
+        /// The four fields a delivery had when it held one product, written by
+        /// builds before this one. Read, never written: `makeBackupDocument`
+        /// folds them into a single line, the same way `Purchase.items` does.
         var productUID: UUID?
-        /// Absent on a supplier bill that named no product.
         var name: String?
         var qty: Int
         var unitCost: Double
@@ -170,6 +180,7 @@ struct BackupDocument: Codable, Equatable {
         init(
             id: UUID,
             supplierKey: String,
+            lines: [PurchaseLineRecord] = [],
             productUID: UUID? = nil,
             name: String? = nil,
             qty: Int = 0,
@@ -181,6 +192,7 @@ struct BackupDocument: Codable, Equatable {
         ) {
             self.id = id
             self.supplierKey = supplierKey
+            self.lines = lines
             self.productUID = productUID
             self.name = name
             self.qty = qty
@@ -214,6 +226,7 @@ struct BackupDocument: Codable, Equatable {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             id = try container.decode(UUID.self, forKey: .id)
             supplierKey = try container.decode(String.self, forKey: .supplierKey)
+            lines = try container.decodeIfPresent([PurchaseLineRecord].self, forKey: .lines) ?? []
             productUID = try container.decodeIfPresent(UUID.self, forKey: .productUID)
             name = try container.decodeIfPresent(String.self, forKey: .name)
             qty = try container.decodeIfPresent(Int.self, forKey: .qty) ?? 0
@@ -289,6 +302,17 @@ struct BackupDocument: Codable, Equatable {
         var name: String
         var qty: Int
         var price: Double
+    }
+
+    /// A delivery's line. Its own record rather than `LineRecord` because the
+    /// money on it is what the shop **paid**, and calling that `price` in a file
+    /// a person can open would say the opposite of what it means.
+    struct PurchaseLineRecord: Codable, Equatable {
+        /// Absent when the product had already been deleted at export time.
+        var productUID: UUID?
+        var name: String
+        var qty: Int
+        var unitCost: Double
     }
 
     // MARK: Summaries shown in the UI

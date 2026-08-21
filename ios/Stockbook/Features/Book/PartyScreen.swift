@@ -210,14 +210,10 @@ private struct PartyDeliveryRow: View {
     var body: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(purchase.name ?? Loc.supplierBillTitle)
+                Text(purchase.summary.isBlank ? Loc.supplierBillTitle : purchase.summary)
                     .nocturneText(.rowPrimary)
                     .lineLimit(1)
-                Text(
-                    purchase.isItemised
-                        ? Loc.perPiece(qty: purchase.qty, cost: Money.text(purchase.unitCost, in: currency))
-                        : Loc.longDate(purchase.createdAt)
-                )
+                Text(rowDetail)
                 .nocturneText(.meta)
                 .lineLimit(1)
             }
@@ -240,5 +236,17 @@ private struct PartyDeliveryRow: View {
         .frame(maxWidth: .infinity)
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
         .contentShape(Rectangle())
+    }
+
+    /// A delivery of one thing shows the arithmetic behind it; several show how
+    /// many, since a row has one line's worth of space. A bill entered as a figure
+    /// has none to show, so it shows the day it arrived instead.
+    private var rowDetail: String {
+        let items = purchase.items
+        switch items.count {
+        case 0: return Loc.longDate(purchase.createdAt)
+        case 1: return Loc.perPiece(qty: items[0].qty, cost: Money.text(items[0].unitCost, in: currency))
+        default: return Loc.items(items.count)
+        }
     }
 }

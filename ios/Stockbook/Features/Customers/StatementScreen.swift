@@ -2,14 +2,15 @@ import SwiftUI
 
 /// What a delivery reads as on a statement, on screen and in the text copy alike.
 ///
-/// `Purchase.name` became optional when a supplier's bill stopped having to name
-/// a product, and "× 0" of nothing is not a line anybody can read. It lives here
-/// rather than on `Purchase` because the model has a Kotlin twin that carries no
-/// such property, and the two are not allowed to drift.
+/// A supplier's bill entered as a figure names nothing, and "× 0" of nothing is
+/// not a line anybody can read — so it says what the paper is instead.
+///
+/// The describing itself is `Purchase.described`, on the model, where the Kotlin
+/// twin has the identical property: a statement is a document the two apps must
+/// word the same way.
 @MainActor
 private func deliveryDetail(_ purchase: Purchase) -> String {
-    guard purchase.isItemised, let name = purchase.name else { return Loc.supplierBillTitle }
-    return "\(name) × \(purchase.qty)"
+    purchase.described ?? Loc.supplierBillTitle
 }
 
 /// One customer's account over a period, as a document.

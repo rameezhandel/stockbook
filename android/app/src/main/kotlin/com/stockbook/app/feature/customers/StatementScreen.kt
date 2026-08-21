@@ -481,11 +481,9 @@ private fun EntryRow(
                             style = NocturneType.inter(13.0),
                             color = Nocturne.text
                         )
-                        // The product and how many of it: a delivery note's whole
-                        // content on one line, since a purchase carries one
-                        // product — and nothing at all where the supplier's bill
-                        // named none, rather than the word "null" beside a zero.
-                        Detail(entry.purchase.name?.let { "$it × ${entry.purchase.qty}" })
+                        // The delivery note's whole content on one line, and
+                        // nothing at all where the supplier's bill named none.
+                        Detail(entry.purchase.described)
                     }
                     is Statement.Entry.ForSupplierPayment -> {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -626,11 +624,10 @@ private fun plainText(
                     "− ${Money.text(entry.payment.amount, currency)}  →  $balance"
             )
             is Statement.Entry.ForPurchase -> {
-                // The product only where the bill named one. Interpolating it
-                // regardless is how a supplier bill for a mixed load ends up
-                // reading "null × 0" on a document somebody is sent.
-                val what = entry.purchase.name?.let { "$it × ${entry.purchase.qty}" }
-                val describes = listOfNotNull(reference(entry, strings), what)
+                // Only where the bill named something. Interpolating regardless
+                // is how a supplier bill for a mixed load ends up reading
+                // "null × 0" on a document somebody is sent.
+                val describes = listOfNotNull(reference(entry, strings), entry.purchase.described)
                 lines.add(
                     "${strings.longDate(entry.purchase.createdAt)}  " +
                         "${describes.joinToString("  ")}  " +

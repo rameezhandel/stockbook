@@ -1247,13 +1247,9 @@ final class StockbookStore {
     /// no-op, exactly as `restock` treats one.
     @discardableResult
     func recordPurchase(
-        /// What arrived, where the shop keeps a count of it. `nil` for a
-        /// supplier bill entered as a figure — a mixed load, or something that
-        /// never sits on a shelf. Only a named product moves stock.
-        product: Product?,
+        /// Every product on the delivery note. Empty for a bill entered as a figure.
+        lines: [DraftPurchaseLine],
         supplierKey: String,
-        quantity: Int = 0,
-        unitCost: Double = 0,
         paid: Double? = nil,
         /// What the bill came to, where no product was named.
         amount: Double? = nil,
@@ -1263,27 +1259,13 @@ final class StockbookStore {
     ) -> Purchase? {
         guard !supplierKey.isBlank else { return nil }
 
-        // Itemised only when a product was named *and* a count came with it: a
-        // product with no quantity is half an answer, and guessing the other
-        // half would put stock on the shelf nobody said arrived.
-        let resolved = product.flatMap { self.product(uid: $0.uid) }
-        let current = quantity > 0 ? resolved : nil
-
-        // A cost above zero is what was just paid; otherwise the price the shop
-        // already had stands. Nothing at all where no product was named.
-        var cost = 0.0
-        if let current {
-            cost = unitCost > 0 ? unitCost : current.cost
-        }
-        let total = current == nil ? (amount ?? 0) : Double(quantity) * cost
+        let snapshots = snapshotDelivery(lines)
+        let total = snapshots.isEmpty ? (amount ?? 0) : snapshots.reduce(0) { $0 + $1.lineTotal }
         guard total > 0 else { return nil }
 
         let purchase = Purchase(
             supplierKey: supplierKey,
-            productUID: current?.uid,
-            name: current?.name,
-            qty: current == nil ? 0 : quantity,
-            unitCost: cost,
+            lines: snapshots,
             total: total,
             // Clamped to the total: a delivery cannot be overpaid, and a typo
             // that says so would put the shop permanently in credit.
@@ -1293,15 +1275,81 @@ final class StockbookStore {
         )
         purchases.insert(purchase, at: 0)
         attempt { try repository.append(purchase) }
-        // Cost is "latest paid", not a weighted average: the new figure simply
-        // takes over, which is the rule `restock` has always followed. Nothing to
-        // take over when no product was named.
-        if var updated = current {
-            updated.stock += quantity
-            updated.cost = cost
-            replace(updated)
-        }
+        putOnShelf(snapshots)
         return purchase
+    }
+
+    /// The one-product delivery, which is what most of them are.
+    ///
+    /// Kept as a way in rather than folded into the caller, because a delivery of
+    /// one thing is the common case and building a one-element array says the
+    /// same thing three words longer at every call site.
+    @discardableResult
+    func recordPurchase(
+        /// What arrived, where the shop keeps a count of it. `nil` for a
+        /// supplier bill entered as a figure — a mixed load, or something that
+        /// never sits on a shelf. Only a named product moves stock.
+        product: Product?,
+        supplierKey: String,
+        quantity: Int = 0,
+        unitCost: Double = 0,
+        paid: Double? = nil,
+        amount: Double? = nil,
+        createdAt: Date = .now,
+        invoiceNo: String? = nil
+    ) -> Purchase? {
+        recordPurchase(
+            lines: draftOf(product, quantity: quantity, unitCost: unitCost),
+            supplierKey: supplierKey,
+            paid: paid,
+            amount: amount,
+            createdAt: createdAt,
+            invoiceNo: invoiceNo
+        )
+    }
+
+    /// Itemised only when a product was named **and** a count came with it: a
+    /// product with no quantity is half an answer, and guessing the other half
+    /// would put stock on the shelf nobody said arrived.
+    private func draftOf(_ product: Product?, quantity: Int, unitCost: Double) -> [DraftPurchaseLine] {
+        guard let product, quantity > 0 else { return [] }
+        return [DraftPurchaseLine(productUID: product.uid, qty: quantity, unitCost: unitCost)]
+    }
+
+    /// Names and costs each line from the shelf, dropping any product that is no
+    /// longer there. The mirror of `snapshot`, which does the same for a bill.
+    ///
+    /// A zero cost falls back to what the product already cost: the sheet leaves
+    /// the box empty when the price has not changed since last time, and reading
+    /// that as free would rewrite the product's cost to nothing.
+    private func snapshotDelivery(_ lines: [DraftPurchaseLine]) -> [PurchaseLine] {
+        lines.compactMap { line in
+            guard let product = self.product(uid: line.productUID), line.qty > 0 else { return nil }
+            return PurchaseLine(
+                productUID: product.uid,
+                name: product.name,
+                qty: line.qty,
+                unitCost: line.unitCost > 0 ? line.unitCost : product.cost
+            )
+        }
+    }
+
+    /// Puts a delivery's lines on the shelf.
+    ///
+    /// Re-read one line at a time rather than mapped in one pass: a delivery note
+    /// may name the same product twice — two boxes at two prices is an ordinary
+    /// thing on a supplier's paper — and a stale count captured before the first
+    /// line would silently swallow the second.
+    ///
+    /// Cost is "latest paid", not a weighted average: the new figure simply takes
+    /// over, so the last line for a product is the one that sets it.
+    private func putOnShelf(_ lines: [PurchaseLine]) {
+        for line in lines {
+            guard let uid = line.productUID, var onShelf = self.product(uid: uid) else { continue }
+            onShelf.stock += line.qty
+            onShelf.cost = line.unitCost
+            replace(onShelf)
+        }
     }
 
     /// A supplier's bill with no stock on it: a figure, a date and a number.
@@ -1335,10 +1383,8 @@ final class StockbookStore {
     @discardableResult
     func updatePurchase(
         id: UUID,
-        product: Product?,
+        lines: [DraftPurchaseLine],
         supplierKey: String,
-        quantity: Int = 0,
-        unitCost: Double = 0,
         paid: Double? = nil,
         amount: Double? = nil,
         createdAt: Date,
@@ -1350,43 +1396,59 @@ final class StockbookStore {
         let existing = purchases[index]
         guard !supplierKey.isBlank else { return nil }
 
-        let resolved = product.flatMap { self.product(uid: $0.uid) }
-        let current = quantity > 0 ? resolved : nil
-
-        var cost = 0.0
-        if let current {
-            cost = unitCost > 0 ? unitCost : current.cost
-        }
-        let total = current == nil ? (amount ?? 0) : Double(quantity) * cost
+        let snapshots = snapshotDelivery(lines)
+        let total = snapshots.isEmpty ? (amount ?? 0) : snapshots.reduce(0) { $0 + $1.lineTotal }
         guard total > 0 else { return nil }
 
         // Reverse the old, then apply the new — the same order as on a bill, and
-        // for the same reason.
+        // for the same reason. `putOnShelf` re-reads each product, so a line the
+        // edit kept is not added to a count captured before it was taken off.
         takeBackStock(existing)
-        if let current {
-            // Re-read: `current` was captured before the line above moved the
-            // shelf, and adding to that stale count would silently undo the
-            // taking-back on any delivery that kept the same product.
-            var onShelf = self.product(uid: current.uid) ?? current
-            onShelf.stock += quantity
-            onShelf.cost = cost
-            replace(onShelf)
-        }
+        putOnShelf(snapshots)
 
         var updated = existing
         updated.supplierKey = supplierKey
-        updated.productUID = current?.uid
-        updated.name = current?.name
-        updated.qty = current == nil ? 0 : quantity
-        updated.unitCost = cost
+        updated.lines = snapshots
         updated.total = total
         updated.paid = paid.map { min(max(0, $0), total) }
         updated.invoiceNo = CustomerRecord.tidied(invoiceNo)
         updated.createdAt = createdAt
+        // A record written when a delivery held one product is rewritten into the
+        // new shape. Left in place they would be a second answer to what arrived,
+        // and `items` prefers `lines` — so the old figures would sit there unread,
+        // waiting to be believed by something.
+        updated.productUID = nil
+        updated.name = nil
+        updated.qty = 0
+        updated.unitCost = 0
 
         purchases[index] = updated
         attempt { try repository.update(updated) }
         return updated
+    }
+
+    /// The one-product correction, the way in for a screen that has one product.
+    @discardableResult
+    func updatePurchase(
+        id: UUID,
+        product: Product?,
+        supplierKey: String,
+        quantity: Int = 0,
+        unitCost: Double = 0,
+        paid: Double? = nil,
+        amount: Double? = nil,
+        createdAt: Date,
+        invoiceNo: String? = nil
+    ) -> Purchase? {
+        updatePurchase(
+            id: id,
+            lines: draftOf(product, quantity: quantity, unitCost: unitCost),
+            supplierKey: supplierKey,
+            paid: paid,
+            amount: amount,
+            createdAt: createdAt,
+            invoiceNo: invoiceNo
+        )
     }
 
     /// Removes a supplier's bill and takes its stock back off the shelf.
@@ -1397,17 +1459,19 @@ final class StockbookStore {
         attempt { try repository.deletePurchase(id: id) }
     }
 
-    /// Unwinds what a delivery put on the shelf. Only an itemised one put anything
-    /// there, so only that one has any to take back.
+    /// Unwinds what a delivery put on the shelf, line by line. Only an itemised
+    /// one put anything there, so only that one has any to take back.
+    ///
+    /// Reads `Purchase.items` rather than `lines`, so a delivery recorded when a
+    /// delivery held one product still gives its stock back.
     private func takeBackStock(_ purchase: Purchase) {
-        guard purchase.isItemised,
-              let uid = purchase.productUID,
-              var product = self.product(uid: uid)
-        else { return }
-        // Floored at zero. The stock may already have been sold, and a negative
-        // shelf count is a worse lie than an optimistic one.
-        product.stock = max(0, product.stock - purchase.qty)
-        replace(product)
+        for line in purchase.items {
+            guard let uid = line.productUID, var product = self.product(uid: uid) else { continue }
+            // Floored at zero. The stock may already have been sold, and a
+            // negative shelf count is a worse lie than an optimistic one.
+            product.stock = max(0, product.stock - line.qty)
+            replace(product)
+        }
     }
 
     func purchases(forSupplier key: String) -> [Purchase] {
@@ -1593,14 +1657,26 @@ final class StockbookStore {
                 Purchase(
                     id: $0.id,
                     supplierKey: $0.supplierKey,
-                    productUID: $0.productUID,
-                    name: $0.name,
-                    qty: $0.qty,
-                    unitCost: $0.unitCost,
+                    lines: $0.lines.map {
+                        PurchaseLine(
+                            productUID: $0.productUID,
+                            name: $0.name,
+                            qty: $0.qty,
+                            unitCost: $0.unitCost
+                        )
+                    },
                     total: $0.total,
                     paid: $0.paid,
                     invoiceNo: $0.invoiceNo,
-                    createdAt: $0.createdAt
+                    createdAt: $0.createdAt,
+                    // Carried through rather than dropped, so a file written by
+                    // an older build keeps what arrived on its deliveries.
+                    // `items` prefers `lines`, so on any file written since, the
+                    // four below are absent and read as nothing.
+                    productUID: $0.productUID,
+                    name: $0.name,
+                    qty: $0.qty,
+                    unitCost: $0.unitCost
                 )
             },
             supplierPayments: document.supplierPayments.map {
@@ -1732,10 +1808,18 @@ final class StockbookStore {
                 BackupDocument.PurchaseRow(
                     id: $0.id,
                     supplierKey: $0.supplierKey,
-                    productUID: $0.productUID,
-                    name: $0.name,
-                    qty: $0.qty,
-                    unitCost: $0.unitCost,
+                    // `items`, not `lines`: a delivery recorded when a delivery
+                    // held one product travels in the new shape rather than the
+                    // old one, so the file coming out has exactly one way of
+                    // saying what arrived.
+                    lines: $0.items.map {
+                        BackupDocument.PurchaseLineRecord(
+                            productUID: $0.productUID,
+                            name: $0.name,
+                            qty: $0.qty,
+                            unitCost: $0.unitCost
+                        )
+                    },
                     total: $0.total,
                     paid: $0.paid,
                     invoiceNo: $0.invoiceNo,
@@ -1779,5 +1863,13 @@ struct DraftLine {
     /// What is being charged — the product's price unless the owner overrode it
     /// for this bill.
     var price: Double
+}
+
+/// One line of a delivery as the sheet holds it, before it becomes history.
+struct DraftPurchaseLine {
+    let productUID: UUID
+    var qty: Int
+    /// What the shop paid per piece. Zero falls back to the product's own cost.
+    var unitCost: Double = 0
 }
 

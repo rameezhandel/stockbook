@@ -121,17 +121,24 @@ data class Purchase(
     val subtotal: Double get() = items.sumOf { it.lineTotal }
 
     /**
-     * The delivery in a few words, for a row that has one line's worth of space:
-     * the single product where there is one, a count where there are more.
+     * What arrived, in the products' own words. Empty on a bill that named none.
+     *
+     * The same shape [Bill.summary] has, so a row of deliveries and a row of
+     * bills read the same way — and a row that needs the short form says
+     * `items(n)` beside it rather than instead of it, exactly as `BillRow` does.
      */
-    fun summary(strings: com.stockbook.core.text.Strings): String {
-        val lines = items
-        return when (lines.size) {
-            0 -> strings.purchaseLabel
-            1 -> lines.single().name
-            else -> strings.items(lines.size)
-        }
-    }
+    val summary: String get() = items.joinToString(", ") { it.name }
+
+    /**
+     * What arrived, with the counts: `Cisa lock × 10, Key blank × 100`.
+     *
+     * Null rather than empty where the bill named nothing, because both places
+     * that show this — the statement on screen and the one that gets sent — drop
+     * the line entirely then. Interpolating regardless is how a supplier bill for
+     * a mixed load once read `null × 0` on a document somebody was handed.
+     */
+    val described: String?
+        get() = items.takeIf { it.isNotEmpty() }?.joinToString(", ") { "${it.name} × ${it.qty}" }
 
     /**
      * What to call this delivery on a list or a statement.

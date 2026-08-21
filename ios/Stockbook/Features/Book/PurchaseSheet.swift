@@ -42,12 +42,12 @@ struct PurchaseSheet: View {
             if let invoiceNo = live.invoiceNo {
                 line(Loc.invoiceNoField, invoiceNo)
             }
-            // Only when a product was named, for the same reason as the row above:
-            // a supplier bill entered as a figure has no product and no count, and
-            // a row reading "× 0" is one the app lost rather than one the delivery
-            // never had.
-            if let name = live.name, live.isItemised {
-                line(name, Loc.perPiece(qty: live.qty, cost: Money.text(live.unitCost, in: currency)))
+            // One row per line on the paper, and none at all where a product was
+            // never named: a supplier bill entered as a figure has no product and
+            // no count, and a row reading "× 0" is one the app lost rather than
+            // one the delivery never had.
+            ForEach(Array(live.items.enumerated()), id: \.offset) { _, item in
+                line(item.name, Loc.perPiece(qty: item.qty, cost: Money.text(item.unitCost, in: currency)))
             }
 
             FadedRule().padding(.vertical, 10)
@@ -63,7 +63,7 @@ struct PurchaseSheet: View {
             // now. Saving from there rewrites this delivery rather than recording
             // a second one, and moves the shelf by the difference.
             Button(Loc.editBill) {
-                router.editDelivery(live, product: live.productUID.flatMap { store.product(uid: $0) })
+                router.editDelivery(live, product: live.items.first?.productUID.flatMap { store.product(uid: $0) })
             }
             .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
             .padding(.top, 14)

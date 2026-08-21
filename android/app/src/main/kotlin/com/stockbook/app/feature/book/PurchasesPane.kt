@@ -133,24 +133,32 @@ internal fun DeliveryRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                // The product where one arrived, and otherwise what the shop calls
-                // the piece of paper: a supplier's bill for a mixed load names
-                // nothing, and a row headed by an empty string reads as a delivery
-                // whose product was lost rather than one that never had a product.
-                purchase.name ?: purchase.reference(strings),
+                // What arrived, and otherwise what the shop calls the piece of
+                // paper: a supplier's bill for a mixed load names nothing, and a
+                // row headed by an empty string reads as a delivery whose product
+                // was lost rather than one that never had a product.
+                purchase.summary.ifBlank { purchase.reference(strings) },
                 style = NocturneType.rowPrimary,
                 color = Nocturne.text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                // `12 × SAR 60` is the arithmetic behind a delivery, and there is
-                // none behind a bill entered as a figure. Who it was from is the
-                // whole of what the second line has to say then.
-                if (purchase.isItemised) {
-                    "$supplierName · ${strings.perPiece(purchase.qty, Money.text(purchase.unitCost, currency))}"
-                } else {
-                    supplierName
+                // `12 × SAR 60` is the arithmetic behind a delivery of one thing,
+                // and there is none to show behind a bill entered as a figure —
+                // who it was from is the whole of what the second line has to say
+                // then. Several lines say how many rather than repeating the
+                // arithmetic of each: the sheet has room for that, a row does not.
+                buildString {
+                    append(supplierName)
+                    val lines = purchase.items
+                    when (lines.size) {
+                        0 -> Unit
+                        1 -> append(
+                            " · ${strings.perPiece(lines.single().qty, Money.text(lines.single().unitCost, currency))}"
+                        )
+                        else -> append(" · ${strings.items(lines.size)}")
+                    }
                 },
                 style = NocturneType.meta,
                 color = Nocturne.neutral500,

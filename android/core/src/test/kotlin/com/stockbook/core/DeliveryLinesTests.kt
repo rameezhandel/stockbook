@@ -231,7 +231,7 @@ class DeliveryLinesTests {
     // --- What a row and a statement call it
 
     @Test
-    fun `the summary names one product and counts several`() {
+    fun `the summary names what arrived, the way a bill's does`() {
         val store = store()
         val locks = store.addProduct("Cisa lock", 0, 60.0, 95.0)
         val keys = store.addProduct("Key blank", 0, 3.0, 6.0)
@@ -253,9 +253,16 @@ class DeliveryLinesTests {
         )
         val figure = assertNotNull(store.recordSupplierBill(supplier.key, amount = 800.0, invoiceNo = "3"))
 
-        assertEquals("Cisa lock", one.summary(strings))
-        assertEquals("2 items", many.summary(strings))
-        assertEquals(strings.purchaseLabel, figure.summary(strings))
+        assertEquals("Cisa lock", one.summary)
+        assertEquals("Cisa lock, Key blank", many.summary)
+        assertEquals("", figure.summary, "a bill that named nothing says nothing")
+        // What a row shows instead: the supplier's number where there is one,
+        // and the plain word where the shop never wrote one down.
+        assertEquals("3", figure.reference(strings))
+        assertEquals(
+            strings.purchaseLabel,
+            assertNotNull(store.recordSupplierBill(supplier.key, amount = 40.0)).reference(strings)
+        )
     }
 
     // --- Deliveries recorded when a delivery held one product
@@ -273,7 +280,7 @@ class DeliveryLinesTests {
 
         assertEquals(listOf(PurchaseLine("abc", "Cisa lock", 10, 60.0)), old.items)
         assertTrue(old.isItemised)
-        assertEquals("Cisa lock", old.summary(strings))
+        assertEquals("Cisa lock", old.summary)
     }
 
     @Test
