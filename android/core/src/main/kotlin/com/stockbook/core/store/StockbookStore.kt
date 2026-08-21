@@ -270,7 +270,9 @@ class StockbookStore(private val repository: StockbookRepository) {
         /** The number on the paper bill, when the shop wrote one. */
         invoiceNo: String? = null,
         /** Photographs of that paper, by id. The files are the app's to keep. */
-        photoIds: List<String> = emptyList()
+        photoIds: List<String> = emptyList(),
+        /** What the bill was for. Prints on the customer's statement. */
+        note: String? = null
     ): Bill? {
         val name = customer.trim()
         if (name.isEmpty()) return null
@@ -298,6 +300,7 @@ class StockbookStore(private val repository: StockbookRepository) {
             who = name,
             invoiceNo = CustomerRecord.tidied(invoiceNo),
             photoIds = photoIds.distinct(),
+            note = CustomerRecord.tidied(note),
             createdAt = createdAt
         )
 
@@ -384,7 +387,8 @@ class StockbookStore(private val repository: StockbookRepository) {
         paid: Double?,
         amount: Double? = null,
         createdAt: Instant,
-        invoiceNo: String? = null
+        invoiceNo: String? = null,
+        note: String? = null
         // Photographs are deliberately not a parameter here. They are added and
         // removed one at a time by [attachPhoto] and [detachPhoto], so an edit
         // form that knows nothing about them cannot wipe them by omission.
@@ -415,6 +419,7 @@ class StockbookStore(private val repository: StockbookRepository) {
             paid = paid?.takeIf { it < total }?.coerceIn(0.0, total),
             who = name,
             invoiceNo = CustomerRecord.tidied(invoiceNo),
+            note = CustomerRecord.tidied(note),
             createdAt = createdAt
         )
         _state.value = _state.value.copy(
@@ -1546,6 +1551,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                     who = record.who,
                     invoiceNo = record.invoiceNo,
                     photoIds = record.photoIds.orEmpty(),
+                    note = record.note,
                     createdAt = record.createdAt
                 )
             }.sortedByDescending { it.createdAt },
@@ -1667,6 +1673,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 who = bill.who,
                 invoiceNo = bill.invoiceNo,
                 photoIds = bill.photoIds.takeIf { it.isNotEmpty() },
+                note = bill.note,
                 lines = bill.lines.map {
                     BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price)
                 }

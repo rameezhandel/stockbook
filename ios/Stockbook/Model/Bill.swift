@@ -55,6 +55,20 @@ struct Bill: Identifiable, Codable, Equatable {
     /// file format.
     var photoIDs: [String] = []
 
+    /// What this bill was for, in the owner's words — "3 keys cut on site",
+    /// "delivered to the villa", "replaced under warranty".
+    ///
+    /// **The owner's own reminder, and it stays that way.** It shows on the bill
+    /// when the bill is opened, and nowhere else: not on the statement, which is
+    /// a document the customer is handed, and not in the shared receipt text.
+    /// The same rule the payment note follows, for the same reason — a
+    /// shopkeeper should be able to write "argued about the price" without
+    /// wondering who else will read it.
+    ///
+    /// Absent rather than blank when there is none, so both builds write the
+    /// same bytes for a bill without one.
+    var note: String?
+
     /// Customer name, trimmed. Required on every bill.
     var who: String
 
@@ -70,6 +84,7 @@ struct Bill: Identifiable, Codable, Equatable {
         who: String,
         invoiceNo: String? = nil,
         photoIDs: [String] = [],
+        note: String? = nil,
         createdAt: Date = .now
     ) {
         self.number = number
@@ -79,6 +94,7 @@ struct Bill: Identifiable, Codable, Equatable {
         self.who = who
         self.invoiceNo = CustomerRecord.tidied(invoiceNo)
         self.photoIDs = photoIDs
+        self.note = CustomerRecord.tidied(note)
         self.createdAt = createdAt
     }
 
@@ -109,6 +125,10 @@ struct Bill: Identifiable, Codable, Equatable {
         // throws on a missing key regardless, which is how adding credit notes
         // once made every older backup unreadable.
         photoIDs = try container.decodeIfPresent([String].self, forKey: .photoIDs) ?? []
+        // Optional, so the synthesised decoder would tolerate it anyway — spelled
+        // out here because this type has a hand-written `init(from:)` and a key
+        // left out of it is a field silently dropped on every read.
+        note = try container.decodeIfPresent(String.self, forKey: .note)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
     }
 

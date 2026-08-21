@@ -200,7 +200,8 @@ fun SellScreen(
                                 paid = cart.paidForStorage,
                                 amount = cart.typedAmount,
                                 createdAt = cart.soldAt,
-                                invoiceNo = cart.invoiceNo
+                                invoiceNo = cart.invoiceNo,
+                                note = cart.note
                             )?.also { corrected ->
                                 // `updateBill` deliberately does not take
                                 // photographs — an edit form that omitted them
@@ -229,7 +230,8 @@ fun SellScreen(
                                 amount = cart.typedAmount,
                                 createdAt = cart.soldAt,
                                 invoiceNo = cart.invoiceNo,
-                                photoIds = cart.photoIds
+                                photoIds = cart.photoIds,
+                                note = cart.note
                             )
                         }
                         if (bill != null) {

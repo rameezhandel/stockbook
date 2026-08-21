@@ -75,6 +75,22 @@ struct BillSheet: View {
 
             BillTemplate(bill: live, shopName: store.settings.ownerName)
 
+            // What it was for, when the owner said. Absent rather than an empty
+            // block when they did not — most bills are the number and the money,
+            // and a labelled space with nothing in it reads as something lost.
+            //
+            // Below the bill rather than inside `BillTemplate`, because that is
+            // also what the Share button sends, and this line is the owner's own
+            // reminder rather than anything the customer should be reading.
+            if let note = live.note, !note.isBlank {
+                VStack(alignment: .leading, spacing: 4) {
+                    Kicker(Loc.billNote)
+                    Text(note)
+                        .nocturneText(.body)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+
             // The paper itself, where the owner photographed it. Under the bill
             // rather than beside it: the figures are what the sheet is for, and
             // the picture is the evidence behind them.

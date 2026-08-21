@@ -537,6 +537,22 @@ class Strings(val language: AppLanguage) {
     // piece of paper, whoever wrote it.
     val invoiceNoField: String get() = pick("Invoice no.", "ಬಿಲ್ ಸಂಖ್ಯೆ")
     val invoiceNoHint: String get() = pick("From the book", "ಪುಸ್ತಕದಿಂದ")
+    /**
+     * The note on a bill: the owner's own reminder of what it was for.
+     *
+     * The line under the box says where it does *not* go, because a box on a
+     * bill form is the obvious place to expect a customer to read it, and the
+     * owner should know before typing rather than after handing a statement
+     * over.
+     */
+    val billNote: String get() = pick("What was it for?", "ಯಾವುದಕ್ಕೆ?")
+    val billNoteHint: String get() = pick("3 keys cut on site…", "ಸ್ಥಳದಲ್ಲಿ 3 ಕೀ ಕತ್ತರಿಸಿದ್ದು…")
+    val billNoteIsYours: String
+        get() = pick(
+            "Your own reminder — not on the statement.",
+            "ನಿಮ್ಮ ನೆನಪಿಗಾಗಿ — ಖಾತೆ ವಿವರದಲ್ಲಿ ಬರುವುದಿಲ್ಲ."
+        )
+
     val billDate: String get() = pick("Date", "ದಿನಾಂಕ")
 
     // Two numbers the same is two records the shop cannot tell apart later, so

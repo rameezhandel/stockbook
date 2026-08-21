@@ -146,7 +146,8 @@ struct SellScreen: View {
                 paid: cart.paidForStorage,
                 amount: cart.typedAmount,
                 createdAt: cart.soldAt,
-                invoiceNo: cart.invoiceNo
+                invoiceNo: cart.invoiceNo,
+                note: cart.note
             ) else { return }
 
             // `updateBill` deliberately does not take photographs — an edit form
@@ -176,7 +177,8 @@ struct SellScreen: View {
             amount: cart.typedAmount,
             createdAt: cart.soldAt,
             invoiceNo: cart.invoiceNo,
-            photoIDs: cart.photoIDs
+            photoIDs: cart.photoIDs,
+            note: cart.note
         ) else { return }
 
         cart.clear()

@@ -201,6 +201,14 @@ data class BackupDocument(
          */
         @SerialName("photoIDs")
         val photoIds: List<String>? = null,
+        /**
+         * What the bill was for, in the owner's words. Absent when there is none.
+         *
+         * Does not bump [currentVersion]: a reader that drops it shows "Invoice
+         * #1024" where the owner also wrote "3 keys cut on site" — a label lost,
+         * not a figure misread.
+         */
+        val note: String? = null,
         val lines: List<LineRecord> = emptyList()
     )
 

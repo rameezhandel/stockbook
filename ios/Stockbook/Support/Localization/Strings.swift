@@ -577,6 +577,21 @@ struct Strings {
 
     var invoiceNoField: String { pick("Invoice no.", "ಬಿಲ್ ಸಂಖ್ಯೆ") }
     var invoiceNoHint: String { pick("From the book", "ಪುಸ್ತಕದಿಂದ") }
+    /// The note on a bill: the owner's own reminder of what it was for.
+    ///
+    /// The line under the box says where it does *not* go, because a box on a
+    /// bill form is the obvious place to expect a customer to read it, and the
+    /// owner should know before typing rather than after handing a statement
+    /// over.
+    var billNote: String { pick("What was it for?", "ಯಾವುದಕ್ಕೆ?") }
+    var billNoteHint: String { pick("3 keys cut on site…", "ಸ್ಥಳದಲ್ಲಿ 3 ಕೀ ಕತ್ತರಿಸಿದ್ದು…") }
+    var billNoteIsYours: String {
+        pick(
+            "Your own reminder — not on the statement.",
+            "ನಿಮ್ಮ ನೆನಪಿಗಾಗಿ — ಖಾತೆ ವಿವರದಲ್ಲಿ ಬರುವುದಿಲ್ಲ."
+        )
+    }
+
     var billDate: String { pick("Date", "ದಿನಾಂಕ") }
 
     /// The date a sale is *entered* is not always the date it happened. Said out

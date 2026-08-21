@@ -107,6 +107,14 @@ class Cart {
     var invoiceNo by mutableStateOf("")
 
     /**
+     * What the bill was for, in the owner's words.
+     *
+     * Optional, and the only free text on this form that the customer ever
+     * reads: it prints under the invoice reference on their statement.
+     */
+    var note by mutableStateOf("")
+
+    /**
      * When the sale happened, which is not always when it is being typed.
      *
      * A shop that writes bills in the book all day and enters them at closing
@@ -277,6 +285,7 @@ class Cart {
         // the second answer this form refuses to hold.
         amountText = if (_lines.isEmpty()) Money.amount(bill.total, currency) else ""
         invoiceNo = bill.invoiceNo.orEmpty()
+        note = bill.note.orEmpty()
         soldAt = bill.createdAt
         customer = bill.who
         // Chosen rather than typed: this name is already on a bill, so it already
@@ -300,6 +309,7 @@ class Cart {
         val lines: List<Line>,
         val amountText: String,
         val invoiceNo: String,
+        val note: String,
         val soldAt: java.time.Instant,
         val customer: String,
         val customerKey: String?,
@@ -322,6 +332,7 @@ class Cart {
         lines = _lines.toList(),
         amountText = amountText,
         invoiceNo = invoiceNo,
+        note = note,
         soldAt = soldAt,
         customer = customer,
         customerKey = customerKey,
@@ -335,6 +346,7 @@ class Cart {
         _lines.addAll(draft.lines)
         amountText = draft.amountText
         invoiceNo = draft.invoiceNo
+        note = draft.note
         soldAt = draft.soldAt
         customer = draft.customer
         customerKey = draft.customerKey
@@ -361,6 +373,7 @@ class Cart {
         _lines.clear()
         amountText = ""
         invoiceNo = ""
+        note = ""
         soldAt = Timestamps.now()
         customer = ""
         customerKey = null

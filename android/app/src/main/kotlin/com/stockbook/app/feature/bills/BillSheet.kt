@@ -125,6 +125,20 @@ fun BillSheet(
             shopName = state.settings.ownerName
         )
 
+        // What it was for, when the owner said. Absent rather than an empty block
+        // when they did not — most bills are the number and the money, and a
+        // labelled space with nothing in it reads as something lost.
+        //
+        // Below the bill rather than inside `BillTemplate`, because that is also
+        // what the Share button sends, and this line is the owner's own reminder
+        // rather than anything the customer should be reading.
+        live.note?.takeIf { it.isNotBlank() }?.let { note ->
+            Spacer(Modifier.height(14.dp))
+            Kicker(strings.billNote)
+            Spacer(Modifier.height(4.dp))
+            Text(note, style = NocturneType.body, color = Nocturne.text)
+        }
+
         // The paper itself, where the owner photographed it. Under the bill
         // rather than beside it: the figures are what the sheet is for, and the
         // picture is the evidence behind them.

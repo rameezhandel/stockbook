@@ -77,6 +77,12 @@ final class Cart {
     /// bill books are numbered "1024" in some shops and "A-1024" in others.
     var invoiceNo: String = ""
 
+    /// What the bill was for, in the owner's words.
+    ///
+    /// Optional, and the only free text on this form that the customer ever
+    /// reads: it prints under the invoice reference on their statement.
+    var note: String = ""
+
     /// When the sale happened, which is not always when it is being typed. A shop
     /// entering the day's book at closing time would otherwise stamp the lot at
     /// once, and the statements would inherit it.
@@ -250,6 +256,7 @@ final class Cart {
         payMode = bill.paid == nil ? .full : .part
         paidText = bill.paid.map { Money.amount($0, in: store.settings.currency) } ?? ""
         invoiceNo = bill.invoiceNo ?? ""
+        note = bill.note ?? ""
         soldAt = bill.createdAt
         // The ones already on it, so a correction can take one off as well as add
         // one. What the form ends up holding is reconciled against the bill on
@@ -263,6 +270,7 @@ final class Cart {
         let lines: [Line]
         let amountText: String
         let invoiceNo: String
+        let note: String
         let soldAt: Date
         let customer: String
         let customerKey: String?
@@ -284,6 +292,7 @@ final class Cart {
             lines: lines,
             amountText: amountText,
             invoiceNo: invoiceNo,
+            note: note,
             soldAt: soldAt,
             customer: customer,
             customerKey: customerKey,
@@ -307,6 +316,7 @@ final class Cart {
         lines = draft.lines
         amountText = draft.amountText
         invoiceNo = draft.invoiceNo
+        note = draft.note
         soldAt = draft.soldAt
         customer = draft.customer
         customerKey = draft.customerKey
@@ -325,6 +335,7 @@ final class Cart {
         payMode = .full
         paidText = ""
         invoiceNo = ""
+        note = ""
         soldAt = .now
         photoIDs = []
         editing = nil

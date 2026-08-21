@@ -265,6 +265,12 @@ struct BackupDocument: Codable, Equatable {
         /// which is exactly how the credit-note array once broke every older
         /// backup.
         var photoIDs: [String]?
+        /// What the bill was for, in the owner's words. Absent when there is none.
+        ///
+        /// Does not bump `currentVersion`: a reader that drops it shows "Invoice
+        /// #1024" where the owner also wrote "3 keys cut on site" — a label lost,
+        /// not a figure misread.
+        var note: String?
         var lines: [LineRecord]
     }
 

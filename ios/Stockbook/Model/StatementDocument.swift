@@ -59,6 +59,7 @@ struct StatementDocument: Equatable {
         var id: String { "\(date)-\(transaction)-\(amount)-\(balance)" }
     }
 
+
     static func make(
         statement: Statement,
         settings: Settings,

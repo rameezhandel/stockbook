@@ -71,6 +71,21 @@ data class Bill(
      */
     @SerialName("photoIDs")
     val photoIds: List<String> = emptyList(),
+    /**
+     * What this bill was for, in the owner's words — "3 keys cut on site",
+     * "delivered to the villa", "replaced under warranty".
+     *
+     * **The owner's own reminder, and it stays that way.** It shows on the bill
+     * when the bill is opened, and nowhere else: not on the statement, which is
+     * a document the customer is handed, and not in the shared receipt text. The
+     * same rule the payment note follows, for the same reason — a shopkeeper
+     * should be able to write "argued about the price" without wondering who
+     * else will read it.
+     *
+     * Absent rather than blank when there is none, so both builds write the same
+     * bytes for a bill without one.
+     */
+    val note: String? = null,
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant = Timestamps.now()
 ) {

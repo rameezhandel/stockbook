@@ -246,7 +246,9 @@ final class StockbookStore {
         /// The number on the paper bill, when the shop wrote one.
         invoiceNo: String? = nil,
         /// Photographs of that paper, by id. The files are the app's to keep.
-        photoIDs: [String] = []
+        photoIDs: [String] = [],
+        /// What the bill was for. Prints on the customer's statement.
+        note: String? = nil
     ) -> Bill? {
         let name = customer.trimmed
         guard !name.isEmpty else { return nil }
@@ -282,6 +284,7 @@ final class StockbookStore {
             photoIDs: photoIDs.reduce(into: []) { seen, id in
                 if !seen.contains(id) { seen.append(id) }
             },
+            note: note,
             createdAt: createdAt
         )
 
@@ -1528,6 +1531,7 @@ final class StockbookStore {
                     who: record.who,
                     invoiceNo: record.invoiceNo,
                     photoIDs: record.photoIDs ?? [],
+                    note: record.note,
                     createdAt: record.createdAt
                 )
             },
@@ -1662,6 +1666,7 @@ final class StockbookStore {
                     // writes the same bytes it always did — and the same bytes
                     // Kotlin writes, where `explicitNulls = false` drops it too.
                     photoIDs: bill.photoIDs.isEmpty ? nil : bill.photoIDs,
+                    note: bill.note,
                     lines: bill.lines.map {
                         BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price)
                     }
