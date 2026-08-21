@@ -175,6 +175,17 @@ struct Strings {
     /// is the word for the thing arriving at the door.
     var recordDelivery: String { pick("Inventory", "ದಾಸ್ತಾನು") }
     var whichProductArrived: String { pick("What arrived?", "ಏನು ಬಂತು?") }
+
+    /// The way out of the product list when nothing in it matches, said the same
+    /// way `addAsSupplier` says it.
+    ///
+    /// The delivery sheet needs one because a supplier's note is where genuinely
+    /// new stock usually appears. Without it, a five-line delivery of things the
+    /// shop has never carried is ten sheets: leave, add the product, come back,
+    /// find your place, repeat.
+    func addAsProduct(_ name: String) -> String {
+        pick("Add “\(name)” as a product", "“\(name)” ಅನ್ನು ಸಾಮಾನಾಗಿ ಸೇರಿಸಿ")
+    }
     var noDeliveriesYet: String { pick("No deliveries yet", "ಇನ್ನೂ ಡೆಲಿವರಿ ಇಲ್ಲ") }
     var deliveryDetail: String { pick("Inventory", "ದಾಸ್ತಾನು") }
 

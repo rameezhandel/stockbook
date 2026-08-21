@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -40,6 +41,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import com.stockbook.app.design.Icon
+import com.stockbook.app.design.IconButton
 import com.stockbook.app.design.card
 import com.stockbook.core.model.Supplier
 import com.stockbook.app.design.Metrics
@@ -47,6 +49,7 @@ import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneField
 import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.PrimaryButton
+import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.SheetHeader
 import com.stockbook.app.design.hairline
 import com.stockbook.core.model.Currency
@@ -54,8 +57,42 @@ import com.stockbook.core.model.Product
 import com.stockbook.core.model.Purchase
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.money.Money
+import com.stockbook.core.store.DraftPurchaseLine
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
+
+/**
+ * One line of the delivery being entered, held as text while it is being typed.
+ *
+ * Text rather than numbers for the reason the cart holds its price that way: a
+ * half-typed "1" on the way to "12" is not a quantity of one, and reading it as
+ * one is how the total on screen disagrees with the total about to be saved.
+ *
+ * The box is seeded with what the product already costs, because most deliveries
+ * arrive at the price the last one did and retyping it is work for nothing. What
+ * an emptied box means is decided by [fallbackCost] below.
+ */
+private class DeliveryLine(
+    val productUid: String,
+    val name: String,
+    qty: Int,
+    cost: Double,
+    /**
+     * What the product already costs, which is what the store falls back to when
+     * the box is empty. Held here so the sheet works the figure out the same way
+     * the store will: without it, clearing the box would show a total of nothing
+     * over a Save that was about to write the old price.
+     */
+    val fallbackCost: Double,
+    currency: Currency
+) {
+    var qtyText by mutableStateOf(qty.toString())
+    var costText by mutableStateOf(if (cost > 0) Money.amount(cost, currency) else "")
+
+    val qty: Int get() = qtyText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
+    val cost: Double get() = Money.parse(costText)?.takeIf { it > 0 } ?: fallbackCost
+    val lineTotal: Double get() = qty * cost
+}
 
 /**
  * The two things that move a shelf count by hand, in one sheet.
@@ -97,27 +134,42 @@ fun AddStockSheet(
     editing: Purchase? = null,
     onClose: () -> Unit
 ) {
-    // What the delivery said it restocked, if that product is still on the books.
-    // A purchase can outlive the product it bought, and the sheet cannot offer a
-    // quantity of something that no longer exists — so it comes back as a bill for
-    // a figure, which is what saving it again would make it anyway.
-    val editedProduct = remember(editing, state.products) {
-        editing?.productUid?.let { uid -> state.products.firstOrNull { it.uid == uid } }
+    // What the delivery said arrived, for as many of those products as are still
+    // on the books. A purchase can outlive what it bought, and the sheet cannot
+    // offer a quantity of something that no longer exists — a delivery whose
+    // every product has gone comes back as a bill for a figure, which is what
+    // saving it again would make it anyway.
+    //
+    // Seeded once. Keyed on the correction rather than on `state.products`, or
+    // adding a product mid-edit would rebuild the list and throw away whatever
+    // had been typed into it.
+    val lines = remember(editing) {
+        mutableStateListOf<DeliveryLine>().apply {
+            val seed = editing?.items.orEmpty().mapNotNull { line ->
+                val uid = line.productUid ?: return@mapNotNull null
+                if (state.products.none { it.uid == uid }) return@mapNotNull null
+                DeliveryLine(
+                    uid,
+                    line.name,
+                    line.qty,
+                    line.unitCost,
+                    state.products.first { it.uid == uid }.cost,
+                    currency
+                )
+            }
+            addAll(seed)
+            // Opened from a product with the Delivery button: that product is
+            // what the owner is looking at, so it is line one already.
+            if (editing == null && product != null) {
+                add(DeliveryLine(product.uid, product.name, 1, product.cost, product.cost, currency))
+            }
+        }
     }
-    // The delivery it was, where it said what arrived and that product is still
-    // there to say it about. Null on anything that comes back as a bare figure.
-    val editedDelivery = editing?.takeIf { editedProduct != null && it.qty > 0 }
 
     // A correction is a supplier's bill and never a shelf count: there is one
     // document open, and it is not the shelf.
     var supplierBill by remember { mutableStateOf(product == null || editing != null) }
     var count by remember { mutableStateOf("") }
-    var quantity by remember { mutableStateOf(editedDelivery?.qty?.toString().orEmpty()) }
-    var unitCost by remember {
-        mutableStateOf(
-            editedDelivery?.unitCost?.takeIf { it > 0 }?.let { Money.amount(it, currency) }.orEmpty()
-        )
-    }
     /**
      * What was typed into the supplier box, and who was actually chosen.
      *
@@ -131,15 +183,15 @@ fun AddStockSheet(
         )
     }
     var supplierKey by remember { mutableStateOf(editing?.supplierKey) }
-    /** What was typed into the product box, and which product was actually chosen. */
-    var productText by remember { mutableStateOf((editedProduct ?: product)?.name.orEmpty()) }
-    var chosenProduct by remember { mutableStateOf(editedProduct ?: product) }
+    /** What has been typed into the product box while looking for the next line. */
+    var productQuery by remember { mutableStateOf("") }
+    var addingLine by remember { mutableStateOf(false) }
     // Only where there is no arithmetic to show instead — an itemised delivery's
-    // total is its quantity times its cost, and a figure typed beside that is a
+    // total is what its lines add up to, and a figure typed beside that is a
     // second answer to a question already answered.
     var amount by remember {
         mutableStateOf(
-            if (editing != null && editedDelivery == null) Money.amount(editing.total, currency) else ""
+            if (editing != null && editing.items.isEmpty()) Money.amount(editing.total, currency) else ""
         )
     }
     var settledNow by remember { mutableStateOf(editing?.paid == null) }
@@ -152,17 +204,15 @@ fun AddStockSheet(
     var pickingDate by remember { mutableStateOf(false) }
 
     val countValue = count.trim().toIntOrNull()
-    val quantityValue = quantity.trim().toIntOrNull() ?: 0
-    // What the delivery is actually costed at, which is what `recordPurchase`
-    // will use: the figure typed here where there is one, and otherwise the price
-    // already on the product. Worked out the same way on both sides of the call,
-    // or the sheet shows a total the store does not save.
-    val costValue = Money.parse(unitCost)?.takeIf { it > 0 } ?: chosenProduct?.cost ?: 0.0
-    // Itemised means a product *and* a count of it. A product with no quantity is
-    // half an answer, and guessing the other half would put stock on the shelf
-    // nobody said arrived.
-    val itemised = chosenProduct != null && quantityValue > 0
-    val totalValue = if (itemised) quantityValue * costValue else Money.parse(amount) ?: 0.0
+    // Itemised means at least one line with a count on it. A product with no
+    // quantity is half an answer, and guessing the other half would put stock on
+    // the shelf nobody said arrived.
+    val liveLines = lines.filter { it.qty > 0 }
+    val itemised = liveLines.isNotEmpty()
+    // What the delivery is costed at, which is what `recordPurchase` will use.
+    // Worked out the same way on both sides of the call, or the sheet shows a
+    // total the store does not save.
+    val totalValue = if (itemised) liveLines.sumOf { it.lineTotal } else Money.parse(amount) ?: 0.0
 
     // The delivery already filed under this number, whoever it came from. Across
     // the whole book rather than per supplier: one number, one piece of paper —
@@ -348,7 +398,15 @@ fun AddStockSheet(
                     )
                 }
                 Text(
-                    strings.perPiece(quantityValue, Money.text(costValue, currency)),
+                    // The arithmetic where there is one line to show it for, and
+                    // how many lines otherwise: the cards below say the rest, and
+                    // repeating them here would be the same sum written twice.
+                    if (liveLines.size == 1) {
+                        val only = liveLines.single()
+                        strings.perPiece(only.qty, Money.text(only.cost, currency))
+                    } else {
+                        strings.items(liveLines.size)
+                    },
                     style = NocturneType.meta,
                     color = Nocturne.neutral500
                 )
@@ -368,45 +426,51 @@ fun AddStockSheet(
         }
         Spacer(Modifier.height(Metrics.cardGap))
 
-        // Which product arrived, where the shop keeps a count of it. Optional, and
-        // labelled so: a bill for a mixed load, or for something that never sits
-        // on a shelf, names nothing and still owes money.
-        if (product == null) {
-            ProductPicker(
-                typed = productText,
-                chosen = chosenProduct,
-                state = state,
+        // What arrived, one card per line on the paper. Optional, all of it: a bill
+        // for a mixed load, or for something that never sits on a shelf, names
+        // nothing and still owes money.
+        lines.forEach { line ->
+            DeliveryLineCard(
+                line = line,
                 currency = currency,
                 strings = strings,
-                onType = { productText = it; chosenProduct = null },
-                onChoose = { productText = it.name; chosenProduct = it }
+                onRemove = { lines.remove(line) }
             )
-            Spacer(Modifier.height(Metrics.cardGap))
+            Spacer(Modifier.height(8.dp))
         }
 
-        if (chosenProduct != null) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                NocturneField(
-                    value = quantity,
-                    onValueChange = { quantity = it },
-                    label = strings.howMany,
-                    numeric = true,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(8.dp))
-                NocturneField(
-                    value = unitCost,
-                    onValueChange = { unitCost = it },
-                    label = strings.paidPerPiece,
-                    numeric = true,
-                    // Marked only once it is the thing standing between the owner
-                    // and a saved bill: with a quantity typed and no price on
-                    // either the box or the product, there is no figure at all.
-                    isRequiredAndEmpty = itemised && totalValue <= 0,
-                    prefix = currency.symbol.trim(),
-                    modifier = Modifier.weight(1f)
-                )
-            }
+        if (addingLine) {
+            ProductPicker(
+                typed = productQuery,
+                state = state,
+                store = store,
+                currency = currency,
+                strings = strings,
+                onType = { productQuery = it },
+                onChoose = { chosen ->
+                    // Choosing something already on the note adds one more of it
+                    // rather than a second card saying the same name — the same
+                    // rule the cart and the credit note follow.
+                    val existing = lines.firstOrNull { it.productUid == chosen.uid }
+                    if (existing != null) {
+                        existing.qtyText = (existing.qty + 1).toString()
+                    } else {
+                        lines.add(DeliveryLine(chosen.uid, chosen.name, 1, chosen.cost, chosen.cost, currency))
+                    }
+                    productQuery = ""
+                    addingLine = false
+                }
+            )
+            Spacer(Modifier.height(Metrics.cardGap))
+        } else {
+            SecondaryButton(
+                if (lines.isEmpty()) strings.addItems else strings.addAnotherItem,
+                onClick = { addingLine = true },
+                fullWidth = true,
+                height = 42.dp,
+                fontSize = 13.5,
+                leading = Icon.add
+            )
             Spacer(Modifier.height(Metrics.cardGap))
         }
 
@@ -468,43 +532,30 @@ fun AddStockSheet(
             onClick = {
                 val key = supplierKey ?: return@PrimaryButton
                 val paid = if (settledNow) null else (Money.parse(paidText) ?: 0.0)
+                // The same figures into whichever of the two this is, and one
+                // shape for both: the store applies the same rule to what it is
+                // handed — lines are stock arriving, no lines is a figure — and it
+                // ignores the amount where there is arithmetic instead. Money owed
+                // with nothing on the shelf to show for it is the same record
+                // deliberately, because a statement should not care which way a
+                // supplier's bill was entered.
+                val drafts = liveLines.map { DraftPurchaseLine(it.productUid, it.qty, it.cost) }
                 if (editing != null) {
-                    // One call for both shapes, unlike the two below: the store
-                    // applies the same rule to what it is handed — a product with
-                    // a quantity is stock arriving, anything else is a figure —
-                    // and it ignores the amount where there is arithmetic instead.
                     store.updatePurchase(
                         id = editing.id,
-                        product = chosenProduct,
+                        lines = drafts,
                         supplierKey = key,
-                        quantity = quantityValue,
-                        unitCost = costValue,
                         paid = paid,
                         amount = totalValue,
-                        createdAt = arrivedAt,
-                        invoiceNo = invoiceNo
-                    )
-                } else if (itemised) {
-                    // Stock arriving, against an account and a piece of paper —
-                    // which is why this is not `restock` with a supplier string
-                    // that went nowhere.
-                    store.recordPurchase(
-                        product = chosenProduct,
-                        supplierKey = key,
-                        quantity = quantityValue,
-                        unitCost = costValue,
-                        paid = paid,
                         createdAt = arrivedAt,
                         invoiceNo = invoiceNo
                     )
                 } else {
-                    // Money owed and nothing on the shelf to show for it. The same
-                    // record either way, deliberately: a statement should not care
-                    // which way a supplier's bill was entered.
-                    store.recordSupplierBill(
+                    store.recordPurchase(
+                        lines = drafts,
                         supplierKey = key,
-                        amount = totalValue,
                         paid = paid,
+                        amount = totalValue,
                         createdAt = arrivedAt,
                         invoiceNo = invoiceNo
                     )
@@ -657,20 +708,27 @@ private fun SupplierPicker(
 @Composable
 private fun ProductPicker(
     typed: String,
-    chosen: Product?,
     state: ShopState,
+    store: StockbookStore,
     currency: Currency,
     strings: Strings,
     onType: (String) -> Unit,
     onChoose: (Product) -> Unit
 ) {
     val needle = typed.trim().lowercase()
-    val matches = remember(state.products, needle, chosen) {
-        when {
-            chosen != null -> emptyList()
-            needle.isEmpty() -> state.products
-            else -> state.products.filter { it.name.lowercase().contains(needle) }
-        }
+    val matches = remember(state.products, needle) {
+        if (needle.isEmpty()) state.products
+        else state.products.filter { it.name.lowercase().contains(needle) }
+    }
+    // The way out when nothing matches, which on a delivery note is often: a
+    // supplier's paper is where stock the shop has never carried turns up. Without
+    // it, a new line means leaving the sheet, adding the product, coming back and
+    // finding your place again — and the half-typed delivery does not survive it.
+    //
+    // Only on an exact-name miss, so it never offers to create a second "Cisa
+    // lock" while the first one is sitting in the list above it.
+    val canCreate = remember(state.products, needle) {
+        needle.isNotEmpty() && state.products.none { it.name.trim().lowercase() == needle }
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -681,7 +739,7 @@ private fun ProductPicker(
             placeholder = strings.optionalField
         )
 
-        if (matches.isNotEmpty()) {
+        if (matches.isNotEmpty() || canCreate) {
             Spacer(Modifier.height(6.dp))
             Column(
                 modifier = Modifier
@@ -725,7 +783,114 @@ private fun ProductPicker(
                         }
                     }
                 }
+
+                // Outside the scrolling part: it is the way out when nobody
+                // matches, and must never be something to scroll for.
+                if (canCreate) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                // No cost and no price: the line below is where
+                                // what it cost gets typed, and what it sells for
+                                // is not a question a delivery note answers. The
+                                // Items screen is where that gets filled in, and
+                                // a product with no selling price shows there as
+                                // one that needs it.
+                                onChoose(store.addProduct(typed, stock = 0, cost = 0.0, price = 0.0))
+                            }
+                            .padding(horizontal = 11.dp, vertical = 9.dp)
+                    ) {
+                        Glyph(Icon.add, size = 12.dp, tint = Nocturne.accent)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            strings.addAsProduct(typed.trim()),
+                            style = NocturneType.inter(13.5),
+                            color = Nocturne.accent,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+/**
+ * One line of the delivery: what it was, how many, and what each cost.
+ *
+ * `ReturnedLineCard`'s shape on the credit note sheet, deliberately — the two are
+ * the same act pointed in opposite directions, and a shopkeeper who has entered
+ * one should recognise the other.
+ */
+@Composable
+private fun DeliveryLineCard(
+    line: DeliveryLine,
+    currency: Currency,
+    strings: Strings,
+    onRemove: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .card()
+            .padding(horizontal = 12.dp, vertical = 11.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                line.name,
+                style = NocturneType.rowPrimary,
+                color = Nocturne.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(Money.text(line.lineTotal, currency), style = NocturneType.inter(15.0), color = Nocturne.text)
+            Spacer(Modifier.width(4.dp))
+            IconButton(
+                Icon.delete,
+                onClick = onRemove,
+                size = 15.dp,
+                tint = Nocturne.neutral500,
+                contentDescription = strings.remove(line.name)
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            NocturneField(
+                value = line.qtyText,
+                onValueChange = { line.qtyText = it },
+                label = strings.howMany,
+                numeric = true,
+                // Marked while it is the thing standing between this line and the
+                // shelf: a line with no count on it is not saved at all, and the
+                // owner should see which one it is rather than wonder why the
+                // total is short.
+                isRequiredAndEmpty = line.qty <= 0,
+                height = Metrics.compactControlHeight,
+                fontSize = 13.5,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
+            NocturneField(
+                value = line.costText,
+                onValueChange = { line.costText = it },
+                label = strings.paidPerPiece,
+                numeric = true,
+                // Only where leaving it empty would leave no figure at all: an
+                // emptied box on a product that already has a cost means "the same
+                // as last time", which is a real answer.
+                isRequiredAndEmpty = line.qty > 0 && line.cost <= 0,
+                prefix = currency.symbol.trim(),
+                height = Metrics.compactControlHeight,
+                fontSize = 13.5,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }

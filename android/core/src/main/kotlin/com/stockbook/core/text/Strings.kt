@@ -166,6 +166,18 @@ class Strings(val language: AppLanguage) {
     // concludes there are two jobs.
     val recordDelivery: String get() = pick("Inventory", "ದಾಸ್ತಾನು")
     val whichProductArrived: String get() = pick("What arrived?", "ಏನು ಬಂತು?")
+
+    /**
+     * The way out of the product list when nothing in it matches, said the same
+     * way `addAsSupplier` says it.
+     *
+     * The delivery sheet needs one because a supplier's note is where genuinely
+     * new stock usually appears. Without it, a five-line delivery of things the
+     * shop has never carried is ten sheets: leave, add the product, come back,
+     * find your place, repeat.
+     */
+    fun addAsProduct(name: String): String =
+            pick("Add “$name” as a product", "“$name” ಅನ್ನು ಸಾಮಾನಾಗಿ ಸೇರಿಸಿ")
     val noDeliveriesYet: String get() = pick("No deliveries yet", "ಇನ್ನೂ ಡೆಲಿವರಿ ಇಲ್ಲ")
     val deliveryDetail: String get() = pick("Inventory", "ದಾಸ್ತಾನು")
 
