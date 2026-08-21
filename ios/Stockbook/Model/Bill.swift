@@ -69,6 +69,25 @@ struct Bill: Identifiable, Codable, Equatable {
     /// same bytes for a bill without one.
     var note: String?
 
+    /// The percentage knocked off, when the owner gave one. Absent otherwise.
+    ///
+    /// A **label on the arithmetic**, in exactly the sense `invoiceNo` is a
+    /// label beside `number`: `total` is still the figure that was charged,
+    /// stored and never recomputed, and this says how it was arrived at.
+    /// Nothing downstream needs to know — a statement, a balance and a month's
+    /// takings all read `total` and are already right.
+    var discountPercent: Double?
+
+    /// What that percentage came to in money, rounded once when the bill was
+    /// saved.
+    ///
+    /// Stored beside the percentage rather than recomputed from it, so
+    /// `subtotal − discount = total` holds to the last halala on a document
+    /// somebody may check by hand. Recomputing `subtotal` from a percentage is
+    /// where that breaks: 10% off 249.99 is not a number that divides back
+    /// cleanly.
+    var discountAmount: Double?
+
     /// Customer name, trimmed. Required on every bill.
     var who: String
 
@@ -85,6 +104,8 @@ struct Bill: Identifiable, Codable, Equatable {
         invoiceNo: String? = nil,
         photoIDs: [String] = [],
         note: String? = nil,
+        discountPercent: Double? = nil,
+        discountAmount: Double? = nil,
         createdAt: Date = .now
     ) {
         self.number = number
@@ -95,6 +116,8 @@ struct Bill: Identifiable, Codable, Equatable {
         self.invoiceNo = CustomerRecord.tidied(invoiceNo)
         self.photoIDs = photoIDs
         self.note = CustomerRecord.tidied(note)
+        self.discountPercent = discountPercent
+        self.discountAmount = discountAmount
         self.createdAt = createdAt
     }
 
@@ -129,8 +152,20 @@ struct Bill: Identifiable, Codable, Equatable {
         // out here because this type has a hand-written `init(from:)` and a key
         // left out of it is a field silently dropped on every read.
         note = try container.decodeIfPresent(String.self, forKey: .note)
+        discountPercent = try container.decodeIfPresent(Double.self, forKey: .discountPercent)
+        discountAmount = try container.decodeIfPresent(Double.self, forKey: .discountAmount)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
     }
+
+    /// What the bill came to before the discount — the sum the lines add up to,
+    /// or the figure the owner typed.
+    ///
+    /// Derived by addition rather than division, which is the whole reason
+    /// `discountAmount` is stored.
+    var subtotal: Double { total + (discountAmount ?? 0) }
+
+    /// Whether anything was knocked off.
+    var isDiscounted: Bool { (discountAmount ?? 0) > 0 }
 
     /// What is still owed on this bill. Zero when paid in full.
     var balance: Double {

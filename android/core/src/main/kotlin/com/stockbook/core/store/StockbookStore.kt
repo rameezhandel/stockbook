@@ -271,8 +271,16 @@ class StockbookStore(private val repository: StockbookRepository) {
         invoiceNo: String? = null,
         /** Photographs of that paper, by id. The files are the app's to keep. */
         photoIds: List<String> = emptyList(),
-        /** What the bill was for. Prints on the customer's statement. */
-        note: String? = null
+        /** What the bill was for. The owner's own reminder. */
+        note: String? = null,
+        /**
+         * A percentage knocked off the whole bill, when the owner gave one.
+         *
+         * Applied here rather than by the screen, so the arithmetic that decides
+         * what a customer owes lives in one tested place — and so the stored
+         * total, the stored discount and the subtotal can never disagree.
+         */
+        discountPercent: Double? = null
     ): Bill? {
         val name = customer.trim()
         if (name.isEmpty()) return null
@@ -286,10 +294,16 @@ class StockbookStore(private val repository: StockbookRepository) {
             replace(product.copy(stock = maxOf(0, product.stock - line.qty)))
         }
 
-        val total = if (snapshots.isEmpty()) amount ?: 0.0 else snapshots.sumOf { it.lineTotal }
+        val subtotal = if (snapshots.isEmpty()) amount ?: 0.0 else snapshots.sumOf { it.lineTotal }
         // A bill for nothing is not a bill. Either something was sold or a figure
-        // was typed; neither is the same as a blank saved by accident.
-        if (total <= 0) return null
+        // was typed; neither is the same as a blank saved by accident. Checked on
+        // the subtotal, so a 100% discount still saves a bill rather than
+        // silently doing nothing — a line given away is a line that left the
+        // shelf, and the shop should have the record.
+        if (subtotal <= 0) return null
+
+        val off = Money.discount(subtotal, discountPercent ?: 0.0, settings.currency)
+        val total = subtotal - off
         val bill = Bill(
             number = settings.nextBillNumber,
             lines = snapshots,
@@ -301,6 +315,8 @@ class StockbookStore(private val repository: StockbookRepository) {
             invoiceNo = CustomerRecord.tidied(invoiceNo),
             photoIds = photoIds.distinct(),
             note = CustomerRecord.tidied(note),
+            discountPercent = discountPercent?.takeIf { off > 0 },
+            discountAmount = off.takeIf { it > 0 },
             createdAt = createdAt
         )
 
@@ -388,7 +404,8 @@ class StockbookStore(private val repository: StockbookRepository) {
         amount: Double? = null,
         createdAt: Instant,
         invoiceNo: String? = null,
-        note: String? = null
+        note: String? = null,
+        discountPercent: Double? = null
         // Photographs are deliberately not a parameter here. They are added and
         // removed one at a time by [attachPhoto] and [detachPhoto], so an edit
         // form that knows nothing about them cannot wipe them by omission.
@@ -398,8 +415,11 @@ class StockbookStore(private val repository: StockbookRepository) {
         if (name.isEmpty()) return null
 
         val snapshots = snapshot(lines)
-        val total = if (snapshots.isEmpty()) amount ?: 0.0 else snapshots.sumOf { it.lineTotal }
-        if (total <= 0) return null
+        val subtotal = if (snapshots.isEmpty()) amount ?: 0.0 else snapshots.sumOf { it.lineTotal }
+        if (subtotal <= 0) return null
+
+        val off = Money.discount(subtotal, discountPercent ?: 0.0, settings.currency)
+        val total = subtotal - off
 
         // Reverse, then apply. In that order, because a bill that kept the same
         // product with a smaller quantity would otherwise floor at zero on the way
@@ -420,6 +440,8 @@ class StockbookStore(private val repository: StockbookRepository) {
             who = name,
             invoiceNo = CustomerRecord.tidied(invoiceNo),
             note = CustomerRecord.tidied(note),
+            discountPercent = discountPercent?.takeIf { off > 0 },
+            discountAmount = off.takeIf { it > 0 },
             createdAt = createdAt
         )
         _state.value = _state.value.copy(
@@ -1552,6 +1574,8 @@ class StockbookStore(private val repository: StockbookRepository) {
                     invoiceNo = record.invoiceNo,
                     photoIds = record.photoIds.orEmpty(),
                     note = record.note,
+                    discountPercent = record.discountPercent,
+                    discountAmount = record.discountAmount,
                     createdAt = record.createdAt
                 )
             }.sortedByDescending { it.createdAt },
@@ -1674,6 +1698,8 @@ class StockbookStore(private val repository: StockbookRepository) {
                 invoiceNo = bill.invoiceNo,
                 photoIds = bill.photoIds.takeIf { it.isNotEmpty() },
                 note = bill.note,
+                discountPercent = bill.discountPercent,
+                discountAmount = bill.discountAmount,
                 lines = bill.lines.map {
                     BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price)
                 }

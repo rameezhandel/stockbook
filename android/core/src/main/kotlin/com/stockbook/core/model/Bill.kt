@@ -86,9 +86,42 @@ data class Bill(
      * bytes for a bill without one.
      */
     val note: String? = null,
+    /**
+     * The percentage knocked off, when the owner gave one. Absent otherwise.
+     *
+     * A **label on the arithmetic**, in exactly the sense `invoiceNo` is a label
+     * beside `number`: [total] is still the figure that was charged, stored and
+     * never recomputed, and this says how it was arrived at. Nothing downstream
+     * needs to know — a statement, a balance and a month's takings all read
+     * [total] and are already right.
+     */
+    val discountPercent: Double? = null,
+    /**
+     * What that percentage came to in money, rounded once when the bill was
+     * saved.
+     *
+     * Stored beside the percentage rather than recomputed from it, so
+     * `subtotal − discount = total` holds to the last halala on a document
+     * somebody may check by hand. Recomputing `subtotal` from a percentage is
+     * where that breaks: 10% off 249.99 is not a number that divides back
+     * cleanly.
+     */
+    val discountAmount: Double? = null,
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant = Timestamps.now()
 ) {
+    /**
+     * What the bill came to before the discount — the sum the lines add up to,
+     * or the figure the owner typed.
+     *
+     * Derived by addition rather than division, which is the whole reason
+     * [discountAmount] is stored.
+     */
+    val subtotal: Double get() = total + (discountAmount ?: 0.0)
+
+    /** Whether anything was knocked off. */
+    val isDiscounted: Boolean get() = (discountAmount ?: 0.0) > 0
+
     /** What is still owed on this bill. Zero when paid in full. */
     val balance: Double
         get() {

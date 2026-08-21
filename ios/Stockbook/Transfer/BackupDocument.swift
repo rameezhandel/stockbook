@@ -271,6 +271,15 @@ struct BackupDocument: Codable, Equatable {
         /// #1024" where the owner also wrote "3 keys cut on site" — a label lost,
         /// not a figure misread.
         var note: String?
+        /// The percentage knocked off and what it came to, when the owner gave
+        /// one. Both absent otherwise.
+        ///
+        /// Neither bumps `currentVersion`, and this is the case where that rule
+        /// pays off most clearly: `total` is already the discounted figure, so a
+        /// reader that drops these two shows exactly what the customer owes.
+        /// What it loses is the explanation of how the figure was reached.
+        var discountPercent: Double?
+        var discountAmount: Double?
         var lines: [LineRecord]
     }
 

@@ -39,6 +39,23 @@ object Money {
     }
 
     /**
+     * What a percentage off comes to, rounded to the currency's smallest unit.
+     *
+     * Rounded **here**, once, rather than left as a fraction and rounded again
+     * wherever it is drawn: the figure is subtracted from the subtotal to make
+     * the bill's stored total, and a total that does not equal
+     * `subtotal − discount` to the last halala is a document nobody can check by
+     * hand. A percentage at or below zero is not a discount and comes to nothing;
+     * above a hundred it is capped, because a bill cannot go negative.
+     */
+    fun discount(subtotal: Double, percent: Double, currency: Currency = Currency.default): Double {
+        if (percent <= 0 || subtotal <= 0) return 0.0
+        val scale = 10.0.pow(currency.fractionDigits)
+        val off = subtotal * (percent.coerceAtMost(100.0) / 100.0)
+        return (off * scale).roundToLong() / scale
+    }
+
+    /**
      * Parses a value the owner typed. Returns null for anything that is not a
      * number, so callers can tell "empty" from "zero".
      */

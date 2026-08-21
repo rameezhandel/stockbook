@@ -247,8 +247,14 @@ final class StockbookStore {
         invoiceNo: String? = nil,
         /// Photographs of that paper, by id. The files are the app's to keep.
         photoIDs: [String] = [],
-        /// What the bill was for. Prints on the customer's statement.
-        note: String? = nil
+        /// What the bill was for. The owner's own reminder.
+        note: String? = nil,
+        /// A percentage knocked off the whole bill, when the owner gave one.
+        ///
+        /// Applied here rather than by the screen, so the arithmetic that decides
+        /// what a customer owes lives in one tested place — and so the stored
+        /// total, the stored discount and the subtotal can never disagree.
+        discountPercent: Double? = nil
     ) -> Bill? {
         let name = customer.trimmed
         guard !name.isEmpty else { return nil }
@@ -267,10 +273,16 @@ final class StockbookStore {
         // ones with arithmetic behind them, so where there are any they win and
         // the typed figure is ignored.
         let itemised = snapshots.reduce(0) { $0 + $1.lineTotal }
-        let total = snapshots.isEmpty ? (amount ?? 0) : itemised
+        let subtotal = snapshots.isEmpty ? (amount ?? 0) : itemised
         // A bill for nothing is not a bill. Either something was sold or a figure
-        // was typed; neither is the same as a blank saved by accident.
-        guard total > 0 else { return nil }
+        // was typed; neither is the same as a blank saved by accident. Checked on
+        // the subtotal, so a 100% discount still saves a bill rather than
+        // silently doing nothing — a line given away is a line that left the
+        // shelf, and the shop should have the record.
+        guard subtotal > 0 else { return nil }
+
+        let off = Money.discount(subtotal, percent: discountPercent ?? 0, in: settings.currency)
+        let total = subtotal - off
         let bill = Bill(
             number: settings.nextBillNumber,
             lines: snapshots,
@@ -285,6 +297,8 @@ final class StockbookStore {
                 if !seen.contains(id) { seen.append(id) }
             },
             note: note,
+            discountPercent: off > 0 ? discountPercent : nil,
+            discountAmount: off > 0 ? off : nil,
             createdAt: createdAt
         )
 
@@ -351,7 +365,9 @@ final class StockbookStore {
         paid: Double?,
         amount: Double? = nil,
         createdAt: Date,
-        invoiceNo: String? = nil
+        invoiceNo: String? = nil,
+        note: String? = nil,
+        discountPercent: Double? = nil
         // Photographs are deliberately not a parameter here. They are added and
         // removed one at a time by `attachPhoto`/`detachPhoto`, so an edit form
         // that knows nothing about them cannot wipe them by omission.
@@ -364,8 +380,11 @@ final class StockbookStore {
         guard !name.isEmpty else { return nil }
 
         let snapshots = snapshot(lines)
-        let total = snapshots.isEmpty ? (amount ?? 0) : snapshots.reduce(0) { $0 + $1.lineTotal }
-        guard total > 0 else { return nil }
+        let subtotal = snapshots.isEmpty ? (amount ?? 0) : snapshots.reduce(0) { $0 + $1.lineTotal }
+        guard subtotal > 0 else { return nil }
+
+        let off = Money.discount(subtotal, percent: discountPercent ?? 0, in: settings.currency)
+        let total = subtotal - off
 
         // Reverse, then apply. In that order, because a bill that kept the same
         // product with a smaller quantity would otherwise floor at zero on the way
@@ -387,6 +406,9 @@ final class StockbookStore {
         updated.paid = paid.flatMap { $0 < total ? min(max(0, $0), total) : nil }
         updated.who = name
         updated.invoiceNo = CustomerRecord.tidied(invoiceNo)
+        updated.note = CustomerRecord.tidied(note)
+        updated.discountPercent = off > 0 ? discountPercent : nil
+        updated.discountAmount = off > 0 ? off : nil
         updated.createdAt = createdAt
 
         bills[index] = updated
@@ -1532,6 +1554,8 @@ final class StockbookStore {
                     invoiceNo: record.invoiceNo,
                     photoIDs: record.photoIDs ?? [],
                     note: record.note,
+                    discountPercent: record.discountPercent,
+                    discountAmount: record.discountAmount,
                     createdAt: record.createdAt
                 )
             },
@@ -1667,6 +1691,8 @@ final class StockbookStore {
                     // Kotlin writes, where `explicitNulls = false` drops it too.
                     photoIDs: bill.photoIDs.isEmpty ? nil : bill.photoIDs,
                     note: bill.note,
+                    discountPercent: bill.discountPercent,
+                    discountAmount: bill.discountAmount,
                     lines: bill.lines.map {
                         BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price)
                     }

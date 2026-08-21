@@ -209,6 +209,18 @@ data class BackupDocument(
          * not a figure misread.
          */
         val note: String? = null,
+        /**
+         * The percentage knocked off and what it came to, when the owner gave
+         * one. Both absent otherwise.
+         *
+         * Neither bumps [currentVersion], and this is the case where that rule
+         * pays off most clearly: `total` is already the discounted figure, so a
+         * reader that drops these two shows exactly what the customer owes. What
+         * it loses is the explanation of how the figure was reached — a label,
+         * not a figure misread.
+         */
+        val discountPercent: Double? = null,
+        val discountAmount: Double? = null,
         val lines: List<LineRecord> = emptyList()
     )
 

@@ -54,6 +54,21 @@ enum Money {
 
     /// Parses a value the owner typed. Returns nil for anything that is not a
     /// number, so callers can tell "empty" from "zero".
+    /// What a percentage off comes to, rounded to the currency's smallest unit.
+    ///
+    /// Rounded **here**, once, rather than left as a fraction and rounded again
+    /// wherever it is drawn: the figure is subtracted from the subtotal to make
+    /// the bill's stored total, and a total that does not equal
+    /// `subtotal − discount` to the last halala is a document nobody can check
+    /// by hand. A percentage at or below zero is not a discount and comes to
+    /// nothing; above a hundred it is capped, because a bill cannot go negative.
+    static func discount(_ subtotal: Double, percent: Double, in currency: Currency = .default) -> Double {
+        guard percent > 0, subtotal > 0 else { return 0 }
+        let scale = pow(10.0, Double(currency.fractionDigits))
+        let off = subtotal * (min(percent, 100) / 100)
+        return (off * scale).rounded() / scale
+    }
+
     static func parse(_ input: String) -> Double? {
         let trimmed = input.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return nil }
