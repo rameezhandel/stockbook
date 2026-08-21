@@ -138,16 +138,21 @@ struct SellScreen: View {
     /// overlay: the owner came from that sheet and is checking the change landed,
     /// not confirming a sale that has just happened.
     private func save() {
+        // The store's own currency rather than the environment's: this is the
+        // figure that gets written, and it must round the way `saveBill` rounds.
+        let currency = store.settings.currency
+
         if let number = cart.editing {
             guard let corrected = store.updateBill(
                 number: number,
                 lines: cart.draftLines,
                 customer: cart.customer,
-                paid: cart.paidForStorage,
+                paid: cart.paidForStorage(in: currency),
                 amount: cart.typedAmount,
                 createdAt: cart.soldAt,
                 invoiceNo: cart.invoiceNo,
-                note: cart.note
+                note: cart.note,
+                discountPercent: cart.discountPercent
             ) else { return }
 
             // `updateBill` deliberately does not take photographs — an edit form
@@ -173,12 +178,13 @@ struct SellScreen: View {
         guard let bill = store.saveBill(
             lines: cart.draftLines,
             customer: cart.customer,
-            paid: cart.paidForStorage,
+            paid: cart.paidForStorage(in: currency),
             amount: cart.typedAmount,
             createdAt: cart.soldAt,
             invoiceNo: cart.invoiceNo,
             photoIDs: cart.photoIDs,
-            note: cart.note
+            note: cart.note,
+            discountPercent: cart.discountPercent
         ) else { return }
 
         cart.clear()

@@ -119,26 +119,55 @@ final class Cart {
     /// once more here because the screen has to show the figure it is about to
     /// save. If these two ever disagree the owner is looking at one number and
     /// saving another.
-    var total: Double {
+    /// What the lines add up to, or the figure typed — before any discount.
+    var subtotal: Double {
         lines.isEmpty ? (typedAmount ?? 0) : lines.reduce(0) { $0 + $1.lineTotal }
     }
+
+    /// A percentage off the whole bill, as typed. Empty is the ordinary case.
+    ///
+    /// Held as text rather than a number so a half-typed "1" on the way to "15"
+    /// is not read as a discount and shown back as one.
+    var discountText: String = ""
+
+    /// The percentage as typed, or nil when the box is empty or unreadable.
+    var discountPercent: Double? {
+        guard let value = Money.parse(discountText), value > 0 else { return nil }
+        return value
+    }
+
+    /// What that percentage comes to, and what will actually be charged.
+    ///
+    /// Both take the currency rather than assuming one: three of the currencies
+    /// this app offers carry **three** decimal places, so rounding to two would
+    /// put the figure on screen a fils away from the figure the store saves. The
+    /// same `Money.discount` the store calls, so the owner is watching the
+    /// number they will get.
+    func discountValue(in currency: Currency) -> Double {
+        Money.discount(subtotal, percent: discountPercent ?? 0, in: currency)
+    }
+
+    func total(in currency: Currency) -> Double { subtotal - discountValue(in: currency) }
 
     /// The figure in the amount box, or nil when there is nothing readable in it.
     var typedAmount: Double? { Money.parse(amountText) }
 
     /// The amount taken now: the full total, or the clamped part payment.
-    var paidNow: Double {
+    func paidNow(in currency: Currency) -> Double {
+        let charged = total(in: currency)
         switch payMode {
-        case .full: total
-        case .part: min(max(0, Money.parse(paidText) ?? 0), total)
+        case .full: return charged
+        case .part: return min(max(0, Money.parse(paidText) ?? 0), charged)
         }
     }
 
-    var balance: Double { max(0, total - paidNow) }
+    func balance(in currency: Currency) -> Double {
+        max(0, total(in: currency) - paidNow(in: currency))
+    }
 
     /// What gets stored on the bill: `nil` for paid in full.
-    var paidForStorage: Double? {
-        payMode == .full ? nil : paidNow
+    func paidForStorage(in currency: Currency) -> Double? {
+        payMode == .full ? nil : paidNow(in: currency)
     }
 
     /// The gate on this screen: a bill needs a figure, somebody **chosen** to
@@ -158,7 +187,9 @@ final class Cart {
     /// which is the whole reason for keeping the number at all. Always typed,
     /// never suggested: a guessed next value is the app inventing a run the
     /// paper does not have.
-    var canSave: Bool { customerKey != nil && !invoiceNo.isBlank && total > 0 }
+    // Tested on the subtotal, not the total: a bill discounted to nothing is
+    // still a bill, and the stock still left the shelf.
+    var canSave: Bool { customerKey != nil && !invoiceNo.isBlank && subtotal > 0 }
 
     // MARK: Mutation
 
@@ -257,6 +288,7 @@ final class Cart {
         paidText = bill.paid.map { Money.amount($0, in: store.settings.currency) } ?? ""
         invoiceNo = bill.invoiceNo ?? ""
         note = bill.note ?? ""
+        discountText = bill.discountPercent.map { Money.amount($0, in: store.settings.currency) } ?? ""
         soldAt = bill.createdAt
         // The ones already on it, so a correction can take one off as well as add
         // one. What the form ends up holding is reconciled against the bill on
@@ -271,6 +303,7 @@ final class Cart {
         let amountText: String
         let invoiceNo: String
         let note: String
+        let discountText: String
         let soldAt: Date
         let customer: String
         let customerKey: String?
@@ -293,6 +326,7 @@ final class Cart {
             amountText: amountText,
             invoiceNo: invoiceNo,
             note: note,
+            discountText: discountText,
             soldAt: soldAt,
             customer: customer,
             customerKey: customerKey,
@@ -317,6 +351,7 @@ final class Cart {
         amountText = draft.amountText
         invoiceNo = draft.invoiceNo
         note = draft.note
+        discountText = draft.discountText
         soldAt = draft.soldAt
         customer = draft.customer
         customerKey = draft.customerKey
@@ -336,6 +371,7 @@ final class Cart {
         paidText = ""
         invoiceNo = ""
         note = ""
+        discountText = ""
         soldAt = .now
         photoIDs = []
         editing = nil

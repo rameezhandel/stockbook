@@ -95,6 +95,30 @@ struct BillTemplate: View {
 
     private var totals: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // What was knocked off, where anything was. The customer's own copy
+            // of the bill is exactly where a discount belongs — it is the reason
+            // the figure is what it is, and a shop that gave 10% away should get
+            // the credit for it. The *statement* is the document that carries
+            // only the total.
+            if bill.isDiscounted {
+                HStack {
+                    Text(Loc.subtotalLabel).nocturneText(.meta)
+                    Spacer()
+                    Text(Money.text(bill.subtotal, in: currency))
+                        .font(NocturneType.inter(12.5))
+                        .foregroundStyle(Nocturne.neutral400)
+                }
+                HStack {
+                    Text(Loc.discountOf(Money.amount(bill.discountPercent ?? 0, in: currency)))
+                        .nocturneText(.meta)
+                    Spacer()
+                    Text("− " + Money.text(bill.discountAmount ?? 0, in: currency))
+                        .font(NocturneType.inter(12.5))
+                        .foregroundStyle(Nocturne.accent400)
+                }
+                .padding(.bottom, 6)
+            }
+
             HStack(alignment: .firstTextBaseline) {
                 Text(Loc.total)
                     .font(NocturneType.inter(13))

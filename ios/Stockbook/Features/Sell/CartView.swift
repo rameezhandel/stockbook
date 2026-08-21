@@ -43,7 +43,7 @@ struct CartView: View {
                             label: Loc.amountField,
                             text: $cart.amountText,
                             height: Metrics.tallInputHeight,
-                            isRequiredAndEmpty: cart.total <= 0,
+                            isRequiredAndEmpty: cart.subtotal <= 0,
                             emphasis: .sellingPrice,
                             prefix: currency.symbol.trimmed,
                             fontSize: 17,
@@ -147,6 +147,31 @@ struct CartView: View {
                     .foregroundStyle(Nocturne.accent400)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+
+            // A percentage off the whole bill, and what it comes to said back
+            // immediately — a shopkeeper typing "10" wants to see "SAR 25 off"
+            // before they hand the paper over, not after.
+            HStack(alignment: .bottom, spacing: 8) {
+                NocturneField(
+                    label: Loc.discountField,
+                    placeholder: Loc.discountHint,
+                    text: $cart.discountText,
+                    height: 40,
+                    keyboard: .decimalPad,
+                    fontSize: 13.5,
+                    identifier: "cart.discount"
+                )
+                Text(
+                    cart.discountValue(in: currency) > 0
+                        ? Loc.discountComesTo(Money.text(cart.discountValue(in: currency), in: currency))
+                        : ""
+                )
+                .nocturneText(.meta)
+                .foregroundStyle(Nocturne.accent400)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 12)
+            }
+            .padding(.top, 10)
 
             // What the bill was for, in the owner's words — and the owner's
             // alone. The line under it says so, because a box on a bill form is
@@ -252,16 +277,43 @@ struct CartView: View {
     /// It takes the amount box's place rather than sitting beside it, and says
     /// where the figure came from: it stopped being something typed the moment
     /// there were lines to add up. "Remove items" is the way back to typing.
+    /// One `label … value` line above the total, in the total card's own type.
+    private func deductionLine(_ label: String, _ value: String, tint: Color) -> some View {
+        HStack {
+            Text(label).nocturneText(.meta)
+            Spacer()
+            Text(value)
+                .font(NocturneType.inter(12.5))
+                .foregroundStyle(tint)
+        }
+    }
+
     private var itemisedTotal: some View {
         VStack(alignment: .leading, spacing: 2) {
+            // Shown only when there is one: three lines where a shop gives no
+            // discount would be two lines of ceremony above the figure that
+            // matters.
+            if cart.discountValue(in: currency) > 0 {
+                deductionLine(
+                    Loc.subtotalLabel,
+                    Money.text(cart.subtotal, in: currency),
+                    tint: Nocturne.neutral400
+                )
+                deductionLine(
+                    Loc.discountOf(Money.amount(cart.discountPercent ?? 0, in: currency)),
+                    "− " + Money.text(cart.discountValue(in: currency), in: currency),
+                    tint: Nocturne.accent400
+                )
+            }
+
             HStack(alignment: .lastTextBaseline) {
                 Text(Loc.total)
                     .font(NocturneType.inter(13))
                     .foregroundStyle(Nocturne.neutral500)
                 Spacer()
-                Text(Money.text(cart.total, in: currency))
+                Text(Money.text(cart.total(in: currency), in: currency))
                     .nocturneText(.bigNumber(26))
-                    .rollingNumber(cart.total)
+                    .rollingNumber(cart.total(in: currency))
             }
             HStack {
                 Text(Loc.fromItems(cart.lines.count))
@@ -311,10 +363,10 @@ struct CartView: View {
                         .font(NocturneType.inter(12.5))
                         .foregroundStyle(Nocturne.neutral500)
                     Spacer()
-                    Text(Money.text(cart.balance, in: currency))
+                    Text(Money.text(cart.balance(in: currency), in: currency))
                         .font(NocturneType.inter(15))
                         .foregroundStyle(Nocturne.accent400)
-                        .rollingNumber(cart.balance)
+                        .rollingNumber(cart.balance(in: currency))
                 }
             }
         }
