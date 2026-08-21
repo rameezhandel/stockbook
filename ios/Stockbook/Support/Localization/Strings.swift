@@ -601,7 +601,6 @@ struct Strings {
     /// the money and under the owner's thumb, which says the same thing without
     /// two lines of ceremony in the middle of the paperwork.
     var billNote: String { pick("NOTE:", "ಟಿಪ್ಪಣಿ:") }
-    var billNoteHint: String { pick("3 keys cut on site…", "ಸ್ಥಳದಲ್ಲಿ 3 ಕೀ ಕತ್ತರಿಸಿದ್ದು…") }
 
     var billDate: String { pick("Date", "ದಿನಾಂಕ") }
 

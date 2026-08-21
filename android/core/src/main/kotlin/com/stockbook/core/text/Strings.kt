@@ -559,7 +559,6 @@ class Strings(val language: AppLanguage) {
      * two lines of ceremony in the middle of the paperwork.
      */
     val billNote: String get() = pick("NOTE:", "ಟಿಪ್ಪಣಿ:")
-    val billNoteHint: String get() = pick("3 keys cut on site…", "ಸ್ಥಳದಲ್ಲಿ 3 ಕೀ ಕತ್ತರಿಸಿದ್ದು…")
 
     val billDate: String get() = pick("Date", "ದಿನಾಂಕ")
 

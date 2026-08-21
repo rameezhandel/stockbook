@@ -84,9 +84,15 @@ struct CartView: View {
                 // one box here the owner writes for themselves rather than for
                 // the paper, so it waits until the number, the money and who
                 // owes it are all settled. Optional: most bills never touch it.
+                // The placeholder is empty on purpose, and this is the only field
+                // in the app where it is. Every example tried here read as an
+                // instruction: the app's other hints name two or three *kinds* of
+                // thing, and the one this box had named a job — "3 keys cut on
+                // site" — which describes goods, and goods are what the lines and
+                // the amount above are already for.
                 NocturneField(
                     label: Loc.billNote,
-                    placeholder: Loc.billNoteHint,
+                    placeholder: "",
                     text: $cart.note,
                     identifier: "cart.note"
                 )

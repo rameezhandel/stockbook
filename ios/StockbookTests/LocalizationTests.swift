@@ -70,7 +70,7 @@ struct LocalizationTests {
         \.customersStat, \.languageSection, \.languageAndCurrency, \.notBackedUpYet,
         \.themeSection, \.themeDark, \.themeLight,
         \.invoiceNoField, \.invoiceNoHint, \.billDate,
-        \.billNote, \.billNoteHint,
+        \.billNote,
         \.changeTheInvoiceNo, \.enterBillNumber,
         \.amountField, \.addItems, \.removeItems, \.supplierBillTitle,
         \.setCount, \.setCountNote, \.whoOwesYou, \.whoYouOwe, \.takePayment,

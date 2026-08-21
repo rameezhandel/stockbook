@@ -219,7 +219,13 @@ fun CartView(
                     value = cart.note,
                     onValueChange = { cart.note = it },
                     label = strings.billNote,
-                    placeholder = strings.billNoteHint,
+                    // Empty on purpose, and the only field in the app that is.
+                    // Every example tried here read as an instruction: the app's
+                    // other hints name two or three *kinds* of thing, and the one
+                    // this box had named a job — "3 keys cut on site" — which
+                    // describes goods, and goods are what the lines and the
+                    // amount above are already for.
+                    placeholder = "",
                     modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
                 )
             }
@@ -668,6 +674,13 @@ private fun Stepper(quantity: Int, onChange: (Int) -> Unit, strings: Strings) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .height(Metrics.compactControlHeight)
+            // Clipped before it is filled, the same three modifiers in the same
+            // order as `NocturneField`. Without the clip the fill is a square
+            // under a rounded stroke — it shows at all four corners, and the
+            // minus and plus ripples spill square out of the ends. The price box
+            // beside this one is a `NocturneField` and never had the fault,
+            // which is what made the pair look wrong together.
+            .clip(RoundedCornerShape(Metrics.controlRadius))
             .background(Nocturne.bg)
             .hairline(radius = Metrics.controlRadius)
     ) {
