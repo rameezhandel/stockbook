@@ -209,6 +209,20 @@ fun CartView(
                     modifier = Modifier.padding(top = 14.dp)
                 )
             }
+
+            // Last on the form, and the last thing before Save. It is the one
+            // box here the owner writes for themselves rather than for the
+            // paper, so it waits until the number, the money and who owes it are
+            // all settled. Optional: most bills never touch it.
+            item {
+                NocturneField(
+                    value = cart.note,
+                    onValueChange = { cart.note = it },
+                    label = strings.billNote,
+                    placeholder = strings.billNoteHint,
+                    modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
+                )
+            }
         }
 
         SaveBar(cart = cart, clash = clash, editing = editing, strings = strings, onSave = onSave)
@@ -292,24 +306,6 @@ private fun PaperRow(
                 modifier = Modifier.weight(1f).padding(bottom = 12.dp)
             )
         }
-
-        // What the bill was for, in the owner's words — and the owner's alone.
-        // The line under it says so, because a box on a bill form is the obvious
-        // place to expect a customer to read it. Optional: most bills are the
-        // number and the money.
-        NocturneField(
-            value = cart.note,
-            onValueChange = { cart.note = it },
-            label = strings.billNote,
-            placeholder = strings.billNoteHint,
-            modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
-        )
-        Text(
-            strings.billNoteIsYours,
-            style = NocturneType.meta,
-            color = Nocturne.neutral500,
-            modifier = Modifier.padding(top = 4.dp)
-        )
 
         // The paper, photographed while it is being written — which is when the
         // owner is holding it. Directly under its number, because that is the

@@ -595,18 +595,13 @@ struct Strings {
     var invoiceNoHint: String { pick("From the book", "ಪುಸ್ತಕದಿಂದ") }
     /// The note on a bill: the owner's own reminder of what it was for.
     ///
-    /// The line under the box says where it does *not* go, because a box on a
-    /// bill form is the obvious place to expect a customer to read it, and the
-    /// owner should know before typing rather than after handing a statement
-    /// over.
-    var billNote: String { pick("What was it for?", "ಯಾವುದಕ್ಕೆ?") }
+    /// One flat word, and the same one on the form and on the opened bill. It
+    /// used to ask "What was it for?" with a line underneath saying the customer
+    /// would never see it — but the box now sits at the foot of the form, past
+    /// the money and under the owner's thumb, which says the same thing without
+    /// two lines of ceremony in the middle of the paperwork.
+    var billNote: String { pick("NOTE:", "ಟಿಪ್ಪಣಿ:") }
     var billNoteHint: String { pick("3 keys cut on site…", "ಸ್ಥಳದಲ್ಲಿ 3 ಕೀ ಕತ್ತರಿಸಿದ್ದು…") }
-    var billNoteIsYours: String {
-        pick(
-            "Your own reminder — not on the statement.",
-            "ನಿಮ್ಮ ನೆನಪಿಗಾಗಿ — ಖಾತೆ ವಿವರದಲ್ಲಿ ಬರುವುದಿಲ್ಲ."
-        )
-    }
 
     var billDate: String { pick("Date", "ದಿನಾಂಕ") }
 

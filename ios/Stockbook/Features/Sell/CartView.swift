@@ -80,6 +80,18 @@ struct CartView: View {
                 paymentBlock
                     .padding(.top, 14)
 
+                // Last on the form, and the last thing before Save. It is the
+                // one box here the owner writes for themselves rather than for
+                // the paper, so it waits until the number, the money and who
+                // owes it are all settled. Optional: most bills never touch it.
+                NocturneField(
+                    label: Loc.billNote,
+                    placeholder: Loc.billNoteHint,
+                    text: $cart.note,
+                    identifier: "cart.note"
+                )
+                .padding(.top, 14)
+
                 saveButton
                     .padding(.top, 16)
             }
@@ -172,23 +184,6 @@ struct CartView: View {
                 .padding(.bottom, 12)
             }
             .padding(.top, 10)
-
-            // What the bill was for, in the owner's words — and the owner's
-            // alone. The line under it says so, because a box on a bill form is
-            // the obvious place to expect a customer to read it. Optional: most
-            // bills are the number and the money.
-            NocturneField(
-                label: Loc.billNote,
-                placeholder: Loc.billNoteHint,
-                text: $cart.note,
-                identifier: "cart.note"
-            )
-            .padding(.top, 10)
-
-            Text(Loc.billNoteIsYours)
-                .nocturneText(.meta)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 4)
 
             // The paper, photographed while it is being written — which is when
             // the owner is holding it. Directly under its number, because that is
