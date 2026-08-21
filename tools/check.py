@@ -14,14 +14,14 @@ So the rules that have actually cost round trips are asserted here instead:
 Static only, and deliberately so. It parses text; it does not build anything.
 Run it *with* `cd android && ./gradlew :core:test`, never instead of it.
 
-Two checks, and the shortness is the point.
+Three checks, and the shortness is the point.
 
-Both are plain set comparisons with nothing to misparse. Structural checks were
-tried here and removed: one walked Swift decoders, one counted call sites, and
-both produced false positives within minutes of being written. A check that
-cries wolf is worse than no check, because the next person learns to skip the
-whole script — and what those two looked for is already covered by real tests
-that read a real file.
+All three are comparisons of one flat set or count against another, with nothing
+to misparse. Structural checks were tried here and removed: one walked Swift
+decoders, one counted call sites, and both produced false positives within
+minutes of being written. A check that cries wolf is worse than no check, because
+the next person learns to skip the whole script — and what those two looked for is
+already covered by real tests that read a real file.
 
 Do not add a check on suspicion. Add one when something has actually gone wrong,
 and only when it can be expressed without parsing structure.
@@ -36,6 +36,8 @@ ROOT = Path(__file__).resolve().parent.parent
 KOTLIN_STRINGS = ROOT / "android/core/src/main/kotlin/com/stockbook/core/text/Strings.kt"
 SWIFT_STRINGS = ROOT / "ios/Stockbook/Support/Localization/Strings.swift"
 SWIFT_LOCALIZATION_TESTS = ROOT / "ios/StockbookTests/LocalizationTests.swift"
+KOTLIN_SELL_SCREEN = ROOT / "android/app/src/main/kotlin/com/stockbook/app/feature/sell/SellScreen.kt"
+SWIFT_SELL_SCREEN = ROOT / "ios/Stockbook/Features/Sell/SellScreen.swift"
 
 failures: list[str] = []
 
@@ -102,10 +104,59 @@ def check_localization_registration() -> None:
         ok("localization coverage", f"all {len(declared)} plain strings registered")
 
 
+# --- 3. What the bill form collects must reach the store on both platforms.
+
+
+#: Every field the sell screen hands to `saveBill` / `updateBill`. Each name must
+#: be passed the same number of times on both platforms — twice for a field both
+#: calls take, once for one only `saveBill` takes.
+BILL_FIELDS = [
+    "lines", "customer", "paid", "amount", "createdAt",
+    "invoiceNo", "photoIds", "note", "discountPercent",
+]
+
+
+def check_bill_fields_reach_the_store() -> None:
+    """
+    The discount was collected by the Android form, previewed correctly on it,
+    and then never passed to `saveBill`. Every parameter of that function carries
+    a default, so nothing complained: the shop typed 10%, watched 100 become 90,
+    saved, and got a bill for 100.
+
+    Nothing else could have caught it. `android/core` has the rule and tests it;
+    the missing argument is in `android/app`, which does not compile here; and
+    iOS, which had it right, has no test that reads an Android file. It is a
+    named argument counted in two files, which is the only reason this check is
+    allowed to exist.
+    """
+    kotlin = KOTLIN_SELL_SCREEN.read_text()
+    swift = SWIFT_SELL_SCREEN.read_text()
+
+    clean = True
+    for field in BILL_FIELDS:
+        # `= value` in Kotlin, `: value` in Swift. Case-insensitive because Swift
+        # spells the one about photographs `photoIDs`.
+        in_kotlin = len(re.findall(rf"\b{field}\s*=[^=]", kotlin, re.I))
+        in_swift = len(re.findall(rf"\b{field}\s*:", swift, re.I))
+
+        if in_kotlin != in_swift or in_kotlin == 0:
+            clean = False
+            fail(
+                "bill fields reach the store",
+                f"{field}: passed {in_kotlin}× on Android, {in_swift}× on iOS",
+                "a field the form collects and does not hand over is invisible — "
+                "the screen shows the right figure, the store saves the old one, "
+                "and every parameter has a default so nothing fails to compile",
+            )
+    if clean:
+        ok("bill fields", f"all {len(BILL_FIELDS)} reach saveBill on both platforms")
+
+
 def main() -> int:
     print("Stockbook — cross-platform checks\n")
     check_strings_parity()
     check_localization_registration()
+    check_bill_fields_reach_the_store()
 
     if failures:
         print("\n" + "\n\n".join(failures))

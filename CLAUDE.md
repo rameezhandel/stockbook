@@ -51,10 +51,10 @@ cd android && ./gradlew :core:test
 ```
 
 `tools/check.py` asserts the things that are invisible until they cost a round
-trip: string-table parity, `LocalizationTests` registration, hand-written Swift
-decoders reading every property, and every backup field having both an export and
-a restore site. Each check is there because that exact thing has really gone
-wrong. Neither command replaces the other.
+trip: string-table parity, `LocalizationTests` registration, and every field the
+bill form collects being handed to `saveBill` on both platforms. Each check is
+there because that exact thing has really gone wrong. Neither command replaces
+the other.
 
 ## The traps that have actually cost round trips
 
@@ -104,6 +104,12 @@ wrong. Neither command replaces the other.
 
 - A rename is not done when it compiles. Grep for **every** use — icon maps,
   `when` branches, other screens, the twin platform.
+- **A new field on `saveBill` is not done when the box appears on the form.**
+  Every parameter of `saveBill` and `updateBill` carries a default, so a screen
+  that collects a figure and forgets to pass it compiles clean and tests clean.
+  The discount shipped that way on Android: the form showed 100 becoming 90 and
+  the store wrote 100. `tools/check.py` now counts each field at both call sites
+  on both platforms — add the new one to `BILL_FIELDS`.
 - Backup fields have **four** call sites: export and restore, on each platform.
   `paymentNo` once matched three of four and would have dropped every receipt
   number on the way to a new phone.
