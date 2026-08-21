@@ -7,6 +7,7 @@ import com.stockbook.core.model.Bill
 import com.stockbook.core.model.CreditNote
 import com.stockbook.core.model.Payment
 import com.stockbook.core.model.Customer
+import com.stockbook.core.model.Expense
 import com.stockbook.core.model.Product
 import com.stockbook.core.model.Purchase
 import com.stockbook.core.model.Supplier
@@ -33,6 +34,15 @@ class AppRouter {
     /** Null closed; a product means edit, `NEW_PRODUCT` means create. */
     var productEditor by mutableStateOf<Product?>(null)
     var creatingProduct by mutableStateOf(false)
+
+    /**
+     * The expense sheet: the expense being corrected, or [creatingExpense] for a
+     * new one. The same pair the product editor uses, for the same reason — the
+     * sheet needs to know which of the two it is without a nullable meaning two
+     * different things.
+     */
+    var expenseEditor by mutableStateOf<Expense?>(null)
+    var creatingExpense by mutableStateOf(false)
 
     /**
      * The stock sheet, opened from a product: it can count that product's shelf
@@ -233,6 +243,21 @@ class AppRouter {
         creatingProduct = true
     }
 
+    fun openNewExpense() {
+        expenseEditor = null
+        creatingExpense = true
+    }
+
+    fun openExpense(expense: Expense) {
+        creatingExpense = false
+        expenseEditor = expense
+    }
+
+    fun closeExpense() {
+        expenseEditor = null
+        creatingExpense = false
+    }
+
     fun openProduct(product: Product) {
         creatingProduct = false
         productEditor = product
@@ -288,6 +313,8 @@ class AppRouter {
     }
 
     fun closeOverlays() {
+        expenseEditor = null
+        creatingExpense = false
         partyFor = null
         productEditor = null
         creatingProduct = false

@@ -891,6 +891,47 @@ class Strings(val language: AppLanguage) {
             )
     }
 
+
+    // --- The owner's own spending
+
+    val expensesTitle: String get() = pick("Expenses", "ಖರ್ಚುಗಳು")
+    val addAnExpense: String get() = pick("Add an expense", "ಖರ್ಚು ಸೇರಿಸಿ")
+    val newExpense: String get() = pick("New expense", "ಹೊಸ ಖರ್ಚು")
+    val editExpense: String get() = pick("Edit expense", "ಖರ್ಚು ಬದಲಿಸಿ")
+
+    /** The field label. A question, because the answer is a phrase not a category. */
+    val expenseWhatFor: String get() = pick("What was it for?", "ಯಾವುದಕ್ಕೆ?")
+    val expenseWhatForHint: String get() = pick("Petrol, tea, rent…", "ಪೆಟ್ರೋಲ್, ಚಹಾ, ಬಾಡಿಗೆ…")
+    val expenseSpentOn: String get() = pick("Spent on", "ಖರ್ಚು ಮಾಡಿದ ದಿನ")
+
+    val noExpensesYet: String get() = pick("Nothing written down yet", "ಇನ್ನೂ ಏನೂ ಬರೆದಿಲ್ಲ")
+
+    /**
+     * The card above the list. Says *spent*, never *profit*: this ledger is
+     * beside the shop's figures and never inside them.
+     */
+    val spentInPeriod: String get() = pick("Spent", "ಖರ್ಚು")
+
+    val saveExpense: String get() = pick("Save expense", "ಖರ್ಚು ಉಳಿಸಿ")
+    val enterWhatItWasFor: String get() = pick("Say what it was for", "ಯಾವುದಕ್ಕೆ ಎಂದು ಬರೆಯಿರಿ")
+    val removeExpense: String get() = pick("Remove this expense", "ಈ ಖರ್ಚು ತೆಗೆದುಹಾಕಿ")
+
+    /** Said before removing one. Short, because nothing else depends on it. */
+    val removeExpenseNote: String
+        get() = pick(
+            "It disappears from the list. Nothing else changes.",
+            "ಪಟ್ಟಿಯಿಂದ ಮಾಯವಾಗುತ್ತದೆ. ಬೇರೇನೂ ಬದಲಾಗುವುದಿಲ್ಲ."
+        )
+
+    /**
+     * The line under the total, said once on the screen so nobody has to wonder.
+     */
+    val expensesArePrivate: String
+        get() = pick(
+            "Yours alone — never on a bill or a statement.",
+            "ನಿಮಗಷ್ಟೇ — ಬಿಲ್ ಅಥವಾ ಖಾತೆ ವಿವರದಲ್ಲಿ ಬರುವುದಿಲ್ಲ."
+        )
+
     // --- Dates
 
     // `TUESDAY, 11 AUGUST` — uppercased by the `.kicker` type role.

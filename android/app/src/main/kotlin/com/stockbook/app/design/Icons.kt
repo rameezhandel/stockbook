@@ -61,6 +61,9 @@ object Icon {
     // People
     val customer: ImageVector = Icons.Filled.Person
 
+    /** The owner's own spending. */
+    val expenses: ImageVector = Icons.Outlined.Receipt
+
     // Appearance
     val themeDark: ImageVector = Icons.Filled.DarkMode        // phosphor: moon
     val themeLight: ImageVector = Icons.Filled.LightMode      // phosphor: sun

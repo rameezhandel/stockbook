@@ -971,6 +971,45 @@ struct Strings {
         }
     }
 
+
+    // MARK: - The owner's own spending
+
+    var expensesTitle: String { pick("Expenses", "ಖರ್ಚುಗಳು") }
+    var addAnExpense: String { pick("Add an expense", "ಖರ್ಚು ಸೇರಿಸಿ") }
+    var newExpense: String { pick("New expense", "ಹೊಸ ಖರ್ಚು") }
+    var editExpense: String { pick("Edit expense", "ಖರ್ಚು ಬದಲಿಸಿ") }
+
+    /// The field label. A question, because the answer is a phrase not a category.
+    var expenseWhatFor: String { pick("What was it for?", "ಯಾವುದಕ್ಕೆ?") }
+    var expenseWhatForHint: String { pick("Petrol, tea, rent…", "ಪೆಟ್ರೋಲ್, ಚಹಾ, ಬಾಡಿಗೆ…") }
+    var expenseSpentOn: String { pick("Spent on", "ಖರ್ಚು ಮಾಡಿದ ದಿನ") }
+
+    var noExpensesYet: String { pick("Nothing written down yet", "ಇನ್ನೂ ಏನೂ ಬರೆದಿಲ್ಲ") }
+
+    /// The card above the list. Says *spent*, never *profit*: this ledger is
+    /// beside the shop's figures and never inside them.
+    var spentInPeriod: String { pick("Spent", "ಖರ್ಚು") }
+
+    var saveExpense: String { pick("Save expense", "ಖರ್ಚು ಉಳಿಸಿ") }
+    var enterWhatItWasFor: String { pick("Say what it was for", "ಯಾವುದಕ್ಕೆ ಎಂದು ಬರೆಯಿರಿ") }
+    var removeExpense: String { pick("Remove this expense", "ಈ ಖರ್ಚು ತೆಗೆದುಹಾಕಿ") }
+
+    /// Said before removing one. Short, because nothing else depends on it.
+    var removeExpenseNote: String {
+        pick(
+            "It disappears from the list. Nothing else changes.",
+            "ಪಟ್ಟಿಯಿಂದ ಮಾಯವಾಗುತ್ತದೆ. ಬೇರೇನೂ ಬದಲಾಗುವುದಿಲ್ಲ."
+        )
+    }
+
+    /// The line under the total, said once on the screen so nobody has to wonder.
+    var expensesArePrivate: String {
+        pick(
+            "Yours alone — never on a bill or a statement.",
+            "ನಿಮಗಷ್ಟೇ — ಬಿಲ್ ಅಥವಾ ಖಾತೆ ವಿವರದಲ್ಲಿ ಬರುವುದಿಲ್ಲ."
+        )
+    }
+
     // MARK: - Dates
 
     /// `TUESDAY, 11 AUGUST` — uppercased by the `.kicker` type role.

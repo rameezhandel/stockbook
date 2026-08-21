@@ -26,16 +26,21 @@ import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
 
 /**
- * The account book, both halves of it.
+ * The account book: every direction money moves.
  *
  * **Sales** is what was sold and to whom; **Purchases** is what arrived and from
- * whom. The two are mirror images in the domain — one `Statement.make` serves
+ * whom. Those two are mirror images in the domain — one `Statement.make` serves
  * both — so they belong beside each other rather than in two tabs.
  *
- * Two chips rather than two tabs, because the shop does not use the halves
- * symmetrically: a sale happens fifty times a day and a delivery arrives once a
- * week. A tab bar is weighted by how often a thumb goes there, not by how tidy
- * the model is.
+ * **Expenses** is the odd one and sits here anyway. It is the owner's own
+ * spending, tied to nobody, and it touches none of the arithmetic on the other
+ * two chips. But it is money leaving, it is written down for the same reason the
+ * others are, and the alternative was a fourth tab for something recorded once a
+ * day — or Settings, which is where features go to be forgotten.
+ *
+ * Chips rather than tabs, because the shop does not use these symmetrically: a
+ * sale happens fifty times a day, a delivery arrives once a week. A tab bar is
+ * weighted by how often a thumb goes there, not by how tidy the model is.
  */
 @Composable
 fun BookScreen(
@@ -50,7 +55,7 @@ fun BookScreen(
      * more usefully, a trip into a sheet and back — an owner who came here for
      * suppliers should not be handed bills again on the way back.
      */
-    var showingSales by rememberSaveable { mutableStateOf(true) }
+    var side by rememberSaveable { mutableStateOf(Side.SALES) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         ScreenHeader(title = strings.bookTitle, bottomPadding = 10.dp)
@@ -64,37 +69,56 @@ fun BookScreen(
             ChoicePill(
                 title = strings.salesSide,
                 icon = Icon.bills,
-                selected = showingSales,
-                onClick = { showingSales = true },
+                selected = side == Side.SALES,
+                onClick = { side = Side.SALES },
                 modifier = Modifier.weight(1f)
             )
             Spacer(Modifier.width(6.dp))
             ChoicePill(
                 title = strings.purchasesSide,
                 icon = Icon.items,
-                selected = !showingSales,
-                onClick = { showingSales = false },
+                selected = side == Side.PURCHASES,
+                onClick = { side = Side.PURCHASES },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(6.dp))
+            ChoicePill(
+                title = strings.expensesTitle,
+                icon = Icon.expenses,
+                selected = side == Side.EXPENSES,
+                onClick = { side = Side.EXPENSES },
                 modifier = Modifier.weight(1f)
             )
         }
 
-        if (showingSales) {
+        // No `else` on purpose: a fourth side has to break this and be placed
+        // deliberately, not fall through to whichever branch was last.
+        when (side) {
             // The Bills screen exactly as it was, minus the header this one now
-            // carries. Nothing about sales moved; it gained a neighbour.
-            BillsScreen(
+            // carries. Nothing about sales moved; it gained neighbours.
+            //
+            // Weighted, not wrapped. A `Column` measures an unweighted child
+            // against the *full* remaining height, so the list inside would have
+            // been given the whole screen and run off the bottom by exactly the
+            // height of the header and chips above it.
+            Side.SALES -> BillsScreen(
                 state = state,
                 store = store,
                 router = router,
                 strings = strings,
                 showHeader = false,
-                // Weighted, not wrapped. A `Column` measures an unweighted child
-                // against the *full* remaining height, so the list inside would
-                // have been given the whole screen and run off the bottom by
-                // exactly the height of the header and chips above it.
                 modifier = Modifier.weight(1f)
             )
-        } else {
-            PurchasesPane(
+
+            Side.PURCHASES -> PurchasesPane(
+                state = state,
+                store = store,
+                router = router,
+                strings = strings,
+                modifier = Modifier.weight(1f)
+            )
+
+            Side.EXPENSES -> ExpensesPane(
                 state = state,
                 store = store,
                 router = router,
@@ -104,3 +128,6 @@ fun BookScreen(
         }
     }
 }
+
+/** Which chip is on. Saved across a trip into a sheet and back. */
+private enum class Side { SALES, PURCHASES, EXPENSES }

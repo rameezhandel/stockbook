@@ -36,6 +36,9 @@ enum Icon {
     static let customer = "person"                    // phosphor: user
     static let owed = "banknote"                      // phosphor: hand-coins
     static let money = "dollarsign.circle"            // phosphor: money
+    /// The owner's own spending. A receipt, not a coin: what is written down
+    /// here is the slip, and the coin icons are already spoken for.
+    static let expenses = "receipt"                   // phosphor: receipt
     static let partPayment = "scissors"               // phosphor: scissors
 
     // Appearance

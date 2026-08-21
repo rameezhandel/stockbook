@@ -38,6 +38,7 @@ import com.stockbook.app.feature.customers.RecordPaymentSheet
 import com.stockbook.app.feature.customers.PaySupplierSheet
 import com.stockbook.app.feature.customers.SupplierEditorSheet
 import com.stockbook.app.feature.customers.StatementPdf
+import com.stockbook.app.feature.book.ExpenseSheet
 import com.stockbook.app.feature.book.PartyScreen
 import com.stockbook.app.feature.customers.StatementScreen
 import com.stockbook.app.feature.items.AddStockSheet
@@ -332,6 +333,19 @@ private fun Shell(store: StockbookStore) {
                     router.receipt = null
                     router.tab = AppTab.SELL
                 }
+            )
+        }
+
+        BottomSheet(
+            visible = router.creatingExpense || router.expenseEditor != null,
+            onDismiss = { router.closeExpense() }
+        ) {
+            ExpenseSheet(
+                editing = router.expenseEditor,
+                state = state,
+                store = store,
+                strings = strings,
+                onClose = { router.closeExpense() }
             )
         }
 
