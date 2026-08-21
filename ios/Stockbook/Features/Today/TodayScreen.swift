@@ -114,19 +114,51 @@ struct TodayScreen: View {
                 .minimumScaleFactor(0.6)
                 .rollingNumber(sold)
                 .padding(.top, 3)
-                .padding(.bottom, 10)
+
+            // Shown beside what was sold, over the *same* span — one period
+            // control for both, so the two can never quietly be measuring
+            // different months. Absent entirely until the owner has written
+            // something down, so a shop that does not use the ledger sees Home
+            // exactly as it was.
+            if !store.expenses.isEmpty {
+                spentLine.padding(.top, 4)
+            }
 
             HStack(spacing: 6) {
                 ForEach(Span.allCases) { candidate in
                     spanChip(candidate)
                 }
             }
+            .padding(.top, 10)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.statRadius, style: .continuous))
         .hairline(radius: Metrics.statRadius)
         .padding(.bottom, Metrics.cardGap)
+    }
+
+    /// What the owner spent over the span the card is showing.
+    ///
+    /// A line inside the card rather than a card of its own, and the size
+    /// difference is the point. Two cards of equal weight saying "Sold 40,200"
+    /// and "Spent 3,100" invite the subtraction — and the answer would be wrong,
+    /// because what the goods cost is not in it. A companion figure in smaller
+    /// type reads as another fact about the same period, which is what it is.
+    private var spentLine: some View {
+        let spent = store.spentIn(span.period)
+
+        return HStack(spacing: 5) {
+            Text(Loc.spentInPeriod)
+                .font(NocturneType.inter(11))
+                .foregroundStyle(Nocturne.neutral500)
+            Text(Money.text(spent, in: currency))
+                .font(NocturneType.inter(12.5))
+                .foregroundStyle(Nocturne.neutral400)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .rollingNumber(spent)
+        }
     }
 
     /// The statement screen's chip, at the size a card has room for.

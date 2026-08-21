@@ -72,6 +72,14 @@ fun TodayScreen(
     val period = remember(span, state.bills) { span.period() }
     val sold = remember(period, state.bills) { store.soldIn(period) }
 
+    // Shown beside what was sold, over the *same* span — one period control for
+    // both, so the two figures can never quietly be measuring different months.
+    //
+    // Absent entirely until the owner has written something down, so a shop that
+    // does not use the ledger sees Home exactly as it was.
+    val spent = remember(period, state.expenses) { store.spentIn(period) }
+    val hasSpending = state.expenses.isNotEmpty()
+
     val (owedNames, owedTotal) = store.outstanding()
     val (payableNames, payableTotal) = store.payable()
     val greetingName = state.settings.ownerName.firstName
@@ -105,6 +113,8 @@ fun TodayScreen(
                 SoldCard(
                     label = strings.soldInPeriod,
                     value = Money.text(sold, currency),
+                    spentLabel = strings.spentInPeriod.takeIf { hasSpending },
+                    spentValue = Money.text(spent, currency),
                     span = span,
                     strings = strings,
                     onChoose = { span = it }
@@ -400,6 +410,18 @@ private enum class Span(val label: (Strings) -> String) {
 private fun SoldCard(
     label: String,
     value: String,
+    /**
+     * The owner's spending over the same span, or null when they have never
+     * recorded any.
+     *
+     * A line inside this card rather than a card of its own, and the size
+     * difference is the point. Two cards of equal weight saying "Sold 40,200"
+     * and "Spent 3,100" invite the subtraction — and the answer would be wrong,
+     * because what the goods cost is not in it. A companion figure in smaller
+     * type reads as another fact about the same period, which is what it is.
+     */
+    spentLabel: String?,
+    spentValue: String,
     span: Span,
     strings: Strings,
     onChoose: (Span) -> Unit
@@ -412,8 +434,25 @@ private fun SoldCard(
             color = Nocturne.text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 3.dp, bottom = 10.dp)
+            modifier = Modifier.padding(top = 3.dp)
         )
+        if (spentLabel != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                Text(spentLabel, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    spentValue,
+                    style = NocturneType.inter(12.5),
+                    color = Nocturne.neutral400,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Spacer(Modifier.height(10.dp))
         Row(modifier = Modifier.fillMaxWidth()) {
             Span.entries.forEach { candidate ->
                 SpanChip(

@@ -42,6 +42,28 @@ The signing config and the bundle workflow are written; see
 
 **Done when** `Play bundle` produces a signed `.aab` that the Console accepts.
 
+## Parked, but on a clock
+
+- **Profit, and the one field that has to be stored before release.**
+
+  Deferred as a feature — but `BillLine` snapshots the name, the quantity and
+  the price *charged*, and **not what the goods cost**. Computing margin today
+  would mean reading `Product.cost`, which is the buying price *now*: raise a
+  supplier's price next month and last March's profit silently changes. The
+  codebase already knows this is wrong, which is why `Bill.total` is stored
+  rather than recomputed — cost simply never needed the same treatment.
+
+  Adding `cost` beside `price` on `BillLine` is a few lines and, before release,
+  needs no migration. **Afterwards it is a format change plus every bill already
+  written permanently unable to answer the question.** Whoever picks this up
+  should decide it on that basis, not on whether the screen is wanted yet.
+
+  Two gaps would remain even then: a bill entered as a figure has no lines and
+  so no cost, and would read as pure profit unless excluded and said so; and a
+  figure-only credit note has no goods to reverse. Both argue for calling it
+  *what the goods earned* rather than *profit*, which claims to have counted
+  rent, wages and petrol.
+
 ## Parked, not blocking
 
 - **Photographs on deliveries.** `Purchase` would take `photoIDs` exactly as
