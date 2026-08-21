@@ -132,6 +132,7 @@ fun CartView(
                 PaperRow(
                     cart = cart,
                     strings = strings,
+                    currency = currency,
                     clash = clash,
                     onPickDate = { pickingDate = true }
                 )
@@ -225,6 +226,8 @@ fun CartView(
 private fun PaperRow(
     cart: Cart,
     strings: Strings,
+    /** The shop's own, because this row shows what a discount comes to. */
+    currency: Currency,
     clash: Bill?,
     onPickDate: () -> Unit
 ) {
