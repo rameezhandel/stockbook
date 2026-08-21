@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -46,6 +47,46 @@ fun Modifier.hairline(color: Color = Nocturne.neutral800, radius: Dp): Modifier 
 /** A card: surface ground, rounded, with the hairline. */
 fun Modifier.card(radius: Dp = Metrics.cardRadius): Modifier =
     clip(RoundedCornerShape(radius)).background(Nocturne.surface)
+
+/**
+ * One of the three spans a figure can be shown over: this month, last month,
+ * this year.
+ *
+ * Here rather than beside either screen that uses it, because it was written
+ * twice and the two drifted. The copy on Expenses lost `TextAlign.Center`, so
+ * three equal-width chips held their labels against the left edge; it also drew
+ * `card()` whether or not it was the chosen one, on a card of the same colour,
+ * which left the ground doing nothing to say which span was showing. Home's
+ * copy — this one — was right, and matched both iPhone screens.
+ *
+ * Sized by the caller: every use hands it `Modifier.weight(1f)` in a row, so the
+ * three come out equal whatever the words are.
+ */
+@Composable
+fun SpanChip(
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        title,
+        style = NocturneType.inter(11.5),
+        color = if (selected) Nocturne.accent else Nocturne.neutral500,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+        modifier = modifier
+            .clip(RoundedCornerShape(Metrics.controlRadius))
+            .background(if (selected) Nocturne.primaryPressed else Color.Transparent)
+            .hairline(
+                if (selected) Nocturne.accent else Nocturne.divider,
+                Metrics.controlRadius
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 7.dp)
+    )
+}
 
 /**
  * A date the owner can change: a label, the date itself, and a calendar behind

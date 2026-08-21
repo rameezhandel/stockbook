@@ -39,6 +39,7 @@ import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.ScreenHeader
+import com.stockbook.app.design.SpanChip
 import com.stockbook.app.design.StatCard
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
@@ -467,29 +468,3 @@ private fun SoldCard(
     }
 }
 
-/** The statement screen's chip, at the size a card has room for. */
-@Composable
-private fun SpanChip(
-    title: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Text(
-        title,
-        style = NocturneType.inter(11.5),
-        color = if (selected) Nocturne.accent else Nocturne.neutral500,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        textAlign = TextAlign.Center,
-        modifier = modifier
-            .clip(RoundedCornerShape(Metrics.controlRadius))
-            .background(if (selected) Nocturne.primaryPressed else Color.Transparent)
-            .hairline(
-                if (selected) Nocturne.accent else Nocturne.divider,
-                Metrics.controlRadius
-            )
-            .clickable(onClick = onClick)
-            .padding(vertical = 7.dp)
-    )
-}

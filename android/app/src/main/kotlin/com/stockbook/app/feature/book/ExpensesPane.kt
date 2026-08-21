@@ -30,6 +30,7 @@ import com.stockbook.app.design.Kicker
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
+import com.stockbook.app.design.SpanChip
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
 import com.stockbook.core.model.Currency
@@ -179,32 +180,6 @@ private fun TotalCard(
     }
 }
 
-@Composable
-private fun SpanChip(
-    title: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Text(
-        title,
-        style = NocturneType.inter(11.5),
-        color = if (selected) Nocturne.accent else Nocturne.neutral500,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier
-            .card(Metrics.controlRadius)
-            .then(
-                if (selected) {
-                    Modifier.hairline(Nocturne.accent, Metrics.controlRadius)
-                } else {
-                    Modifier.hairline(Nocturne.divider, Metrics.controlRadius)
-                }
-            )
-            .clickable(onClick = onClick)
-            .padding(vertical = 7.dp, horizontal = 6.dp)
-    )
-}
 
 /**
  * One expense. Tapping it opens the sheet it was written on, which is where it
