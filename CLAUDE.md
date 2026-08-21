@@ -31,7 +31,7 @@ else.
 
 | | Build locally? |
 | --- | --- |
-| `android/core` | **Yes.** `cd android && ./gradlew :core:test` — 297 tests, ~15s |
+| `android/core` | **Yes.** `cd android && ./gradlew :core:test` — 313 tests, ~15s |
 | `android/app` | **No.** `dl.google.com` is 403 here; the Android Gradle Plugin cannot resolve |
 | `ios/` | **No.** No macOS, no Xcode, no Swift compiler |
 
@@ -131,6 +131,13 @@ wrong. Neither command replaces the other.
 - **Every number is typed by the owner, never suggested** — invoice, delivery,
   credit note and receipt numbers, each checked against its own series. Receipt
   1024 and invoice 1024 are different slips.
+- **The owner's spending is joined to nothing.** An `Expense` has no customer,
+  no supplier and no bill; it does not move Sold, Receivable or Payable, it does
+  not touch the shelf, and it cannot reach a statement — that is a document the
+  owner may turn round and show a customer. Half of `ExpenseTests` asserts the
+  absences rather than the behaviour, because a rule of the form "these two must
+  never meet" decays silently. It is also why the field did not bump the backup
+  version: a reader that drops expenses misreads no figure.
 - Photographs are **ids in the book, files on disk**. Cleanup runs one way only:
   a file nothing references may be deleted; an id whose file is missing is never
   pruned, because a book restored ahead of its pictures must re-adopt them.
@@ -201,7 +208,7 @@ context than it saves.
 | --- | --- |
 | `android/core` | Pure Kotlin JVM: models, store, statements, money, `Strings`, backup |
 | `android/app` | Compose UI, `MainActivity`, design system, photo storage |
-| `…/feature/book` | The Book: the party directory, one party's screen, the two panes |
+| `…/feature/book` | The Book: the party directory, one party's screen, the three panes |
 | `ios/Stockbook` | SwiftUI app; `Model`, `Store`, `Transfer`, `Features`, `Support` |
 | `tools/check.py` | The cross-platform invariants |
 | `tools/make_play_assets.py` | Launcher icon and Play listing artwork |

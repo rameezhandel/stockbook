@@ -84,7 +84,7 @@ xcodebuild test -scheme Stockbook \
 **Android** — JDK 17+, Android Studio only for the UI:
 
 ```sh
-cd android && ./gradlew :core:test     # 297 tests, ~15s, no SDK or emulator needed
+cd android && ./gradlew :core:test     # 313 tests, ~15s, no SDK or emulator needed
 cd android && ./gradlew :app:assembleDebug
 ```
 
@@ -118,6 +118,11 @@ they have bought, what is outstanding, their statement, their payments, and
 every document between them and the shop. They used to be a dropdown filter
 above a list of bills, which made a person something you narrowed a list by
 rather than something you could go and look at.
+
+Reports carries a third chip, **Expenses** — the owner's own spending, written
+down and totalled over a month or a year. It is deliberately joined to nothing
+else: no customer, no supplier, no bill, no effect on what anybody owes, and it
+cannot appear on a statement.
 
 Built on top of the original spec since:
 
