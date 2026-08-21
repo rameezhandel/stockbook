@@ -141,7 +141,7 @@ class StoreTests {
         val product = store.addProduct("Cisa lock", stock = 20, cost = 60.0, price = 95.0)
         store.saveBill(listOf(DraftLine(product.uid, 2, 95.0)), "Ahmed", null)
 
-        store.update(store.product(product.uid)!!, name = "Cisa lock v2", stock = 20, cost = 70.0, price = 120.0)
+        store.update(store.product(product.uid)!!, name = "Cisa lock v2", cost = 70.0, price = 120.0)
 
         // Asserted against the store, not a copy taken before the edit — a stale
         // value type would pass this test without proving anything.
@@ -149,6 +149,28 @@ class StoreTests {
         assertEquals("Cisa lock", bill.lines.first().name)
         assertEquals(95.0, bill.lines.first().price)
         assertEquals(190.0, bill.total)
+    }
+
+    @Test
+    fun `editing a product cannot change the count`() {
+        // The duplicate this closed: the product editor set stock as well, which
+        // made it a second, unlabelled `setStock` one keystroke from the price
+        // boxes. The count moves by one route each now — a delivery in, a bill
+        // out, or `setStock` for a recount — and the parameter is gone rather
+        // than ignored, so the two cannot drift back together.
+        val store = makeStore()
+        val product = store.addProduct("Cisa lock", stock = 20, cost = 60.0, price = 95.0)
+
+        store.update(store.product(product.uid)!!, name = "Cisa lock v2", cost = 70.0, price = 120.0)
+
+        val after = assertNotNull(store.product(product.uid))
+        assertEquals(20, after.stock, "the shelf is not the editor's business")
+        assertEquals("Cisa lock v2", after.name)
+        assertEquals(120.0, after.price)
+
+        // And the one route that is: absolute, not additive.
+        store.setStock(after, 17)
+        assertEquals(17, store.product(product.uid)?.stock)
     }
 
     @Test

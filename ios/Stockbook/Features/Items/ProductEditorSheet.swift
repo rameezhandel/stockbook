@@ -41,17 +41,32 @@ struct ProductEditorSheet: View {
                 fontSize: 15
             )
 
+            // The count is asked for once, when the product is created, and
+            // never again from this sheet.
+            //
+            // It used to sit here on every edit too, which made it a second,
+            // unlabelled "Set count" one keystroke from the price boxes: fixing
+            // a miscount could rewrite a selling price, and "In stock" said
+            // nothing about whether the number was absolute or something to add.
+            // Afterwards the shelf moves for a stated reason — a delivery in, a
+            // bill out, or a recount through Set count, which says what it is.
             HStack(spacing: 8) {
-                NocturneField.number(
-                    label: Loc.inStock,
-                    text: $stock,
-                    isRequiredAndEmpty: stock.isBlank
-                )
+                if isNew {
+                    NocturneField.number(
+                        label: Loc.openingStock,
+                        text: $stock,
+                        isRequiredAndEmpty: stock.isBlank
+                    )
+                }
                 NocturneField.number(
                     label: Loc.buyingPrice,
                     text: $cost,
                     isRequiredAndEmpty: cost.isBlank
                 )
+            }
+
+            if isNew {
+                Text(Loc.openingStockNote).nocturneText(.meta)
             }
 
             NocturneField.number(
@@ -114,14 +129,18 @@ struct ProductEditorSheet: View {
 
     private func save() {
         guard canSave else { return }
-        let stockValue = Int(stock.trimmed) ?? Int(Money.parse(stock) ?? 0)
         let costValue = Money.parse(cost) ?? 0
         let priceValue = Money.parse(price) ?? 0
 
         if let product {
-            store.update(product, name: name, stock: stockValue, cost: costValue, price: priceValue)
+            store.update(product, name: name, cost: costValue, price: priceValue)
         } else {
-            store.addProduct(name: name, stock: stockValue, cost: costValue, price: priceValue)
+            store.addProduct(
+                name: name,
+                stock: Int(stock.trimmed) ?? Int(Money.parse(stock) ?? 0),
+                cost: costValue,
+                price: priceValue
+            )
         }
         router.productEditor = nil
     }

@@ -58,7 +58,7 @@ struct LocalizationTests {
         \.saveBill, \.enterCustomerName, \.billSaved, \.billDetailTitle,
         \.seeBills, \.nextCustomer, \.paidInFullCash,
         \.newProduct, \.editProduct, \.productName, \.productNameExample,
-        \.inStock, \.buyingPrice, \.sellingPrice, \.addStock,
+        \.inStock, \.openingStock, \.openingStockNote, \.buyingPrice, \.sellingPrice, \.addStock,
         \.removeThisProduct, \.setPriceAboveCost,
         \.supplier, \.whoDeliveredIt, \.howMany, \.paidPerPiece,
         \.recordPurchase, \.welcomeToStockbook, \.welcomeBody, \.yourName,

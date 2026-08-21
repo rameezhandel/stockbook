@@ -186,10 +186,24 @@ class StockbookStore(private val repository: StockbookRepository) {
         return product
     }
 
-    fun update(product: Product, name: String, stock: Int, cost: Double, price: Double) {
+    /**
+     * Corrects what a product **is** — its name and its two prices.
+     *
+     * Deliberately cannot touch the count. Editing a product used to set stock
+     * as well, which made it a second, unlabelled [setStock] sitting one
+     * keystroke away from the price boxes: fixing a miscount could rewrite a
+     * selling price, and neither field said whether the number was absolute or
+     * something to add.
+     *
+     * The count now moves for a stated reason and by one route each — arriving
+     * as a delivery, leaving on a bill, or corrected through [setStock], which
+     * says out loud that it is what was counted on the shelf. Taking the
+     * parameter away rather than ignoring it is what stops the two drifting back
+     * together.
+     */
+    fun update(product: Product, name: String, cost: Double, price: Double) {
         val updated = product.copy(
             name = name.trim(),
-            stock = maxOf(0, stock),
             cost = maxOf(0.0, cost),
             price = maxOf(0.0, price)
         )

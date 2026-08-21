@@ -73,17 +73,28 @@ fun ProductEditorSheet(
         )
         Spacer(Modifier.height(Metrics.cardGap))
 
+        // The count is asked for once, when the product is created, and never
+        // again from this sheet.
+        //
+        // It used to sit here on every edit too, which made it a second,
+        // unlabelled "Set count" one keystroke from the price boxes: fixing a
+        // miscount could rewrite a selling price, and "In stock" said nothing
+        // about whether the number was absolute or something to add. Afterwards
+        // the shelf moves for a stated reason — a delivery in, a bill out, or a
+        // recount through Set count, which says what it is.
         Row(modifier = Modifier.fillMaxWidth()) {
-            NocturneField(
-                value = stock,
-                onValueChange = { stock = it },
-                label = strings.inStock,
-                numeric = true,
-                isRequiredAndEmpty = stock.isBlank(),
-                imeAction = ImeAction.Next,
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(8.dp))
+            if (product == null) {
+                NocturneField(
+                    value = stock,
+                    onValueChange = { stock = it },
+                    label = strings.openingStock,
+                    numeric = true,
+                    isRequiredAndEmpty = stock.isBlank(),
+                    imeAction = ImeAction.Next,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+            }
             NocturneField(
                 value = cost,
                 onValueChange = { cost = it },
@@ -92,6 +103,15 @@ fun ProductEditorSheet(
                 isRequiredAndEmpty = cost.isBlank(),
                 imeAction = ImeAction.Next,
                 modifier = Modifier.weight(1f)
+            )
+        }
+
+        if (product == null) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                strings.openingStockNote,
+                style = NocturneType.meta,
+                color = Nocturne.neutral500
             )
         }
         Spacer(Modifier.height(Metrics.cardGap))
@@ -128,7 +148,7 @@ fun ProductEditorSheet(
                     if (product == null) {
                         store.addProduct(name, stockValue, costValue, priceValue)
                     } else {
-                        store.update(product, name, stockValue, costValue, priceValue)
+                        store.update(product, name, costValue, priceValue)
                     }
                     onClose()
                 },

@@ -663,6 +663,23 @@ struct Strings {
     var productName: String { pick("Product name", "ಸಾಮಾನಿನ ಹೆಸರು") }
     var productNameExample: String { pick("e.g. 4 inch hinge", "ಉದಾ. 4 ಇಂಚಿನ ಹಿಂಜ್") }
     var inStock: String { pick("In stock", "ದಾಸ್ತಾನು") }
+
+    /// The count on a product being created, and only then.
+    ///
+    /// Named for what it is rather than "In stock", because that read as a live
+    /// figure this sheet could keep setting — which is exactly what it used to
+    /// be, and what made it an unlabelled second `setCount`. This one is the
+    /// shelf on day one, carried over from the paper book: the same idea as a
+    /// customer's opening balance, and absent for the same reason once the app
+    /// itself is the record.
+    var openingStock: String { pick("Opening stock", "ಆರಂಭಿಕ ದಾಸ್ತಾನು") }
+
+    var openingStockNote: String {
+        pick(
+            "What is on the shelf today. After this, stock moves on a delivery, a bill, or a recount.",
+            "ಇಂದು ಶೆಲ್ಫಿನಲ್ಲಿ ಇರುವುದು. ನಂತರ ದಾಸ್ತಾನು ಡೆಲಿವರಿ, ಬಿಲ್ ಅಥವಾ ಮರು-ಎಣಿಕೆಯಿಂದ ಬದಲಾಗುತ್ತದೆ."
+        )
+    }
     var buyingPrice: String { pick("Buying price", "ಖರೀದಿ ಬೆಲೆ") }
     var sellingPrice: String { pick("Selling price", "ಮಾರಾಟ ಬೆಲೆ") }
     var addStock: String { pick("Add stock", "ದಾಸ್ತಾನು ಸೇರಿಸಿ") }

@@ -610,6 +610,24 @@ class Strings(val language: AppLanguage) {
     val productName: String get() = pick("Product name", "ಸಾಮಾನಿನ ಹೆಸರು")
     val productNameExample: String get() = pick("e.g. 4 inch hinge", "ಉದಾ. 4 ಇಂಚಿನ ಹಿಂಜ್")
     val inStock: String get() = pick("In stock", "ದಾಸ್ತಾನು")
+
+    /**
+     * The count on a product being created, and only then.
+     *
+     * Named for what it is rather than "In stock", because that read as a live
+     * figure this sheet could keep setting — which is exactly what it used to
+     * be, and what made it an unlabelled second [setCount]. This one is the
+     * shelf on day one, carried over from the paper book: the same idea as a
+     * customer's opening balance, and absent for the same reason once the app
+     * itself is the record.
+     */
+    val openingStock: String get() = pick("Opening stock", "ಆರಂಭಿಕ ದಾಸ್ತಾನು")
+
+    val openingStockNote: String
+        get() = pick(
+            "What is on the shelf today. After this, stock moves on a delivery, a bill, or a recount.",
+            "ಇಂದು ಶೆಲ್ಫಿನಲ್ಲಿ ಇರುವುದು. ನಂತರ ದಾಸ್ತಾನು ಡೆಲಿವರಿ, ಬಿಲ್ ಅಥವಾ ಮರು-ಎಣಿಕೆಯಿಂದ ಬದಲಾಗುತ್ತದೆ."
+        )
     val buyingPrice: String get() = pick("Buying price", "ಖರೀದಿ ಬೆಲೆ")
     val sellingPrice: String get() = pick("Selling price", "ಮಾರಾಟ ಬೆಲೆ")
     val addStock: String get() = pick("Add stock", "ದಾಸ್ತಾನು ಸೇರಿಸಿ")
