@@ -182,7 +182,7 @@ fun StatCard(
         Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
         Text(
             value,
-            style = NocturneType.bigNumber(26.0),
+            style = NocturneType.fittedNumber(value),
             color = Nocturne.text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

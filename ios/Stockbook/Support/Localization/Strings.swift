@@ -88,8 +88,8 @@ struct Strings {
     var today: String { pick("Today", "ಇಂದು") }
     var settings: String { pick("Settings", "ಸೆಟ್ಟಿಂಗ್‌ಗಳು") }
     var soldInPeriod: String { pick("Sold", "ಮಾರಾಟ") }
-    var receivableStat: String { pick("To collect", "ಬರಬೇಕಾದ ಬಾಕಿ") }
-    var payableStat: String { pick("To pay", "ಕೊಡಬೇಕಾದ ಬಾಕಿ") }
+    var receivableStat: String { pick("Receivable", "ಬರಬೇಕಾದ ಬಾಕಿ") }
+    var payableStat: String { pick("Payable", "ಕೊಡಬೇಕಾದ ಬಾಕಿ") }
     var billsStat: String { pick("Bills", "ಬಿಲ್‌ಗಳು") }
     // What Home shows under the two banners.
     //

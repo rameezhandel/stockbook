@@ -84,8 +84,8 @@ class Strings(val language: AppLanguage) {
     val today: String get() = pick("Today", "ಇಂದು")
     val settings: String get() = pick("Settings", "ಸೆಟ್ಟಿಂಗ್‌ಗಳು")
     val soldInPeriod: String get() = pick("Sold", "ಮಾರಾಟ")
-    val receivableStat: String get() = pick("To collect", "ಬರಬೇಕಾದ ಬಾಕಿ")
-    val payableStat: String get() = pick("To pay", "ಕೊಡಬೇಕಾದ ಬಾಕಿ")
+    val receivableStat: String get() = pick("Receivable", "ಬರಬೇಕಾದ ಬಾಕಿ")
+    val payableStat: String get() = pick("Payable", "ಕೊಡಬೇಕಾದ ಬಾಕಿ")
     val billsStat: String get() = pick("Bills", "ಬಿಲ್‌ಗಳು")
     // What Home shows under the two banners.
     //

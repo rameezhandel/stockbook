@@ -35,6 +35,29 @@ object NocturneType {
 
     fun bigNumber(size: Double) = inter(size, FontWeight.Medium)
 
+    /**
+     * The size a figure has to drop to so it fits the half-width box it sits in.
+     *
+     * Chosen from the string's length rather than measured, and deliberately so.
+     * A shrink-to-fit that measures is a recomposition loop on Android and, on
+     * iOS, `minimumScaleFactor` — which quietly stops working next to
+     * `contentTransition(.numericText())`, the rolling-digit animation these
+     * cards use. Both platforms then truncate instead of shrinking, which is how
+     * "SAR 500,000" came out as "SAR 500,0…" on a card with room for it.
+     *
+     * Length is a good enough proxy because there is only ever one kind of string
+     * here: a currency symbol and a grouped number. The thresholds are twinned in
+     * `NocturneType.fittedNumber` on iOS and must move together.
+     */
+    fun fittedNumber(text: String, max: Double = 26.0): TextStyle = bigNumber(
+        when {
+            text.length <= 9 -> max
+            text.length <= 12 -> max - 4
+            text.length <= 15 -> max - 7
+            else -> max - 9
+        }
+    )
+
     /** Section labels — "RECENT BILLS". Uppercased by the caller, not the style. */
     val kicker = TextStyle(
         fontSize = 11.sp,

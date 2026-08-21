@@ -79,8 +79,10 @@ struct StatCard: View {
                 .font(NocturneType.inter(11))
                 .foregroundStyle(Nocturne.neutral500)
             Text(value)
-                .nocturneText(.bigNumber(26))
+                .nocturneText(NocturneType.fittedNumber(value))
                 .lineLimit(1)
+                // Kept as a second line of defence, not the first: it does not
+                // fire alongside the rolling-digit transition below.
                 .minimumScaleFactor(0.6)
                 .rollingNumber(value)
         }

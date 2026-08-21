@@ -27,6 +27,27 @@ enum NocturneType {
     static func inter(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .custom(weight == .regular ? regular : medium, size: size)
     }
+
+    /// The size a figure has to drop to so it fits the half-width box it sits in.
+    ///
+    /// Chosen from the string's length rather than measured, and deliberately so.
+    /// `minimumScaleFactor` is the obvious answer and it quietly stops working
+    /// next to `contentTransition(.numericText())` — the rolling-digit animation
+    /// these cards use — so the text truncates instead of shrinking. That is how
+    /// "SAR 500,000" came out as "SAR 500,0…" on a card with room for it. Android
+    /// has no scaling modifier at all and simply clipped.
+    ///
+    /// Length is a good enough proxy because there is only ever one kind of
+    /// string here: a currency symbol and a grouped number. The thresholds are
+    /// twinned in `NocturneType.fittedNumber` on Android and must move together.
+    static func fittedNumber(_ text: String, max: CGFloat = 26) -> NocturneTextRole {
+        switch text.count {
+        case ...9: .bigNumber(max)
+        case ...12: .bigNumber(max - 4)
+        case ...15: .bigNumber(max - 7)
+        default: .bigNumber(max - 9)
+        }
+    }
 }
 
 /// The named roles from the handoff's type table. Using the role rather than a
