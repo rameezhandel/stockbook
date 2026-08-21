@@ -112,6 +112,10 @@ struct ShopState: Codable, Equatable {
     /// What has been credited back to customers, newest first.
     var creditNotes: [CreditNote] = []
 
+    /// The owner's own spending, newest first. Joined to nothing else here —
+    /// see `Expense`, where that separation is the whole point.
+    var expenses: [Expense] = []
+
     var settings: Settings = Settings()
 
     static let empty = ShopState()
@@ -125,6 +129,7 @@ struct ShopState: Codable, Equatable {
         purchases: [Purchase] = [],
         supplierPayments: [SupplierPayment] = [],
         creditNotes: [CreditNote] = [],
+        expenses: [Expense] = [],
         settings: Settings = Settings()
     ) {
         self.products = products
@@ -135,6 +140,7 @@ struct ShopState: Codable, Equatable {
         self.purchases = purchases
         self.supplierPayments = supplierPayments
         self.creditNotes = creditNotes
+        self.expenses = expenses
         self.settings = settings
     }
 
@@ -156,6 +162,7 @@ struct ShopState: Codable, Equatable {
         purchases = try container.decodeIfPresent([Purchase].self, forKey: .purchases) ?? []
         supplierPayments = try container.decodeIfPresent([SupplierPayment].self, forKey: .supplierPayments) ?? []
         creditNotes = try container.decodeIfPresent([CreditNote].self, forKey: .creditNotes) ?? []
+        expenses = try container.decodeIfPresent([Expense].self, forKey: .expenses) ?? []
         settings = try container.decodeIfPresent(Settings.self, forKey: .settings) ?? Settings()
     }
 }

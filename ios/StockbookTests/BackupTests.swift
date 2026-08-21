@@ -31,6 +31,57 @@ struct BackupTests {
         #expect(restored.bills.first?.lines.first?.price == 90, "the charged price, not the list price")
     }
 
+    @Test("The owner's own spending survives export and import")
+    func expensesRoundTrip() throws {
+        // A backup field has four call sites — export and restore, on each
+        // platform — and `paymentNo` once matched three of them, which would
+        // have dropped every receipt number on the way to a new phone. The
+        // Kotlin suite covers its two; these are the other two.
+        let store = makeStore()
+        store.addExpense(amount: 120, note: "Petrol", spentAt: Date(timeIntervalSince1970: 1_786_000_000))
+        store.addExpense(amount: 40, note: "Tea for the shop", spentAt: Date(timeIntervalSince1970: 1_786_100_000))
+
+        let data = try BackupService.encode(store.makeBackupDocument())
+        let fresh = makeStore()
+        fresh.replaceEverything(with: try BackupService.decode(data))
+
+        #expect(fresh.expenses.map(\.note) == ["Tea for the shop", "Petrol"])
+        #expect(fresh.expenses.map(\.amount) == [40, 120])
+    }
+
+    @Test("A file written before expenses existed still opens")
+    func expensesMayBeAbsent() throws {
+        // The reason this field did not bump the format version: absence has to
+        // read as "no expenses", not as a broken file. Swift's synthesised
+        // decoder throws on a missing key however the property is defaulted,
+        // which is exactly the trap that once made every older backup
+        // unreadable — so this key is read through the hand-written decoder.
+        let text = """
+        {"version":3,"exportedAt":"2026-08-13T12:00:00Z","ownerName":"Ahmed","currencyCode":"SAR",
+         "products":[],"bills":[],"customers":[],"payments":[],"suppliers":[],
+         "purchases":[],"supplierPayments":[]}
+        """
+
+        let document = try BackupService.decode(Data(text.utf8))
+
+        #expect(document.expenses.isEmpty)
+    }
+
+    @Test("Spending never reaches a statement")
+    func spendingIsPrivate() throws {
+        // The rule the whole feature rests on, asserted on this side too: a
+        // statement is a document the owner may turn round and show a customer.
+        let store = makeStore()
+        store.addCustomer(name: "Ahmed Contracting", openingBalance: 300)
+        store.addExpense(amount: 500, note: "Petrol")
+
+        let statement = try #require(
+            store.statement(forCustomer: "ahmed contracting", period: .thisYear())
+        )
+
+        #expect(statement.closingBalance == 300)
+    }
+
     @Test("Importing replaces everything rather than merging")
     func importReplaces() throws {
         let source = makeStore()

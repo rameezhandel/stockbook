@@ -37,6 +37,9 @@ final class StockbookStore {
     /// What has been credited back to customers, newest first.
     private(set) var creditNotes: [CreditNote] = []
 
+    /// The owner's own spending, newest first.
+    private(set) var expenses: [Expense] = []
+
     private(set) var settings: Settings = Settings()
 
     /// Set when the disk refuses a write. Nothing in the UI surfaces it yet;
@@ -61,6 +64,7 @@ final class StockbookStore {
             purchases = state.purchases.sorted { $0.createdAt > $1.createdAt }
             supplierPayments = state.supplierPayments.sorted { $0.paidAt > $1.paidAt }
             creditNotes = state.creditNotes.sorted { $0.issuedAt > $1.issuedAt }
+            expenses = state.expenses.sorted { $0.spentAt > $1.spentAt }
             settings = state.settings
             L10n.use(settings.language)
             Nocturne.use(settings.theme)
@@ -837,6 +841,61 @@ final class StockbookStore {
         persistEverything()
     }
 
+    // MARK: - The owner's own spending
+
+    /// Writes down money the owner spent.
+    ///
+    /// Returns nil rather than saving nonsense: an amount at or below zero is
+    /// not an expense, and a blank note is a figure nobody can account for a
+    /// month later. Both are refused here rather than in the sheet, so the rule
+    /// holds however the store is reached.
+    @discardableResult
+    func addExpense(amount: Double, note: String, spentAt: Date = .now) -> Expense? {
+        let what = note.trimmed
+        guard amount > 0, !what.isEmpty else { return nil }
+
+        let expense = Expense(amount: amount, note: what, spentAt: spentAt)
+        expenses.insert(expense, at: 0)
+        persistEverything()
+        return expense
+    }
+
+    /// Corrects one. Same rules as writing it: a correction cannot make it invalid.
+    @discardableResult
+    func updateExpense(id: String, amount: Double, note: String, spentAt: Date) -> Expense? {
+        guard let index = expenses.firstIndex(where: { $0.id == id }) else { return nil }
+        let what = note.trimmed
+        guard amount > 0, !what.isEmpty else { return nil }
+
+        expenses[index].amount = amount
+        expenses[index].note = what
+        expenses[index].spentAt = spentAt
+        persistEverything()
+        return expenses[index]
+    }
+
+    /// Removes one outright.
+    ///
+    /// Nothing to put back and nothing to recalculate — the dividend of an
+    /// expense being attached to nothing. Deleting a bill has to return its
+    /// stock and free its number; this is a line disappearing from a private
+    /// list.
+    func deleteExpense(id: String) {
+        guard expenses.contains(where: { $0.id == id }) else { return }
+        expenses.removeAll { $0.id == id }
+        persistEverything()
+    }
+
+    /// What the owner spent inside `period`.
+    ///
+    /// The same notion of a period as `soldIn` and `boughtIn`. Deliberately
+    /// *not* netted against either: this figure stands beside the shop's, never
+    /// inside it.
+    func spentIn(_ period: StatementPeriod) -> Double {
+        let range = period.range()
+        return expenses.filter { range.contains($0.spentAt) }.reduce(0) { $0 + $1.amount }
+    }
+
     /// The note already carrying this number, if any — the same question
     /// `billWithInvoiceNo` asks, on a series of its own.
     func creditNoteWithNo(_ noteNo: String?, exceptId: UUID? = nil) -> CreditNote? {
@@ -1525,6 +1584,9 @@ final class StockbookStore {
                     issuedAt: row.issuedAt
                 )
             },
+            expenses: document.expenses.map {
+                Expense(id: $0.id, amount: $0.amount, note: $0.note, spentAt: $0.spentAt)
+            },
             settings: restored
         )
 
@@ -1537,6 +1599,7 @@ final class StockbookStore {
         purchases = state.purchases.sorted { $0.createdAt > $1.createdAt }
         supplierPayments = state.supplierPayments.sorted { $0.paidAt > $1.paidAt }
         creditNotes = state.creditNotes.sorted { $0.issuedAt > $1.issuedAt }
+        expenses = state.expenses.sorted { $0.spentAt > $1.spentAt }
         settings = restored
     }
 
@@ -1557,6 +1620,7 @@ final class StockbookStore {
             purchases: purchases,
             supplierPayments: supplierPayments,
             creditNotes: creditNotes,
+            expenses: expenses,
             settings: settings
         )
         attempt { try repository.replaceAll(with: state) }
@@ -1657,6 +1721,9 @@ final class StockbookStore {
                         BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price)
                     }
                 )
+            },
+            expenses: expenses.map {
+                BackupDocument.ExpenseRow(id: $0.id, amount: $0.amount, note: $0.note, spentAt: $0.spentAt)
             }
         )
     }

@@ -178,6 +178,9 @@ private struct AppShell: View {
         .animation(Metrics.quick, value: router.partyFor)
         .animation(Metrics.quick, value: router.statementFor)
         .animation(Metrics.quick, value: router.supplierStatementFor)
+        .nocturneSheet(item: $router.expenseEditor) { target in
+            ExpenseSheet(editing: target.expense) { router.expenseEditor = nil }
+        }
         .nocturneSheet(item: $router.productEditor) { target in
             ProductEditorSheet(product: target.product)
         }

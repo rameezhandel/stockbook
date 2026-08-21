@@ -79,6 +79,28 @@ struct BackupDocument: Codable, Equatable {
     /// older than this build rather than newer, so it is accepted on import.
     var creditNotes: [CreditNoteRow] = []
 
+    /// The owner's own spending.
+    ///
+    /// **Does not bump `currentVersion`**, and the rule is worth restating
+    /// because this is the first field added since it was written down. A reader
+    /// built before expenses existed drops them and misreads nothing: an expense
+    /// is joined to no customer, no supplier and no bill, so no balance, no
+    /// statement and no month's takings moves by a riyal for its absence. What is
+    /// lost is the ledger itself — the "loses a label" side of the line, not the
+    /// "misreads a figure" side.
+    ///
+    /// Read through the hand-written decoder below for the same reason
+    /// `creditNotes` is: the key can be legitimately absent.
+    var expenses: [ExpenseRow] = []
+
+    struct ExpenseRow: Codable, Equatable {
+        var id: String
+        var amount: Double
+        /// What it was for, in the owner's words. Never empty.
+        var note: String
+        var spentAt: Date
+    }
+
     struct CreditNoteRow: Codable, Equatable {
         var id: UUID
         var customerKey: String
@@ -313,5 +335,6 @@ extension BackupDocument {
         purchases = try container.decode([PurchaseRow].self, forKey: .purchases)
         supplierPayments = try container.decode([SupplierPaymentRow].self, forKey: .supplierPayments)
         creditNotes = try container.decodeIfPresent([CreditNoteRow].self, forKey: .creditNotes) ?? []
+        expenses = try container.decodeIfPresent([ExpenseRow].self, forKey: .expenses) ?? []
     }
 }

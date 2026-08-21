@@ -32,6 +32,9 @@ final class AppRouter {
     /// The add-stock sheet.
     var addStock: AddStockTarget?
 
+    /// The expense sheet — nil closed, otherwise writing one or correcting one.
+    var expenseEditor: ExpenseTarget?
+
     /// The receipt, shown full-screen after a bill is saved.
     /// Whether Sell is showing the product picker rather than the bill form.
     ///
@@ -117,6 +120,14 @@ final class AppRouter {
         productEditor = ProductEditorTarget(product: nil)
     }
 
+    func openNewExpense() {
+        expenseEditor = ExpenseTarget(expense: nil)
+    }
+
+    func openExpense(_ expense: Expense) {
+        expenseEditor = ExpenseTarget(expense: expense)
+    }
+
     func openNewCustomer() {
         customerEditor = CustomerEditorTarget(customer: nil)
     }
@@ -196,6 +207,7 @@ final class AppRouter {
     }
 
     func closeOverlays() {
+        expenseEditor = nil
         partyFor = nil
         productEditor = nil
         addStock = nil
@@ -222,6 +234,12 @@ final class AppRouter {
 struct SupplierEditorTarget: Identifiable {
     let supplier: Supplier?
     var id: String { supplier?.key ?? "new" }
+}
+
+/// Identifies the expense sheet. `nil` expense means "New expense".
+struct ExpenseTarget: Identifiable {
+    let expense: Expense?
+    var id: String { expense?.id ?? "new" }
 }
 
 /// Identifies the product editor sheet. `nil` product means "New product".
