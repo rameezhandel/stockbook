@@ -1029,9 +1029,13 @@ struct Strings {
 
     var noExpensesYet: String { pick("Nothing written down yet", "ಇನ್ನೂ ಏನೂ ಬರೆದಿಲ್ಲ") }
 
-    /// The card above the list. Says *spent*, never *profit*: this ledger is
+    /// The figure over a stretch of days — the card above the list, and the line
+    /// beside Sold on Today. Says *expense*, never *profit*: this ledger is
     /// beside the shop's figures and never inside them.
-    var spentInPeriod: String { pick("Spent", "ಖರ್ಚು") }
+    ///
+    /// One word in both places on purpose. Two names for one number invites the
+    /// owner to wonder whether they are the same number.
+    var expenseInPeriod: String { pick("Expense", "ಖರ್ಚು") }
 
     var saveExpense: String { pick("Save expense", "ಖರ್ಚು ಉಳಿಸಿ") }
     var enterWhatItWasFor: String { pick("Say what it was for", "ಯಾವುದಕ್ಕೆ ಎಂದು ಬರೆಯಿರಿ") }

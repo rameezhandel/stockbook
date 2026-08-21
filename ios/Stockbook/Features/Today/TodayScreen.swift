@@ -142,14 +142,14 @@ struct TodayScreen: View {
     ///
     /// A line inside the card rather than a card of its own, and the size
     /// difference is the point. Two cards of equal weight saying "Sold 40,200"
-    /// and "Spent 3,100" invite the subtraction — and the answer would be wrong,
+    /// and "Expense 3,100" invite the subtraction — and the answer would be wrong,
     /// because what the goods cost is not in it. A companion figure in smaller
     /// type reads as another fact about the same period, which is what it is.
     private var spentLine: some View {
         let spent = store.spentIn(span.period)
 
         return HStack(spacing: 5) {
-            Text(Loc.spentInPeriod)
+            Text(Loc.expenseInPeriod)
                 .font(NocturneType.inter(11))
                 .foregroundStyle(Nocturne.neutral500)
             Text(Money.text(spent, in: currency))

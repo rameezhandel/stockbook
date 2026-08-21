@@ -83,7 +83,7 @@ fun ExpensesPane(
     ) {
         item {
             TotalCard(
-                label = strings.spentInPeriod,
+                label = strings.expenseInPeriod,
                 value = Money.text(spent, currency),
                 note = strings.expensesArePrivate,
                 span = span,

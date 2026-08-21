@@ -113,7 +113,7 @@ fun TodayScreen(
                 SoldCard(
                     label = strings.soldInPeriod,
                     value = Money.text(sold, currency),
-                    spentLabel = strings.spentInPeriod.takeIf { hasSpending },
+                    spentLabel = strings.expenseInPeriod.takeIf { hasSpending },
                     spentValue = Money.text(spent, currency),
                     span = span,
                     strings = strings,

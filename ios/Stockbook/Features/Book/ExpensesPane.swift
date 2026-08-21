@@ -67,7 +67,7 @@ struct ExpensesPane: View {
         let text = Money.text(spent, in: currency)
 
         return VStack(alignment: .leading, spacing: 0) {
-            Text(Loc.spentInPeriod)
+            Text(Loc.expenseInPeriod)
                 .font(NocturneType.inter(11))
                 .foregroundStyle(Nocturne.neutral500)
             Text(text)
