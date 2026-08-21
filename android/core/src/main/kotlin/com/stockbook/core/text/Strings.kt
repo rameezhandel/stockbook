@@ -518,6 +518,18 @@ class Strings(val language: AppLanguage) {
     val customerName: String get() = pick("Customer name", "ಗ್ರಾಹಕರ ಹೆಸರು")
     val paidInFull: String get() = pick("Paid in full", "ಪೂರ್ತಿ ಪಾವತಿ")
     val partPayment: String get() = pick("Part payment", "ಭಾಗಶಃ ಪಾವತಿ")
+    // --- A percentage off the whole bill
+
+    val discountField: String get() = pick("Discount %", "ರಿಯಾಯಿತಿ %")
+    val discountHint: String get() = pick("e.g. 10", "ಉದಾ. 10")
+    val subtotalLabel: String get() = pick("Subtotal", "ಮೊತ್ತ")
+
+    /** `Discount 10%` — the label on the bill's own deduction line. */
+    fun discountOf(percent: String): String = pick("Discount $percent%", "ರಿಯಾಯಿತಿ $percent%")
+
+    /** `SAR 25 off` — what the percentage came to, said while it is being typed. */
+    fun discountComesTo(amount: String): String = pick("$amount off", "$amount ಕಡಿತ")
+
     val paidNow: String get() = pick("Paid now", "ಈಗ ಕೊಟ್ಟದ್ದು")
     val total: String get() = pick("Total", "ಒಟ್ಟು")
     val balance: String get() = pick("Balance", "ಬಾಕಿ")

@@ -109,6 +109,40 @@ fun BillTemplate(
             FadedRule(modifier = Modifier.padding(vertical = 12.dp))
         }
 
+        // What was knocked off, where anything was. The customer's own copy of the
+        // bill is exactly where a discount belongs — it is the reason the figure
+        // is what it is, and a shop that gave 10% away should get the credit for
+        // it. The *statement* is the document that carries only the total.
+        if (bill.isDiscounted) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    strings.subtotalLabel,
+                    style = NocturneType.meta,
+                    color = Nocturne.neutral500,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    Money.text(bill.subtotal, currency),
+                    style = NocturneType.inter(12.5),
+                    color = Nocturne.neutral400
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    strings.discountOf(Money.amount(bill.discountPercent ?: 0.0, currency)),
+                    style = NocturneType.meta,
+                    color = Nocturne.neutral500,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    "− ${Money.text(bill.discountAmount ?: 0.0, currency)}",
+                    style = NocturneType.inter(12.5),
+                    color = Nocturne.accent400
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+        }
+
         Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
             Text(
                 strings.total,

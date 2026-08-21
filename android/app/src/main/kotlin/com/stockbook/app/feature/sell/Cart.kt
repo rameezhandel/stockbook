@@ -115,6 +115,14 @@ class Cart {
     var note by mutableStateOf("")
 
     /**
+     * A percentage off the whole bill, as typed. Empty is the ordinary case.
+     *
+     * Held as text rather than a number so a half-typed "1" on the way to "15"
+     * is not read as a discount and shown back as one.
+     */
+    var discountText by mutableStateOf("")
+
+    /**
      * When the sale happened, which is not always when it is being typed.
      *
      * A shop that writes bills in the book all day and enters them at closing
@@ -134,16 +142,37 @@ class Cart {
      * save. If these two ever disagree the owner is looking at one number and
      * saving another.
      */
-    val total: Double
+    /** What the lines add up to, or the figure typed — before any discount. */
+    val subtotal: Double
         get() = if (_lines.isEmpty()) typedAmount ?: 0.0 else _lines.sumOf { it.lineTotal }
+
+    /** The percentage as typed, or null when the box is empty or unreadable. */
+    val discountPercent: Double? get() = Money.parse(discountText)?.takeIf { it > 0 }
+
+    /**
+     * What that percentage comes to, and what will actually be charged.
+     *
+     * Both take the currency rather than assuming one: three of the currencies
+     * this app offers carry **three** decimal places, so rounding to two would
+     * put the figure on screen a fils away from the figure the store saves. The
+     * same `Money.discount` the store calls, so the owner is watching the number
+     * they will get.
+     */
+    fun discountValue(currency: Currency): Double =
+        Money.discount(subtotal, discountPercent ?: 0.0, currency)
+
+    fun total(currency: Currency): Double = subtotal - discountValue(currency)
+
+    /** What is left once the part payment is taken off what will be charged. */
+    fun balance(currency: Currency): Double =
+        if (payMode == PayMode.FULL) 0.0 else (total(currency) - paidValue).coerceAtLeast(0.0)
 
     /** The figure in the amount box, or null when there is nothing readable in it. */
     val typedAmount: Double? get() = Money.parse(amountText)
 
     val paidValue: Double get() = Money.parse(paidText) ?: 0.0
 
-    val balance: Double
-        get() = if (payMode == PayMode.FULL) 0.0 else (total - paidValue).coerceAtLeast(0.0)
+
 
     /** What gets stored: null for paid in full. */
     val paidForStorage: Double? get() = if (payMode == PayMode.FULL) null else paidValue
@@ -166,7 +195,9 @@ class Cart {
      * never suggested: a guessed next value is the app inventing a run the paper
      * does not have.
      */
-    val canSave: Boolean get() = customerKey != null && invoiceNo.isNotBlank() && total > 0
+    // Tested on the subtotal, not the total: a bill discounted to nothing is
+    // still a bill, and the stock still left the shelf.
+    val canSave: Boolean get() = customerKey != null && invoiceNo.isNotBlank() && subtotal > 0
 
     /** Typed into the field. Invalidates any earlier choice, deliberately. */
     fun typeCustomer(text: String) {
@@ -286,6 +317,7 @@ class Cart {
         amountText = if (_lines.isEmpty()) Money.amount(bill.total, currency) else ""
         invoiceNo = bill.invoiceNo.orEmpty()
         note = bill.note.orEmpty()
+        discountText = bill.discountPercent?.let { Money.amount(it, currency) }.orEmpty()
         soldAt = bill.createdAt
         customer = bill.who
         // Chosen rather than typed: this name is already on a bill, so it already
@@ -310,6 +342,7 @@ class Cart {
         val amountText: String,
         val invoiceNo: String,
         val note: String,
+        val discountText: String,
         val soldAt: java.time.Instant,
         val customer: String,
         val customerKey: String?,
@@ -333,6 +366,7 @@ class Cart {
         amountText = amountText,
         invoiceNo = invoiceNo,
         note = note,
+        discountText = discountText,
         soldAt = soldAt,
         customer = customer,
         customerKey = customerKey,
@@ -347,6 +381,7 @@ class Cart {
         amountText = draft.amountText
         invoiceNo = draft.invoiceNo
         note = draft.note
+        discountText = draft.discountText
         soldAt = draft.soldAt
         customer = draft.customer
         customerKey = draft.customerKey
@@ -374,6 +409,7 @@ class Cart {
         amountText = ""
         invoiceNo = ""
         note = ""
+        discountText = ""
         soldAt = Timestamps.now()
         customer = ""
         customerKey = null

@@ -359,7 +359,7 @@ private fun ProductPicker(
                     // into the amount box, sitting under the word "empty".
                     if (!cart.isEmpty) {
                         Text(
-                            Money.text(cart.total, currency),
+                            Money.text(cart.total(currency), currency),
                             style = NocturneType.bigNumber(19.0),
                             color = Nocturne.text
                         )

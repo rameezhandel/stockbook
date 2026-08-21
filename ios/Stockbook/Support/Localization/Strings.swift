@@ -557,6 +557,22 @@ struct Strings {
     var customerName: String { pick("Customer name", "ಗ್ರಾಹಕರ ಹೆಸರು") }
     var paidInFull: String { pick("Paid in full", "ಪೂರ್ತಿ ಪಾವತಿ") }
     var partPayment: String { pick("Part payment", "ಭಾಗಶಃ ಪಾವತಿ") }
+    // MARK: - A percentage off the whole bill
+
+    var discountField: String { pick("Discount %", "ರಿಯಾಯಿತಿ %") }
+    var discountHint: String { pick("e.g. 10", "ಉದಾ. 10") }
+    var subtotalLabel: String { pick("Subtotal", "ಮೊತ್ತ") }
+
+    /// `Discount 10%` — the label on the bill's own deduction line.
+    func discountOf(_ percent: String) -> String {
+        pick("Discount \(percent)%", "ರಿಯಾಯಿತಿ \(percent)%")
+    }
+
+    /// `SAR 25 off` — what the percentage came to, said while it is being typed.
+    func discountComesTo(_ amount: String) -> String {
+        pick("\(amount) off", "\(amount) ಕಡಿತ")
+    }
+
     var paidNow: String { pick("Paid now", "ಈಗ ಕೊಟ್ಟದ್ದು") }
     var total: String { pick("Total", "ಒಟ್ಟು") }
     var balance: String { pick("Balance", "ಬಾಕಿ") }

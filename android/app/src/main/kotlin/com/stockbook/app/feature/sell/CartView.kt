@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -158,7 +159,7 @@ fun CartView(
                         label = strings.amountField,
                         height = Metrics.tallInputHeight,
                         numeric = true,
-                        isRequiredAndEmpty = cart.total <= 0,
+                        isRequiredAndEmpty = cart.subtotal <= 0,
                         emphasis = FieldEmphasis.SELLING_PRICE,
                         prefix = currency.symbol.trim(),
                         fontSize = 17.0,
@@ -259,6 +260,33 @@ private fun PaperRow(
                 style = NocturneType.meta,
                 color = Nocturne.accent400,
                 modifier = Modifier.padding(top = 6.dp)
+            )
+        }
+
+        // A percentage off the whole bill, and what it comes to said back
+        // immediately — a shopkeeper typing "10" wants to see "SAR 25 off"
+        // before they hand the paper over, not after.
+        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+            NocturneField(
+                value = cart.discountText,
+                onValueChange = { cart.discountText = it },
+                label = strings.discountField,
+                placeholder = strings.discountHint,
+                numeric = true,
+                height = 40.dp,
+                fontSize = 13.5,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                if (cart.discountValue(currency) > 0) {
+                    strings.discountComesTo(Money.text(cart.discountValue(currency), currency))
+                } else {
+                    ""
+                },
+                style = NocturneType.meta,
+                color = Nocturne.accent400,
+                modifier = Modifier.weight(1f).padding(bottom = 12.dp)
             )
         }
 
@@ -365,6 +393,18 @@ private fun ItemisedTotal(
             .hairline(Nocturne.accent700, Metrics.controlRadius)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
+        // Shown only when there is one: three lines where a shop gives no
+        // discount would be two lines of ceremony above the figure that matters.
+        if (cart.discountValue(currency) > 0) {
+            DeductionLine(strings.subtotalLabel, Money.text(cart.subtotal, currency), Nocturne.neutral500)
+            DeductionLine(
+                strings.discountOf(Money.amount(cart.discountPercent ?: 0.0, currency)),
+                "− ${Money.text(cart.discountValue(currency), currency)}",
+                Nocturne.accent400
+            )
+            Spacer(Modifier.height(4.dp))
+        }
+
         Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
             Text(
                 strings.total,
@@ -373,7 +413,7 @@ private fun ItemisedTotal(
                 modifier = Modifier.weight(1f)
             )
             Text(
-                Money.text(cart.total, currency),
+                Money.text(cart.total(currency), currency),
                 style = NocturneType.bigNumber(26.0),
                 color = Nocturne.text
             )
@@ -435,7 +475,7 @@ private fun PaymentBlock(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    Money.text(cart.balance, currency),
+                    Money.text(cart.balance(currency), currency),
                     style = NocturneType.inter(15.0),
                     color = Nocturne.accent400
                 )
@@ -819,3 +859,12 @@ private fun CustomerPicker(
  * keyboard up.
  */
 private val CUSTOMER_LIST_MAX_HEIGHT = 150.dp
+
+/** One `label … value` line above the total, in the total card's own type. */
+@Composable
+private fun DeductionLine(label: String, value: String, tint: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text(label, style = NocturneType.meta, color = Nocturne.neutral500, modifier = Modifier.weight(1f))
+        Text(value, style = NocturneType.inter(12.5), color = tint)
+    }
+}

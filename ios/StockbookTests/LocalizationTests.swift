@@ -55,6 +55,7 @@ struct LocalizationTests {
         \.doneAdding, \.addAnotherItem, \.oneFewer, \.oneMore,
         \.noProductsYet, \.reset, \.customerName, \.paidInFull,
         \.partPayment, \.paidNow, \.total, \.balance,
+        \.discountField, \.discountHint, \.subtotalLabel,
         \.saveBill, \.enterCustomerName, \.billSaved, \.billDetailTitle,
         \.seeBills, \.nextCustomer, \.paidInFullCash,
         \.newProduct, \.editProduct, \.productName, \.productNameExample,
