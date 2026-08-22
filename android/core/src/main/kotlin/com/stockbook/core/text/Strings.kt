@@ -499,7 +499,11 @@ class Strings(val language: AppLanguage) {
      */
     val selectProduct: String get() = pick("Select product", "ಸಾಮಾನು ಆರಿಸಿ")
     val cartEmpty: String get() = pick("empty", "ಖಾಲಿ")
-    val addAProductPlaceholder: String get() = pick("Add a product…", "ಸಾಮಾನು ಸೇರಿಸಿ…")
+    /**
+     * The box above the product list. It **filters** the list; it does not add
+     * anything, and "Add a product…" read as though typing into it would.
+     */
+    val searchAProduct: String get() = pick("Search a product", "ಸಾಮಾನು ಹುಡುಕಿ")
     val addAnotherItem: String get() = pick("Add another item", "ಇನ್ನೊಂದು ಸಾಮಾನು ಸೇರಿಸಿ")
     val oneFewer: String get() = pick("One fewer", "ಒಂದು ಕಡಿಮೆ")
     val oneMore: String get() = pick("One more", "ಒಂದು ಹೆಚ್ಚು")

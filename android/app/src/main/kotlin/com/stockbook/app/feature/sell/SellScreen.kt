@@ -157,7 +157,7 @@ fun SellScreen(
                     NocturneField(
                         value = query,
                         onValueChange = { query = it },
-                        placeholder = strings.addAProductPlaceholder,
+                        placeholder = strings.searchAProduct,
                         fontSize = 14.5,
                         modifier = Modifier
                             .padding(horizontal = Metrics.screenPadding)

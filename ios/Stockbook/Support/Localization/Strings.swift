@@ -527,7 +527,9 @@ struct Strings {
     /// still there underneath, and one tap away.
     var selectProduct: String { pick("Select product", "ಸಾಮಾನು ಆರಿಸಿ") }
     var cartEmpty: String { pick("empty", "ಖಾಲಿ") }
-    var addAProductPlaceholder: String { pick("Add a product…", "ಸಾಮಾನು ಸೇರಿಸಿ…") }
+    /// The box above the product list. It **filters** the list; it does not add
+    /// anything, and "Add a product…" read as though typing into it would.
+    var searchAProduct: String { pick("Search a product", "ಸಾಮಾನು ಹುಡುಕಿ") }
     var addAnotherItem: String { pick("Add another item", "ಇನ್ನೊಂದು ಸಾಮಾನು ಸೇರಿಸಿ") }
     var oneFewer: String { pick("One fewer", "ಒಂದು ಕಡಿಮೆ") }
     var oneMore: String { pick("One more", "ಒಂದು ಹೆಚ್ಚು") }

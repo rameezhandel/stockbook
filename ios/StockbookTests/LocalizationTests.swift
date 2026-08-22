@@ -51,7 +51,7 @@ struct LocalizationTests {
         \.settledUp,
         \.nextCustomers, \.whoDoYouSellTo, \.customersSetupBody,
         \.customerNameExample, \.noCustomersYetKicker,
-        \.newBill, \.cartEmpty, \.addAProductPlaceholder,
+        \.newBill, \.cartEmpty, \.searchAProduct,
         \.selectProduct, \.addAnotherItem, \.oneFewer, \.oneMore,
         \.noProductsYet, \.reset, \.customerName, \.paidInFull,
         \.partPayment, \.paidNow, \.total, \.balance,

@@ -78,26 +78,31 @@ struct SellScreen: View {
             }
 
             // Which of the two is showing is derived, so the swap is the only
-            // signal that a tap changed anything. It fades rather than cuts —
-            // and now it actually does.
+            // signal that a tap changed anything. The list **comes up over** the
+            // form rather than dissolving into it: the bill is not going
+            // anywhere, and a thing that slides over something is a thing you
+            // expect to slide back off. It is the same movement every bottom
+            // sheet in the app makes, for the same reason.
             //
-            // The fade sits on each branch rather than on the container, because
-            // a transition only runs when *that* view is the one being inserted.
-            // Written on the `Group` that used to be here it never got a turn,
-            // and the product list simply appeared. The same trap the bottom
-            // sheets were fixed for. Android has always cross-faded here, which
-            // is what this is matching.
+            // The transition sits on each branch rather than on the container,
+            // because a transition only runs when *that* view is the one being
+            // inserted. Written on the `Group` that used to be here it never got
+            // a turn, and the product list simply appeared — the same trap the
+            // bottom sheets were fixed for.
             //
-            // A `ZStack` rather than that `Group`: mid-fade both branches exist,
-            // and laid out in the surrounding `VStack` they would each ask for
-            // the remaining height and squash one another into half a screen.
+            // A `ZStack` rather than that `Group`, and `zIndex` on both: mid-move
+            // both branches exist, and the list has to travel *across* the form
+            // rather than beside it. Laid out in the surrounding `VStack` they
+            // would each ask for the remaining height and squash one another into
+            // half a screen; stacked without an explicit order the one sliding in
+            // can end up behind the one it is covering.
             ZStack {
                 if showsPicker {
                     VStack(spacing: 0) {
                         // The search box belongs to the picker rather than to the
                         // screen: a form for typing a figure should not open with
                         // a box asking for a product name.
-                        NocturneField(placeholder: Loc.addAProductPlaceholder, text: $query, fontSize: 14.5)
+                        NocturneField(placeholder: Loc.searchAProduct, text: $query, fontSize: 14.5)
                             .padding(.horizontal, Metrics.screenPadding)
                             .padding(.bottom, 10)
 
@@ -109,13 +114,24 @@ struct SellScreen: View {
                             onAddProduct: { router.openNewProduct() }
                         )
                     }
-                    .transition(.opacity)
+                    // Opaque, and filling what it is given. A panel travelling
+                    // over another screen has to hide it — left transparent, the
+                    // form shows through the list for the whole of the movement
+                    // and the two read as one jumbled screen.
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .background(Nocturne.bg)
+                    .transition(.move(edge: .bottom))
+                    .zIndex(1)
                 } else {
                     CartView(
                         onBrowse: openPicker,
                         onSave: save
                     )
+                    // Fades rather than holding still, because for the moment the
+                    // list is still travelling there is bare ground either side
+                    // of it and the form underneath is what fills it.
                     .transition(.opacity)
+                    .zIndex(0)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
