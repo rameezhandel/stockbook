@@ -863,6 +863,23 @@ class Strings(val language: AppLanguage) {
     val columnTransaction: String get() = pick("Transaction", "ವ್ಯವಹಾರ")
     val columnAmount: String get() = pick("Amount", "ಮೊತ್ತ")
     val columnBalance: String get() = pick("Balance", "ಉಳಿಕೆ")
+
+    // --- The owner's own list of who owes them
+    //
+    // Worded so it can never be mistaken for a statement. A statement is handed
+    // to the person it is about; this names everybody, and is for the owner.
+
+    val moneyOwedToYou: String get() = pick("Money owed to you", "ನಿಮಗೆ ಬರಬೇಕಾದ ಹಣ")
+    /** The day the list was made. What is owed is true at a moment, not over a span. */
+    fun asOfDate(date: String): String = pick("As of $date", "$date ರಂತೆ")
+    val columnCustomer: String get() = pick("Customer", "ಗ್ರಾಹಕ")
+    val columnOwed: String get() = pick("Owed", "ಬಾಕಿ")
+    val totalOwedToYou: String get() = pick("Total owed to you", "ಒಟ್ಟು ಬಾಕಿ")
+    val nobodyOwesYouAnything: String get() = pick("Nobody owes you anything.", "ಯಾರೂ ಬಾಕಿ ಇಲ್ಲ.")
+    /** The button that makes it. Says *list*, never *statement*. */
+    val savedList: String get() = pick("Save list", "ಪಟ್ಟಿ ಉಳಿಸಿ")
+    /** Not translated: a file name is read by a file manager, not by a shopkeeper. */
+    fun owedFileName(date: String): String = "money-owed-$date.pdf"
     val sharePdf: String get() = pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ")
 
     fun accountSummaryTill(date: String): String =

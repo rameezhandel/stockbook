@@ -13,6 +13,10 @@ struct WhoOwesYouSheet: View {
 
     let onClose: () -> Void
 
+    /// The rendered list, waiting for the share sheet. Rendered on the tap rather
+    /// than when the view is built, because what is owed changes underneath it.
+    @State private var file: StatementFile?
+
     var body: some View {
         // Read straight off the store rather than snapshotted into `@State`: it
         // is `@Observable`, so a payment taken from inside this sheet redraws the
@@ -25,8 +29,29 @@ struct WhoOwesYouSheet: View {
                     onClose()
                 }
             },
+            // The list is the document, so the button that makes it belongs
+            // here. Only where there is something to chase: a page saying
+            // nobody owes anything is a page nobody needs.
+            onSave: store.customers().contains { $0.owed > 0 } ? save : nil,
             onClose: onClose
         )
+        .sheet(item: $file) { ShareSheet(url: $0.url) }
+    }
+
+    /// A failure leaves `file` nil and nothing opens, which is the honest
+    /// outcome and the one `StatementScreen` already settled on: there is no
+    /// half-written page worth offering, and the list itself is still on screen.
+    private func save() {
+        let document = OutstandingDocument.make(
+            customers: store.customers(),
+            settings: store.settings,
+            strings: Loc
+        )
+        guard let url = try? OutstandingPDF.write(
+            document,
+            fileName: Loc.owedFileName(date: Copy.fileDate(.now))
+        ) else { return }
+        file = StatementFile(url: url)
     }
 }
 
@@ -48,6 +73,9 @@ struct WhoYouOweSheet: View {
                     onClose()
                 }
             },
+            // No list to save on this side yet. The same document pointed the
+            // other way is nearly free once somebody asks for it.
+            onSave: nil,
             onClose: onClose
         )
     }
@@ -64,6 +92,8 @@ private struct OwedRow: Identifiable {
 private struct OwedList: View {
     let title: String
     let rows: [OwedRow]
+    /// Makes a page of this list. Absent where there is no list worth making.
+    let onSave: (() -> Void)?
     let onClose: () -> Void
 
     @Environment(\.currency) private var currency
@@ -75,6 +105,12 @@ private struct OwedList: View {
                 subtitle: Money.text(rows.reduce(0) { $0 + $1.amount }, in: currency),
                 onClose: onClose
             )
+
+            if let onSave {
+                Button(Loc.savedList, action: onSave)
+                    .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 40, fontSize: 13))
+                    .padding(.bottom, 12)
+            }
 
             // The banner that opens this sheet only appears when somebody owes, so
             // an empty list here means the last of it was settled while the sheet

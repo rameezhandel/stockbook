@@ -22,6 +22,7 @@ import com.stockbook.app.design.Icon
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
+import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.SheetHeader
 import com.stockbook.app.design.card
 import com.stockbook.core.model.Currency
@@ -46,6 +47,8 @@ fun WhoOwesYouSheet(
     router: AppRouter,
     currency: Currency,
     strings: Strings,
+    /** Renders this list as a page and hands it to the chooser. */
+    onSave: () -> Unit,
     onClose: () -> Unit
 ) {
     // Keyed on the state rather than read off the store bare: `customers()` is a
@@ -62,6 +65,11 @@ fun WhoOwesYouSheet(
                 onClose()
             }
         },
+        // The list is the document, so the button that makes it belongs here.
+        // Only where there is something to chase: a page saying nobody owes
+        // anything is a page nobody needs. Rendering and handing the file over is
+        // the activity's, which is where every other share in this app is done.
+        onSave = if (owing.isEmpty()) null else onSave,
         currency = currency,
         strings = strings,
         onClose = onClose
@@ -92,6 +100,9 @@ fun WhoYouOweSheet(
                 onClose()
             }
         },
+        // No list to save on this side yet. The same document pointed the other
+        // way is nearly free once somebody asks for it.
+        onSave = null,
         currency = currency,
         strings = strings,
         onClose = onClose
@@ -105,6 +116,8 @@ private data class OwedRow(val name: String, val amount: Double, val onTake: () 
 private fun OwedList(
     title: String,
     rows: List<OwedRow>,
+    /** Makes a page of this list. Absent where there is no list worth making. */
+    onSave: (() -> Unit)?,
     currency: Currency,
     strings: Strings,
     onClose: () -> Unit
@@ -115,6 +128,17 @@ private fun OwedList(
             subtitle = Money.text(rows.sumOf { it.amount }, currency),
             onClose = onClose
         )
+
+        if (onSave != null) {
+            SecondaryButton(
+                strings.savedList,
+                onClick = onSave,
+                fullWidth = true,
+                height = 40.dp,
+                fontSize = 13.0
+            )
+            Spacer(Modifier.height(12.dp))
+        }
 
         // The banner that opens this sheet only appears when somebody owes, so an
         // empty list here means the last of it was settled while the sheet was
