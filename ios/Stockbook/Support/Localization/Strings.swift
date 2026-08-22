@@ -520,9 +520,14 @@ struct Strings {
     // MARK: - Sell
 
     var newBill: String { pick("New bill", "ಹೊಸ ಬಿಲ್") }
+    /// The heading while the product list is up.
+    ///
+    /// "New bill" over a list of products describes the errand rather than the
+    /// screen — and the screen is the one thing a heading is for. The bill is
+    /// still there underneath, and one tap away.
+    var selectProduct: String { pick("Select product", "ಸಾಮಾನು ಆರಿಸಿ") }
     var cartEmpty: String { pick("empty", "ಖಾಲಿ") }
     var addAProductPlaceholder: String { pick("Add a product…", "ಸಾಮಾನು ಸೇರಿಸಿ…") }
-    var doneAdding: String { pick("Done adding", "ಸೇರಿಸಿ ಆಯಿತು") }
     var addAnotherItem: String { pick("Add another item", "ಇನ್ನೊಂದು ಸಾಮಾನು ಸೇರಿಸಿ") }
     var oneFewer: String { pick("One fewer", "ಒಂದು ಕಡಿಮೆ") }
     var oneMore: String { pick("One more", "ಒಂದು ಹೆಚ್ಚು") }

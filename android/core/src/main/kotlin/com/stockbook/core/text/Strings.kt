@@ -490,9 +490,16 @@ class Strings(val language: AppLanguage) {
     // --- Sell
 
     val newBill: String get() = pick("New bill", "ಹೊಸ ಬಿಲ್")
+    /**
+     * The heading while the product list is up.
+     *
+     * "New bill" over a list of products describes the errand rather than the
+     * screen — and the screen is the one thing a heading is for. The bill is
+     * still there underneath, and one tap away.
+     */
+    val selectProduct: String get() = pick("Select product", "ಸಾಮಾನು ಆರಿಸಿ")
     val cartEmpty: String get() = pick("empty", "ಖಾಲಿ")
     val addAProductPlaceholder: String get() = pick("Add a product…", "ಸಾಮಾನು ಸೇರಿಸಿ…")
-    val doneAdding: String get() = pick("Done adding", "ಸೇರಿಸಿ ಆಯಿತು")
     val addAnotherItem: String get() = pick("Add another item", "ಇನ್ನೊಂದು ಸಾಮಾನು ಸೇರಿಸಿ")
     val oneFewer: String get() = pick("One fewer", "ಒಂದು ಕಡಿಮೆ")
     val oneMore: String get() = pick("One more", "ಒಂದು ಹೆಚ್ಚು")

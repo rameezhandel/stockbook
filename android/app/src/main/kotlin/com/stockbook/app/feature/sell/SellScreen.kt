@@ -96,8 +96,16 @@ fun SellScreen(
             // is identical to the one for a new bill, so this line is the whole
             // of what tells the owner they are changing 1024 rather than writing
             // 1025.
-            kicker = if (editing != null) strings.editBill else null,
-            title = editing?.reference(strings) ?: strings.newBill,
+            //
+            // Except while the product list is up, when the heading says what the
+            // screen *is* rather than the errand it is part of. "New bill" over a
+            // list of products describes neither, and the bill it belongs to is
+            // one tap away.
+            kicker = if (editing != null && !showsPicker) strings.editBill else null,
+            title = when {
+                showsPicker -> strings.selectProduct
+                else -> editing?.reference(strings) ?: strings.newBill
+            },
             bottomPadding = 10.dp
         ) {
             if (editing != null) {
@@ -367,7 +375,10 @@ private fun ProductPicker(
                         )
                     }
                 }
-                PrimaryButton(strings.doneAdding, onClick = onDoneAdding, height = 44.dp)
+                // One word. "Done adding" described what the owner had been
+                // doing; the button is for leaving, and the heading above already
+                // says what screen this is.
+                PrimaryButton(strings.done, onClick = onDoneAdding, height = 44.dp)
             }
         }
     }

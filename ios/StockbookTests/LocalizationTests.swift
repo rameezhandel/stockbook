@@ -52,7 +52,7 @@ struct LocalizationTests {
         \.nextCustomers, \.whoDoYouSellTo, \.customersSetupBody,
         \.customerNameExample, \.noCustomersYetKicker,
         \.newBill, \.cartEmpty, \.addAProductPlaceholder,
-        \.doneAdding, \.addAnotherItem, \.oneFewer, \.oneMore,
+        \.selectProduct, \.addAnotherItem, \.oneFewer, \.oneMore,
         \.noProductsYet, \.reset, \.customerName, \.paidInFull,
         \.partPayment, \.paidNow, \.total, \.balance,
         \.discountField, \.discountHint, \.subtotalLabel,

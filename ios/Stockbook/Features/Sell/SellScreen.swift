@@ -29,15 +29,26 @@ struct SellScreen: View {
 
     private var matches: [Product] { store.products(matching: query) }
 
+    /// What screen this is, which is not always the errand it is part of. While
+    /// the product list is up it is a product list, whatever it was opened from.
+    private var heading: String {
+        if showsPicker { return Loc.selectProduct }
+        return cart.isEditing ? Loc.editBill : Loc.newBill
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: cart.isEditing ? Loc.editBill : Loc.newBill, bottomPadding: 10) {
+            ScreenHeader(title: heading, bottomPadding: 10) {
                 if showsPicker {
                     // The way back off the picker. In the header rather than in a
                     // bar at the bottom: it has to be reachable with nothing
                     // added, and nothing in this app sits under the keyboard and
                     // survives.
-                    Button(Loc.doneAdding, action: closePicker)
+                    //
+                    // One word. "Done adding" described what the owner had been
+                    // doing; the button is for leaving, and the heading beside it
+                    // already says what screen this is.
+                    Button(Loc.done, action: closePicker)
                         .buttonStyle(.primaryCompact)
                 } else if cart.isEditing {
                     // The way out of a correction without making one. Without it
@@ -67,31 +78,47 @@ struct SellScreen: View {
             }
 
             // Which of the two is showing is derived, so the swap is the only
-            // signal that a tap changed anything. It fades rather than cuts.
-            Group {
+            // signal that a tap changed anything. It fades rather than cuts —
+            // and now it actually does.
+            //
+            // The fade sits on each branch rather than on the container, because
+            // a transition only runs when *that* view is the one being inserted.
+            // Written on the `Group` that used to be here it never got a turn,
+            // and the product list simply appeared. The same trap the bottom
+            // sheets were fixed for. Android has always cross-faded here, which
+            // is what this is matching.
+            //
+            // A `ZStack` rather than that `Group`: mid-fade both branches exist,
+            // and laid out in the surrounding `VStack` they would each ask for
+            // the remaining height and squash one another into half a screen.
+            ZStack {
                 if showsPicker {
-                    // The search box belongs to the picker rather than to the
-                    // screen: a form for typing a figure should not open with a
-                    // box asking for a product name.
-                    NocturneField(placeholder: Loc.addAProductPlaceholder, text: $query, fontSize: 14.5)
-                        .padding(.horizontal, Metrics.screenPadding)
-                        .padding(.bottom, 10)
+                    VStack(spacing: 0) {
+                        // The search box belongs to the picker rather than to the
+                        // screen: a form for typing a figure should not open with
+                        // a box asking for a product name.
+                        NocturneField(placeholder: Loc.addAProductPlaceholder, text: $query, fontSize: 14.5)
+                            .padding(.horizontal, Metrics.screenPadding)
+                            .padding(.bottom, 10)
 
-                    ProductPicker(
-                        products: matches,
-                        hasAnyProducts: !products.isEmpty,
-                        query: query.trimmed,
-                        onPick: add(_:),
-                        onAddProduct: { router.openNewProduct() }
-                    )
+                        ProductPicker(
+                            products: matches,
+                            hasAnyProducts: !products.isEmpty,
+                            query: query.trimmed,
+                            onPick: add(_:),
+                            onAddProduct: { router.openNewProduct() }
+                        )
+                    }
+                    .transition(.opacity)
                 } else {
                     CartView(
                         onBrowse: openPicker,
                         onSave: save
                     )
+                    .transition(.opacity)
                 }
             }
-            .transition(.opacity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .motion(Motion.screen, value: showsPicker)
         }
         // Leaving Sell puts the picker away. It used to happen for free, when
