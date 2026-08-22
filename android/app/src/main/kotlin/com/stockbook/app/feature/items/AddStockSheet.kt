@@ -393,23 +393,19 @@ fun AddStockSheet(
                     )
                     Text(
                         Money.text(totalValue, currency),
-                        style = NocturneType.bigNumber(24.0),
+                        style = NocturneType.bigNumber(26.0),
                         color = Nocturne.text
                     )
                 }
-                Text(
-                    // The arithmetic where there is one line to show it for, and
-                    // how many lines otherwise: the cards below say the rest, and
-                    // repeating them here would be the same sum written twice.
-                    if (liveLines.size == 1) {
-                        val only = liveLines.single()
-                        strings.perPiece(only.qty, Money.text(only.cost, currency))
-                    } else {
-                        strings.items(liveLines.size)
-                    },
-                    style = NocturneType.meta,
-                    color = Nocturne.neutral500
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        strings.fromItems(liveLines.size),
+                        style = NocturneType.meta,
+                        color = Nocturne.neutral500,
+                        modifier = Modifier.weight(1f)
+                    )
+                    GhostButton(strings.removeItems, onClick = { lines.clear() }, fontSize = 12.0)
+                }
             }
         } else {
             NocturneField(

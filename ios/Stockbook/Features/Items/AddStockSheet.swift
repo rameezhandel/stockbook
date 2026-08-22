@@ -188,16 +188,20 @@ struct AddStockSheet: View {
             // What the bill came to. Typed until a product and a quantity say what
             // it is made of, computed from then on — never both at once, or the
             // sheet is showing one figure and about to save another.
-            if isPurchase, !isItemised {
-                NocturneField.number(
-                    label: Loc.amountField,
-                    text: $amountText,
-                    height: Metrics.tallInputHeight,
-                    isRequiredAndEmpty: totalValue <= 0,
-                    emphasis: .sellingPrice,
-                    prefix: currency.symbol.trimmed,
-                    fontSize: 17
-                )
+            if isPurchase {
+                if isItemised {
+                    itemisedTotal
+                } else {
+                    NocturneField.number(
+                        label: Loc.amountField,
+                        text: $amountText,
+                        height: Metrics.tallInputHeight,
+                        isRequiredAndEmpty: totalValue <= 0,
+                        emphasis: .sellingPrice,
+                        prefix: currency.symbol.trimmed,
+                        fontSize: 17
+                    )
+                }
             }
 
             // What arrived, one card per line on the paper. Optional, all of it:
@@ -339,6 +343,42 @@ struct AddStockSheet: View {
             // total goes back into the box it was typed into.
             amountText = Money.amount(editing.total, in: currency)
         }
+    }
+
+    /// What the lines add up to, above the lines themselves.
+    ///
+    /// `CartView.itemisedTotal` without the discount rows — a delivery note has no
+    /// discount to take off — and otherwise the same block in the same place, so
+    /// the figure the shop is about to commit to reads the same size on both
+    /// sides of the counter. The delivery sheet used to show no total at all once
+    /// a product was named: what it came to was a sentence beside the Save
+    /// button, which is not where anyone looks for a number.
+    private var itemisedTotal: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .lastTextBaseline) {
+                Text(Loc.total)
+                    .font(NocturneType.inter(13))
+                    .foregroundStyle(Nocturne.neutral500)
+                Spacer()
+                Text(Money.text(totalValue, in: currency))
+                    .nocturneText(.bigNumber(26))
+                    .rollingNumber(totalValue)
+            }
+            HStack {
+                Text(Loc.fromItems(liveLines.count))
+                    .nocturneText(.meta)
+                Spacer()
+                Button(Loc.removeItems) { lines.removeAll() }
+                    .buttonStyle(.plain)
+                    .font(NocturneType.inter(12))
+                    .foregroundStyle(Nocturne.accent)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
+        .hairline(Nocturne.accent700, radius: Metrics.controlRadius)
     }
 
     private var modePills: some View {
