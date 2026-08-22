@@ -88,6 +88,11 @@ struct AddStockSheet: View {
     @State private var supplierKey: String?
     @State private var settledNow = true
     @State private var paidText = ""
+    /// Where focus is, so the field being typed into can be scrolled out from
+    /// under the keyboard. The sheet does not own its scroll view — the panel
+    /// does — so the proxy comes from the environment.
+    @FocusState private var focus: String?
+    @Environment(\.sheetScroll) private var sheetScroll
     /// The number on the supplier's invoice, and the day it arrived.
     @State private var invoiceNo = ""
     @State private var arrivedAt = Date.now
@@ -244,8 +249,13 @@ struct AddStockSheet: View {
                     NocturneField.number(
                         label: Loc.paidNow,
                         text: $paidText,
-                        prefix: currency.symbol.trimmed
+                        prefix: currency.symbol.trimmed,
+                        focusTag: Self.paidNowTag,
+                        focus: $focus
                     )
+                    // The last box on a delivery with several lines above it, and
+                    // the one the keyboard covered: what it is worth scrolling to.
+                    .id(Self.paidNowTag)
                 }
             }
 
@@ -287,6 +297,14 @@ struct AddStockSheet: View {
         }
         .keyboardDoneButton()
         .onAppear(perform: seed)
+        // The room under the sheet arrives with the keyboard's own animation, so
+        // this fires on the focus rather than on the tap and lands after it.
+        .onChange(of: focus) { _, tag in
+            guard let tag else { return }
+            withAnimation(.easeOut(duration: 0.25)) {
+                sheetScroll?.scrollTo(tag, anchor: .bottom)
+            }
+        }
     }
 
     /// Once, and only once: re-seeding on every appearance would fight an owner
@@ -380,6 +398,10 @@ struct AddStockSheet: View {
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
         .hairline(Nocturne.accent700, radius: Metrics.controlRadius)
     }
+
+    /// The one field on this sheet that needed scrolling to, named once so the
+    /// tag and the id cannot drift apart.
+    private static let paidNowTag = "purchase.paidNow"
 
     private var modePills: some View {
         HStack(spacing: 8) {

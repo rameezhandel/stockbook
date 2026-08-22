@@ -21,7 +21,12 @@ struct BottomSheetPanel<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(spacing: 0) {
+        // The reader wraps the scroll view because it has to be its ancestor, and
+        // the proxy goes into the environment because the sheet's own content is
+        // its descendant — see `sheetScroll`. Without both, a sheet can neither
+        // reach its own scroll view nor scroll a field out from under the
+        // keyboard.
+        ScrollViewReader { proxy in
             ScrollView {
                 content
                     .padding(.horizontal, Metrics.screenPadding)
@@ -29,8 +34,14 @@ struct BottomSheetPanel<Content: View>: View {
                     // the rounded corner.
                     .padding(.top, 16)
                     .padding(.bottom, 32)
+                    .environment(\.sheetScroll, proxy)
             }
             .scrollBounceBehavior(.basedOnSize)
+            // The sheet is inside an overlay that ignores the keyboard, so it
+            // stays put rather than leaping up — which also means nothing insets
+            // its content for the keyboard unless this does.
+            .keyboardRoom()
+            .scrollDismissesKeyboard(.interactively)
         }
         .frame(maxWidth: .infinity)
         .background(Nocturne.surface)

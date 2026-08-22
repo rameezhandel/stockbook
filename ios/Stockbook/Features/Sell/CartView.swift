@@ -16,6 +16,10 @@ struct CartView: View {
     @Environment(StockbookStore.self) private var store
     @Environment(\.currency) private var currency
 
+    /// Where focus is, so the field being typed into can be scrolled out from
+    /// under the keyboard. Only the note carries a tag: it is the box at the foot
+    /// of the form, and the one the keyboard covered.
+    @FocusState private var focus: String?
     @State private var picked: PhotosPickerItem?
     @State private var takingPhoto = false
     @State private var photoTrouble: String?
@@ -27,91 +31,105 @@ struct CartView: View {
         // in: the number on the paper, the day, who it is for, what it came to.
         // What was sold comes after all of that, because on most bills here it
         // never comes at all.
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                paperRow
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    paperRow
 
-                CustomerPicker()
+                    CustomerPicker()
+                        .padding(.top, 12)
+
+                    // The figure, however it was arrived at. Never both at once:
+                    // a typed amount beside a line sum is two answers to one
+                    // question, and no way to tell which is about to be saved.
+                    Group {
+                        if cart.lines.isEmpty {
+                            NocturneField.number(
+                                label: Loc.amountField,
+                                text: $cart.amountText,
+                                height: Metrics.tallInputHeight,
+                                isRequiredAndEmpty: cart.subtotal <= 0,
+                                emphasis: .sellingPrice,
+                                prefix: currency.symbol.trimmed,
+                                fontSize: 17,
+                                identifier: "cart.amount"
+                            )
+                        } else {
+                            itemisedTotal
+                        }
+                    }
                     .padding(.top, 12)
 
-                // The figure, however it was arrived at. Never both at once:
-                // a typed amount beside a line sum is two answers to one
-                // question, and no way to tell which is about to be saved.
-                Group {
-                    if cart.lines.isEmpty {
-                        NocturneField.number(
-                            label: Loc.amountField,
-                            text: $cart.amountText,
-                            height: Metrics.tallInputHeight,
-                            isRequiredAndEmpty: cart.subtotal <= 0,
-                            emphasis: .sellingPrice,
-                            prefix: currency.symbol.trimmed,
-                            fontSize: 17,
-                            identifier: "cart.amount"
+                    ForEach(cart.lines) { line in
+                        CartLineCard(
+                            line: line,
+                            stock: cart.stock(for: line, in: store),
+                            onQuantity: { cart.setQuantity($0, for: line.id) },
+                            onPrice: { cart.setPrice($0, for: line.id) },
+                            onResetPrice: { cart.resetPrice(for: line.id) },
+                            onRemove: { cart.remove(line.id) }
                         )
-                    } else {
-                        itemisedTotal
+                        .padding(.top, 8)
+                        .transition(.opacity)
                     }
-                }
-                .padding(.top, 12)
 
-                ForEach(cart.lines) { line in
-                    CartLineCard(
-                        line: line,
-                        stock: cart.stock(for: line, in: store),
-                        onQuantity: { cart.setQuantity($0, for: line.id) },
-                        onPrice: { cart.setPrice($0, for: line.id) },
-                        onResetPrice: { cart.resetPrice(for: line.id) },
-                        onRemove: { cart.remove(line.id) }
+                    // Quiet on purpose. Most bills here never touch it, and a
+                    // button that shouts is a button an owner in a hurry taps by
+                    // mistake.
+                    Button(action: onBrowse) {
+                        Label(cart.isEmpty ? Loc.addItems : Loc.addAnotherItem, systemImage: Icon.browseAll)
+                    }
+                    .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
+                    .padding(.top, 12)
+
+                    paymentBlock
+                        .padding(.top, 14)
+
+                    // Last on the form, and the last thing before Save. It is the
+                    // one box here the owner writes for themselves rather than for
+                    // the paper, so it waits until the number, the money and who
+                    // owes it are all settled. Optional: most bills never touch it.
+                    // The placeholder is empty on purpose, and this is the only field
+                    // in the app where it is. Every example tried here read as an
+                    // instruction: the app's other hints name two or three *kinds* of
+                    // thing, and the one this box had named a job — "3 keys cut on
+                    // site" — which describes goods, and goods are what the lines and
+                    // the amount above are already for.
+                    NocturneField(
+                        label: Loc.billNote,
+                        placeholder: "",
+                        text: $cart.note,
+                        identifier: "cart.note",
+                        focusTag: Self.noteTag,
+                        focus: $focus
                     )
-                    .padding(.top, 8)
-                    .transition(.opacity)
-                }
-
-                // Quiet on purpose. Most bills here never touch it, and a
-                // button that shouts is a button an owner in a hurry taps by
-                // mistake.
-                Button(action: onBrowse) {
-                    Label(cart.isEmpty ? Loc.addItems : Loc.addAnotherItem, systemImage: Icon.browseAll)
-                }
-                .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 42, fontSize: 13.5))
-                .padding(.top, 12)
-
-                paymentBlock
+                    .id(Self.noteTag)
                     .padding(.top, 14)
 
-                // Last on the form, and the last thing before Save. It is the
-                // one box here the owner writes for themselves rather than for
-                // the paper, so it waits until the number, the money and who
-                // owes it are all settled. Optional: most bills never touch it.
-                // The placeholder is empty on purpose, and this is the only field
-                // in the app where it is. Every example tried here read as an
-                // instruction: the app's other hints name two or three *kinds* of
-                // thing, and the one this box had named a job — "3 keys cut on
-                // site" — which describes goods, and goods are what the lines and
-                // the amount above are already for.
-                NocturneField(
-                    label: Loc.billNote,
-                    placeholder: "",
-                    text: $cart.note,
-                    identifier: "cart.note"
-                )
-                .padding(.top, 14)
-
-                saveButton
-                    .padding(.top, 16)
+                    saveButton
+                        .padding(.top, 16)
+                }
+                .padding(.horizontal, Metrics.screenPadding)
+                .padding(.bottom, 12)
+                .motion(Motion.list, value: cart.lines.count)
             }
-            .padding(.horizontal, Metrics.screenPadding)
-            .padding(.bottom, 12)
-            .motion(Motion.list, value: cart.lines.count)
+            .scrollBounceBehavior(.basedOnSize)
+            // The app turns the keyboard's safe area off at the root so the tab bar
+            // cannot be shoved up the display, which also takes away the inset that
+            // would let this scroll view reach its own foot. `keyboardRoom` puts that
+            // inset back and scrolls the focused box up into it — without it the note
+            // at the bottom of a long bill sat under the keyboard, unreachable.
+            .keyboardRoom(focused: $focus, in: proxy)
+            // Still the way out: pushing the keyboard back down beats scrolling
+            // around it, and it is what Items has always done.
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDoneButton()
         }
-        .scrollBounceBehavior(.basedOnSize)
-        // Nothing moves out of the keyboard's way here, so the way back to what
-        // it covers is to push it down — the same as Items, which is the screen
-        // in this app that has always got this right.
-        .scrollDismissesKeyboard(.interactively)
-        .keyboardDoneButton()
     }
+
+    /// Named once, so the field's focus tag and the id it is scrolled to cannot
+    /// drift apart.
+    private static let noteTag = "cart.note"
 
     /// The bill already carrying this number, if the shop has written it twice.
     ///
