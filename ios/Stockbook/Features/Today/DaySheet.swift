@@ -7,6 +7,12 @@ import SwiftUI
 /// statement — see `DaySummaryDocument`, where that rule and the wording both
 /// live. Everything drawn here comes out of that document, so what the owner
 /// reads on the screen and what comes out of the printer cannot drift.
+///
+/// **A card per section.** Six kinds of record in one column read as one long
+/// ledger, and the whole point of the page is that they are six separate
+/// questions — what was sold, what came in against it, what went out. A card
+/// puts a boundary where the meaning changes, and the subtotal at the foot of
+/// each one lands inside the thing it totals.
 struct DaySheet: View {
     @Environment(StockbookStore.self) private var store
 
@@ -37,31 +43,40 @@ struct DaySheet: View {
         let document = page
 
         VStack(alignment: .leading, spacing: 0) {
-            SheetHeader(title: document.title, subtitle: document.onDate, onClose: onClose)
+            SheetHeader(
+                title: document.title,
+                // Only where there is a day to hand over. A page saying nothing
+                // happened is a page nobody needs a copy of.
+                onShare: document.isEmpty ? nil : save,
+                onClose: onClose
+            )
 
-            HStack(spacing: 4) {
+            // `‹ 22 August 2026 ›` — the date reads as the thing being stepped
+            // through rather than as a caption with two buttons parked beside it.
+            HStack {
                 Button { onDay(step(-1)) } label: { Glyph(Icon.stepBack, size: 18) }
                     .buttonStyle(.iconOnly)
                     .foregroundStyle(Nocturne.accent)
                     .accessibilityLabel(Loc.previousDay)
 
-                if !isToday {
+                Text(document.onDate)
+                    .nocturneText(.rowPrimary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity)
+
+                if isToday {
+                    // Holds the date in the middle on the day there is no forward
+                    // arrow to draw. Without it today's date sits off to the
+                    // right and every step back nudges it, which reads as a bug.
+                    Color.clear.frame(width: Metrics.minimumTouchTarget, height: Metrics.minimumTouchTarget)
+                } else {
                     Button { onDay(step(1)) } label: { Glyph(Icon.stepForward, size: 18) }
                         .buttonStyle(.iconOnly)
                         .foregroundStyle(Nocturne.accent)
                         .accessibilityLabel(Loc.nextDay)
                 }
-
-                Spacer(minLength: 8)
-
-                // Only where there is a day to hand over. A page saying nothing
-                // happened is a page nobody needs a copy of.
-                if !document.isEmpty {
-                    Button(Loc.sharePdf, action: save)
-                        .buttonStyle(SecondaryButtonStyle(height: 34, fontSize: 12.5))
-                }
             }
-            .padding(.bottom, 14)
+            .padding(.bottom, 16)
 
             if document.isEmpty {
                 Text(document.emptyLine)
@@ -71,44 +86,37 @@ struct DaySheet: View {
                 // A plain stack rather than a lazy one: the sheet already
                 // scrolls, and a day with more rows than fit in it is a very
                 // good day.
-                ForEach(Array(document.sections.enumerated()), id: \.offset) { _, section in
-                    Kicker(section.heading)
-                        .padding(.bottom, 6)
+                VStack(spacing: Metrics.cardGap) {
+                    ForEach(Array(document.sections.enumerated()), id: \.offset) { _, section in
+                        SectionCard(section: section)
+                    }
 
-                    VStack(spacing: Metrics.rowGap) {
-                        ForEach(Array(section.rows.enumerated()), id: \.offset) { _, row in
-                            DayRow(row: row)
+                    // What the day did to the cash box. Its own card, because it
+                    // is the answer the page was read for and not a seventh kind
+                    // of record.
+                    VStack(spacing: 0) {
+                        ForEach(Array(document.cash.enumerated()), id: \.offset) { index, line in
+                            if line.isNet {
+                                FadedRule(inset: 0)
+                                    .padding(.vertical, 8)
+                            }
+                            HStack {
+                                Text(line.label)
+                                    .font(line.isNet ? NocturneType.inter(14.5) : NocturneType.inter(11.5))
+                                    .foregroundStyle(line.isNet ? Nocturne.text : Nocturne.neutral500)
+                                Spacer(minLength: 8)
+                                Text(line.value)
+                                    .font(line.isNet ? NocturneType.inter(14.5) : NocturneType.inter(11.5))
+                                    .foregroundStyle(line.isNet ? Nocturne.accent400 : Nocturne.text)
+                            }
+                            if !line.isNet && index < document.cash.count - 1 {
+                                Spacer().frame(height: 6)
+                            }
                         }
                     }
-
-                    HStack {
-                        Text(section.subtotalLabel).nocturneText(.meta)
-                        Spacer(minLength: 8)
-                        Text(section.subtotalValue)
-                            .font(NocturneType.inter(11.5))
-                            .foregroundStyle(Nocturne.text)
-                    }
-                    .padding(.top, 2)
-                    .padding(.bottom, 16)
+                    .cardBox()
                 }
-
-                // What the day did to the cash box, under a rule so it reads as
-                // the answer rather than as a seventh section.
-                FadedRule()
-                    .padding(.bottom, 10)
-
-                ForEach(Array(document.cash.enumerated()), id: \.offset) { _, line in
-                    HStack {
-                        Text(line.label)
-                            .font(line.isNet ? NocturneType.inter(14.5) : NocturneType.inter(11.5))
-                            .foregroundStyle(line.isNet ? Nocturne.text : Nocturne.neutral500)
-                        Spacer(minLength: 8)
-                        Text(line.value)
-                            .font(line.isNet ? NocturneType.inter(14.5) : NocturneType.inter(11.5))
-                            .foregroundStyle(line.isNet ? Nocturne.accent400 : Nocturne.text)
-                    }
-                    .padding(.bottom, 6)
-                }
+                .padding(.bottom, 4)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -135,6 +143,38 @@ struct DaySheet: View {
             fileName: Loc.dayFileName(date: Copy.fileDate(day))
         ) else { return }
         file = StatementFile(url: url)
+    }
+}
+
+/// One kind of thing that happened, boxed off from the other five.
+private struct SectionCard: View {
+    let section: DaySummaryDocument.Section
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Kicker(section.heading)
+                .padding(.bottom, 10)
+
+            VStack(spacing: Metrics.rowGap) {
+                ForEach(Array(section.rows.enumerated()), id: \.offset) { _, row in
+                    DayRow(row: row)
+                }
+            }
+
+            // Inside the card it totals, under a rule. A subtotal sitting
+            // outside the box could belong to either side of the boundary.
+            FadedRule(inset: 0)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
+
+            HStack {
+                Text(section.subtotalLabel).nocturneText(.meta)
+                Spacer(minLength: 8)
+                Text(section.subtotalValue).nocturneText(.rowPrimary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardBox()
     }
 }
 
@@ -173,5 +213,15 @@ private struct DayRow: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private extension View {
+    /// The padding every card on this sheet shares, over the app's own card
+    /// treatment — surface, radius and hairline all come from `nocturneCard`.
+    func cardBox() -> some View {
+        padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .nocturneCard()
     }
 }

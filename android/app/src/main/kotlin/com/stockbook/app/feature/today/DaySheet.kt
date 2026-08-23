@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.design.FadedRule
@@ -21,8 +23,9 @@ import com.stockbook.app.design.Kicker
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
-import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.SheetHeader
+import com.stockbook.app.design.card
+import com.stockbook.app.design.hairline
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.DaySummaryDocument
@@ -38,6 +41,12 @@ import java.time.ZoneId
  * statement — see [DaySummaryDocument], where that rule and the wording both
  * live. Everything drawn here comes out of that document, so what the owner
  * reads on the screen and what comes out of the printer cannot drift.
+ *
+ * **A card per section.** Six kinds of record in one column read as one long
+ * ledger, and the whole point of the page is that they are six separate
+ * questions — what was sold, what came in against it, what went out. A card puts
+ * a boundary where the meaning changes, and the subtotal at the foot of each one
+ * lands inside the thing it totals.
  */
 @Composable
 fun DaySheet(
@@ -72,17 +81,40 @@ fun DaySheet(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        SheetHeader(title = page.title, subtitle = page.onDate, onClose = onClose)
+        SheetHeader(
+            title = page.title,
+            onClose = onClose,
+            // Only where there is a day to hand over. A page saying nothing
+            // happened is a page nobody needs a copy of.
+            onShare = if (page.isEmpty) null else onSave
+        )
 
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        // `‹ 22 August 2026 ›` — the date reads as the thing being stepped
+        // through rather than as a caption with two buttons parked beside it.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+        ) {
             IconButton(
                 Icon.stepBack,
                 onClick = { onDay(day.stepDay(-1)) },
                 contentDescription = strings.previousDay,
                 tint = Nocturne.accent
             )
-            Spacer(Modifier.width(4.dp))
-            if (!isToday) {
+            Text(
+                page.onDate,
+                style = NocturneType.rowPrimary,
+                color = Nocturne.text,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier.weight(1f)
+            )
+            if (isToday) {
+                // Holds the date in the middle on the day there is no forward
+                // arrow to draw. Without it today's date sits off to the right
+                // and every step back nudges it, which reads as a bug.
+                Spacer(Modifier.size(Metrics.minimumTouchTarget))
+            } else {
                 IconButton(
                     Icon.stepForward,
                     onClick = { onDay(day.stepDay(1)) },
@@ -90,19 +122,7 @@ fun DaySheet(
                     tint = Nocturne.accent
                 )
             }
-            Spacer(Modifier.weight(1f))
-            // Only where there is a day to hand over. A page saying nothing
-            // happened is a page nobody needs a copy of.
-            if (!page.isEmpty) {
-                SecondaryButton(
-                    strings.sharePdf,
-                    onClick = onSave,
-                    height = 34.dp,
-                    fontSize = 12.5
-                )
-            }
         }
-        Spacer(Modifier.height(14.dp))
 
         if (page.isEmpty) {
             Text(
@@ -117,40 +137,73 @@ fun DaySheet(
         // A plain Column rather than a lazy list: the sheet already scrolls, and
         // a day with more rows than fit in it is a very good day.
         page.sections.forEach { section ->
-            Kicker(section.heading, modifier = Modifier.padding(bottom = 6.dp))
-            section.rows.forEach { row -> DayRow(row) }
-
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 16.dp)) {
-                Text(
-                    section.subtotalLabel,
-                    style = NocturneType.meta,
-                    color = Nocturne.neutral500,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(section.subtotalValue, style = NocturneType.meta, color = Nocturne.text)
-            }
+            SectionCard(section)
+            Spacer(Modifier.height(Metrics.cardGap))
         }
 
-        // What the day did to the cash box, under a rule so it reads as the
-        // answer rather than as a seventh section.
-        FadedRule()
-        Spacer(Modifier.height(10.dp))
-        page.cash.forEach { line ->
-            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                Text(
-                    line.label,
-                    style = if (line.isNet) NocturneType.rowPrimary else NocturneType.meta,
-                    color = if (line.isNet) Nocturne.text else Nocturne.neutral500,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    line.value,
-                    style = if (line.isNet) NocturneType.rowPrimary else NocturneType.meta,
-                    color = if (line.isNet) Nocturne.accent400 else Nocturne.text
-                )
+        // What the day did to the cash box. Its own card, because it is the
+        // answer the page was read for and not a seventh kind of record.
+        Spacer(Modifier.height(2.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .card()
+                .hairline(radius = Metrics.cardRadius)
+                .padding(14.dp)
+        ) {
+            page.cash.forEachIndexed { index, line ->
+                if (line.isNet) {
+                    FadedRule(modifier = Modifier.padding(vertical = 8.dp), inset = 0.dp)
+                }
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        line.label,
+                        style = if (line.isNet) NocturneType.rowPrimary else NocturneType.meta,
+                        color = if (line.isNet) Nocturne.text else Nocturne.neutral500,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        line.value,
+                        style = if (line.isNet) NocturneType.rowPrimary else NocturneType.meta,
+                        color = if (line.isNet) Nocturne.accent400 else Nocturne.text
+                    )
+                }
+                if (!line.isNet && index < page.cash.lastIndex) Spacer(Modifier.height(6.dp))
             }
         }
         Spacer(Modifier.height(4.dp))
+    }
+}
+
+/** One kind of thing that happened, boxed off from the other five. */
+@Composable
+private fun SectionCard(section: DaySummaryDocument.Section) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .card()
+            .hairline(radius = Metrics.cardRadius)
+            .padding(14.dp)
+    ) {
+        Kicker(section.heading, modifier = Modifier.padding(bottom = 10.dp))
+
+        section.rows.forEachIndexed { index, row ->
+            DayRow(row)
+            if (index < section.rows.lastIndex) Spacer(Modifier.height(Metrics.rowGap))
+        }
+
+        // Inside the card it totals, under a rule. A subtotal sitting outside
+        // the box could belong to either side of the boundary.
+        FadedRule(modifier = Modifier.padding(top = 10.dp, bottom = 8.dp), inset = 0.dp)
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                section.subtotalLabel,
+                style = NocturneType.meta,
+                color = Nocturne.neutral500,
+                modifier = Modifier.weight(1f)
+            )
+            Text(section.subtotalValue, style = NocturneType.rowPrimary, color = Nocturne.text)
+        }
     }
 }
 
@@ -170,7 +223,7 @@ private fun Instant.stepDay(by: Long): Instant {
 /** One record, and what was on it where the record says. */
 @Composable
 private fun DayRow(row: DaySummaryDocument.Row) {
-    Column(modifier = Modifier.fillMaxWidth().padding(bottom = Metrics.rowGap)) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(

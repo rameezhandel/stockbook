@@ -46,10 +46,22 @@ object DaySummaryPdf {
         typeface = Typeface.create(Typeface.SANS_SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
     }
 
+    /** How tall the filled strip behind a section heading is. */
+    private const val BAND_HEIGHT = 19f
+
     private val rule = Paint().apply {
         isAntiAlias = true
         color = 0xFFD6D6DE.toInt()
         strokeWidth = 0.8f
+    }
+
+    /**
+     * The strip behind a section heading — light enough to photocopy, dark
+     * enough to find at arm's length.
+     */
+    private val band = Paint().apply {
+        isAntiAlias = true
+        color = 0xFFEDEDF2.toInt()
     }
 
     /**
@@ -101,11 +113,21 @@ object DaySummaryPdf {
             // The heading goes over at least one row or not at all: a section
             // title alone at the foot of a page is a promise the page does not
             // keep.
-            room(60f)
-            canvas.drawText(section.heading.uppercase(), MARGIN, y + BODY_SIZE, paint(BODY_SIZE, bold = true))
-            y += 14
-            canvas.drawLine(MARGIN, y, right, y, rule)
-            y += 8
+            room(70f)
+
+            // A filled band rather than a rule, and it is the whole of what
+            // makes this page readable. Rules under a heading *and* under every
+            // row gave six sections that all looked alike — a wall of lines with
+            // no way to see where one kind of record stopped and the next began.
+            // A band is the printed answer to the card on screen.
+            canvas.drawRect(MARGIN, y, right, y + BAND_HEIGHT, band)
+            canvas.drawText(
+                section.heading.uppercase(),
+                MARGIN + 7f,
+                y + BAND_HEIGHT - 6.5f,
+                paint(BODY_SIZE, bold = true)
+            )
+            y += BAND_HEIGHT + 9
 
             for (row in section.rows) {
                 room(40f)
@@ -115,7 +137,7 @@ object DaySummaryPdf {
                 // exactly the row that matters most.
                 canvas.drawText(body.ellipsised(row.name, width * NAME_FRACTION), MARGIN, y + ROW_SIZE, body)
                 canvas.drawTextRight(row.amount, right, y + ROW_SIZE, body)
-                y += 14
+                y += 13
 
                 // The paper's number, and what is still owed on it. Grey and
                 // under the name, because it qualifies the row rather than
@@ -135,28 +157,42 @@ object DaySummaryPdf {
                     y += 12
                 }
 
-                y += 4
-                canvas.drawLine(MARGIN, y, right, y, rule)
-                y += 6
+                // Air between records instead of a rule between them. Two lines
+                // of white say "different bill" as clearly as a hairline does,
+                // and they do not have to compete with the one line that matters
+                // — the one over the subtotal.
+                y += 8
             }
 
-            room(30f)
+            room(34f)
             y += 2
+            canvas.drawLine(MARGIN, y, right, y, rule)
+            y += 8
             canvas.drawText(section.subtotalLabel, MARGIN, y + ROW_SIZE, paint(ROW_SIZE, bold = true))
             canvas.drawTextRight(section.subtotalValue, right, y + ROW_SIZE, paint(ROW_SIZE, bold = true))
-            y += 26
+            y += 30
         }
 
         // --- What the day did to the cash box
 
-        room(30f + document.cash.size * 16f)
-        canvas.drawLine(MARGIN, y, right, y, rule)
-        y += 12
+        // No band over this one: the bands carry a heading and this block has
+        // none — `DaySummaryDocument` gives the three lines their own labels and
+        // nothing above them. An empty grey strip would read as a fault in the
+        // printer rather than as a section.
+        room(34f + document.cash.size * 17f)
+        y += 4
         for (line in document.cash) {
+            // The one figure that can go either way gets a rule over it, the way
+            // the subtotals do — everything above it adds up to this.
+            if (line.isNet) {
+                y += 2
+                canvas.drawLine(MARGIN, y, right, y, rule)
+                y += 8
+            }
             val body = paint(ROW_SIZE, bold = line.isNet)
             canvas.drawText(line.label, MARGIN, y + ROW_SIZE, body)
             canvas.drawTextRight(line.value, right, y + ROW_SIZE, body)
-            y += 16
+            y += 15
         }
 
         pdf.finishPage(page)

@@ -125,7 +125,16 @@ fun SheetHeader(
     title: String,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    subtitle: String? = null
+    subtitle: String? = null,
+    /**
+     * Hands what the sheet is showing to the chooser, from the corner.
+     *
+     * A glyph beside the close rather than a worded button in the body: on a
+     * sheet whose whole content is one document, sharing it is chrome — the same
+     * standing the close has — and a full-width button for it competes with
+     * whatever the sheet is actually for.
+     */
+    onShare: (() -> Unit)? = null
 ) {
     androidx.compose.foundation.layout.Row(
         verticalAlignment = Alignment.Top,
@@ -141,6 +150,9 @@ fun SheetHeader(
                     modifier = Modifier.padding(top = 3.dp)
                 )
             }
+        }
+        if (onShare != null) {
+            IconButton(Icon.share, onClick = onShare, size = 15.dp, tint = Nocturne.accent)
         }
         IconButton(Icon.close, onClick = onClose, size = 16.dp, tint = Nocturne.neutral500)
     }

@@ -68,6 +68,18 @@ struct TopRoundedRectangle: Shape {
 struct SheetHeader: View {
     let title: String
     var subtitle: String?
+    /// Hands what the sheet is showing to the chooser, from the corner.
+    ///
+    /// A glyph beside the close rather than a worded button in the body: on a
+    /// sheet whose whole content is one document, sharing it is chrome — the
+    /// same standing the close has — and a full-width button for it competes
+    /// with whatever the sheet is actually for.
+    ///
+    /// Declared **before** `onClose` on purpose. `ProductEditorSheet` writes
+    /// `SheetHeader(title: …) { … }`, and a trailing closure binds to the last
+    /// parameter — put this after `onClose` and that sheet's close button
+    /// silently becomes its share button.
+    var onShare: (() -> Void)?
     let onClose: () -> Void
 
     var body: some View {
@@ -79,6 +91,15 @@ struct SheetHeader: View {
                 }
             }
             Spacer(minLength: 12)
+            if let onShare {
+                Button(action: onShare) {
+                    Glyph(Icon.share, size: 15)
+                        .foregroundStyle(Nocturne.accent)
+                        .minimumTouchTarget()
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Loc.sharePdf)
+            }
             Button(action: onClose) {
                 Glyph(Icon.close, size: 16)
                     .foregroundStyle(Nocturne.neutral500)

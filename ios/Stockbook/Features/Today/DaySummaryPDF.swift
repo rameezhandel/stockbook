@@ -31,6 +31,7 @@ enum DaySummaryPDF {
     private static let ink = UIColor(red: 0.078, green: 0.078, blue: 0.110, alpha: 1)
     private static let grey = UIColor(red: 0.420, green: 0.420, blue: 0.463, alpha: 1)
     private static let ruleColour = UIColor(red: 0.839, green: 0.839, blue: 0.871, alpha: 1)
+    private static let bandColour = UIColor(red: 0.929, green: 0.929, blue: 0.949, alpha: 1)
 
     private static func attributes(_ size: CGFloat, bold: Bool = false, muted: Bool = false) -> [NSAttributedString.Key: Any] {
         [
@@ -81,12 +82,18 @@ enum DaySummaryPDF {
                 // The heading goes over at least one row or not at all: a section
                 // title alone at the foot of a page is a promise the page does
                 // not keep.
-                room(60)
+                room(70)
+
+                // A filled band rather than a rule, and it is the whole of what
+                // makes this page readable. Rules under a heading *and* under
+                // every row gave six sections that all looked alike — a wall of
+                // lines with no way to see where one kind of record stopped and
+                // the next began. A band is the printed answer to the card on
+                // screen.
+                band(from: y, right: right)
                 section.heading.uppercased()
-                    .draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, bold: true))
-                y += 14
-                rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-                y += 8
+                    .draw(at: CGPoint(x: margin + 7, y: y + 4), withAttributes: attributes(bodySize, bold: true))
+                y += bandHeight + 9
 
                 for row in section.rows {
                     room(40)
@@ -96,7 +103,7 @@ enum DaySummaryPDF {
                     // matters most.
                     draw(row.name, at: CGPoint(x: margin, y: y), maxWidth: width * nameFraction, attributes: attributes(rowSize))
                     drawRight(row.amount, rightEdge: right, y: y, attributes: attributes(rowSize))
-                    y += 14
+                    y += 13
 
                     // The paper's number, and what is still owed on it. Grey and
                     // under the name, because it qualifies the row rather than
@@ -120,28 +127,42 @@ enum DaySummaryPDF {
                         y += 12
                     }
 
-                    y += 4
-                    rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-                    y += 6
+                    // Air between records instead of a rule between them. Two
+                    // lines of white say "different bill" as clearly as a
+                    // hairline does, and they do not have to compete with the one
+                    // line that matters — the one over the subtotal.
+                    y += 8
                 }
 
-                room(30)
+                room(34)
                 y += 2
+                rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
+                y += 8
                 section.subtotalLabel.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(rowSize, bold: true))
                 drawRight(section.subtotalValue, rightEdge: right, y: y, attributes: attributes(rowSize, bold: true))
-                y += 26
+                y += 30
             }
 
             // MARK: What the day did to the cash box
 
-            room(30 + CGFloat(document.cash.count) * 16)
-            rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-            y += 12
+            // No band over this one: the bands carry a heading and this block has
+            // none — `DaySummaryDocument` gives the three lines their own labels
+            // and nothing above them. An empty grey strip would read as a fault
+            // in the printer rather than as a section.
+            room(34 + CGFloat(document.cash.count) * 17)
+            y += 4
             for cashLine in document.cash {
+                // The one figure that can go either way gets a rule over it, the
+                // way the subtotals do — everything above it adds up to this.
+                if cashLine.isNet {
+                    y += 2
+                    rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
+                    y += 8
+                }
                 let style = attributes(rowSize, bold: cashLine.isNet)
                 cashLine.label.draw(at: CGPoint(x: margin, y: y), withAttributes: style)
                 drawRight(cashLine.value, rightEdge: right, y: y, attributes: style)
-                y += 16
+                y += 15
             }
         }
 
@@ -174,6 +195,16 @@ enum DaySummaryPDF {
             attributes: attributes,
             context: nil
         )
+    }
+
+    /// How tall the filled strip behind a section heading is.
+    private static let bandHeight: CGFloat = 19
+
+    /// The strip behind a section heading — light enough to photocopy, dark
+    /// enough to find at arm's length.
+    private static func band(from y: CGFloat, right: CGFloat) {
+        bandColour.setFill()
+        UIBezierPath(rect: CGRect(x: margin, y: y, width: right - margin, height: bandHeight)).fill()
     }
 
     private static func rule(from: CGPoint, to: CGPoint) {
