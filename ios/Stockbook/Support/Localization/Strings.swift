@@ -934,17 +934,20 @@ struct Strings {
     // Worded so it can never be mistaken for a statement. A statement is handed
     // to the person it is about; this names everybody, and is for the owner.
 
-    var moneyOwedToYou: String { pick("Money owed to you", "ನಿಮಗೆ ಬರಬೇಕಾದ ಹಣ") }
-    /// The day the list was made. What is owed is true at a moment, not over a span.
+    /// **Receivable**, the word Home already uses for this figure — not "owed".
+    /// The same money called two things on two screens is the owner wondering
+    /// whether they are the same money.
+    var receivableSummary: String { pick("Receivable Amount Summary", "ಬರಬೇಕಾದ ಬಾಕಿ ಸಾರಾಂಶ") }
+    /// The day the list was made. A balance is true at a moment, not over a span.
     func asOfDate(_ date: String) -> String { pick("As of \(date)", "\(date) ರಂತೆ") }
     var columnCustomer: String { pick("Customer", "ಗ್ರಾಹಕ") }
-    var columnOwed: String { pick("Owed", "ಬಾಕಿ") }
-    var totalOwedToYou: String { pick("Total owed to you", "ಒಟ್ಟು ಬಾಕಿ") }
-    var nobodyOwesYouAnything: String { pick("Nobody owes you anything.", "ಯಾರೂ ಬಾಕಿ ಇಲ್ಲ.") }
+    var columnReceivable: String { pick("Receivable", "ಬರಬೇಕಾದ ಬಾಕಿ") }
+    var totalReceivable: String { pick("Total Receivable", "ಒಟ್ಟು ಬರಬೇಕಾದ ಬಾಕಿ") }
+    var nothingReceivable: String { pick("Nothing receivable.", "ಬರಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.") }
     /// The button that makes it. Says *list*, never *statement*.
     var savedList: String { pick("Save list", "ಪಟ್ಟಿ ಉಳಿಸಿ") }
     /// Not translated: a file name is read by a file manager, not by a shopkeeper.
-    func owedFileName(date: String) -> String { "money-owed-\(date).pdf" }
+    func receivableFileName(date: String) -> String { "receivable-\(date).pdf" }
     var sharePdf: String { pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ") }
 
     func accountSummaryTill(_ date: String) -> String {

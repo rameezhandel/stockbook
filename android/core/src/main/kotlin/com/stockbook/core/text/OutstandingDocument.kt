@@ -68,17 +68,17 @@ data class OutstandingDocument(
 
             return OutstandingDocument(
                 shopName = settings.ownerName,
-                title = strings.moneyOwedToYou,
+                title = strings.receivableSummary,
                 asOf = strings.asOfDate(strings.longDate(now)),
-                columnHeadings = listOf(strings.columnCustomer, strings.columnOwed),
+                columnHeadings = listOf(strings.columnCustomer, strings.columnReceivable),
                 rows = owing.map { Row(it.name, Money.text(it.owed, currency)) },
-                totalLabel = strings.totalOwedToYou,
+                totalLabel = strings.totalReceivable,
                 // Summed from the same figures the rows print, so the foot of the
                 // page can never disagree with the page. `outstanding()` walks the
                 // same roster to the same answer, and `OutstandingDocumentTests`
                 // pins the two together.
                 totalValue = Money.text(owing.sumOf { it.owed }, currency),
-                emptyLine = strings.nobodyOwesYouAnything
+                emptyLine = strings.nothingReceivable
             )
         }
     }

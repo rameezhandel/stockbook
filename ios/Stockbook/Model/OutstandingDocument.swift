@@ -61,17 +61,17 @@ struct OutstandingDocument: Equatable {
 
         return OutstandingDocument(
             shopName: settings.ownerName,
-            title: strings.moneyOwedToYou,
+            title: strings.receivableSummary,
             asOf: strings.asOfDate(strings.longDate(now)),
-            columnHeadings: [strings.columnCustomer, strings.columnOwed],
+            columnHeadings: [strings.columnCustomer, strings.columnReceivable],
             rows: owing.map { Row(name: $0.name, amount: Money.text($0.owed, in: currency)) },
-            totalLabel: strings.totalOwedToYou,
+            totalLabel: strings.totalReceivable,
             // Summed from the same figures the rows print, so the foot of the
             // page can never disagree with the page. `outstanding()` walks the
             // same roster to the same answer, and `OutstandingDocumentTests` pins
             // the two together.
             totalValue: Money.text(owing.reduce(0) { $0 + $1.owed }, in: currency),
-            emptyLine: strings.nobodyOwesYouAnything
+            emptyLine: strings.nothingReceivable
         )
     }
 }

@@ -404,7 +404,7 @@ private fun Shell(store: StockbookStore) {
                         OutstandingPdf.write(
                             OutstandingDocument.make(store.customers(), state.settings, strings),
                             context,
-                            strings.owedFileName(Dates.fileDate(Timestamps.now()))
+                            strings.receivableFileName(Dates.fileDate(Timestamps.now()))
                         )
                     )
                 },

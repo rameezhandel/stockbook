@@ -49,7 +49,7 @@ struct WhoOwesYouSheet: View {
         )
         guard let url = try? OutstandingPDF.write(
             document,
-            fileName: Loc.owedFileName(date: Copy.fileDate(.now))
+            fileName: Loc.receivableFileName(date: Copy.fileDate(.now))
         ) else { return }
         file = StatementFile(url: url)
     }

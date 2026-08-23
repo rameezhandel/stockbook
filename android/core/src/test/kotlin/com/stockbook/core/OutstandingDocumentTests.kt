@@ -101,7 +101,7 @@ class OutstandingDocumentTests {
 
         assertTrue(document.isEmpty)
         assertTrue(document.rows.isEmpty())
-        assertEquals("Nobody owes you anything.", document.emptyLine)
+        assertEquals("Nothing receivable.", document.emptyLine)
         assertEquals("SAR 0", document.totalValue)
     }
 
@@ -120,9 +120,25 @@ class OutstandingDocumentTests {
         // one page in the app that must never be turned round on the counter.
         val document = store().document()
 
-        assertEquals("Money owed to you", document.title)
+        assertEquals("Receivable Amount Summary", document.title)
         assertTrue(!document.title.contains("Statement", ignoreCase = true))
-        assertEquals(listOf("Customer", "Owed"), document.columnHeadings)
+    }
+
+    @Test
+    fun `it says receivable, the word Home says`() {
+        // The same money called two things on two screens is the owner wondering
+        // whether they are the same money. Home's card is the one that was named
+        // first, so the page follows it rather than the other way round.
+        val document = store().document()
+
+        assertEquals(strings.receivableStat, "Receivable")
+        assertTrue(document.title.contains(strings.receivableStat))
+        assertEquals(listOf("Customer", strings.receivableStat), document.columnHeadings)
+        assertEquals("Total Receivable", document.totalLabel)
+
+        for (text in listOf(document.title, document.totalLabel, document.emptyLine)) {
+            assertTrue(!text.contains("owe", ignoreCase = true), text)
+        }
     }
 
     @Test

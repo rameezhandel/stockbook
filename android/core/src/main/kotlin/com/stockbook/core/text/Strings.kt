@@ -869,17 +869,22 @@ class Strings(val language: AppLanguage) {
     // Worded so it can never be mistaken for a statement. A statement is handed
     // to the person it is about; this names everybody, and is for the owner.
 
-    val moneyOwedToYou: String get() = pick("Money owed to you", "ನಿಮಗೆ ಬರಬೇಕಾದ ಹಣ")
-    /** The day the list was made. What is owed is true at a moment, not over a span. */
+    /**
+     * **Receivable**, the word Home already uses for this figure — not "owed".
+     * The same money called two things on two screens is the owner wondering
+     * whether they are the same money.
+     */
+    val receivableSummary: String get() = pick("Receivable Amount Summary", "ಬರಬೇಕಾದ ಬಾಕಿ ಸಾರಾಂಶ")
+    /** The day the list was made. A balance is true at a moment, not over a span. */
     fun asOfDate(date: String): String = pick("As of $date", "$date ರಂತೆ")
     val columnCustomer: String get() = pick("Customer", "ಗ್ರಾಹಕ")
-    val columnOwed: String get() = pick("Owed", "ಬಾಕಿ")
-    val totalOwedToYou: String get() = pick("Total owed to you", "ಒಟ್ಟು ಬಾಕಿ")
-    val nobodyOwesYouAnything: String get() = pick("Nobody owes you anything.", "ಯಾರೂ ಬಾಕಿ ಇಲ್ಲ.")
+    val columnReceivable: String get() = pick("Receivable", "ಬರಬೇಕಾದ ಬಾಕಿ")
+    val totalReceivable: String get() = pick("Total Receivable", "ಒಟ್ಟು ಬರಬೇಕಾದ ಬಾಕಿ")
+    val nothingReceivable: String get() = pick("Nothing receivable.", "ಬರಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.")
     /** The button that makes it. Says *list*, never *statement*. */
     val savedList: String get() = pick("Save list", "ಪಟ್ಟಿ ಉಳಿಸಿ")
     /** Not translated: a file name is read by a file manager, not by a shopkeeper. */
-    fun owedFileName(date: String): String = "money-owed-$date.pdf"
+    fun receivableFileName(date: String): String = "receivable-$date.pdf"
     val sharePdf: String get() = pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ")
 
     fun accountSummaryTill(date: String): String =
