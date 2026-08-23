@@ -1,5 +1,6 @@
 package com.stockbook.app.design
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -52,6 +53,15 @@ fun BottomSheet(
     content: @Composable () -> Unit
 ) {
     if (!visible) return
+
+    // The system back gesture closes the sheet, not the app.
+    //
+    // Written once here rather than at each of the dozen call sites, and it lands
+    // on the right one for free: `BackHandler` hands the press to the callback
+    // registered *last*, and a sheet is composed after the screen it covers. A
+    // sheet opened over the statement therefore closes itself and leaves the
+    // statement standing, which is what the layering already says on screen.
+    BackHandler(onBack = onDismiss)
 
     Box(modifier = modifier.fillMaxSize()) {
         // The scrim swallows taps, which is how a sheet is dismissed.

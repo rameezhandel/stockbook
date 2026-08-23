@@ -1,5 +1,6 @@
 package com.stockbook.app.feature.sell
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -89,6 +90,15 @@ fun SellScreen(
     // would be the app asking a question the paper already answered.
     val showsPicker = browsing || query.isNotBlank()
     val matches = remember(state.products, query) { store.productsMatching(query) }
+
+    // Back puts the product list away and leaves the bill standing. The picker
+    // covers the screen and takes the tab bar down with it, so it is a layer to
+    // come back from and not the screen itself — and the query has to go with it,
+    // because a leftover search term is the other half of what holds the list up.
+    BackHandler(enabled = showsPicker) {
+        router.pickingProducts = false
+        query = ""
+    }
 
     Column(modifier = modifier.fillMaxWidth()) {
         ScreenHeader(

@@ -1,5 +1,6 @@
 package com.stockbook.app.feature.setup
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -99,6 +100,13 @@ fun SetupFlow(store: StockbookStore, strings: Strings) {
     // A shop moving to a new phone already has a file; typing the whole shop
     // back in by hand is the thing this sheet exists to skip.
     var showingImport by remember { mutableStateOf(false) }
+
+    // The system back does what the Back button beside it does, and is disabled on
+    // the first step exactly as that button is hidden there. Without this, the
+    // press that means "go back a page" left setup altogether — and setup holds
+    // every product and customer typed so far in `remember`, so it took them
+    // with it.
+    BackHandler(enabled = step > 0) { step -= 1 }
     val importFlow = remember { ImportFlow() }
     val context = LocalContext.current
     val importer = rememberLauncherForActivityResult(

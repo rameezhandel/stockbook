@@ -4,6 +4,7 @@ import android.app.Activity
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.Crossfade
@@ -223,6 +224,7 @@ private fun Shell(store: StockbookStore) {
         }
 
         if (router.showingSettings) {
+            BackHandler { router.showingSettings = false }
             SettingsScreen(
                 state = state,
                 store = store,
@@ -240,6 +242,7 @@ private fun Shell(store: StockbookStore) {
         }
 
         if (router.showingBackup) {
+            BackHandler { router.showingBackup = false }
             BackupScreen(
                 state = state,
                 store = store,
@@ -252,6 +255,7 @@ private fun Shell(store: StockbookStore) {
         // opened from. Above the tab bar and below the statement: the statement is
         // reached *from* here and has to sit on top of it.
         router.partyFor?.let { key ->
+            BackHandler { router.partyFor = null }
             PartyScreen(
                 partyKey = key,
                 isSupplier = router.partyIsSupplier,
@@ -266,6 +270,7 @@ private fun Shell(store: StockbookStore) {
         // A document rather than a sheet: it runs to a page, and it is the one
         // screen here the owner may turn round and show a customer.
         router.statementFor?.let { key ->
+            BackHandler { router.statementFor = null }
             StatementScreen(
                 partyKey = key,
                 store = store,
@@ -307,6 +312,7 @@ private fun Shell(store: StockbookStore) {
         }
 
         router.supplierStatementFor?.let { key ->
+            BackHandler { router.supplierStatementFor = null }
             StatementScreen(
                 partyKey = key,
                 isSupplier = true,
@@ -340,6 +346,10 @@ private fun Shell(store: StockbookStore) {
         }
 
         router.receipt?.let { bill ->
+            // Nothing is lost by leaving: the bill is written, and this page only
+            // confirms it. The two buttons on it are shortcuts, not the price of
+            // getting out.
+            BackHandler { router.receipt = null }
             ReceiptOverlay(
                 bill = bill,
                 state = state,
