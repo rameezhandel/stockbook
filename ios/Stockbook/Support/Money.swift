@@ -40,6 +40,23 @@ enum Money {
         currency.symbol + amount(value, in: currency)
     }
 
+    /// The same figure with the sign in front of the symbol: `-SAR 150`.
+    ///
+    /// `text` puts the symbol first, so a negative comes out of it as `SAR -150`
+    /// — readable, and not how anybody writes it. Kept beside `text` rather than
+    /// folded into it because **nothing else in this book is signed**: every
+    /// other figure is a total, a balance or a sum, each of them clamped at zero
+    /// on the way in, and all of them must go on printing exactly as they do
+    /// now. The day's net cash is the first figure here that can honestly go
+    /// either way.
+    static func signed(_ value: Double, in currency: Currency = .default) -> String {
+        // The sign is read off the *rounded* number, not the raw double. A net
+        // of -0.004 rounds to zero and prints `SAR 0`; a minus in front of that
+        // would be the page claiming a loss of nothing.
+        let negative = amount(value, in: currency).hasPrefix("-")
+        return (negative ? "-" : "") + text(abs(value), in: currency)
+    }
+
     /// The number alone, no symbol.
     static func amount(_ value: Double, in currency: Currency = .default) -> String {
         let scale = pow(10.0, Double(currency.fractionDigits))

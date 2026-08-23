@@ -1057,6 +1057,126 @@ final class StockbookStore {
         return bills.filter { range.contains($0.createdAt) }.count
     }
 
+    /// Everything that happened on one day, oldest first.
+    ///
+    /// The one place in this app that reads all six dated records together, and
+    /// the reason it exists: `soldIn` answers what was billed and `spentIn` what
+    /// was spent, but a shopkeeper closing up wants the day itself — what was
+    /// sold, what came in against it, what arrived, what went out — on one page
+    /// they can hold beside the cash box.
+    ///
+    /// Through `StatementPeriod.custom` with the same date at both ends, which
+    /// already resolves to one whole day in the phone's own calendar. There is
+    /// one idea of a span in this app and inventing a second for a single day is
+    /// how a bill written at ten to midnight starts landing on two of them.
+    ///
+    /// Names are read from `customers()` and `suppliers()` rather than from the
+    /// rosters directly, so a person is spelled here exactly as every other
+    /// screen spells them — roster spelling where there is one, the most recent
+    /// bill's otherwise. Both walk the whole book, which is work this does not
+    /// need but correctness this cannot do without: a day book naming somebody
+    /// differently from the statement it sits beside is a day book the owner
+    /// stops trusting.
+    func dayBook(_ day: Date, calendar: Calendar = .current) -> DayBook {
+        let range = StatementPeriod.custom(from: day, to: day).range(calendar: calendar)
+        let customerName = Dictionary(customers().map { ($0.key, $0.name) }, uniquingKeysWith: { first, _ in first })
+        let supplierName = Dictionary(suppliers().map { ($0.key, $0.name) }, uniquingKeysWith: { first, _ in first })
+
+        var entries: [DayEntry] = []
+
+        for bill in bills where range.contains(bill.createdAt) {
+            entries.append(
+                DayEntry(
+                    kind: .bill,
+                    // Through the same table the other five kinds go through,
+                    // and not `bill.who` — that is the spelling typed at the
+                    // counter, and one page carrying "ahmed contracting" on the
+                    // bill and "Ahmed Contracting" on his payment reads as two
+                    // people.
+                    who: customerName[Customer.key(for: bill.who)] ?? bill.who,
+                    reference: bill.invoiceNo,
+                    billNumber: bill.number,
+                    amount: bill.total,
+                    // What the customer actually handed over. `balance` is zero
+                    // on a bill paid in full, so this is the whole of it; on one
+                    // written on credit it is nothing.
+                    settled: bill.total - bill.balance,
+                    items: bill.lines.map { DayItem(name: $0.name, qty: $0.qty, amount: $0.lineTotal) },
+                    at: bill.createdAt
+                )
+            )
+        }
+        for payment in payments where range.contains(payment.receivedAt) {
+            entries.append(
+                DayEntry(
+                    kind: .payment,
+                    who: customerName[payment.customerKey] ?? payment.customerKey,
+                    reference: payment.paymentNo,
+                    amount: payment.amount,
+                    settled: payment.amount,
+                    at: payment.receivedAt
+                )
+            )
+        }
+        for note in creditNotes where range.contains(note.issuedAt) {
+            entries.append(
+                DayEntry(
+                    kind: .creditNote,
+                    who: customerName[note.customerKey] ?? note.customerKey,
+                    reference: note.noteNo,
+                    amount: note.total,
+                    // Credited, not paid. Nothing left the cash box.
+                    settled: 0,
+                    items: note.lines.map { DayItem(name: $0.name, qty: $0.qty, amount: $0.lineTotal) },
+                    at: note.issuedAt
+                )
+            )
+        }
+        for purchase in purchases where range.contains(purchase.createdAt) {
+            entries.append(
+                DayEntry(
+                    kind: .delivery,
+                    who: supplierName[purchase.supplierKey] ?? purchase.supplierKey,
+                    reference: purchase.invoiceNo,
+                    amount: purchase.total,
+                    settled: purchase.total - purchase.balance,
+                    // `items`, never `lines` — a delivery entered before a
+                    // delivery could hold more than one product keeps its
+                    // itemisation only through here.
+                    items: purchase.items.map { DayItem(name: $0.name, qty: $0.qty, amount: $0.lineTotal) },
+                    at: purchase.createdAt
+                )
+            )
+        }
+        for payment in supplierPayments where range.contains(payment.paidAt) {
+            entries.append(
+                DayEntry(
+                    kind: .supplierPayment,
+                    who: supplierName[payment.supplierKey] ?? payment.supplierKey,
+                    reference: payment.paymentNo,
+                    amount: payment.amount,
+                    settled: payment.amount,
+                    at: payment.paidAt
+                )
+            )
+        }
+        for expense in expenses where range.contains(expense.spentAt) {
+            entries.append(
+                DayEntry(
+                    kind: .expense,
+                    // An expense is joined to nobody, so what it went on is the
+                    // only name it has.
+                    who: expense.note,
+                    amount: expense.amount,
+                    settled: expense.amount,
+                    at: expense.spentAt
+                )
+            )
+        }
+
+        return DayBook(day: day, entries: entries.sorted { $0.at < $1.at })
+    }
+
     // MARK: - Statements
 
     /// One customer's account over a period.
@@ -1936,6 +2056,99 @@ struct SpendLine: Equatable {
     let what: String
     let times: Int
     let total: Double
+}
+
+/// What kind of thing happened, and — through `direction` — which way the money
+/// moved when it did.
+///
+/// Six kinds because six records carry a date, and a day that quietly left one
+/// of them out would be a day the owner reconciles against the cash box and
+/// cannot make balance.
+enum DayEntryKind: CaseIterable {
+    case bill, payment, creditNote, delivery, supplierPayment, expense
+
+    /// Which way this kind points: into the cash box, out of it, or neither.
+    ///
+    /// A `switch` with no `default` on purpose. Add a seventh kind and this
+    /// stops compiling, which is the only reliable way to be asked whether it
+    /// is money.
+    ///
+    /// **A credit note is neither.** It reduces what somebody owes without a
+    /// coin moving, and counting it as cash taken would overstate the day's
+    /// takings by exactly the amount the shop *gave back*.
+    var direction: Int {
+        switch self {
+        case .bill, .payment: 1
+        case .delivery, .supplierPayment, .expense: -1
+        case .creditNote: 0
+        }
+    }
+}
+
+/// One product on an itemised bill or delivery, as the day's page lists it.
+struct DayItem: Equatable {
+    let name: String
+    let qty: Int
+    let amount: Double
+}
+
+/// One thing that happened on one day, whichever of the six records it came from.
+///
+/// Flattened to a common shape here rather than in the document, because the
+/// question "what happened today" has one answer and two platforms both have to
+/// give it. The alternative — six arrays handed to a layout that decides how
+/// they compare — is six chances for iOS and Android to disagree about a figure.
+struct DayEntry: Equatable {
+    let kind: DayEntryKind
+    /// The customer, the supplier, or — for the owner's own spending — what it went on.
+    let who: String
+    /// The number on the paper, when there is one: an invoice, a receipt, a credit note.
+    var reference: String?
+    /// The app's own counter, on a bill that has no paper number. Carried rather
+    /// than resolved here because "Bill #7" is words, and words live in `Strings`.
+    var billNumber: Int?
+    /// What the whole thing came to.
+    let amount: Double
+    /// What actually changed hands at the time — the part of `amount` that was
+    /// cash rather than credit. Equal to `amount` on a payment or an expense,
+    /// less on a bill part paid, zero on one written entirely on credit.
+    let settled: Double
+    /// What was on it, where the record says. Empty for a bill entered as a figure.
+    var items: [DayItem] = []
+    let at: Date
+}
+
+/// One day of the shop, in the order it happened.
+///
+/// **The owner's own page and nobody else's.** It names every customer billed
+/// that day beside what the shop spent its money on, so it can no more be handed
+/// across the counter than the receivable list can — and for the same two
+/// reasons. Nothing here is ever called a statement.
+struct DayBook: Equatable {
+    let day: Date
+    let entries: [DayEntry]
+
+    func entries(of kind: DayEntryKind) -> [DayEntry] { entries.filter { $0.kind == kind } }
+
+    /// What came into the cash box: taken at the counter on bills, plus receipts
+    /// against what was already owed.
+    ///
+    /// Summed from `DayEntry.settled` and never from `DayEntry.amount` — a bill
+    /// written on credit is a sale that took no money, and a day's takings that
+    /// counted it would be wrong by the whole of it.
+    var moneyIn: Double { sum(direction: 1) }
+
+    /// And what went out: paid to suppliers on the spot or since, and spent.
+    var moneyOut: Double { sum(direction: -1) }
+
+    /// What the day did to the cash box, which may well be negative.
+    var net: Double { moneyIn - moneyOut }
+
+    var isEmpty: Bool { entries.isEmpty }
+
+    private func sum(direction: Int) -> Double {
+        entries.filter { $0.kind.direction == direction }.reduce(0) { $0 + $1.settled }
+    }
 }
 
 /// One line of a delivery as the sheet holds it, before it becomes history.

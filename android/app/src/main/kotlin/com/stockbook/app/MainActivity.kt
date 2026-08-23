@@ -51,6 +51,8 @@ import com.stockbook.app.feature.settings.BackupScreen
 import com.stockbook.app.feature.settings.SettingsScreen
 import com.stockbook.app.feature.setup.SetupFlow
 import com.stockbook.app.feature.today.TodayScreen
+import com.stockbook.app.feature.today.DaySheet
+import com.stockbook.app.feature.today.DaySummaryPdf
 import com.stockbook.app.feature.today.SummaryPdf
 import com.stockbook.app.feature.today.WhoOwesYouSheet
 import com.stockbook.app.feature.today.WhoYouOweSheet
@@ -61,6 +63,7 @@ import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppTab
 import com.stockbook.core.text.Dates
+import com.stockbook.core.text.DaySummaryDocument
 import com.stockbook.core.text.SummaryDocument
 import com.stockbook.core.text.Strings
 import java.io.File
@@ -449,6 +452,35 @@ private fun Shell(store: StockbookStore) {
                 },
                 onClose = { router.showingCreditors = false }
             )
+        }
+
+        // One day of the shop, from the date at the top of Home.
+        BottomSheet(
+            visible = router.dayInView != null,
+            onDismiss = { router.dayInView = null }
+        ) {
+            router.dayInView?.let { day ->
+                DaySheet(
+                    day = day,
+                    state = state,
+                    store = store,
+                    strings = strings,
+                    onDay = { router.dayInView = it },
+                    onSave = {
+                        sharePdf(
+                            context,
+                            DaySummaryPdf.write(
+                                DaySummaryDocument.forDay(store.dayBook(day), state.settings, strings),
+                                context,
+                                // Named for the day it covers, not for today: a
+                                // folder of these is read by their file names.
+                                strings.dayFileName(Dates.fileDate(day))
+                            )
+                        )
+                    },
+                    onClose = { router.dayInView = null }
+                )
+            }
         }
 
         BottomSheet(

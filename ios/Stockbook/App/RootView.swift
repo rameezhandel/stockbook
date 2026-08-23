@@ -233,6 +233,22 @@ private struct AppShell: View {
         .nocturneSheet(isPresented: $router.showingCreditors) {
             WhoYouOweSheet { router.showingCreditors = false }
         }
+        // One day of the shop, from the date at the top of Home. Presented on
+        // *whether* there is a day rather than keyed on which one: stepping to
+        // yesterday changes what the sheet shows, and a sheet keyed on the day
+        // would dismiss and re-present itself on every arrow.
+        .nocturneSheet(
+            isPresented: Binding(
+                get: { router.dayInView != nil },
+                set: { if !$0 { router.dayInView = nil } }
+            )
+        ) {
+            DaySheet(
+                day: router.dayInView ?? .now,
+                onDay: { router.dayInView = $0 },
+                onClose: { router.dayInView = nil }
+            )
+        }
     }
 
     /// Hidden only under Sell's product picker, which carries its own bottom

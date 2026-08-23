@@ -31,6 +31,10 @@ enum Icon {
     static let addStock = "plus.square.on.square"     // phosphor: stack-plus
     static let chooseFromList = "chevron.up.chevron.down" // phosphor: caret-up-down
     static let openRow = "chevron.right"              // phosphor: caret-right
+    // Stepping one day at a time. Distinct from `back`, which leaves a screen —
+    // these stay on it and change what it is showing.
+    static let stepBack = "chevron.left"              // phosphor: caret-left
+    static let stepForward = "chevron.right"          // phosphor: caret-right
 
     // People & money
     static let customer = "person"                    // phosphor: user

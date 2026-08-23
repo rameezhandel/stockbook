@@ -107,6 +107,13 @@ final class AppRouter {
     var showingDebtors = false
     var showingCreditors = false
 
+    /// Which day the day summary is showing, or nil when it is closed.
+    ///
+    /// The day itself rather than a flag, because the sheet steps between days
+    /// and the one it is on has to survive being redrawn. Opened on today from
+    /// the date at the top of Home.
+    var dayInView: Date?
+
     /// A supplier's statement, full screen — a key for the same reason
     /// `statementFor` is one, and a separate field so the screen knows which side
     /// of the book it is drawing without being told twice.
@@ -227,6 +234,7 @@ final class AppRouter {
         startingPurchase = false
         showingDebtors = false
         showingCreditors = false
+        dayInView = nil
     }
 }
 

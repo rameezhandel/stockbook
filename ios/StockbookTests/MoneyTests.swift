@@ -34,6 +34,22 @@ struct MoneyTests {
         #expect(Money.text(-0.0) == "SAR 0")
     }
 
+    @Test("A signed figure carries the minus in front of the symbol")
+    func signedFigures() {
+        // `SAR -150` is what putting the symbol first gets you, and it is not
+        // how anybody writes a negative.
+        #expect(Money.signed(-150) == "-SAR 150")
+        #expect(Money.signed(150) == "SAR 150")
+        #expect(Money.signed(-12.5, in: .inr) == "-₹12.50")
+    }
+
+    @Test("A signed figure that rounds to nothing carries no sign")
+    func signedZero() {
+        // A loss of nothing is not a loss.
+        #expect(Money.signed(-0.004) == "SAR 0")
+        #expect(Money.signed(-0.0) == "SAR 0")
+    }
+
     @Test("The symbol is configurable")
     func symbol() {
         #expect(Money.text(12, in: .inr) == "₹12")

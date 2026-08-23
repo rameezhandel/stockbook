@@ -88,6 +88,11 @@ fun TodayScreen(
     Column(modifier = modifier.fillMaxWidth()) {
         ScreenHeader(
             kicker = strings.headerDate(Instant.now()),
+            // The date was already at the top of this screen, saying which day
+            // it is. Tapping it now asks what happened on that day — the
+            // shortest route there is, and the one place the owner is already
+            // looking at a date.
+            onKicker = { router.dayInView = Instant.now() },
             title = if (greetingName.isEmpty()) strings.today else strings.greeting(greetingName)
         ) {
             IconButton(

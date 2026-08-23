@@ -984,6 +984,38 @@ struct Strings {
     func expenseFileName(date: String) -> String { "expenses-\(date).pdf" }
     var sharePdf: String { pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ") }
 
+    // MARK: - One day of the shop
+    //
+    // Every customer billed that day, beside what the shop spent its own money
+    // on. The owner's page, exactly as the three above are, and *summary* for
+    // the same reason: a statement is one party's account, and this is the
+    // whole counter's.
+
+    var daySummary: String { pick("Day Summary", "ದಿನದ ಸಾರಾಂಶ") }
+    /// Section headings. `Bills`, `Received`, `Credit notes` and `Expenses` are already words this app owns.
+    var deliveriesTitle: String { pick("Deliveries", "ಡೆಲಿವರಿಗಳು") }
+    var paidToSuppliers: String { pick("Paid to suppliers", "ಸರಬರಾಜುದಾರರಿಗೆ ಪಾವತಿ") }
+    /// `3 × Padlock 40mm` — a product under the row it was sold on.
+    func itemLine(_ qty: Int, _ name: String) -> String { "\(qty) × \(name)" }
+    /// What is still owed on a bill or a delivery, said beside it.
+    ///
+    /// The page shows what was sold; this is what of it has not been paid for,
+    /// and without it a busy day on credit reads as a busy day of takings.
+    func onCreditAmount(_ amount: String) -> String { pick("\(amount) on credit", "\(amount) ಬಾಕಿ") }
+    /// What the day did to the cash box.
+    ///
+    /// *In* is what was taken at the counter plus what came in against older
+    /// bills — never what was billed. *Out* is what was paid for stock and what
+    /// was spent. A credit note is in neither: it reduces a debt without a coin
+    /// moving.
+    var moneyInLabel: String { pick("Money in", "ಬಂದ ಹಣ") }
+    var moneyOutLabel: String { pick("Money out", "ಹೋದ ಹಣ") }
+    var netForTheDay: String { pick("Net for the day", "ದಿನದ ನಿವ್ವಳ") }
+    var nothingOnThisDay: String { pick("Nothing was recorded on this day.", "ಈ ದಿನ ಯಾವುದೂ ದಾಖಲಾಗಿಲ್ಲ.") }
+    var previousDay: String { pick("Previous day", "ಹಿಂದಿನ ದಿನ") }
+    var nextDay: String { pick("Next day", "ಮುಂದಿನ ದಿನ") }
+    func dayFileName(date: String) -> String { "day-\(date).pdf" }
+
     func accountSummaryTill(_ date: String) -> String {
         pick("Account summary till \(date)", "\(date) ವರೆಗಿನ ಖಾತೆ ಸಾರಾಂಶ")
     }

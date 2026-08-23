@@ -92,6 +92,15 @@ class AppRouter {
     var showingDebtors by mutableStateOf(false)
     var showingCreditors by mutableStateOf(false)
 
+    /**
+     * Which day the day summary is showing, or null when it is closed.
+     *
+     * The day itself rather than a flag, because the sheet steps between days
+     * and the one it is on has to survive a recomposition. Opened on today from
+     * the date at the top of Home.
+     */
+    var dayInView by mutableStateOf<java.time.Instant?>(null)
+
     /** The receipt, shown full-screen after a bill is saved. */
     var receipt by mutableStateOf<Bill?>(null)
 
@@ -324,6 +333,7 @@ class AppRouter {
         editingPurchase = null
         showingDebtors = false
         showingCreditors = false
+        dayInView = null
         receipt = null
         billDetail = null
         editingBill = null

@@ -39,6 +39,22 @@ class MoneyTests {
     }
 
     @Test
+    fun `a signed figure carries the minus in front of the symbol`() {
+        // `SAR -150` is what putting the symbol first gets you, and it is not
+        // how anybody writes a negative.
+        assertEquals("-SAR 150", Money.signed(-150.0))
+        assertEquals("SAR 150", Money.signed(150.0))
+        assertEquals("-₹12.50", Money.signed(-12.5, Currency.INR))
+    }
+
+    @Test
+    fun `a signed figure that rounds to nothing carries no sign`() {
+        // A loss of nothing is not a loss.
+        assertEquals("SAR 0", Money.signed(-0.004))
+        assertEquals("SAR 0", Money.signed(-0.0))
+    }
+
+    @Test
     fun `the symbol is the currency's`() {
         assertEquals("₹12", Money.text(12.0, Currency.INR))
     }

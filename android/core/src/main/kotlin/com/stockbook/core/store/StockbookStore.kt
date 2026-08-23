@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.time.Instant
+import java.time.ZoneId
 
 /** One line as the cart holds it, before it becomes history. */
 data class DraftLine(
@@ -42,6 +43,102 @@ data class DraftLine(
  * times, and what that came to.
  */
 data class SpendLine(val what: String, val times: Int, val total: Double)
+
+/**
+ * What kind of thing happened, and — through [direction] — which way the money
+ * moved when it did.
+ *
+ * Six kinds because six records carry a date, and a day that quietly left one
+ * of them out would be a day the owner reconciles against the cash box and
+ * cannot make balance.
+ */
+enum class DayEntryKind { BILL, PAYMENT, CREDIT_NOTE, DELIVERY, SUPPLIER_PAYMENT, EXPENSE }
+
+/**
+ * Which way each kind points: into the cash box, out of it, or neither.
+ *
+ * A `when` without an `else` on purpose. Add a seventh kind and this stops
+ * compiling, which is the only reliable way to be asked whether it is money.
+ *
+ * **A credit note is neither.** It reduces what somebody owes without a coin
+ * moving, and counting it as cash taken would overstate the day's takings by
+ * exactly the amount the shop *gave back*.
+ */
+private val DayEntryKind.direction: Int
+    get() = when (this) {
+        DayEntryKind.BILL, DayEntryKind.PAYMENT -> 1
+        DayEntryKind.DELIVERY, DayEntryKind.SUPPLIER_PAYMENT, DayEntryKind.EXPENSE -> -1
+        DayEntryKind.CREDIT_NOTE -> 0
+    }
+
+/** One product on an itemised bill or delivery, as the day's page lists it. */
+data class DayItem(val name: String, val qty: Int, val amount: Double)
+
+/**
+ * One thing that happened on one day, whichever of the six records it came from.
+ *
+ * Flattened to a common shape here rather than in the document, because the
+ * question "what happened today" has one answer and two platforms both have to
+ * give it. The alternative — six lists handed to a layout that decides how they
+ * compare — is six chances for iOS and Android to disagree about a figure.
+ */
+data class DayEntry(
+    val kind: DayEntryKind,
+    /** The customer, the supplier, or — for the owner's own spending — what it went on. */
+    val who: String,
+    /** The number on the paper, when there is one: an invoice, a receipt, a credit note. */
+    val reference: String? = null,
+    /**
+     * The app's own counter, on a bill that has no paper number. Carried rather
+     * than resolved here because "Bill #7" is words, and words live in `Strings`.
+     */
+    val billNumber: Int? = null,
+    /** What the whole thing came to. */
+    val amount: Double,
+    /**
+     * What actually changed hands at the time — the part of [amount] that was
+     * cash rather than credit. Equal to [amount] on a payment or an expense,
+     * less on a bill part paid, zero on one written entirely on credit.
+     */
+    val settled: Double,
+    /** What was on it, where the record says. Empty for a bill entered as a figure. */
+    val items: List<DayItem> = emptyList(),
+    val at: Instant
+)
+
+/**
+ * One day of the shop, in the order it happened.
+ *
+ * **The owner's own page and nobody else's.** It names every customer billed
+ * that day beside what the shop spent its money on, so it can no more be handed
+ * across the counter than the receivable list can — and for the same two
+ * reasons. Nothing here is ever called a statement.
+ */
+data class DayBook(val day: Instant, val entries: List<DayEntry>) {
+
+    fun entriesOf(kind: DayEntryKind): List<DayEntry> = entries.filter { it.kind == kind }
+
+    /**
+     * What came into the cash box: taken at the counter on bills, plus receipts
+     * against what was already owed.
+     *
+     * Summed from [DayEntry.settled] and never from [DayEntry.amount] — a bill
+     * written on credit is a sale that took no money, and a day's takings that
+     * counted it would be wrong by the whole of it.
+     */
+    val moneyIn: Double get() = sum(1)
+
+    /** And what went out: paid to suppliers on the spot or since, and spent. */
+    val moneyOut: Double get() = sum(-1)
+
+    /** What the day did to the cash box, which may well be negative. */
+    val net: Double get() = moneyIn - moneyOut
+
+    val isEmpty: Boolean get() = entries.isEmpty()
+
+    private fun sum(direction: Int): Double =
+        entries.filter { it.kind.direction == direction }.sumOf { it.settled }
+}
 
 /** One line of a delivery as the sheet holds it, before it becomes history. */
 data class DraftPurchaseLine(
@@ -1106,6 +1203,128 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun billCountIn(period: StatementPeriod): Int {
         val range = period.range()
         return bills.count { it.createdAt in range }
+    }
+
+    /**
+     * Everything that happened on one day, oldest first.
+     *
+     * The one place in this app that reads all six dated records together, and
+     * the reason it exists: `soldIn` answers what was billed and `spentIn` what
+     * was spent, but a shopkeeper closing up wants the day itself — what was
+     * sold, what came in against it, what arrived, what went out — on one page
+     * they can hold beside the cash box.
+     *
+     * Through [StatementPeriod.Custom] with the same date at both ends, which
+     * already resolves to one whole day in the phone's own zone. There is one
+     * idea of a span in this app and inventing a second for a single day is how
+     * a bill written at ten to midnight starts landing on two of them.
+     *
+     * Names are read from [customers] and [suppliers] rather than from the
+     * rosters directly, so a person is spelled here exactly as every other
+     * screen spells them — roster spelling where there is one, the most recent
+     * bill's otherwise. Both walk the whole book, which is work this does not
+     * need but correctness this cannot do without: a day book naming somebody
+     * differently from the statement it sits beside is a day book the owner
+     * stops trusting.
+     */
+    fun dayBook(day: Instant, zone: ZoneId = ZoneId.systemDefault()): DayBook {
+        val range = StatementPeriod.Custom(day, day).range(zone)
+        val customerName = customers().associate { it.key to it.name }
+        val supplierName = suppliers().associate { it.key to it.name }
+
+        val entries = buildList {
+            for (bill in bills.filter { it.createdAt in range }) {
+                add(
+                    DayEntry(
+                        kind = DayEntryKind.BILL,
+                        // Through the same map the other five kinds go through,
+                        // and not `bill.who` — that is the spelling typed at the
+                        // counter, and one page carrying "ahmed contracting" on
+                        // the bill and "Ahmed Contracting" on his payment reads
+                        // as two people.
+                        who = customerName[Customer.key(bill.who)] ?: bill.who,
+                        reference = bill.invoiceNo,
+                        billNumber = bill.number,
+                        amount = bill.total,
+                        // What the customer actually handed over. `balance` is
+                        // zero on a bill paid in full, so this is the whole of
+                        // it; on one written on credit it is nothing.
+                        settled = bill.total - bill.balance,
+                        items = bill.lines.map { DayItem(it.name, it.qty, it.lineTotal) },
+                        at = bill.createdAt
+                    )
+                )
+            }
+            for (payment in payments.filter { it.receivedAt in range }) {
+                add(
+                    DayEntry(
+                        kind = DayEntryKind.PAYMENT,
+                        who = customerName[payment.customerKey] ?: payment.customerKey,
+                        reference = payment.paymentNo,
+                        amount = payment.amount,
+                        settled = payment.amount,
+                        at = payment.receivedAt
+                    )
+                )
+            }
+            for (note in creditNotes.filter { it.issuedAt in range }) {
+                add(
+                    DayEntry(
+                        kind = DayEntryKind.CREDIT_NOTE,
+                        who = customerName[note.customerKey] ?: note.customerKey,
+                        reference = note.noteNo,
+                        amount = note.total,
+                        // Credited, not paid. Nothing left the cash box.
+                        settled = 0.0,
+                        items = note.lines.map { DayItem(it.name, it.qty, it.lineTotal) },
+                        at = note.issuedAt
+                    )
+                )
+            }
+            for (purchase in purchases.filter { it.createdAt in range }) {
+                add(
+                    DayEntry(
+                        kind = DayEntryKind.DELIVERY,
+                        who = supplierName[purchase.supplierKey] ?: purchase.supplierKey,
+                        reference = purchase.invoiceNo,
+                        amount = purchase.total,
+                        settled = purchase.total - purchase.balance,
+                        // `items`, never `lines` — a delivery entered before a
+                        // delivery could hold more than one product keeps its
+                        // itemisation only through here.
+                        items = purchase.items.map { DayItem(it.name, it.qty, it.lineTotal) },
+                        at = purchase.createdAt
+                    )
+                )
+            }
+            for (payment in supplierPayments.filter { it.paidAt in range }) {
+                add(
+                    DayEntry(
+                        kind = DayEntryKind.SUPPLIER_PAYMENT,
+                        who = supplierName[payment.supplierKey] ?: payment.supplierKey,
+                        reference = payment.paymentNo,
+                        amount = payment.amount,
+                        settled = payment.amount,
+                        at = payment.paidAt
+                    )
+                )
+            }
+            for (expense in expenses.filter { it.spentAt in range }) {
+                add(
+                    DayEntry(
+                        kind = DayEntryKind.EXPENSE,
+                        // An expense is joined to nobody, so what it went on is
+                        // the only name it has.
+                        who = expense.note,
+                        amount = expense.amount,
+                        settled = expense.amount,
+                        at = expense.spentAt
+                    )
+                )
+            }
+        }
+
+        return DayBook(day = day, entries = entries.sortedBy { it.at })
     }
 
     // --- Statements

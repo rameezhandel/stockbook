@@ -131,6 +131,11 @@ struct FadedRule: View {
 struct ScreenHeader<Trailing: View>: View {
     var kicker: String?
     var kickerTint: Color?
+    /// Makes the kicker itself the way somewhere, with a caret after it so it
+    /// reads as one. Home's kicker is today's date and tapping it opens that
+    /// day; a date that silently did something when touched, and looked like
+    /// every other kicker in the app, would be found by accident or not at all.
+    var onKicker: (() -> Void)?
     let title: String
     var subtitle: String?
     var bottomPadding: CGFloat = 12
@@ -140,8 +145,27 @@ struct ScreenHeader<Trailing: View>: View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 0) {
                 if let kicker {
-                    Kicker(kicker, tint: kickerTint ?? Nocturne.accent)
-                        .padding(.bottom, 3)
+                    if let onKicker {
+                        Button(action: onKicker) {
+                            HStack(spacing: 0) {
+                                Kicker(kicker, tint: kickerTint ?? Nocturne.accent)
+                                Glyph(Icon.stepForward, size: 13)
+                                    .foregroundStyle(kickerTint ?? Nocturne.accent)
+                            }
+                            // Room for a thumb around a line of 11pt type. The
+                            // negative leading inset keeps the text itself
+                            // aligned with the title under it.
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .contentShape(Rectangle())
+                            .padding(.leading, -4)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.bottom, 1)
+                    } else {
+                        Kicker(kicker, tint: kickerTint ?? Nocturne.accent)
+                            .padding(.bottom, 3)
+                    }
                 }
                 Text(title).nocturneText(.screenTitle)
                 if let subtitle {
@@ -164,10 +188,18 @@ struct ScreenHeader<Trailing: View>: View {
 }
 
 extension ScreenHeader where Trailing == EmptyView {
-    init(kicker: String? = nil, kickerTint: Color? = nil, title: String, subtitle: String? = nil, bottomPadding: CGFloat = 12) {
+    init(
+        kicker: String? = nil,
+        kickerTint: Color? = nil,
+        onKicker: (() -> Void)? = nil,
+        title: String,
+        subtitle: String? = nil,
+        bottomPadding: CGFloat = 12
+    ) {
         self.init(
             kicker: kicker,
             kickerTint: kickerTint,
+            onKicker: onKicker,
             title: title,
             subtitle: subtitle,
             bottomPadding: bottomPadding,

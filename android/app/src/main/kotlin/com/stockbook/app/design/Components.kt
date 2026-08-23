@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -175,6 +176,13 @@ fun ScreenHeader(
     modifier: Modifier = Modifier,
     kicker: String? = null,
     kickerTint: Color = Nocturne.accent,
+    /**
+     * Makes the kicker itself the way somewhere, with a caret after it so it
+     * reads as one. Home's kicker is today's date and tapping it opens that day;
+     * a date that silently did something when touched, and looked like every
+     * other kicker in the app, would be found by accident or not at all.
+     */
+    onKicker: (() -> Unit)? = null,
     subtitle: String? = null,
     bottomPadding: Dp = 12.dp,
     trailing: @Composable () -> Unit = {}
@@ -188,7 +196,25 @@ fun ScreenHeader(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             if (kicker != null) {
-                Kicker(kicker, tint = kickerTint, modifier = Modifier.padding(bottom = 3.dp))
+                if (onKicker == null) {
+                    Kicker(kicker, tint = kickerTint, modifier = Modifier.padding(bottom = 3.dp))
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(Metrics.controlRadius))
+                            .clickable(onClick = onKicker)
+                            // Room for a thumb around a line of 11pt type, and
+                            // the negative start keeps the text itself aligned
+                            // with the title under it.
+                            .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 2.dp)
+                            .offset(x = (-4).dp)
+                    ) {
+                        Kicker(kicker, tint = kickerTint)
+                        Glyph(Icon.stepForward, size = 13.dp, tint = kickerTint)
+                    }
+                    Spacer(Modifier.height(1.dp))
+                }
             }
             Text(title, style = NocturneType.screenTitle, color = Nocturne.text)
             if (subtitle != null) {

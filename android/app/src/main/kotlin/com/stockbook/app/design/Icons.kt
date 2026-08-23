@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.LightMode
@@ -55,6 +56,10 @@ object Icon {
     val close: ImageVector = Icons.Filled.Close
     val confirm: ImageVector = Icons.Filled.Check
     val openRow: ImageVector = Icons.Filled.KeyboardArrowRight
+    // Stepping one day at a time. Distinct from `back`, which leaves a screen —
+    // these stay on it and change what it is showing.
+    val stepBack: ImageVector = Icons.Filled.KeyboardArrowLeft  // phosphor: caret-left
+    val stepForward: ImageVector = Icons.Filled.KeyboardArrowRight // phosphor: caret-right
     val chooseFromList: ImageVector = Icons.Filled.UnfoldMore
     val share: ImageVector = Icons.Filled.Share            // phosphor: share-network
 

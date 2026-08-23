@@ -24,6 +24,25 @@ object Money {
     fun text(value: Double, currency: Currency = Currency.default): String =
         currency.symbol + amount(value, currency)
 
+    /**
+     * The same figure with the sign in front of the symbol: `-SAR 150`.
+     *
+     * [text] puts the symbol first, so a negative comes out of it as `SAR -150`
+     * — readable, and not how anybody writes it. Kept beside [text] rather than
+     * folded into it because **nothing else in this book is signed**: every
+     * other figure is a total, a balance or a sum, each of them clamped at zero
+     * on the way in, and all of them must go on printing exactly as they do now.
+     * The day's net cash is the first figure here that can honestly go either
+     * way.
+     */
+    fun signed(value: Double, currency: Currency = Currency.default): String {
+        // The sign is read off the *rounded* number, not the raw double. A net
+        // of -0.004 rounds to zero and prints `SAR 0`; a minus in front of that
+        // would be the page claiming a loss of nothing.
+        val negative = amount(value, currency).startsWith("-")
+        return (if (negative) "-" else "") + text(abs(value), currency)
+    }
+
     /** The number alone, no symbol. */
     fun amount(value: Double, currency: Currency = Currency.default): String {
         val scale = 10.0.pow(currency.fractionDigits)

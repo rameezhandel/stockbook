@@ -929,6 +929,42 @@ class Strings(val language: AppLanguage) {
     fun expenseFileName(date: String): String = "expenses-$date.pdf"
     val sharePdf: String get() = pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ")
 
+    // --- One day of the shop
+    //
+    // Every customer billed that day, beside what the shop spent its own money
+    // on. The owner's page, exactly as the three above are, and *summary* for
+    // the same reason: a statement is one party's account, and this is the
+    // whole counter's.
+
+    val daySummary: String get() = pick("Day Summary", "ದಿನದ ಸಾರಾಂಶ")
+    /** Section headings. `Bills`, `Received`, `Credit notes` and `Expenses` are already words this app owns. */
+    val deliveriesTitle: String get() = pick("Deliveries", "ಡೆಲಿವರಿಗಳು")
+    val paidToSuppliers: String get() = pick("Paid to suppliers", "ಸರಬರಾಜುದಾರರಿಗೆ ಪಾವತಿ")
+    /** `3 × Padlock 40mm` — a product under the row it was sold on. */
+    fun itemLine(qty: Int, name: String): String = "$qty × $name"
+    /**
+     * What is still owed on a bill or a delivery, said beside it.
+     *
+     * The page shows what was sold; this is what of it has not been paid for,
+     * and without it a busy day on credit reads as a busy day of takings.
+     */
+    fun onCreditAmount(amount: String): String = pick("$amount on credit", "$amount ಬಾಕಿ")
+    /**
+     * What the day did to the cash box.
+     *
+     * *In* is what was taken at the counter plus what came in against older
+     * bills — never what was billed. *Out* is what was paid for stock and what
+     * was spent. A credit note is in neither: it reduces a debt without a coin
+     * moving.
+     */
+    val moneyInLabel: String get() = pick("Money in", "ಬಂದ ಹಣ")
+    val moneyOutLabel: String get() = pick("Money out", "ಹೋದ ಹಣ")
+    val netForTheDay: String get() = pick("Net for the day", "ದಿನದ ನಿವ್ವಳ")
+    val nothingOnThisDay: String get() = pick("Nothing was recorded on this day.", "ಈ ದಿನ ಯಾವುದೂ ದಾಖಲಾಗಿಲ್ಲ.")
+    val previousDay: String get() = pick("Previous day", "ಹಿಂದಿನ ದಿನ")
+    val nextDay: String get() = pick("Next day", "ಮುಂದಿನ ದಿನ")
+    fun dayFileName(date: String): String = "day-$date.pdf"
+
     fun accountSummaryTill(date: String): String =
             pick("Account summary till $date", "$date ವರೆಗಿನ ಖಾತೆ ಸಾರಾಂಶ")
 
