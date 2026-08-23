@@ -669,6 +669,11 @@ struct Strings {
     // MARK: Collecting, from wherever the debt was noticed
 
     var takePayment: String { pick("Take payment", "ಪಾವತಿ ಪಡೆಯಿರಿ") }
+    /// The same row on the other side of the book. Money leaving, not arriving —
+    /// "Take payment" beside a supplier the shop owes describes the wrong
+    /// direction entirely, and it is the one word on that sheet a hurried thumb
+    /// reads before tapping.
+    var makePayment: String { pick("Make payment", "ಪಾವತಿ ಮಾಡಿ") }
 
 
     func billNumber(_ number: Int) -> String {
@@ -936,16 +941,19 @@ struct Strings {
     /// The same money called two things on two screens is the owner wondering
     /// whether they are the same money.
     var receivableSummary: String { pick("Receivable Amount Summary", "ಬರಬೇಕಾದ ಬಾಕಿ ಸಾರಾಂಶ") }
+    var payableSummary: String { pick("Payable Amount Summary", "ಕೊಡಬೇಕಾದ ಬಾಕಿ ಸಾರಾಂಶ") }
     /// The day the list was made. A balance is true at a moment, not over a span.
     func asOfDate(_ date: String) -> String { pick("As of \(date)", "\(date) ರಂತೆ") }
     var columnCustomer: String { pick("Customer", "ಗ್ರಾಹಕ") }
-    var columnReceivable: String { pick("Receivable", "ಬರಬೇಕಾದ ಬಾಕಿ") }
     var totalReceivable: String { pick("Total Receivable", "ಒಟ್ಟು ಬರಬೇಕಾದ ಬಾಕಿ") }
+    var totalPayable: String { pick("Total Payable", "ಒಟ್ಟು ಕೊಡಬೇಕಾದ ಬಾಕಿ") }
     var nothingReceivable: String { pick("Nothing receivable.", "ಬರಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.") }
+    var nothingPayable: String { pick("Nothing payable.", "ಕೊಡಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.") }
     /// The button that makes it. Says *list*, never *statement*.
     var savedList: String { pick("Save list", "ಪಟ್ಟಿ ಉಳಿಸಿ") }
     /// Not translated: a file name is read by a file manager, not by a shopkeeper.
     func receivableFileName(date: String) -> String { "receivable-\(date).pdf" }
+    func payableFileName(date: String) -> String { "payable-\(date).pdf" }
     var sharePdf: String { pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ") }
 
     func accountSummaryTill(_ date: String) -> String {

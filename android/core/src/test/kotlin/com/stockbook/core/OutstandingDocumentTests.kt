@@ -9,6 +9,7 @@ import com.stockbook.core.text.Strings
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -33,7 +34,7 @@ class OutstandingDocumentTests {
     }
 
     private fun StockbookStore.document() =
-        OutstandingDocument.make(customers(), settings, strings, now = day)
+        OutstandingDocument.forReceivable(customers(), settings, strings, now = day)
 
     @Test
     fun `the total is the figure Home shows`() {
@@ -139,6 +140,54 @@ class OutstandingDocumentTests {
         for (text in listOf(document.title, document.totalLabel, document.emptyLine)) {
             assertTrue(!text.contains("owe", ignoreCase = true), text)
         }
+    }
+
+    // --- The same page pointing the other way
+
+    private fun StockbookStore.payableDocument() =
+        OutstandingDocument.forPayable(suppliers(), settings, strings, now = day)
+
+    @Test
+    fun `the payable page totals what the shop owes`() {
+        val store = store()
+        val supplier = assertNotNull(store.addSupplier("Al-Riyadh Hardware"))
+        store.recordSupplierBill(supplier.key, amount = 800.0, paid = 0.0, invoiceNo = "INV-1")
+
+        val document = store.payableDocument()
+
+        assertEquals(Money.text(store.payable().second, store.settings.currency), document.totalValue)
+        assertEquals("SAR 800", document.totalValue)
+        assertEquals(listOf("Al-Riyadh Hardware"), document.rows.map { it.name })
+    }
+
+    @Test
+    fun `every word on the payable page points the other way`() {
+        // A payable list headed "Receivable" would be the most expensive kind of
+        // wrong: one the owner acts on.
+        val document = store().payableDocument()
+
+        assertEquals("Payable Amount Summary", document.title)
+        assertEquals(listOf(strings.supplier, strings.payableStat), document.columnHeadings)
+        assertEquals("Total Payable", document.totalLabel)
+        assertEquals("Nothing payable.", document.emptyLine)
+
+        for (text in listOf(document.title, document.totalLabel, document.emptyLine)) {
+            assertTrue(!text.contains("receivable", ignoreCase = true), text)
+        }
+    }
+
+    @Test
+    fun `the two pages never share a word that names a direction`() {
+        // One body builds both, so the only thing keeping them apart is which
+        // strings each is handed. This is what notices if that ever slips.
+        val store = store()
+        val receivable = store.document()
+        val payable = store.payableDocument()
+
+        assertTrue(receivable.title != payable.title)
+        assertTrue(receivable.totalLabel != payable.totalLabel)
+        assertTrue(receivable.emptyLine != payable.emptyLine)
+        assertTrue(receivable.columnHeadings != payable.columnHeadings)
     }
 
     @Test

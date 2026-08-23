@@ -36,6 +36,7 @@ struct WhoOwesYouSheet: View {
             // here. Only where there is something to chase: a page saying
             // nobody owes anything is a page nobody needs.
             onSave: store.customers().contains { $0.owed > 0 } ? save : nil,
+            action: Loc.takePayment,
             onClose: onClose
         )
         .sheet(item: $file) { ShareSheet(url: $0.url) }
@@ -45,7 +46,7 @@ struct WhoOwesYouSheet: View {
     /// outcome and the one `StatementScreen` already settled on: there is no
     /// half-written page worth offering, and the list itself is still on screen.
     private func save() {
-        let document = OutstandingDocument.make(
+        let document = OutstandingDocument.forReceivable(
             customers: store.customers(),
             settings: store.settings,
             strings: Loc
@@ -67,6 +68,8 @@ struct WhoYouOweSheet: View {
 
     let onClose: () -> Void
 
+    @State private var file: StatementFile?
+
     var body: some View {
         OwedList(
             title: Loc.payableStat,
@@ -76,11 +79,27 @@ struct WhoYouOweSheet: View {
                     onClose()
                 }
             },
-            // No list to save on this side yet. The same document pointed the
-            // other way is nearly free once somebody asks for it.
-            onSave: nil,
+            onSave: store.suppliers().contains { $0.owed > 0 } ? save : nil,
+            // Money leaving, not arriving. "Take payment" beside a supplier the
+            // shop owes describes the wrong direction entirely, and it is the one
+            // word on this sheet a hurried thumb reads before tapping.
+            action: Loc.makePayment,
             onClose: onClose
         )
+        .sheet(item: $file) { ShareSheet(url: $0.url) }
+    }
+
+    private func save() {
+        let document = OutstandingDocument.forPayable(
+            suppliers: store.suppliers(),
+            settings: store.settings,
+            strings: Loc
+        )
+        guard let url = try? OutstandingPDF.write(
+            document,
+            fileName: Loc.payableFileName(date: Copy.fileDate(.now))
+        ) else { return }
+        file = StatementFile(url: url)
     }
 }
 
@@ -97,6 +116,9 @@ private struct OwedList: View {
     let rows: [OwedRow]
     /// Makes a page of this list. Absent where there is no list worth making.
     let onSave: (() -> Void)?
+    /// What the row's button says. One body serves both directions, and the
+    /// direction is the whole of what this word carries.
+    let action: String
     let onClose: () -> Void
 
     @Environment(\.currency) private var currency
@@ -143,11 +165,12 @@ private struct OwedList: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                             // Named rather than a chevron: the row goes somewhere
-                            // specific, and "Take payment" is the sentence the
-                            // owner is already halfway through when they tap it.
-                            // The whole row takes the tap too — the button is
-                            // where the eye lands, not the only place that works.
-                            Button(Loc.takePayment, action: row.onTake)
+                            // specific, and "Take payment" — or "Make payment",
+                            // on the other side — is the sentence the owner is
+                            // already halfway through when they tap it. The whole
+                            // row takes the tap too: the button is where the eye
+                            // lands, not the only place that works.
+                            Button(action, action: row.onTake)
                                 .buttonStyle(.ghost)
                         }
                         .padding(.leading, 12)

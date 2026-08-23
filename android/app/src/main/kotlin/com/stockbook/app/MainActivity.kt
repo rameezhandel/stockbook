@@ -402,7 +402,7 @@ private fun Shell(store: StockbookStore) {
                     sharePdf(
                         context,
                         OutstandingPdf.write(
-                            OutstandingDocument.make(store.customers(), state.settings, strings),
+                            OutstandingDocument.forReceivable(store.customers(), state.settings, strings),
                             context,
                             strings.receivableFileName(Dates.fileDate(Timestamps.now()))
                         )
@@ -422,6 +422,16 @@ private fun Shell(store: StockbookStore) {
                 router = router,
                 currency = state.settings.currency,
                 strings = strings,
+                onSave = {
+                    sharePdf(
+                        context,
+                        OutstandingPdf.write(
+                            OutstandingDocument.forPayable(store.suppliers(), state.settings, strings),
+                            context,
+                            strings.payableFileName(Dates.fileDate(Timestamps.now()))
+                        )
+                    )
+                },
                 onClose = { router.showingCreditors = false }
             )
         }

@@ -624,6 +624,13 @@ class Strings(val language: AppLanguage) {
     // --- Collecting, from wherever the debt was noticed
 
     val takePayment: String get() = pick("Take payment", "ಪಾವತಿ ಪಡೆಯಿರಿ")
+    /**
+     * The same row on the other side of the book. Money leaving, not arriving —
+     * "Take payment" beside a supplier the shop owes describes the wrong
+     * direction entirely, and it is the one word on that sheet a hurried thumb
+     * reads before tapping.
+     */
+    val makePayment: String get() = pick("Make payment", "ಪಾವತಿ ಮಾಡಿ")
 
 
     fun billNumber(number: Int): String =
@@ -873,16 +880,19 @@ class Strings(val language: AppLanguage) {
      * whether they are the same money.
      */
     val receivableSummary: String get() = pick("Receivable Amount Summary", "ಬರಬೇಕಾದ ಬಾಕಿ ಸಾರಾಂಶ")
+    val payableSummary: String get() = pick("Payable Amount Summary", "ಕೊಡಬೇಕಾದ ಬಾಕಿ ಸಾರಾಂಶ")
     /** The day the list was made. A balance is true at a moment, not over a span. */
     fun asOfDate(date: String): String = pick("As of $date", "$date ರಂತೆ")
     val columnCustomer: String get() = pick("Customer", "ಗ್ರಾಹಕ")
-    val columnReceivable: String get() = pick("Receivable", "ಬರಬೇಕಾದ ಬಾಕಿ")
     val totalReceivable: String get() = pick("Total Receivable", "ಒಟ್ಟು ಬರಬೇಕಾದ ಬಾಕಿ")
+    val totalPayable: String get() = pick("Total Payable", "ಒಟ್ಟು ಕೊಡಬೇಕಾದ ಬಾಕಿ")
     val nothingReceivable: String get() = pick("Nothing receivable.", "ಬರಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.")
+    val nothingPayable: String get() = pick("Nothing payable.", "ಕೊಡಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.")
     /** The button that makes it. Says *list*, never *statement*. */
     val savedList: String get() = pick("Save list", "ಪಟ್ಟಿ ಉಳಿಸಿ")
     /** Not translated: a file name is read by a file manager, not by a shopkeeper. */
     fun receivableFileName(date: String): String = "receivable-$date.pdf"
+    fun payableFileName(date: String): String = "payable-$date.pdf"
     val sharePdf: String get() = pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ")
 
     fun accountSummaryTill(date: String): String =

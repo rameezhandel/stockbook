@@ -73,6 +73,7 @@ fun WhoOwesYouSheet(
         // anything is a page nobody needs. Rendering and handing the file over is
         // the activity's, which is where every other share in this app is done.
         onSave = if (owing.isEmpty()) null else onSave,
+        action = strings.takePayment,
         currency = currency,
         strings = strings,
         onClose = onClose
@@ -91,6 +92,8 @@ fun WhoYouOweSheet(
     router: AppRouter,
     currency: Currency,
     strings: Strings,
+    /** Renders this list as a page and hands it to the chooser. */
+    onSave: () -> Unit,
     onClose: () -> Unit
 ) {
     val owed = remember(state) { store.suppliers().filter { it.owed > 0 } }
@@ -103,9 +106,11 @@ fun WhoYouOweSheet(
                 onClose()
             }
         },
-        // No list to save on this side yet. The same document pointed the other
-        // way is nearly free once somebody asks for it.
-        onSave = null,
+        onSave = if (owed.isEmpty()) null else onSave,
+        // Money leaving, not arriving. "Take payment" beside a supplier the shop
+        // owes describes the wrong direction entirely, and it is the one word on
+        // this sheet a hurried thumb reads before tapping.
+        action = strings.makePayment,
         currency = currency,
         strings = strings,
         onClose = onClose
@@ -121,6 +126,11 @@ private fun OwedList(
     rows: List<OwedRow>,
     /** Makes a page of this list. Absent where there is no list worth making. */
     onSave: (() -> Unit)?,
+    /**
+     * What the row's button says. One body serves both directions, and the
+     * direction is the whole of what this word carries.
+     */
+    action: String,
     currency: Currency,
     strings: Strings,
     onClose: () -> Unit
@@ -190,7 +200,7 @@ private fun OwedList(
                 // Named rather than a chevron: the row goes somewhere specific,
                 // and "Take payment" is the sentence the owner is already halfway
                 // through when they tap it.
-                GhostButton(strings.takePayment, onClick = row.onTake, fontSize = 12.0)
+                GhostButton(action, onClick = row.onTake, fontSize = 12.0)
             }
         }
         Spacer(Modifier.height(4.dp))
