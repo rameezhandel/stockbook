@@ -189,11 +189,18 @@ class StatementDocumentTests {
         // three books are numbered separately.
         assertEquals(
             listOf("Invoice #06011", "Payment #R-1", "Credit Note #00130"),
-            document.activityRows.map { it.transaction }
+            document.activityRows.map { it.details.substringBefore(" · ") }
         )
         // The running balance reads down, which is the column's whole job.
         assertEquals(listOf("SAR 1,000", "SAR 700", "SAR 500"), document.activityRows.map { it.balance })
-        assertEquals(listOf(false, true, true), document.activityRows.map { it.deduction })
+
+        // The charge is in one column and everything that comes off is in the
+        // other, and no row fills both. That is what replaced the brackets.
+        assertEquals(listOf("SAR 1,000", "", ""), document.activityRows.map { it.charge })
+        assertEquals(listOf("", "SAR 300", "SAR 200"), document.activityRows.map { it.settled })
+        for (row in document.activityRows) {
+            assertTrue(row.charge.isEmpty() != row.settled.isEmpty(), "${row.details} filled both or neither")
+        }
     }
 
     @Test
@@ -213,24 +220,25 @@ class StatementDocumentTests {
         val document = document(store)
 
         assertEquals(1, document.activityRows.size)
-        assertEquals("Invoice #06011", document.activityRows.single().transaction)
-        assertEquals("SAR 190", document.activityRows.single().amount)
+        assertTrue(document.activityRows.single().details.startsWith("Invoice #06011 · "))
+        assertEquals("SAR 190", document.activityRows.single().charge)
     }
 
     @Test
     fun `a record with no number of its own is still named`() {
-        // A blank cell in the Transaction column is unreadable. The type is the
-        // honest answer where the shop wrote no number.
+        // A cell holding only a date is unreadable, and it matters more than it
+        // used to: a payment and a credit note both land in the same money
+        // column, so the word in this cell is the only thing telling them apart.
         val store = store().aShop()
         store.addCustomer("Ahmed")
         store.saveBill(customer = "Ahmed", paid = 0.0, amount = 500.0, invoiceNo = "06011")
         store.recordPayment("ahmed", 100.0)
         store.addCreditNote(customerKey = "ahmed", amount = 50.0)
 
-        val transactions = document(store).activityRows.map { it.transaction }
+        val named = document(store).activityRows.map { it.details.substringBefore(" · ") }
 
-        assertTrue(english.paymentLabel in transactions, transactions.toString())
-        assertTrue(english.creditNoteLabel in transactions, transactions.toString())
+        assertTrue(english.paymentLabel in named, named.toString())
+        assertTrue(english.creditNoteLabel in named, named.toString())
     }
 
     @Test
@@ -250,7 +258,7 @@ class StatementDocumentTests {
         )
         val document = StatementDocument.make(statement, store.settings, english)
 
-        assertEquals("19/05/2026", document.activityRows.single().date)
+        assertEquals("Invoice #06011 · 19/05/2026", document.activityRows.single().details)
     }
 
     @Test
@@ -260,8 +268,28 @@ class StatementDocumentTests {
         store.saveBill(customer = "Ahmed", paid = 0.0, amount = 500.0, invoiceNo = "06011")
 
         assertEquals(
-            listOf(english.columnDate, english.columnTransaction, english.columnAmount, english.columnBalance),
+            listOf("Invoice / Receipt", "Invoice amount", "Received amount", "Balance"),
             document(store).columnHeadings
+        )
+    }
+
+    @Test
+    fun `a supplier's statement says paid where a customer's says received`() {
+        // The same table serves both. "Received amount" against money the shop
+        // handed over is backwards, and a statement is the page the other side
+        // reads most carefully.
+        val store = store().aShop()
+        val supplier = assertNotNull(store.addSupplier("Al-Riyadh Hardware"))
+        store.recordSupplierBill(supplier.key, amount = 800.0, paid = 0.0, invoiceNo = "INV-1")
+
+        val statement = assertNotNull(
+            store.statementForSupplier(supplier.key, StatementPeriod.thisYear())
+        )
+        val document = StatementDocument.make(statement, store.settings, english)
+
+        assertEquals(
+            listOf("Bill / Receipt", "Bill amount", "Paid amount", "Balance"),
+            document.columnHeadings
         )
     }
 

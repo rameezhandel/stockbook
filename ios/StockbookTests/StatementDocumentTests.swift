@@ -208,10 +208,20 @@ struct StatementDocumentTests {
         // The kind of document, then its number. "06011" alone tells somebody
         // checking against their own file nothing about what 06011 *is*, and the
         // three books are numbered separately.
-        #expect(document.activityRows.map(\.transaction) == ["Invoice #06011", "Payment #R-1", "Credit Note #00130"])
+        #expect(
+            document.activityRows.map { String($0.details.split(separator: " · ").first ?? "") }
+                == ["Invoice #06011", "Payment #R-1", "Credit Note #00130"]
+        )
         // The running balance reads down, which is the column's whole job.
         #expect(document.activityRows.map(\.balance) == ["SAR 1,000", "SAR 700", "SAR 500"])
-        #expect(document.activityRows.map(\.deduction) == [false, true, true])
+
+        // The charge is in one column and everything that comes off is in the
+        // other, and no row fills both. That is what replaced the brackets.
+        #expect(document.activityRows.map(\.charge) == ["SAR 1,000", "", ""])
+        #expect(document.activityRows.map(\.settled) == ["", "SAR 300", "SAR 200"])
+        for row in document.activityRows {
+            #expect(row.charge.isEmpty != row.settled.isEmpty, "\(row.details) filled both or neither")
+        }
     }
 
     @Test("An itemised bill still prints as one row")
@@ -232,14 +242,15 @@ struct StatementDocumentTests {
         let document = try document(store)
 
         #expect(document.activityRows.count == 1)
-        #expect(document.activityRows.first?.transaction == "Invoice #06011")
-        #expect(document.activityRows.first?.amount == "SAR 190")
+        #expect(document.activityRows.first?.details.hasPrefix("Invoice #06011 · ") == true)
+        #expect(document.activityRows.first?.charge == "SAR 190")
     }
 
     @Test("A record with no number of its own is still named")
     func unnumberedRecordsAreStillNamed() throws {
-        // A blank cell in the Transaction column is unreadable. The type is the
-        // honest answer where the shop wrote no number.
+        // A cell holding only a date is unreadable, and it matters more than it
+        // used to: a payment and a credit note both land in the same money
+        // column, so the word in this cell is the only thing telling them apart.
         let store = makeStore()
         aShop(store)
         store.addCustomer(name: "Ahmed")
@@ -247,10 +258,11 @@ struct StatementDocumentTests {
         store.recordPayment(customerKey: "ahmed", amount: 100)
         store.addCreditNote(customerKey: "ahmed", amount: 50)
 
-        let transactions = try document(store).activityRows.map(\.transaction)
+        let named = try document(store).activityRows
+            .map { String($0.details.split(separator: " · ").first ?? "") }
 
-        #expect(transactions.contains(english.paymentLabel), "\(transactions)")
-        #expect(transactions.contains(english.creditNoteLabel), "\(transactions)")
+        #expect(named.contains(english.paymentLabel), "\(named)")
+        #expect(named.contains(english.creditNoteLabel), "\(named)")
     }
 
     @Test("Dates in the table are numeric so the column lines up")
@@ -269,7 +281,7 @@ struct StatementDocumentTests {
         let statement = try #require(store.statement(forCustomer: "ahmed", period: .month(date(2026, 5, 10))))
         let document = StatementDocument.make(statement: statement, settings: store.settings, strings: english)
 
-        #expect(document.activityRows.first?.date == "19/05/2026")
+        #expect(document.activityRows.first?.details == "Invoice #06011 · 19/05/2026")
     }
 
     @Test("The column headings are the four the table draws")
@@ -280,11 +292,29 @@ struct StatementDocumentTests {
         store.saveBill(customer: "Ahmed", paid: 0, amount: 500, invoiceNo: "06011")
 
         #expect(try document(store).columnHeadings == [
-            english.columnDate,
-            english.columnTransaction,
-            english.columnAmount,
-            english.columnBalance
+            "Invoice / Receipt",
+            "Invoice amount",
+            "Received amount",
+            "Balance"
         ])
+    }
+
+    @Test("A supplier's statement says paid where a customer's says received")
+    func supplierHeadingsPointTheOtherWay() throws {
+        // The same table serves both. "Received amount" against money the shop
+        // handed over is backwards, and a statement is the page the other side
+        // reads most carefully.
+        let store = makeStore()
+        aShop(store)
+        store.addSupplier(name: "Al-Riyadh Hardware")
+        store.recordSupplierBill(supplierKey: "al-riyadh hardware", amount: 800, paid: 0, invoiceNo: "INV-1")
+
+        let statement = try #require(
+            store.statementForSupplier(key: "al-riyadh hardware", period: .thisYear())
+        )
+        let document = StatementDocument.make(statement: statement, settings: store.settings, strings: english)
+
+        #expect(document.columnHeadings == ["Bill / Receipt", "Bill amount", "Paid amount", "Balance"])
     }
 
     @Test("A finished month is titled with its own last day")

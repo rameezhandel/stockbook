@@ -50,13 +50,29 @@ data class StatementDocument(
      */
     data class Row(val label: String, val value: String, val deduction: Boolean = false)
 
-    /** One line of the activity table: what, when, how much, and where it left the account. */
+    /**
+     * One line of the activity table: what it was and when, then the money in
+     * whichever of the two columns it belongs to, then where the account stood.
+     *
+     * **Two money columns, and each row fills exactly one.** A charge goes in
+     * [charge] and everything that comes off goes in [settled]; the other is
+     * empty. That is what replaced a single Amount column with brackets round
+     * the deductions — the position now says which way the money went, and a
+     * bracketed figure needed a convention explained to whoever was reading it.
+     *
+     * [details] carries the kind as well as the number — `Invoice #6356`, not
+     * `6356` — because a credit note and a payment both land in [settled], and
+     * without the word the customer cannot tell which of the two took the
+     * money off their account.
+     */
     data class ActivityRow(
-        val date: String,
-        val transaction: String,
-        val amount: String,
-        val balance: String,
-        val deduction: Boolean = false
+        /** `Invoice #6356 · 19/05/2026` — what it was, and the day it happened. */
+        val details: String,
+        /** What was charged. Empty on a row that settles. */
+        val charge: String,
+        /** What came off: a payment, or a credit note. Empty on a charge. */
+        val settled: String,
+        val balance: String
     )
 
     companion object {
@@ -105,23 +121,27 @@ data class StatementDocument(
                 summaryTitle = strings.accountSummaryTill(strings.longDate(statement.range.asOf(now))),
                 summaryRows = summary,
                 activityTitle = strings.accountActivity,
+                // Four headings for four columns, and the middle two flip with
+                // the direction: money the shop is owed was *received*, money it
+                // owes was *paid*, and one pair of words for both would be
+                // backwards on one of the two documents.
                 columnHeadings = listOf(
-                    strings.columnDate,
-                    strings.columnTransaction,
-                    strings.columnAmount,
+                    if (isSupplier) strings.columnBillReceipt else strings.columnInvoiceReceipt,
+                    if (isSupplier) strings.columnBillAmount else strings.columnInvoiceAmount,
+                    if (isSupplier) strings.columnPaidAmount else strings.columnReceivedAmount,
                     strings.columnBalance
                 ),
                 activityRows = statement.entries.mapIndexed { index, entry ->
                     val settles = entry.charge == 0.0
+                    val amount = Money.text(
+                        if (settles) entry.settledAtOnce else entry.charge,
+                        currency
+                    )
                     ActivityRow(
-                        date = strings.shortDate(entry.date),
-                        transaction = reference(entry, strings),
-                        amount = Money.text(
-                            if (settles) entry.settledAtOnce else entry.charge,
-                            currency
-                        ),
-                        balance = Money.text(statement.runningBalances[index], currency),
-                        deduction = settles
+                        details = strings.referenceOn(reference(entry, strings), strings.shortDate(entry.date)),
+                        charge = if (settles) "" else amount,
+                        settled = if (settles) amount else "",
+                        balance = Money.text(statement.runningBalances[index], currency)
                     )
                 },
                 closingLabel = strings.balanceDue,

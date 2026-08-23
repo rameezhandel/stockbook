@@ -191,8 +191,11 @@ class DiscountTests {
         val document = StatementDocument.make(statement, store.settings, strings)
 
         val row = document.activityRows.single()
-        assertEquals(Money.text(225.0, Currency.SAR), row.amount)
-        assertTrue(!row.transaction.contains("%"), row.transaction)
+        // A bill is a charge, so the figure is in the invoice column and the
+        // received column beside it is empty.
+        assertEquals(Money.text(225.0, Currency.SAR), row.charge)
+        assertEquals("", row.settled)
+        assertTrue(!row.details.contains("%"), row.details)
         assertEquals(Money.text(225.0, Currency.SAR), document.closingValue)
     }
 

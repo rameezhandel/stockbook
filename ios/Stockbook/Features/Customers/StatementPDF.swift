@@ -23,11 +23,16 @@ enum StatementPDF {
     private static let rowSize: CGFloat = 9
     private static let line: CGFloat = 13
 
-    /// Column left edges, as fractions of the writable width.
-    private static let colDate: CGFloat = 0
-    private static let colTransaction: CGFloat = 0.22
-    private static let colAmount: CGFloat = 0.58
-    private static let colBalance: CGFloat = 0.79
+    /// Where each column sits, as fractions of the writable width.
+    ///
+    /// The details column is left-aligned and wide, because it now carries what a
+    /// row is *and* when it happened — two columns' worth in one. The three money
+    /// columns are right-aligned against the edges below, which is how a column
+    /// of figures is read: by the units lining up.
+    private static let colDetails: CGFloat = 0
+    private static let edgeCharge: CGFloat = 0.62
+    private static let edgeSettled: CGFloat = 0.81
+    private static let edgeBalance: CGFloat = 1.0
 
     private static let ink = UIColor(red: 0.078, green: 0.078, blue: 0.110, alpha: 1)
     private static let grey = UIColor(red: 0.420, green: 0.420, blue: 0.463, alpha: 1)
@@ -108,10 +113,11 @@ enum StatementPDF {
 
             func drawHeadings() {
                 let heads = document.columnHeadings
-                heads[0].draw(at: CGPoint(x: margin + width * colDate, y: y), withAttributes: attributes(rowSize, bold: true))
-                heads[1].draw(at: CGPoint(x: margin + width * colTransaction, y: y), withAttributes: attributes(rowSize, bold: true))
-                heads[2].draw(at: CGPoint(x: margin + width * colAmount, y: y), withAttributes: attributes(rowSize, bold: true))
-                heads[3].draw(at: CGPoint(x: margin + width * colBalance, y: y), withAttributes: attributes(rowSize, bold: true))
+                let bold = attributes(rowSize, bold: true)
+                heads[0].draw(at: CGPoint(x: margin + width * colDetails, y: y), withAttributes: bold)
+                drawRight(heads[1], rightEdge: margin + width * edgeCharge, y: y, attributes: bold)
+                drawRight(heads[2], rightEdge: margin + width * edgeSettled, y: y, attributes: bold)
+                drawRight(heads[3], rightEdge: margin + width * edgeBalance, y: y, attributes: bold)
                 y += 16
                 rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
                 y += 5
@@ -128,10 +134,15 @@ enum StatementPDF {
                     drawHeadings()
                 }
 
-                row.date.draw(at: CGPoint(x: margin + width * colDate, y: y), withAttributes: attributes(rowSize))
-                row.transaction.draw(at: CGPoint(x: margin + width * colTransaction, y: y), withAttributes: attributes(rowSize))
-                row.amount.bracketed(row.deduction).draw(at: CGPoint(x: margin + width * colAmount, y: y), withAttributes: attributes(rowSize))
-                row.balance.draw(at: CGPoint(x: margin + width * colBalance, y: y), withAttributes: attributes(rowSize))
+                // Exactly one of the two money columns carries anything, so the
+                // empty one draws nothing at all rather than a dash or a zero:
+                // an empty cell is unambiguous, and a zero in the Received column
+                // is a payment somebody might go looking for.
+                let body = attributes(rowSize)
+                row.details.draw(at: CGPoint(x: margin + width * colDetails, y: y), withAttributes: body)
+                drawRight(row.charge, rightEdge: margin + width * edgeCharge, y: y, attributes: body)
+                drawRight(row.settled, rightEdge: margin + width * edgeSettled, y: y, attributes: body)
+                drawRight(row.balance, rightEdge: margin + width * edgeBalance, y: y, attributes: body)
                 y += 16
                 rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
                 y += 5
@@ -140,8 +151,9 @@ enum StatementPDF {
             // The figure the document exists to state, repeated where the eye
             // stops.
             y += 4
-            document.closingLabel.draw(at: CGPoint(x: margin + width * colDate, y: y), withAttributes: attributes(rowSize, bold: true))
-            document.closingValue.draw(at: CGPoint(x: margin + width * colBalance, y: y), withAttributes: attributes(rowSize, bold: true))
+            let bold = attributes(rowSize, bold: true)
+            document.closingLabel.draw(at: CGPoint(x: margin + width * colDetails, y: y), withAttributes: bold)
+            drawRight(document.closingValue, rightEdge: margin + width * edgeBalance, y: y, attributes: bold)
         }
 
         return url

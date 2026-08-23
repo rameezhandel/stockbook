@@ -110,9 +110,9 @@ class BillNoteTests {
         val document = documentFor("Argued about the price")
 
         val row = document.activityRows.single()
-        assertTrue(row.transaction.contains("1024"), row.transaction)
+        assertTrue(row.details.contains("1024"), row.details)
         assertFalse(
-            document.activityRows.any { it.transaction.contains("Argued", ignoreCase = true) },
+            document.activityRows.any { it.details.contains("Argued", ignoreCase = true) },
             "the note must not be folded into the reference"
         )
     }
@@ -125,7 +125,7 @@ class BillNoteTests {
         val document = documentFor("Argued about the price")
         val everything = buildList {
             addAll(document.summaryRows.map { "${it.label} ${it.value}" })
-            addAll(document.activityRows.map { "${it.date} ${it.transaction} ${it.amount} ${it.balance}" })
+            addAll(document.activityRows.map { "${it.details} ${it.charge} ${it.settled} ${it.balance}" })
             add("${document.closingLabel} ${document.closingValue}")
             add(document.partyName)
             addAll(document.partyLines)

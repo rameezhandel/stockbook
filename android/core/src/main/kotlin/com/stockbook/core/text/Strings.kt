@@ -864,9 +864,30 @@ class Strings(val language: AppLanguage) {
     val accountStatementFor: String get() = pick("Account statement for:", "ಖಾತೆ ವಿವರ — ಇವರಿಗೆ:")
     val accountActivity: String get() = pick("Account Activity", "ಖಾತೆ ವ್ಯವಹಾರ")
     val balanceDue: String get() = pick("Balance Due", "ಕೊಡಬೇಕಾದ ಬಾಕಿ")
-    val columnDate: String get() = pick("Date", "ದಿನಾಂಕ")
-    val columnTransaction: String get() = pick("Transaction", "ವ್ಯವಹಾರ")
-    val columnAmount: String get() = pick("Amount", "ಮೊತ್ತ")
+    /**
+     * The activity table's four headings.
+     *
+     * The middle two flip with the direction. Money the shop is owed was
+     * *received*; money it owes was *paid*. One pair of words for both would be
+     * backwards on one of the two documents, and a statement is the page a
+     * customer or a supplier reads most carefully.
+     */
+    val columnInvoiceReceipt: String get() = pick("Invoice / Receipt", "ಬಿಲ್ / ರಸೀದಿ")
+    val columnBillReceipt: String get() = pick("Bill / Receipt", "ಬಿಲ್ / ರಸೀದಿ")
+    val columnInvoiceAmount: String get() = pick("Invoice amount", "ಬಿಲ್ ಮೊತ್ತ")
+    val columnBillAmount: String get() = pick("Bill amount", "ಬಿಲ್ ಮೊತ್ತ")
+    val columnReceivedAmount: String get() = pick("Received amount", "ಬಂದ ಮೊತ್ತ")
+    val columnPaidAmount: String get() = pick("Paid amount", "ಕೊಟ್ಟ ಮೊತ್ತ")
+
+    /**
+     * `Invoice #6356 · 19/05/2026` — one cell holding what a row is and when it
+     * happened, which used to be two columns.
+     *
+     * The kind stays in front of the number. A credit note and a payment both
+     * land in the same money column, so without the word the customer cannot
+     * tell which of the two took the money off their account.
+     */
+    fun referenceOn(reference: String, date: String): String = "$reference · $date"
     val columnBalance: String get() = pick("Balance", "ಉಳಿಕೆ")
 
     // --- The owner's own list of who owes them

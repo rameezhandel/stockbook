@@ -927,9 +927,26 @@ struct Strings {
     var accountStatementFor: String { pick("Account statement for:", "ಖಾತೆ ವಿವರ — ಇವರಿಗೆ:") }
     var accountActivity: String { pick("Account Activity", "ಖಾತೆ ವ್ಯವಹಾರ") }
     var balanceDue: String { pick("Balance Due", "ಕೊಡಬೇಕಾದ ಬಾಕಿ") }
-    var columnDate: String { pick("Date", "ದಿನಾಂಕ") }
-    var columnTransaction: String { pick("Transaction", "ವ್ಯವಹಾರ") }
-    var columnAmount: String { pick("Amount", "ಮೊತ್ತ") }
+    /// The activity table's four headings.
+    ///
+    /// The middle two flip with the direction. Money the shop is owed was
+    /// *received*; money it owes was *paid*. One pair of words for both would be
+    /// backwards on one of the two documents, and a statement is the page a
+    /// customer or a supplier reads most carefully.
+    var columnInvoiceReceipt: String { pick("Invoice / Receipt", "ಬಿಲ್ / ರಸೀದಿ") }
+    var columnBillReceipt: String { pick("Bill / Receipt", "ಬಿಲ್ / ರಸೀದಿ") }
+    var columnInvoiceAmount: String { pick("Invoice amount", "ಬಿಲ್ ಮೊತ್ತ") }
+    var columnBillAmount: String { pick("Bill amount", "ಬಿಲ್ ಮೊತ್ತ") }
+    var columnReceivedAmount: String { pick("Received amount", "ಬಂದ ಮೊತ್ತ") }
+    var columnPaidAmount: String { pick("Paid amount", "ಕೊಟ್ಟ ಮೊತ್ತ") }
+
+    /// `Invoice #6356 · 19/05/2026` — one cell holding what a row is and when it
+    /// happened, which used to be two columns.
+    ///
+    /// The kind stays in front of the number. A credit note and a payment both
+    /// land in the same money column, so without the word the customer cannot
+    /// tell which of the two took the money off their account.
+    func referenceOn(_ reference: String, date: String) -> String { "\(reference) · \(date)" }
     var columnBalance: String { pick("Balance", "ಉಳಿಕೆ") }
 
     // MARK: The owner's own list of who owes them

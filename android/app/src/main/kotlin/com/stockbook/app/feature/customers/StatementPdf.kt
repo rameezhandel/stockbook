@@ -32,11 +32,18 @@ object StatementPdf {
     private const val ROW_SIZE = 9f
     private const val LINE = 13f
 
-    /** Column left edges, as fractions of the writable width. */
-    private const val COL_DATE = 0f
-    private const val COL_TRANSACTION = 0.22f
-    private const val COL_AMOUNT = 0.58f
-    private const val COL_BALANCE = 0.79f
+    /**
+     * Where each column sits, as fractions of the writable width.
+     *
+     * The details column is left-aligned and wide, because it now carries what a
+     * row is *and* when it happened — two columns' worth in one. The three money
+     * columns are right-aligned against the edges below, which is how a column of
+     * figures is read: by the units lining up.
+     */
+    private const val COL_DETAILS = 0f
+    private const val EDGE_CHARGE = 0.62f
+    private const val EDGE_SETTLED = 0.81f
+    private const val EDGE_BALANCE = 1.0f
 
     private fun paint(size: Float, bold: Boolean = false, grey: Boolean = false) = Paint().apply {
         isAntiAlias = true
@@ -122,10 +129,11 @@ object StatementPdf {
         y += 16
 
         fun headings() {
-            canvas.drawText(document.columnHeadings[0], MARGIN + width * COL_DATE, y + 14, paint(ROW_SIZE, bold = true))
-            canvas.drawText(document.columnHeadings[1], MARGIN + width * COL_TRANSACTION, y + 14, paint(ROW_SIZE, bold = true))
-            canvas.drawText(document.columnHeadings[2], MARGIN + width * COL_AMOUNT, y + 14, paint(ROW_SIZE, bold = true))
-            canvas.drawText(document.columnHeadings[3], MARGIN + width * COL_BALANCE, y + 14, paint(ROW_SIZE, bold = true))
+            val bold = paint(ROW_SIZE, bold = true)
+            canvas.drawText(document.columnHeadings[0], MARGIN + width * COL_DETAILS, y + 14, bold)
+            canvas.drawTextRight(document.columnHeadings[1], MARGIN + width * EDGE_CHARGE, y + 14, bold)
+            canvas.drawTextRight(document.columnHeadings[2], MARGIN + width * EDGE_SETTLED, y + 14, bold)
+            canvas.drawTextRight(document.columnHeadings[3], MARGIN + width * EDGE_BALANCE, y + 14, bold)
             y += 20
             canvas.drawLine(MARGIN, y, right, y, rule)
         }
@@ -144,17 +152,23 @@ object StatementPdf {
                 headings()
             }
 
-            canvas.drawText(row.date, MARGIN + width * COL_DATE, y + 15, paint(ROW_SIZE))
-            canvas.drawText(row.transaction, MARGIN + width * COL_TRANSACTION, y + 15, paint(ROW_SIZE))
-            canvas.drawText(row.amount.bracketed(row.deduction), MARGIN + width * COL_AMOUNT, y + 15, paint(ROW_SIZE))
-            canvas.drawText(row.balance, MARGIN + width * COL_BALANCE, y + 15, paint(ROW_SIZE))
+            // Exactly one of the two money columns carries anything, so the empty
+            // one draws nothing at all rather than a dash or a zero: an empty cell
+            // is unambiguous, and a zero in the Received column is a payment
+            // somebody might go looking for.
+            val body = paint(ROW_SIZE)
+            canvas.drawText(row.details, MARGIN + width * COL_DETAILS, y + 15, body)
+            canvas.drawTextRight(row.charge, MARGIN + width * EDGE_CHARGE, y + 15, body)
+            canvas.drawTextRight(row.settled, MARGIN + width * EDGE_SETTLED, y + 15, body)
+            canvas.drawTextRight(row.balance, MARGIN + width * EDGE_BALANCE, y + 15, body)
             y += 21
             canvas.drawLine(MARGIN, y, right, y, rule)
         }
 
         // The figure the document exists to state, repeated where the eye stops.
-        canvas.drawText(document.closingLabel, MARGIN + width * COL_DATE, y + 17, paint(ROW_SIZE, bold = true))
-        canvas.drawText(document.closingValue, MARGIN + width * COL_BALANCE, y + 17, paint(ROW_SIZE, bold = true))
+        val closing = paint(ROW_SIZE, bold = true)
+        canvas.drawText(document.closingLabel, MARGIN + width * COL_DETAILS, y + 17, closing)
+        canvas.drawTextRight(document.closingValue, MARGIN + width * EDGE_BALANCE, y + 17, closing)
 
         pdf.finishPage(page)
 
