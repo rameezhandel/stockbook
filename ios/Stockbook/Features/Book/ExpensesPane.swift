@@ -27,6 +27,10 @@ struct ExpensesPane: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Metrics.rowGap) {
+                // The span the card is showing is the span the page covers, so
+                // the button that makes it lives in the card's own corner. A
+                // full-width one underneath read as belonging to the list below
+                // instead, which is not what it makes a page of.
                 totalCard
                     .padding(.bottom, 20 - Metrics.rowGap)
 
@@ -102,27 +106,12 @@ struct ExpensesPane: View {
                 .padding(.top, 2)
                 .padding(.bottom, 10)
 
-            HStack(spacing: 4) {
-                // The chips share whatever the button leaves, rather than each
-                // taking a third of the whole row: three fixed thirds plus a
-                // button is how "Last month" comes out as "Last mon…".
-                HStack(spacing: 6) {
-                    ForEach(Span.allCases) { candidate in
-                        chip(candidate)
-                    }
-                }
-
-                // On the chips' own row, and only where there is something to
-                // summarise: a page saying nothing was spent is a page nobody
-                // needs. The span the card is showing is the span the page
-                // covers, so the control and the button that acts on it belong
-                // side by side — a full-width button under the card read as
-                // belonging to the list below it instead, which is not what it
-                // makes a page of.
-                if spent > 0 {
-                    Button(Loc.sharePdf, action: save)
-                        .buttonStyle(GhostButtonStyle(fontSize: 12))
-                        .layoutPriority(1)
+            // The three spans, each taking a third of the row. Nothing shares
+            // it: a button beside them squeezed "Last month" and read as a
+            // fourth choice.
+            HStack(spacing: 6) {
+                ForEach(Span.allCases) { candidate in
+                    chip(candidate)
                 }
             }
         }
@@ -130,6 +119,24 @@ struct ExpensesPane: View {
         .padding(14)
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
         .hairline(radius: Metrics.cardRadius)
+        // The corner of the card whose figure it makes a page of, and only where
+        // there is something to summarise: a page saying nothing was spent is a
+        // page nobody needs. The span the chips below are showing is the span the
+        // page covers, so the card is the whole of the connection and the button
+        // belongs inside it.
+        //
+        // An overlay rather than a row above the figure, because a tap target on
+        // the label's own line would push the figure a third of the card down to
+        // make room for it.
+        .overlay(alignment: .topTrailing) {
+            if spent > 0 {
+                Button(action: save) { Glyph(Icon.share, size: 15) }
+                    .buttonStyle(.iconOnly)
+                    .foregroundStyle(Nocturne.accent)
+                    .accessibilityLabel(Loc.sharePdf)
+                    .padding(2)
+            }
+        }
     }
 
     private func chip(_ candidate: Span) -> some View {

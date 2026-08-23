@@ -1,6 +1,7 @@
 package com.stockbook.app.feature.book
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,7 @@ import com.stockbook.app.AppRouter
 import com.stockbook.app.design.EmptyStateBox
 import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Icon
+import com.stockbook.app.design.IconButton
 import com.stockbook.app.design.Kicker
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
@@ -92,13 +94,10 @@ fun ExpensesPane(
                 span = span,
                 strings = strings,
                 onChoose = { span = it },
-                // On the chips' own row, and only where there is something to
-                // summarise: a page saying nothing was spent is a page nobody
-                // needs. The span the card is showing is the span the page
-                // covers, so the control and the button that acts on it belong
-                // side by side — a full-width button under the card read as
-                // belonging to the list below it instead, which is not what it
-                // makes a page of.
+                // The span the card is showing is the span the page covers, so
+                // the button that makes it lives in the card's own corner. A
+                // full-width one underneath read as belonging to the list below
+                // instead, which is not what it makes a page of.
                 onShare = if (spent > 0) ({ onSave(span.period()) }) else null
             )
             Spacer(Modifier.height(20.dp))
@@ -161,28 +160,31 @@ private fun TotalCard(
     /** Makes a page of the span on screen. Absent while there is nothing on it. */
     onShare: (() -> Unit)?
 ) {
-    Column(modifier = Modifier.fillMaxWidth().card().hairline(radius = Metrics.cardRadius).padding(14.dp)) {
-        Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
-        Text(
-            value,
-            style = NocturneType.fittedNumber(value),
-            color = Nocturne.text,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 3.dp)
-        )
-        Text(
-            note,
-            style = NocturneType.meta,
-            color = Nocturne.neutral500,
-            modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
-        )
+    Box(modifier = Modifier.fillMaxWidth().card().hairline(radius = Metrics.cardRadius)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+            Text(
+                label,
+                style = NocturneType.inter(11.0),
+                color = Nocturne.neutral500
+            )
+            Text(
+                value,
+                style = NocturneType.fittedNumber(value),
+                color = Nocturne.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 3.dp)
+            )
+            Text(
+                note,
+                style = NocturneType.meta,
+                color = Nocturne.neutral500,
+                modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
+            )
 
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            // The chips share whatever the button leaves, rather than each taking
-            // a third of the whole row: three fixed thirds plus a button is how
-            // "Last month" comes out as "Last mon…".
-            Row(modifier = Modifier.weight(1f)) {
+            // The three spans, each taking a third of the row. Nothing shares it: a
+            // button beside them squeezed "Last month" and read as a fourth choice.
+            Row(modifier = Modifier.fillMaxWidth()) {
                 for (candidate in Span.entries) {
                     SpanChip(
                         title = candidate.label(strings),
@@ -193,11 +195,26 @@ private fun TotalCard(
                     if (candidate != Span.entries.last()) Spacer(Modifier.width(6.dp))
                 }
             }
+        }
 
-            if (onShare != null) {
-                Spacer(Modifier.width(4.dp))
-                GhostButton(strings.sharePdf, onClick = onShare, fontSize = 12.0)
-            }
+        // The corner of the card whose figure it makes a page of, and only where
+        // there is something to summarise: a page saying nothing was spent is a
+        // page nobody needs. The span the chips below are showing is the span the
+        // page covers, so the card is the whole of the connection and the button
+        // belongs inside it.
+        //
+        // Drawn over the card rather than in the column, because a 44dp touch
+        // target on the label's own row would push the figure a third of the
+        // card down to make room for it.
+        if (onShare != null) {
+            IconButton(
+                Icon.share,
+                onClick = onShare,
+                size = 15.dp,
+                tint = Nocturne.accent,
+                contentDescription = strings.sharePdf,
+                modifier = Modifier.align(Alignment.TopEnd).padding(end = 2.dp, top = 2.dp)
+            )
         }
     }
 }
