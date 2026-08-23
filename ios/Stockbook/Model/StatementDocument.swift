@@ -50,10 +50,17 @@ struct StatementDocument: Equatable {
     /// One line of the activity table: what it was and when, then the money in
     /// whichever of the two columns it belongs to, then where the account stood.
     ///
-    /// **Two money columns, and each row fills exactly one.** A charge goes in
-    /// `charge` and everything that comes off goes in `settled`; the other is
-    /// empty. That is what replaced a single Amount column with brackets round
-    /// the deductions — the position now says which way the money went, and a
+    /// **Two money columns, filled independently.** What the account was charged
+    /// goes in `charge` and what came off it goes in `settled`. A payment or a
+    /// credit note fills only the second; a bill on credit fills only the first —
+    /// but **a bill paid at the counter fills both**, and it has to. Its charge
+    /// and its receipt happened in the same moment, so the balance beside it does
+    /// not move, and a row showing a charge against an unmoved balance with an
+    /// empty column next to it reads as an arithmetic mistake. It was one: the
+    /// money taken at the till was simply missing from the page.
+    ///
+    /// This is what replaced a single Amount column with brackets round the
+    /// deductions — the position now says which way the money went, where a
     /// bracketed figure needed a convention explained to whoever was reading it.
     ///
     /// `details` carries the kind as well as the number — `Invoice #6356`, not
@@ -133,12 +140,14 @@ struct StatementDocument: Equatable {
                 strings.columnBalance
             ],
             activityRows: statement.entries.enumerated().map { index, entry in
-                let settles = entry.charge == 0
-                let amount = Money.text(settles ? entry.settledAtOnce : entry.charge, in: money)
-                return ActivityRow(
+                // Each column asks its own question of the entry rather than the
+                // two sharing one answer. A bill settled at the counter has both a
+                // charge and a receipt, and reading it as one or the other is what
+                // hid every over-the-counter payment.
+                ActivityRow(
                     details: strings.referenceOn(reference(entry, strings), date: strings.shortDate(entry.date)),
-                    charge: settles ? "" : amount,
-                    settled: settles ? amount : "",
+                    charge: entry.charge > 0 ? Money.text(entry.charge, in: money) : "",
+                    settled: entry.settledAtOnce > 0 ? Money.text(entry.settledAtOnce, in: money) : "",
                     balance: Money.text(statement.runningBalances[index], in: money)
                 )
             },

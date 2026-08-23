@@ -54,10 +54,17 @@ data class StatementDocument(
      * One line of the activity table: what it was and when, then the money in
      * whichever of the two columns it belongs to, then where the account stood.
      *
-     * **Two money columns, and each row fills exactly one.** A charge goes in
-     * [charge] and everything that comes off goes in [settled]; the other is
-     * empty. That is what replaced a single Amount column with brackets round
-     * the deductions — the position now says which way the money went, and a
+     * **Two money columns, filled independently.** What the account was charged
+     * goes in [charge] and what came off it goes in [settled]. A payment or a
+     * credit note fills only the second; a bill on credit fills only the first —
+     * but **a bill paid at the counter fills both**, and it has to. Its charge
+     * and its receipt happened in the same moment, so the balance beside it does
+     * not move, and a row showing a charge against an unmoved balance with an
+     * empty column next to it reads as an arithmetic mistake. It was one: the
+     * money taken at the till was simply missing from the page.
+     *
+     * This is what replaced a single Amount column with brackets round the
+     * deductions — the position now says which way the money went, where a
      * bracketed figure needed a convention explained to whoever was reading it.
      *
      * [details] carries the kind as well as the number — `Invoice #6356`, not
@@ -132,15 +139,14 @@ data class StatementDocument(
                     strings.columnBalance
                 ),
                 activityRows = statement.entries.mapIndexed { index, entry ->
-                    val settles = entry.charge == 0.0
-                    val amount = Money.text(
-                        if (settles) entry.settledAtOnce else entry.charge,
-                        currency
-                    )
+                    // Each column asks its own question of the entry rather than
+                    // the two sharing one answer. A bill settled at the counter
+                    // has both a charge and a receipt, and reading it as one or
+                    // the other is what hid every over-the-counter payment.
                     ActivityRow(
                         details = strings.referenceOn(reference(entry, strings), strings.shortDate(entry.date)),
-                        charge = if (settles) "" else amount,
-                        settled = if (settles) amount else "",
+                        charge = if (entry.charge > 0) Money.text(entry.charge, currency) else "",
+                        settled = if (entry.settledAtOnce > 0) Money.text(entry.settledAtOnce, currency) else "",
                         balance = Money.text(statement.runningBalances[index], currency)
                     )
                 },

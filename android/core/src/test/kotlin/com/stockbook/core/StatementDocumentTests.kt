@@ -194,13 +194,10 @@ class StatementDocumentTests {
         // The running balance reads down, which is the column's whole job.
         assertEquals(listOf("SAR 1,000", "SAR 700", "SAR 500"), document.activityRows.map { it.balance })
 
-        // The charge is in one column and everything that comes off is in the
-        // other, and no row fills both. That is what replaced the brackets.
+        // The charge is in one column and what came off is in the other. That is
+        // what replaced the brackets.
         assertEquals(listOf("SAR 1,000", "", ""), document.activityRows.map { it.charge })
         assertEquals(listOf("", "SAR 300", "SAR 200"), document.activityRows.map { it.settled })
-        for (row in document.activityRows) {
-            assertTrue(row.charge.isEmpty() != row.settled.isEmpty(), "${row.details} filled both or neither")
-        }
     }
 
     @Test
@@ -271,6 +268,49 @@ class StatementDocumentTests {
             listOf("Invoice / Receipt", "Invoice amount", "Received amount", "Balance"),
             document(store).columnHeadings
         )
+    }
+
+    @Test
+    fun `a bill paid at the counter shows both what it charged and what it took`() {
+        // The row that was wrong. A bill settled at the till charges and receives
+        // in the same moment, so the balance beside it does not move — and with
+        // only the charge printed, the page read as an arithmetic mistake. It was
+        // one: the money handed over was missing from it.
+        val store = store().aShop()
+        store.addCustomer("Ahmed")
+        store.saveBill(customer = "Ahmed", paid = null, amount = 155.0, invoiceNo = "12")
+
+        val row = document(store).activityRows.single()
+
+        assertEquals("SAR 155", row.charge)
+        assertEquals("SAR 155", row.settled, "paid in full at the counter, and the page has to say so")
+        assertEquals("SAR 0", row.balance)
+    }
+
+    @Test
+    fun `a bill part paid at the counter shows the part`() {
+        val store = store().aShop()
+        store.addCustomer("Ahmed")
+        store.saveBill(customer = "Ahmed", paid = 100.0, amount = 155.0, invoiceNo = "12")
+
+        val row = document(store).activityRows.single()
+
+        assertEquals("SAR 155", row.charge)
+        assertEquals("SAR 100", row.settled)
+        assertEquals("SAR 55", row.balance, "and the balance moves by the difference")
+    }
+
+    @Test
+    fun `a bill on credit leaves the received column empty`() {
+        val store = store().aShop()
+        store.addCustomer("Ahmed")
+        store.saveBill(customer = "Ahmed", paid = 0.0, amount = 155.0, invoiceNo = "12")
+
+        val row = document(store).activityRows.single()
+
+        assertEquals("SAR 155", row.charge)
+        assertEquals("", row.settled)
+        assertEquals("SAR 155", row.balance)
     }
 
     @Test

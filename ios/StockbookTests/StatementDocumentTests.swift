@@ -215,13 +215,10 @@ struct StatementDocumentTests {
         // The running balance reads down, which is the column's whole job.
         #expect(document.activityRows.map(\.balance) == ["SAR 1,000", "SAR 700", "SAR 500"])
 
-        // The charge is in one column and everything that comes off is in the
-        // other, and no row fills both. That is what replaced the brackets.
+        // The charge is in one column and what came off is in the other. That is
+        // what replaced the brackets.
         #expect(document.activityRows.map(\.charge) == ["SAR 1,000", "", ""])
         #expect(document.activityRows.map(\.settled) == ["", "SAR 300", "SAR 200"])
-        for row in document.activityRows {
-            #expect(row.charge.isEmpty != row.settled.isEmpty, "\(row.details) filled both or neither")
-        }
     }
 
     @Test("An itemised bill still prints as one row")
@@ -297,6 +294,52 @@ struct StatementDocumentTests {
             "Received amount",
             "Balance"
         ])
+    }
+
+    @Test("A bill paid at the counter shows both what it charged and what it took")
+    func billPaidAtTheCounterShowsBoth() throws {
+        // The row that was wrong. A bill settled at the till charges and receives
+        // in the same moment, so the balance beside it does not move — and with
+        // only the charge printed, the page read as an arithmetic mistake. It was
+        // one: the money handed over was missing from it.
+        let store = makeStore()
+        aShop(store)
+        store.addCustomer(name: "Ahmed")
+        store.saveBill(customer: "Ahmed", paid: nil, amount: 155, invoiceNo: "12")
+
+        let row = try #require(try document(store).activityRows.first)
+
+        #expect(row.charge == "SAR 155")
+        #expect(row.settled == "SAR 155", "paid in full at the counter, and the page has to say so")
+        #expect(row.balance == "SAR 0")
+    }
+
+    @Test("A bill part paid at the counter shows the part")
+    func billPartPaidShowsThePart() throws {
+        let store = makeStore()
+        aShop(store)
+        store.addCustomer(name: "Ahmed")
+        store.saveBill(customer: "Ahmed", paid: 100, amount: 155, invoiceNo: "12")
+
+        let row = try #require(try document(store).activityRows.first)
+
+        #expect(row.charge == "SAR 155")
+        #expect(row.settled == "SAR 100")
+        #expect(row.balance == "SAR 55", "and the balance moves by the difference")
+    }
+
+    @Test("A bill on credit leaves the received column empty")
+    func billOnCreditLeavesReceivedEmpty() throws {
+        let store = makeStore()
+        aShop(store)
+        store.addCustomer(name: "Ahmed")
+        store.saveBill(customer: "Ahmed", paid: 0, amount: 155, invoiceNo: "12")
+
+        let row = try #require(try document(store).activityRows.first)
+
+        #expect(row.charge == "SAR 155")
+        #expect(row.settled == "")
+        #expect(row.balance == "SAR 155")
     }
 
     @Test("A supplier's statement says paid where a customer's says received")
