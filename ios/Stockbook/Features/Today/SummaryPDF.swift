@@ -1,6 +1,6 @@
 import UIKit
 
-/// Draws an `OutstandingDocument` onto A4 pages.
+/// Draws an `SummaryDocument` onto A4 pages.
 ///
 /// `StatementPDF`'s smaller cousin, and deliberately the same geometry — A4 at
 /// 72dpi, the same margin, the same rules and the same page-break rule — so the
@@ -12,8 +12,8 @@ import UIKit
 /// printed, and a dark page prints badly whoever is reading it.
 ///
 /// The layout decides nothing about wording. Every string it draws came from
-/// `OutstandingDocument`, which is shared with the Android build and tested.
-enum OutstandingPDF {
+/// `SummaryDocument`, which is shared with the Android build and tested.
+enum SummaryPDF {
 
     /// A4 at 72dpi, which is the unit `UIGraphicsPDFRenderer` works in.
     private static let pageSize = CGSize(width: 595, height: 842)
@@ -39,7 +39,7 @@ enum OutstandingPDF {
     ///
     /// Written into the app's own temporary directory, which is where a file goes
     /// when the only thing that will read it is the share sheet.
-    static func write(_ document: OutstandingDocument, fileName: String) throws -> URL {
+    static func write(_ document: SummaryDocument, fileName: String) throws -> URL {
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(origin: .zero, size: pageSize))
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
 
@@ -91,6 +91,13 @@ enum OutstandingPDF {
                 // matters most.
                 let nameWidth = width * 0.68
                 draw(row.name, at: CGPoint(x: margin, y: y), maxWidth: nameWidth, attributes: attributes(rowSize))
+                // The aside, where a row has one: how often something was bought,
+                // set grey and between the two so it never competes with the
+                // figure. A debtor has none — they are behind by an amount, not
+                // by a count of anything.
+                if let detail = row.detail {
+                    drawRight(detail, rightEdge: margin + width * 0.86, y: y, attributes: attributes(bodySize, muted: true))
+                }
                 drawRight(row.amount, rightEdge: right, y: y, attributes: attributes(rowSize))
                 y += 17
                 rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))

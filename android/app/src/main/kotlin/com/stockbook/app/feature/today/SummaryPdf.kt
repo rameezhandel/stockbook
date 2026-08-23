@@ -5,11 +5,11 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
-import com.stockbook.core.text.OutstandingDocument
+import com.stockbook.core.text.SummaryDocument
 import java.io.File
 
 /**
- * Draws an [OutstandingDocument] onto A4 pages.
+ * Draws an [SummaryDocument] onto A4 pages.
  *
  * `StatementPdf`'s smaller cousin, and deliberately the same geometry — A4 at
  * 72dpi, the same margin, the same rules and the same page-break rule — so the
@@ -21,9 +21,9 @@ import java.io.File
  * and a dark page prints badly whoever is reading it.
  *
  * The layout decides nothing about wording: every string it draws came from
- * [OutstandingDocument], which is shared with the iOS build and tested.
+ * [SummaryDocument], which is shared with the iOS build and tested.
  */
-object OutstandingPdf {
+object SummaryPdf {
 
     // A4 at 72dpi, which is the unit `PdfDocument` works in.
     private const val PAGE_WIDTH = 595
@@ -59,7 +59,7 @@ object OutstandingPdf {
      * permission and is never going to. Sharing hands out a `content://` URI to
      * it rather than a path.
      */
-    fun write(document: OutstandingDocument, into: Context, fileName: String): File {
+    fun write(document: SummaryDocument, into: Context, fileName: String): File {
         val pdf = PdfDocument()
         var pageNumber = 1
         var page = pdf.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
@@ -113,6 +113,13 @@ object OutstandingPdf {
             // under the amount is how a chasing list becomes unreadable at
             // exactly the row that matters most.
             canvas.drawText(body.ellipsised(row.name, width * NAME_FRACTION), MARGIN, y + ROW_SIZE, body)
+            // The aside, where a row has one: how often something was bought, set
+            // grey and between the two so it never competes with the figure. A
+            // debtor has none — they are behind by an amount, not by a count of
+            // anything.
+            row.detail?.let {
+                canvas.drawTextRight(it, MARGIN + width * 0.86f, y + ROW_SIZE, paint(BODY_SIZE, grey = true))
+            }
             canvas.drawTextRight(row.amount, right, y + ROW_SIZE, body)
             y += 17
             canvas.drawLine(MARGIN, y, right, y, rule)

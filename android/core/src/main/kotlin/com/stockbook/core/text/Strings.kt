@@ -911,9 +911,22 @@ class Strings(val language: AppLanguage) {
     val nothingPayable: String get() = pick("Nothing payable.", "ಕೊಡಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.")
     /** The button that makes it. Says *list*, never *statement*. */
     val savedList: String get() = pick("Save list", "ಪಟ್ಟಿ ಉಳಿಸಿ")
+
+    /**
+     * The shop's own spending over a stretch of days, broken down by what it
+     * went on. Never called a *statement*: that word means one party's account,
+     * and an expense is joined to no party at all.
+     */
+    val expenseSummary: String get() = pick("Expense Summary", "ಖರ್ಚಿನ ಸಾರಾಂಶ")
+    val columnWhatItWentOn: String get() = pick("What it went on", "ಯಾವುದಕ್ಕೆ")
+    val totalSpentLabel: String get() = pick("Total spent", "ಒಟ್ಟು ಖರ್ಚು")
+    val nothingSpentThen: String get() = pick("Nothing spent in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಖರ್ಚು ಇಲ್ಲ.")
+    /** `once` reads better than `1 times`, and a shop buys plenty of things once. */
+    fun timesSpent(n: Int): String = pick(if (n == 1) "once" else "$n times", "$n ಸಲ")
     /** Not translated: a file name is read by a file manager, not by a shopkeeper. */
     fun receivableFileName(date: String): String = "receivable-$date.pdf"
     fun payableFileName(date: String): String = "payable-$date.pdf"
+    fun expenseFileName(date: String): String = "expenses-$date.pdf"
     val sharePdf: String get() = pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ")
 
     fun accountSummaryTill(date: String): String =

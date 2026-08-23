@@ -21,11 +21,25 @@ struct ExpensesPane: View {
 
     private var expenses: [Expense] { store.expenses }
 
+    /// The rendered page, waiting for the share sheet.
+    @State private var file: StatementFile?
+
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Metrics.rowGap) {
                 totalCard
                     .padding(.bottom, 20 - Metrics.rowGap)
+
+                // Beside the figure it summarises, and only where there is
+                // something to summarise: a page saying nothing was spent is a
+                // page nobody needs. The span the card is showing is the span the
+                // page covers — one control for both, so the two can never
+                // quietly disagree.
+                if store.spentIn(span.period) > 0 {
+                    Button(Loc.savedList, action: save)
+                        .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 40, fontSize: 13))
+                        .padding(.bottom, 20 - Metrics.rowGap)
+                }
 
                 HStack {
                     Kicker(Loc.expensesTitle)
@@ -56,6 +70,25 @@ struct ExpensesPane: View {
             .padding(.bottom, 18)
             .motion(Motion.list, value: expenses.count)
         }
+        .sheet(item: $file) { ShareSheet(url: $0.url) }
+    }
+
+    /// A failure leaves `file` nil and nothing opens, which is the honest
+    /// outcome `StatementScreen` already settled on: there is no half-written
+    /// page worth offering, and the figures are still on screen.
+    private func save() {
+        let period = span.period
+        let document = SummaryDocument.forSpending(
+            lines: store.spendingIn(period),
+            range: period.range(),
+            settings: store.settings,
+            strings: Loc
+        )
+        guard let url = try? SummaryPDF.write(
+            document,
+            fileName: Loc.expenseFileName(date: Copy.fileDate(.now))
+        ) else { return }
+        file = StatementFile(url: url)
     }
 
     // MARK: The total

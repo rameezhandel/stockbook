@@ -37,6 +37,12 @@ data class DraftLine(
     val price: Double
 )
 
+/**
+ * What the shop spent on one thing over a stretch of days: what it was, how many
+ * times, and what that came to.
+ */
+data class SpendLine(val what: String, val times: Int, val total: Double)
+
 /** One line of a delivery as the sheet holds it, before it becomes history. */
 data class DraftPurchaseLine(
     val productUid: String,
@@ -1011,6 +1017,35 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun spentIn(period: StatementPeriod): Double {
         val range = period.range()
         return expenses.filter { it.spentAt in range }.sumOf { it.amount }
+    }
+
+    /**
+     * The same money, broken down by what it went on. Biggest first.
+     *
+     * A shop asking where last month went does not want forty-seven lines, it
+     * wants "petrol 780, rent 2,000, tea 110". Grouping is what turns a list
+     * into an answer.
+     *
+     * Grouped the way [expenseNotes] groups — case-insensitively, showing the
+     * most recent spelling — so "Petrol", "petrol" and "PETROL" are one line
+     * rather than three. That collapsing is worth as much here as it is in the
+     * suggestion list, arguably more: three lines for one thing does not just
+     * look untidy, it hides how much the shop actually spends on it.
+     */
+    fun spendingIn(period: StatementPeriod): List<SpendLine> {
+        val range = period.range()
+        return expenses
+            .filter { it.spentAt in range && it.note.isNotBlank() }
+            .groupBy { it.note.trim().lowercase() }
+            .values
+            .map { group ->
+                SpendLine(
+                    what = group.maxBy { it.spentAt }.note.trim(),
+                    times = group.size,
+                    total = group.sumOf { it.amount }
+                )
+            }
+            .sortedWith(compareByDescending<SpendLine> { it.total }.thenBy { it.what })
     }
 
     /**

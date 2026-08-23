@@ -897,6 +897,32 @@ final class StockbookStore {
         return expense
     }
 
+    /// The same money as `spentIn`, broken down by what it went on. Biggest first.
+    ///
+    /// A shop asking where last month went does not want forty-seven lines, it
+    /// wants "petrol 780, rent 2,000, tea 110". Grouping is what turns a list
+    /// into an answer.
+    ///
+    /// Grouped the way `expenseNotes` groups — case-insensitively, showing the
+    /// most recent spelling — so "Petrol", "petrol" and "PETROL" are one line
+    /// rather than three. That collapsing is worth as much here as it is in the
+    /// suggestion list, arguably more: three lines for one thing does not just
+    /// look untidy, it hides how much the shop actually spends on it.
+    func spendingIn(_ period: StatementPeriod) -> [SpendLine] {
+        let range = period.range()
+        let inside = expenses.filter { range.contains($0.spentAt) && !$0.note.isBlank }
+        return Dictionary(grouping: inside) { $0.note.trimmed.lowercased() }
+            .compactMap { _, group -> SpendLine? in
+                guard let newest = group.max(by: { $0.spentAt < $1.spentAt }) else { return nil }
+                return SpendLine(
+                    what: newest.note.trimmed,
+                    times: group.count,
+                    total: group.reduce(0) { $0 + $1.amount }
+                )
+            }
+            .sorted { $0.total == $1.total ? $0.what < $1.what : $0.total > $1.total }
+    }
+
     /// What the owner has called an expense before, most-used first.
     ///
     /// A shop buys petrol every week and a fan belt once. Typing "Petrol" fifty
@@ -1902,6 +1928,14 @@ struct DraftLine {
     /// What is being charged — the product's price unless the owner overrode it
     /// for this bill.
     var price: Double
+}
+
+/// What the shop spent on one thing over a stretch of days: what it was, how
+/// many times, and what that came to.
+struct SpendLine: Equatable {
+    let what: String
+    let times: Int
+    let total: Double
 }
 
 /// One line of a delivery as the sheet holds it, before it becomes history.

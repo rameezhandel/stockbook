@@ -1,10 +1,11 @@
 package com.stockbook.core
 
+import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.InMemoryRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppLanguage
-import com.stockbook.core.text.OutstandingDocument
+import com.stockbook.core.text.SummaryDocument
 import com.stockbook.core.text.Strings
 import java.time.Instant
 import kotlin.test.Test
@@ -21,7 +22,7 @@ import kotlin.test.assertTrue
  * page into something to be checked by hand, which is the one thing it exists to
  * save.
  */
-class OutstandingDocumentTests {
+class SummaryDocumentTests {
 
     private val strings = Strings(AppLanguage.ENGLISH)
     private val day: Instant = Instant.parse("2026-08-22T09:00:00Z")
@@ -34,7 +35,7 @@ class OutstandingDocumentTests {
     }
 
     private fun StockbookStore.document() =
-        OutstandingDocument.forReceivable(customers(), settings, strings, now = day)
+        SummaryDocument.forReceivable(customers(), settings, strings, now = day)
 
     @Test
     fun `the total is the figure Home shows`() {
@@ -145,7 +146,7 @@ class OutstandingDocumentTests {
     // --- The same page pointing the other way
 
     private fun StockbookStore.payableDocument() =
-        OutstandingDocument.forPayable(suppliers(), settings, strings, now = day)
+        SummaryDocument.forPayable(suppliers(), settings, strings, now = day)
 
     @Test
     fun `the payable page totals what the shop owes`() {
@@ -196,5 +197,109 @@ class OutstandingDocumentTests {
         store.setOwnerName("Al Salam Hardware")
 
         assertEquals("Al Salam Hardware", store.document().shopName)
+    }
+
+    // --- Where the shop's own money went
+
+    private fun StockbookStore.spendingDocument(period: StatementPeriod) =
+        SummaryDocument.forSpending(spendingIn(period), period.range(), settings, strings)
+
+    @Test
+    fun `spending is grouped by what it went on, biggest first`() {
+        // Forty-seven lines is a record. Three lines is an answer.
+        val store = store()
+        store.addExpense(60.0, "Petrol", day)
+        store.addExpense(4.0, "Tea", day)
+        store.addExpense(2_000.0, "Rent", day)
+        store.addExpense(65.0, "Petrol", day)
+
+        val document = store.spendingDocument(StatementPeriod.thisYear())
+
+        assertEquals(listOf("Rent", "Petrol", "Tea"), document.rows.map { it.name })
+        assertEquals(listOf("SAR 2,000", "SAR 125", "SAR 4"), document.rows.map { it.amount })
+        assertEquals("SAR 2,129", document.totalValue)
+    }
+
+    @Test
+    fun `how often sits beside what it came to`() {
+        // "Petrol, 12 times, 780" is a different fact from "petrol 780", and it
+        // is the one that says whether to look at the price or the habit.
+        val store = store()
+        store.addExpense(60.0, "Petrol", day)
+        store.addExpense(65.0, "Petrol", day)
+        store.addExpense(2_000.0, "Rent", day)
+
+        val rows = store.spendingDocument(StatementPeriod.thisYear()).rows
+
+        assertEquals("2 times", rows.first { it.name == "Petrol" }.detail)
+        assertEquals("once", rows.first { it.name == "Rent" }.detail, "never \"1 times\"")
+    }
+
+    @Test
+    fun `the same word in three casings is one line`() {
+        // Worth more here than in the suggestion list: three lines for one thing
+        // does not merely look untidy, it hides how much the shop spends on it.
+        val store = store()
+        store.addExpense(60.0, "petrol", day)
+        store.addExpense(65.0, "PETROL", day.plusSeconds(60))
+        store.addExpense(70.0, "Petrol", day.plusSeconds(120))
+
+        val rows = store.spendingDocument(StatementPeriod.thisYear()).rows
+
+        assertEquals(1, rows.size)
+        assertEquals("Petrol", rows.single().name, "and the newest spelling is the one shown")
+        assertEquals("SAR 195", rows.single().amount)
+        assertEquals("3 times", rows.single().detail)
+    }
+
+    @Test
+    fun `only what was spent inside the period`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", Instant.parse("2026-08-22T09:00:00Z"))
+        store.addExpense(999.0, "Long ago", Instant.parse("2024-01-05T09:00:00Z"))
+
+        val document = store.spendingDocument(StatementPeriod.Month(Instant.parse("2026-08-10T00:00:00Z")))
+
+        assertEquals(listOf("Petrol"), document.rows.map { it.name })
+        assertEquals("SAR 60", document.totalValue)
+    }
+
+    @Test
+    fun `the total is what the card on the pane shows`() {
+        // The owner reads Expense on the pane and prints this from beside it.
+        // Two figures a halala apart turn the page into something to re-check.
+        val store = store()
+        store.addExpense(60.0, "Petrol", day)
+        store.addExpense(4.5, "Tea", day)
+        val period = StatementPeriod.thisYear()
+
+        assertEquals(
+            Money.text(store.spentIn(period), store.settings.currency),
+            store.spendingDocument(period).totalValue
+        )
+    }
+
+    @Test
+    fun `a period with nothing in it says so`() {
+        val document = store().spendingDocument(StatementPeriod.thisYear())
+
+        assertTrue(document.isEmpty)
+        assertEquals("Nothing spent in this period.", document.emptyLine)
+        assertEquals("SAR 0", document.totalValue)
+    }
+
+    @Test
+    fun `the page is headed by the days it covers, and never called a statement`() {
+        // An expense is joined to no party, so "statement" — which in this app
+        // means one party's account — would be the wrong word for it.
+        val store = store()
+        store.addExpense(60.0, "Petrol", Instant.parse("2026-08-22T09:00:00Z"))
+
+        val document = store.spendingDocument(StatementPeriod.Month(Instant.parse("2026-08-10T00:00:00Z")))
+
+        assertEquals("Expense Summary", document.title)
+        assertTrue(!document.title.contains("Statement", ignoreCase = true))
+        // The last day *inside* August, not midnight on the 1st of September.
+        assertEquals("1 August 2026 to 31 August 2026", document.asOf)
     }
 }

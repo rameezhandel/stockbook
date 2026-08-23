@@ -3,36 +3,40 @@ package com.stockbook.core.text
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Settings
+import com.stockbook.core.model.StatementRange
 import com.stockbook.core.model.Supplier
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
+import com.stockbook.core.store.SpendLine
 import java.time.Instant
 
 /**
- * Everyone who owes the shop money, and how much, on one page.
+ * A titled list of things and figures, with a total under it: who owes the shop,
+ * who it owes, or what it spent its money on.
  *
- * **This is the owner's own list, and it is the one document in the app that
- * must never be shown to a customer.** A statement is handed across the counter
- * on purpose — it says what one person owes, to that person. This says what
- * *everybody* owes, and letting Ahmed see that Khalid is four thousand behind is
- * not an untidy page, it is a breach. Nothing renders it beside a customer's own
- * documents, and the title says whose list it is.
+ * **Every page built here is the owner's own, and none of them may be shown to
+ * anybody else.** A statement is handed across the counter on purpose — it says
+ * what one person owes, to that person. These say what *everybody* owes, or
+ * where the shop's own money went; letting Ahmed see that Khalid is four
+ * thousand behind is not an untidy page, it is a breach, and the owner's
+ * spending is private by a rule written into `Expense` itself. Nothing renders
+ * any of them beside a customer's own documents, and each title says whose list
+ * it is.
  *
- * **A balance, not a period.** Every other document here takes a
- * [com.stockbook.core.model.StatementPeriod]; what is outstanding is true at a
- * moment and meaningless over a span. That is why the header carries the day it
- * was made rather than a range, and it is the whole of what stops a printout
- * from last month reading as this morning's.
+ * **[asOf] carries what makes the figures true.** For money owed that is a day,
+ * because a balance is true at a moment and meaningless over a span; for
+ * spending it is the stretch of days it was spent over. Either way it is the
+ * whole of what stops last month's printout reading as this morning's.
  *
  * Laid out here for the reason [StatementDocument] is: drawing is platform work,
  * but *what* is drawn is not, and two hand-written layouts drift the first time
  * either is corrected.
  */
-data class OutstandingDocument(
+data class SummaryDocument(
     val shopName: String,
     /** What this is, said so nobody mistakes it for a statement. */
     val title: String,
-    /** `As of 22 August 2026` — see the note about balances above. */
+    /** `As of 22 August 2026`, or `1 – 31 August 2026`. See above. */
     val asOf: String,
     val columnHeadings: List<String>,
     val rows: List<Row>,
@@ -41,8 +45,14 @@ data class OutstandingDocument(
     /** Shown instead of the table when nobody owes anything. */
     val emptyLine: String
 ) {
-    /** One debtor: what they are called, and what they are behind by. */
-    data class Row(val name: String, val amount: String)
+    /**
+     * One line: what it is, and what it comes to.
+     *
+     * [detail] is the small grey aside between the two — `12 times` on a
+     * spending line, absent on a debtor, who is behind by one figure and not by
+     * a count of anything.
+     */
+    data class Row(val name: String, val amount: String, val detail: String? = null)
 
     /** Whether there is a table to draw at all. */
     val isEmpty: Boolean get() = rows.isEmpty()
@@ -62,7 +72,7 @@ data class OutstandingDocument(
             strings: Strings,
             currency: Currency = settings.currency,
             now: Instant = Timestamps.now()
-        ): OutstandingDocument = make(
+        ): SummaryDocument = make(
             parties = customers.map { it.name to it.owed },
             settings = settings,
             strings = strings,
@@ -88,7 +98,7 @@ data class OutstandingDocument(
             strings: Strings,
             currency: Currency = settings.currency,
             now: Instant = Timestamps.now()
-        ): OutstandingDocument = make(
+        ): SummaryDocument = make(
             parties = suppliers.map { it.name to it.owed },
             settings = settings,
             strings = strings,
@@ -99,6 +109,48 @@ data class OutstandingDocument(
             emptyLine = strings.nothingPayable,
             currency = currency,
             now = now
+        )
+
+        /**
+         * Where the shop's own money went, from `StockbookStore.spendingIn`.
+         *
+         * The one page here that covers a **stretch of days** rather than a
+         * moment: money owed is a balance and true right now, but money spent
+         * only means anything over a period, and the header says which.
+         *
+         * @param lines biggest first, which `spendingIn` already returns.
+         */
+        fun forSpending(
+            lines: List<SpendLine>,
+            range: StatementRange,
+            settings: Settings,
+            strings: Strings,
+            currency: Currency = settings.currency
+        ): SummaryDocument = SummaryDocument(
+            shopName = settings.ownerName,
+            title = strings.expenseSummary,
+            asOf = strings.dateSpan(
+                strings.longDate(range.start),
+                // The last day *inside* the range. A period that ends at
+                // midnight on the 1st is an August statement titled "to 1
+                // September", which nobody reads as August.
+                strings.longDate(range.end.minusSeconds(1))
+            ),
+            columnHeadings = listOf(strings.columnWhatItWentOn, strings.expenseInPeriod),
+            rows = lines.map {
+                Row(
+                    name = it.what,
+                    amount = Money.text(it.total, currency),
+                    // How often, beside what it came to. "Petrol, 12 times, 780"
+                    // is a different fact from "petrol 780", and it is the one
+                    // that tells the owner whether to look at the price or the
+                    // habit.
+                    detail = strings.timesSpent(it.times)
+                )
+            },
+            totalLabel = strings.totalSpentLabel,
+            totalValue = Money.text(lines.sumOf { it.total }, currency),
+            emptyLine = strings.nothingSpentThen
         )
 
         /**
@@ -119,13 +171,13 @@ data class OutstandingDocument(
             emptyLine: String,
             currency: Currency,
             now: Instant
-        ): OutstandingDocument {
+        ): SummaryDocument {
             // Only what is actually outstanding. Somebody in advance is not a
             // debtor, and a negative row on a chasing list is a line the owner
             // has to stop and think about every time they read it.
             val owing = parties.filter { it.second > 0 }
 
-            return OutstandingDocument(
+            return SummaryDocument(
                 shopName = settings.ownerName,
                 title = title,
                 asOf = strings.asOfDate(strings.longDate(now)),
@@ -135,7 +187,7 @@ data class OutstandingDocument(
                 // Summed from the same figures the rows print, so the foot of the
                 // page can never disagree with the page. `outstanding()` and
                 // `payable()` walk the same rosters to the same answers, and
-                // `OutstandingDocumentTests` pins them together.
+                // `SummaryDocumentTests` pins them together.
                 totalValue = Money.text(owing.sumOf { it.second }, currency),
                 emptyLine = emptyLine
             )

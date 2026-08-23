@@ -51,7 +51,7 @@ import com.stockbook.app.feature.settings.BackupScreen
 import com.stockbook.app.feature.settings.SettingsScreen
 import com.stockbook.app.feature.setup.SetupFlow
 import com.stockbook.app.feature.today.TodayScreen
-import com.stockbook.app.feature.today.OutstandingPdf
+import com.stockbook.app.feature.today.SummaryPdf
 import com.stockbook.app.feature.today.WhoOwesYouSheet
 import com.stockbook.app.feature.today.WhoYouOweSheet
 import com.stockbook.core.model.AppTheme
@@ -61,7 +61,7 @@ import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppTab
 import com.stockbook.core.text.Dates
-import com.stockbook.core.text.OutstandingDocument
+import com.stockbook.core.text.SummaryDocument
 import com.stockbook.core.text.Strings
 import java.io.File
 
@@ -187,7 +187,22 @@ private fun Shell(store: StockbookStore) {
                         state = state,
                         store = store,
                         router = router,
-                        strings = strings
+                        strings = strings,
+                        onSaveExpenses = { period ->
+                            sharePdf(
+                                context,
+                                SummaryPdf.write(
+                                    SummaryDocument.forSpending(
+                                        store.spendingIn(period),
+                                        period.range(),
+                                        state.settings,
+                                        strings
+                                    ),
+                                    context,
+                                    strings.expenseFileName(Dates.fileDate(Timestamps.now()))
+                                )
+                            )
+                        }
                     )
                 }
             }
@@ -401,8 +416,8 @@ private fun Shell(store: StockbookStore) {
                 onSave = {
                     sharePdf(
                         context,
-                        OutstandingPdf.write(
-                            OutstandingDocument.forReceivable(store.customers(), state.settings, strings),
+                        SummaryPdf.write(
+                            SummaryDocument.forReceivable(store.customers(), state.settings, strings),
                             context,
                             strings.receivableFileName(Dates.fileDate(Timestamps.now()))
                         )
@@ -425,8 +440,8 @@ private fun Shell(store: StockbookStore) {
                 onSave = {
                     sharePdf(
                         context,
-                        OutstandingPdf.write(
-                            OutstandingDocument.forPayable(store.suppliers(), state.settings, strings),
+                        SummaryPdf.write(
+                            SummaryDocument.forPayable(store.suppliers(), state.settings, strings),
                             context,
                             strings.payableFileName(Dates.fileDate(Timestamps.now()))
                         )

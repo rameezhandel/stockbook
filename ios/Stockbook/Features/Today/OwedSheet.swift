@@ -46,12 +46,12 @@ struct WhoOwesYouSheet: View {
     /// outcome and the one `StatementScreen` already settled on: there is no
     /// half-written page worth offering, and the list itself is still on screen.
     private func save() {
-        let document = OutstandingDocument.forReceivable(
+        let document = SummaryDocument.forReceivable(
             customers: store.customers(),
             settings: store.settings,
             strings: Loc
         )
-        guard let url = try? OutstandingPDF.write(
+        guard let url = try? SummaryPDF.write(
             document,
             fileName: Loc.receivableFileName(date: Copy.fileDate(.now))
         ) else { return }
@@ -90,12 +90,12 @@ struct WhoYouOweSheet: View {
     }
 
     private func save() {
-        let document = OutstandingDocument.forPayable(
+        let document = SummaryDocument.forPayable(
             suppliers: store.suppliers(),
             settings: store.settings,
             strings: Loc
         )
-        guard let url = try? OutstandingPDF.write(
+        guard let url = try? SummaryPDF.write(
             document,
             fileName: Loc.payableFileName(date: Copy.fileDate(.now))
         ) else { return }

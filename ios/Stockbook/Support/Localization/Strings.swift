@@ -968,9 +968,20 @@ struct Strings {
     var nothingPayable: String { pick("Nothing payable.", "ಕೊಡಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.") }
     /// The button that makes it. Says *list*, never *statement*.
     var savedList: String { pick("Save list", "ಪಟ್ಟಿ ಉಳಿಸಿ") }
+
+    /// The shop's own spending over a stretch of days, broken down by what it
+    /// went on. Never called a *statement*: that word means one party's account,
+    /// and an expense is joined to no party at all.
+    var expenseSummary: String { pick("Expense Summary", "ಖರ್ಚಿನ ಸಾರಾಂಶ") }
+    var columnWhatItWentOn: String { pick("What it went on", "ಯಾವುದಕ್ಕೆ") }
+    var totalSpentLabel: String { pick("Total spent", "ಒಟ್ಟು ಖರ್ಚು") }
+    var nothingSpentThen: String { pick("Nothing spent in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಖರ್ಚು ಇಲ್ಲ.") }
+    /// `once` reads better than `1 times`, and a shop buys plenty of things once.
+    func timesSpent(_ n: Int) -> String { pick(n == 1 ? "once" : "\(n) times", "\(n) ಸಲ") }
     /// Not translated: a file name is read by a file manager, not by a shopkeeper.
     func receivableFileName(date: String) -> String { "receivable-\(date).pdf" }
     func payableFileName(date: String) -> String { "payable-\(date).pdf" }
+    func expenseFileName(date: String) -> String { "expenses-\(date).pdf" }
     var sharePdf: String { pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ") }
 
     func accountSummaryTill(_ date: String) -> String {

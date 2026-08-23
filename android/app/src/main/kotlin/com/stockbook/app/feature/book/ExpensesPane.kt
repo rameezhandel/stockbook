@@ -30,6 +30,7 @@ import com.stockbook.app.design.Kicker
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
+import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.SpanChip
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
@@ -58,6 +59,8 @@ fun ExpensesPane(
     store: StockbookStore,
     router: AppRouter,
     strings: Strings,
+    /** Renders the span on screen as a page and hands it to the chooser. */
+    onSave: (StatementPeriod) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val currency = state.settings.currency
@@ -91,6 +94,21 @@ fun ExpensesPane(
                 strings = strings,
                 onChoose = { span = it }
             )
+
+            // Beside the figure it summarises, and only where there is something
+            // to summarise: a page saying nothing was spent is a page nobody
+            // needs. The span the card is showing is the span the page covers —
+            // one control for both, so the two can never quietly disagree.
+            if (spent > 0) {
+                Spacer(Modifier.height(10.dp))
+                SecondaryButton(
+                    strings.savedList,
+                    onClick = { onSave(span.period()) },
+                    fullWidth = true,
+                    height = 40.dp,
+                    fontSize = 13.0
+                )
+            }
             Spacer(Modifier.height(20.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {

@@ -22,6 +22,7 @@ import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.ScreenHeader
 import com.stockbook.app.feature.bills.BillsScreen
 import com.stockbook.core.model.ShopState
+import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
 
@@ -48,6 +49,8 @@ fun BookScreen(
     store: StockbookStore,
     router: AppRouter,
     strings: Strings,
+    /** Renders the spending on screen as a page and hands it to the chooser. */
+    onSaveExpenses: (StatementPeriod) -> Unit,
     modifier: Modifier = Modifier
 ) {
     /**
@@ -123,6 +126,7 @@ fun BookScreen(
                 store = store,
                 router = router,
                 strings = strings,
+                onSave = onSaveExpenses,
                 modifier = Modifier.weight(1f)
             )
         }
