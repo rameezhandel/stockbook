@@ -30,7 +30,6 @@ import com.stockbook.app.design.Kicker
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
-import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.SpanChip
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
@@ -92,23 +91,16 @@ fun ExpensesPane(
                 note = strings.expensesArePrivate,
                 span = span,
                 strings = strings,
-                onChoose = { span = it }
+                onChoose = { span = it },
+                // On the chips' own row, and only where there is something to
+                // summarise: a page saying nothing was spent is a page nobody
+                // needs. The span the card is showing is the span the page
+                // covers, so the control and the button that acts on it belong
+                // side by side — a full-width button under the card read as
+                // belonging to the list below it instead, which is not what it
+                // makes a page of.
+                onShare = if (spent > 0) ({ onSave(span.period()) }) else null
             )
-
-            // Beside the figure it summarises, and only where there is something
-            // to summarise: a page saying nothing was spent is a page nobody
-            // needs. The span the card is showing is the span the page covers —
-            // one control for both, so the two can never quietly disagree.
-            if (spent > 0) {
-                Spacer(Modifier.height(10.dp))
-                SecondaryButton(
-                    strings.savedList,
-                    onClick = { onSave(span.period()) },
-                    fullWidth = true,
-                    height = 40.dp,
-                    fontSize = 13.0
-                )
-            }
             Spacer(Modifier.height(20.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -165,7 +157,9 @@ private fun TotalCard(
     note: String,
     span: Span,
     strings: Strings,
-    onChoose: (Span) -> Unit
+    onChoose: (Span) -> Unit,
+    /** Makes a page of the span on screen. Absent while there is nothing on it. */
+    onShare: (() -> Unit)?
 ) {
     Column(modifier = Modifier.fillMaxWidth().card().hairline(radius = Metrics.cardRadius).padding(14.dp)) {
         Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
@@ -184,15 +178,25 @@ private fun TotalCard(
             modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
         )
 
-        Row(modifier = Modifier.fillMaxWidth()) {
-            for (candidate in Span.entries) {
-                SpanChip(
-                    title = candidate.label(strings),
-                    selected = candidate == span,
-                    onClick = { onChoose(candidate) },
-                    modifier = Modifier.weight(1f)
-                )
-                if (candidate != Span.entries.last()) Spacer(Modifier.width(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            // The chips share whatever the button leaves, rather than each taking
+            // a third of the whole row: three fixed thirds plus a button is how
+            // "Last month" comes out as "Last mon…".
+            Row(modifier = Modifier.weight(1f)) {
+                for (candidate in Span.entries) {
+                    SpanChip(
+                        title = candidate.label(strings),
+                        selected = candidate == span,
+                        onClick = { onChoose(candidate) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (candidate != Span.entries.last()) Spacer(Modifier.width(6.dp))
+                }
+            }
+
+            if (onShare != null) {
+                Spacer(Modifier.width(4.dp))
+                GhostButton(strings.sharePdf, onClick = onShare, fontSize = 12.0)
             }
         }
     }

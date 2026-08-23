@@ -89,7 +89,7 @@ struct LocalizationTests {
         \.columnBillAmount, \.columnReceivedAmount, \.columnPaidAmount, \.columnBalance,
         \.receivableSummary, \.payableSummary, \.columnCustomer,
         \.totalReceivable, \.totalPayable, \.nothingReceivable, \.nothingPayable,
-        \.savedList, \.expenseSummary, \.columnWhatItWentOn,
+        \.expenseSummary, \.columnWhatItWentOn,
         \.totalSpentLabel, \.nothingSpentThen, \.sharePdf,
         \.daySummary, \.deliveriesTitle, \.paidToSuppliers,
         \.moneyInLabel, \.moneyOutLabel, \.netForTheDay, \.nothingOnThisDay,

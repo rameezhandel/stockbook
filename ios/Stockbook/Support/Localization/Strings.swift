@@ -966,8 +966,6 @@ struct Strings {
     var totalPayable: String { pick("Total Payable", "ಒಟ್ಟು ಕೊಡಬೇಕಾದ ಬಾಕಿ") }
     var nothingReceivable: String { pick("Nothing receivable.", "ಬರಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.") }
     var nothingPayable: String { pick("Nothing payable.", "ಕೊಡಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.") }
-    /// The button that makes it. Says *list*, never *statement*.
-    var savedList: String { pick("Save list", "ಪಟ್ಟಿ ಉಳಿಸಿ") }
 
     /// The shop's own spending over a stretch of days, broken down by what it
     /// went on. Never called a *statement*: that word means one party's account,
@@ -982,6 +980,14 @@ struct Strings {
     func receivableFileName(date: String) -> String { "receivable-\(date).pdf" }
     func payableFileName(date: String) -> String { "payable-\(date).pdf" }
     func expenseFileName(date: String) -> String { "expenses-\(date).pdf" }
+    /// The button under every page this app makes: the statement, the
+    /// receivable and payable lists, the expense summary, the day.
+    ///
+    /// **One word for one action, and the true one.** These buttons said "Save
+    /// list" for a while, which was wrong twice over — nothing is saved until
+    /// the owner picks somewhere in the chooser, and half of what they open is
+    /// not a list. It says *PDF* rather than *statement* for the reason the
+    /// titles do: only one of these pages is a statement.
     var sharePdf: String { pick("Share PDF", "PDF ಹಂಚಿಕೊಳ್ಳಿ") }
 
     // MARK: - One day of the shop

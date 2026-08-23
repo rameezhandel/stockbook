@@ -95,7 +95,7 @@ fun DaySheet(
             // happened is a page nobody needs a copy of.
             if (!page.isEmpty) {
                 SecondaryButton(
-                    strings.savedList,
+                    strings.sharePdf,
                     onClick = onSave,
                     height = 34.dp,
                     fontSize = 12.5

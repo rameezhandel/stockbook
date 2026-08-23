@@ -144,7 +144,7 @@ private fun OwedList(
 
         if (onSave != null) {
             SecondaryButton(
-                strings.savedList,
+                strings.sharePdf,
                 onClick = onSave,
                 fullWidth = true,
                 height = 40.dp,

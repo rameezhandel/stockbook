@@ -30,17 +30,6 @@ struct ExpensesPane: View {
                 totalCard
                     .padding(.bottom, 20 - Metrics.rowGap)
 
-                // Beside the figure it summarises, and only where there is
-                // something to summarise: a page saying nothing was spent is a
-                // page nobody needs. The span the card is showing is the span the
-                // page covers — one control for both, so the two can never
-                // quietly disagree.
-                if store.spentIn(span.period) > 0 {
-                    Button(Loc.savedList, action: save)
-                        .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 40, fontSize: 13))
-                        .padding(.bottom, 20 - Metrics.rowGap)
-                }
-
                 HStack {
                     Kicker(Loc.expensesTitle)
                     Spacer(minLength: 6)
@@ -113,9 +102,27 @@ struct ExpensesPane: View {
                 .padding(.top, 2)
                 .padding(.bottom, 10)
 
-            HStack(spacing: 6) {
-                ForEach(Span.allCases) { candidate in
-                    chip(candidate)
+            HStack(spacing: 4) {
+                // The chips share whatever the button leaves, rather than each
+                // taking a third of the whole row: three fixed thirds plus a
+                // button is how "Last month" comes out as "Last mon…".
+                HStack(spacing: 6) {
+                    ForEach(Span.allCases) { candidate in
+                        chip(candidate)
+                    }
+                }
+
+                // On the chips' own row, and only where there is something to
+                // summarise: a page saying nothing was spent is a page nobody
+                // needs. The span the card is showing is the span the page
+                // covers, so the control and the button that acts on it belong
+                // side by side — a full-width button under the card read as
+                // belonging to the list below it instead, which is not what it
+                // makes a page of.
+                if spent > 0 {
+                    Button(Loc.sharePdf, action: save)
+                        .buttonStyle(GhostButtonStyle(fontSize: 12))
+                        .layoutPriority(1)
                 }
             }
         }

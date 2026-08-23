@@ -132,7 +132,7 @@ private struct OwedList: View {
             )
 
             if let onSave {
-                Button(Loc.savedList, action: onSave)
+                Button(Loc.sharePdf, action: onSave)
                     .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 40, fontSize: 13))
                     .padding(.bottom, 12)
             }

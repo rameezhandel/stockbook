@@ -57,7 +57,7 @@ struct DaySheet: View {
                 // Only where there is a day to hand over. A page saying nothing
                 // happened is a page nobody needs a copy of.
                 if !document.isEmpty {
-                    Button(Loc.savedList, action: save)
+                    Button(Loc.sharePdf, action: save)
                         .buttonStyle(SecondaryButtonStyle(height: 34, fontSize: 12.5))
                 }
             }
