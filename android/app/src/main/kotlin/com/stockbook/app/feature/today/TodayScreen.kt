@@ -128,16 +128,23 @@ fun TodayScreen(
                 Spacer(Modifier.height(Metrics.cardGap))
 
                 Row(modifier = Modifier.fillMaxWidth()) {
+                    // Both figures are lists before they are numbers, and tapping
+                    // one opens the list it totals. The banners below do the same
+                    // thing, but only exist on a day somebody owes something —
+                    // these are always here, which is what makes the route
+                    // findable rather than lucky.
                     StatCard(
                         label = strings.receivableStat,
                         value = Money.text(owedTotal, currency),
                         gradient = true,
+                        onClick = { router.showingDebtors = true },
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(Modifier.width(Metrics.cardGap))
                     StatCard(
                         label = strings.payableStat,
                         value = Money.text(payableTotal, currency),
+                        onClick = { router.showingCreditors = true },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -307,10 +314,16 @@ private fun QuickActions(strings: Strings, router: AppRouter) {
             modifier = Modifier.weight(1f)
         )
         Spacer(Modifier.width(Metrics.cardGap))
+        // Took the place of "Add a customer", which was the weakest of the
+        // three: a customer can be added from the Book, and one is created
+        // inline the moment a name is typed on a bill. It opens the list the
+        // banner opens — one sheet for collecting money, three ways in, and
+        // this is the one that says what the owner is about to do rather
+        // than what the figure is called.
         QuickAction(
-            title = strings.addACustomer,
-            icon = Icon.customer,
-            onClick = { router.openNewCustomer() },
+            title = strings.takePayment,
+            icon = Icon.owed,
+            onClick = { router.showingDebtors = true },
             modifier = Modifier.weight(1f)
         )
     }
@@ -359,7 +372,7 @@ private fun OwedBanner(
     note: String,
     amount: String,
     onClick: () -> Unit,
-    icon: ImageVector = Icon.customer
+    icon: ImageVector = Icon.owed
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,

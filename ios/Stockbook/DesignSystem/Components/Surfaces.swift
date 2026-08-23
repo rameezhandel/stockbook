@@ -72,8 +72,23 @@ struct StatCard: View {
     let label: String
     let value: String
     var gradient: Bool = false
+    /// Where the figure goes when it is touched.
+    ///
+    /// Receivable and Payable are lists before they are numbers, and both cards
+    /// sat inert for months with the answer one tap underneath them — reachable
+    /// only through a banner that is not drawn at all on a day nobody owes.
+    var action: (() -> Void)?
 
     var body: some View {
+        if let action {
+            Button(action: action) { face }
+                .buttonStyle(.plain)
+        } else {
+            face
+        }
+    }
+
+    private var face: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label)
                 .font(NocturneType.inter(11))
@@ -97,6 +112,7 @@ struct StatCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: Metrics.statRadius, style: .continuous))
         .hairline(radius: Metrics.statRadius)
+        .contentShape(Rectangle())
     }
 }
 

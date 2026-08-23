@@ -189,13 +189,22 @@ struct TodayScreen: View {
     }
 
     private func statCards(_ owed: (names: [String], total: Double), _ payable: (names: [String], total: Double)) -> some View {
+        // Both figures are lists before they are numbers, and tapping one opens
+        // the list it totals. The banners below do the same thing, but only exist
+        // on a day somebody owes something — these are always here, which is what
+        // makes the route findable rather than lucky.
         HStack(spacing: Metrics.cardGap) {
             StatCard(
                 label: Loc.receivableStat,
                 value: Money.text(owed.total, in: currency),
-                gradient: true
+                gradient: true,
+                action: { router.showingDebtors = true }
             )
-            StatCard(label: Loc.payableStat, value: Money.text(payable.total, in: currency))
+            StatCard(
+                label: Loc.payableStat,
+                value: Money.text(payable.total, in: currency),
+                action: { router.showingCreditors = true }
+            )
         }
         .padding(.bottom, Metrics.cardGap)
     }
@@ -218,7 +227,13 @@ struct TodayScreen: View {
         HStack(spacing: Metrics.cardGap) {
             quickAction(Loc.startABill, icon: Icon.sell) { router.startBill() }
             quickAction(Loc.itemsRecordDelivery, icon: Icon.addStock) { router.recordDelivery() }
-            quickAction(Loc.addACustomer, icon: Icon.customer) { router.openNewCustomer() }
+            // Took the place of "Add a customer", which was the weakest of the
+            // three: a customer can be added from the Book, and one is created
+            // inline the moment a name is typed on a bill. It opens the list the
+            // banner opens — one sheet for collecting money, three ways in, and
+            // this is the one that says what the owner is about to do rather
+            // than what the figure is called.
+            quickAction(Loc.takePayment, icon: Icon.owed) { router.showingDebtors = true }
         }
         .padding(.bottom, 18)
     }

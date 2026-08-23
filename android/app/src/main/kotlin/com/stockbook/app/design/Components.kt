@@ -237,13 +237,22 @@ fun StatCard(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
-    gradient: Boolean = false
+    gradient: Boolean = false,
+    /**
+     * Where the figure goes when it is touched.
+     *
+     * Receivable and Payable are lists before they are numbers, and both cards
+     * sat inert for months with the answer one tap underneath them — reachable
+     * only through a banner that is not drawn at all on a day nobody owes.
+     */
+    onClick: (() -> Unit)? = null
 ) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(Metrics.statRadius))
             .then(if (gradient) Modifier.background(Nocturne.statCardGradient) else Modifier.background(Nocturne.surface))
             .hairline(radius = Metrics.statRadius)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(14.dp)
     ) {
         Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)

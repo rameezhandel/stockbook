@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Remove
@@ -63,8 +64,16 @@ object Icon {
     val chooseFromList: ImageVector = Icons.Filled.UnfoldMore
     val share: ImageVector = Icons.Filled.Share            // phosphor: share-network
 
-    // People
+    // People & money
     val customer: ImageVector = Icons.Filled.Person
+    /**
+     * Money changing hands: the owed banner, and the quick action that opens it.
+     *
+     * Banknotes rather than a currency mark. Every `$` glyph in an icon set is
+     * wrong for a shop billing in riyals, and the two Material ones that carry a
+     * sign say the wrong thing in the one place this is drawn.
+     */
+    val owed: ImageVector = Icons.Filled.Payments             // phosphor: hand-coins
 
     /** The owner's own spending. */
     val expenses: ImageVector = Icons.Outlined.Receipt
