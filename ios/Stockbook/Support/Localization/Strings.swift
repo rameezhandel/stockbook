@@ -668,8 +668,6 @@ struct Strings {
 
     // MARK: Collecting, from wherever the debt was noticed
 
-    var whoOwesYou: String { pick("Who owes you", "ನಿಮಗೆ ಬಾಕಿ ಇರುವವರು") }
-    var whoYouOwe: String { pick("Who you owe", "ನೀವು ಕೊಡಬೇಕಾದವರು") }
     var takePayment: String { pick("Take payment", "ಪಾವತಿ ಪಡೆಯಿರಿ") }
 
 

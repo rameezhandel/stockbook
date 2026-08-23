@@ -22,7 +22,10 @@ struct WhoOwesYouSheet: View {
         // is `@Observable`, so a payment taken from inside this sheet redraws the
         // row it settled. Android has to key this on the shop state by hand.
         OwedList(
-            title: Loc.whoOwesYou,
+            // The card that opens this sheet draws the same string. One word,
+            // one string: a sheet with a title of its own is a title that
+            // drifts from the card the thumb just touched.
+            title: Loc.receivableStat,
             rows: store.customers().filter { $0.owed > 0 }.map { customer in
                 OwedRow(id: customer.key, name: customer.name, amount: customer.owed) {
                     router.paymentFor = customer
@@ -66,7 +69,7 @@ struct WhoYouOweSheet: View {
 
     var body: some View {
         OwedList(
-            title: Loc.whoYouOwe,
+            title: Loc.payableStat,
             rows: store.suppliers().filter { $0.owed > 0 }.map { supplier in
                 OwedRow(id: supplier.key, name: supplier.name, amount: supplier.owed) {
                     router.supplierPaymentFor = supplier

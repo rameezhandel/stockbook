@@ -623,8 +623,6 @@ class Strings(val language: AppLanguage) {
 
     // --- Collecting, from wherever the debt was noticed
 
-    val whoOwesYou: String get() = pick("Who owes you", "ನಿಮಗೆ ಬಾಕಿ ಇರುವವರು")
-    val whoYouOwe: String get() = pick("Who you owe", "ನೀವು ಕೊಡಬೇಕಾದವರು")
     val takePayment: String get() = pick("Take payment", "ಪಾವತಿ ಪಡೆಯಿರಿ")
 
 

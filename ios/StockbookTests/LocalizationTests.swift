@@ -73,7 +73,7 @@ struct LocalizationTests {
         \.billNote,
         \.changeTheInvoiceNo, \.enterBillNumber,
         \.amountField, \.addItems, \.removeItems, \.supplierBillTitle,
-        \.setCount, \.setCountNote, \.whoOwesYou, \.whoYouOwe, \.takePayment,
+        \.setCount, \.setCountNote, \.takePayment,
         \.bookTitle, \.salesSide, \.purchasesSide, \.recordDelivery,
         \.whoDoYouBuyFrom, \.suppliersSetupBody, \.noSuppliersYetKicker, \.supplierOpeningNote,
         \.whichProductArrived, \.noDeliveriesYet, \.deliveryDetail,

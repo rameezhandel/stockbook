@@ -58,7 +58,10 @@ fun WhoOwesYouSheet(
     val owing = remember(state) { store.customers().filter { it.owed > 0 } }
 
     OwedList(
-        title = strings.whoOwesYou,
+        // The card that opens this sheet draws the same string. One word, one
+        // string: a sheet with a title of its own is a title that drifts from
+        // the card the thumb just touched.
+        title = strings.receivableStat,
         rows = owing.map { customer ->
             OwedRow(customer.name, customer.owed) {
                 router.paymentFor = customer
@@ -93,7 +96,7 @@ fun WhoYouOweSheet(
     val owed = remember(state) { store.suppliers().filter { it.owed > 0 } }
 
     OwedList(
-        title = strings.whoYouOwe,
+        title = strings.payableStat,
         rows = owed.map { supplier ->
             OwedRow(supplier.name, supplier.owed) {
                 router.supplierPaymentFor = supplier
