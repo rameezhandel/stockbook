@@ -26,6 +26,21 @@ struct ExpenseSheet: View {
     private var typed: Double { Money.parse(amount) ?? 0 }
     private var canSave: Bool { typed > 0 && !note.isBlank }
 
+    /// What the shop has called an expense before, filtered by what is typed.
+    ///
+    /// Dropped entirely once the box matches one exactly — offering somebody the
+    /// word they have just finished typing is a row that can only be in the way.
+    private var suggestions: [String] {
+        let found = store.expenseNotes(matching: note)
+        if found.count == 1, found[0].lowercased() == note.trimmed.lowercased() { return [] }
+        return found
+    }
+
+    private func choose(_ suggestion: String) {
+        note = suggestion
+        dismissKeyboard()
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SheetHeader(
@@ -40,7 +55,43 @@ struct ExpenseSheet: View {
                 isRequiredAndEmpty: note.isBlank,
                 identifier: "expense.note"
             )
-            .padding(.bottom, 10)
+
+            // What the shop keeps buying, most-used first. A shortcut and never
+            // a requirement: unlike the customer picker, where a typed name has
+            // no account behind it, anything typed here is a perfectly good
+            // expense — so the list only ever saves keystrokes.
+            //
+            // Hidden the moment the box already says exactly what a suggestion
+            // says, or it sits there offering the owner the word they have just
+            // finished typing.
+            if !suggestions.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(suggestions, id: \.self) { suggestion in
+                        Button { choose(suggestion) } label: {
+                            HStack(spacing: 8) {
+                                Glyph(Icon.expenses, size: 12)
+                                    .foregroundStyle(Nocturne.neutral500)
+                                Text(suggestion)
+                                    .font(NocturneType.inter(13.5))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 11)
+                            .frame(height: 34)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 3)
+                .frame(maxWidth: .infinity)
+                .background(Nocturne.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
+                .hairline(Nocturne.accent, radius: Metrics.controlRadius)
+                .padding(.top, 6)
+            }
+
+            Color.clear.frame(height: 10)
 
             HStack(alignment: .bottom, spacing: 8) {
                 NocturneField(

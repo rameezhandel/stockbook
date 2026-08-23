@@ -26,6 +26,9 @@ class ExpenseTests {
 
     private val august: Instant = Instant.parse("2026-08-13T12:00:00Z")
 
+    /** A day in order, so "which was used last" is a fact rather than a guess. */
+    private fun at(day: Long): Instant = august.plusSeconds(day * 86_400)
+
     @Test
     fun `an expense is written down`() {
         val store = store()
@@ -217,5 +220,82 @@ class ExpenseTests {
         store.addExpense(500.0, "Van tyre", august)
 
         assertEquals(10, store.product(product.uid)?.stock)
+    }
+
+    // --- What the shop keeps buying
+
+    /**
+     * The suggestions under the "What was it for?" box.
+     *
+     * Nothing new is stored for these: they are the notes already on the
+     * expenses. The tests below are about the ordering and the collapsing,
+     * because those are the two things that decide whether the list is a
+     * shortcut or a nuisance.
+     */
+    @Test
+    fun `what gets bought most is offered first`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", at(1))
+        store.addExpense(4.0, "Tea", at(2))
+        store.addExpense(65.0, "Petrol", at(3))
+        store.addExpense(20.0, "Rent", at(4))
+        store.addExpense(70.0, "Petrol", at(5))
+        store.addExpense(5.0, "Tea", at(6))
+
+        // Petrol three times, tea twice, rent once. Rent is the most recent of
+        // the three to be entered only once, and still comes last.
+        assertEquals(listOf("Petrol", "Tea", "Rent"), store.expenseNotes())
+    }
+
+    @Test
+    fun `a tie on how often goes to whichever was used last`() {
+        val store = store()
+        store.addExpense(4.0, "Tea", at(1))
+        store.addExpense(60.0, "Petrol", at(2))
+
+        assertEquals(listOf("Petrol", "Tea"), store.expenseNotes())
+    }
+
+    @Test
+    fun `the same word in three casings is one suggestion`() {
+        // Otherwise the list fills with the same thing spelled three ways inside
+        // a month, which is the mess this feature exists to prevent.
+        val store = store()
+        store.addExpense(60.0, "petrol", at(1))
+        store.addExpense(65.0, "PETROL", at(2))
+        store.addExpense(70.0, "Petrol", at(3))
+
+        // And the spelling offered is the newest: an owner who has started
+        // writing "Petrol" should not be handed back the "petrol" they left
+        // behind in March.
+        assertEquals(listOf("Petrol"), store.expenseNotes())
+    }
+
+    @Test
+    fun `typing filters on any part of the word`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", at(1))
+        store.addExpense(4.0, "Tea", at(2))
+        store.addExpense(30.0, "Shop rent", at(3))
+
+        assertEquals(listOf("Petrol"), store.expenseNotes("pet"))
+        assertEquals(listOf("Petrol"), store.expenseNotes("TROL"), "and it does not care about case")
+        assertEquals(listOf("Shop rent"), store.expenseNotes("rent"), "or where in the word it falls")
+        assertTrue(store.expenseNotes("zzz").isEmpty())
+    }
+
+    @Test
+    fun `a shop that has spent nothing is offered nothing`() {
+        assertTrue(store().expenseNotes().isEmpty())
+    }
+
+    @Test
+    fun `only a handful is offered`() {
+        // A shortcut for the few things a shop buys constantly, not a directory
+        // of everything it has ever bought. That is the expenses list itself.
+        val store = store()
+        for (index in 1..12) store.addExpense(10.0, "Thing $index", at(index.toLong()))
+
+        assertEquals(6, store.expenseNotes().size)
     }
 }

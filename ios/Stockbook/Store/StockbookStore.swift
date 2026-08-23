@@ -897,6 +897,45 @@ final class StockbookStore {
         return expense
     }
 
+    /// What the owner has called an expense before, most-used first.
+    ///
+    /// A shop buys petrol every week and a fan belt once. Typing "Petrol" fifty
+    /// times a year is fifty chances to spell it three ways, and a ledger with
+    /// "Petrol", "petrol" and "Petrol " in it cannot be read as one thing.
+    ///
+    /// **Nothing new is stored for this.** These are the notes already on the
+    /// expenses themselves — the memory existed, it was simply never read back.
+    /// No new field, nothing added to the backup, no format version to bump.
+    ///
+    /// Grouped case-insensitively, and the spelling shown is the **most recent**
+    /// one: an owner who has started writing "Petrol" should be offered that
+    /// rather than the "petrol" they abandoned in March. Ties on how often go to
+    /// whichever was used last.
+    ///
+    /// - Parameters:
+    ///   - matching: what has been typed so far. Empty offers the usual few,
+    ///     which is the whole point of the list appearing before a key is pressed.
+    ///   - limit: kept small on purpose. This is a shortcut for the handful of
+    ///     things a shop buys constantly, not a directory of everything it has
+    ///     ever bought — that is what the expenses list itself is.
+    func expenseNotes(matching: String = "", limit: Int = 6) -> [String] {
+        let needle = matching.trimmed.lowercased()
+        let groups = Dictionary(grouping: expenses.filter { !$0.note.isBlank }) {
+            $0.note.trimmed.lowercased()
+        }
+        return groups
+            .filter { needle.isEmpty || $0.key.contains(needle) }
+            .compactMap { _, group -> (note: String, count: Int, last: Date)? in
+                guard let newest = group.max(by: { $0.spentAt < $1.spentAt }) else { return nil }
+                return (newest.note.trimmed, group.count, newest.spentAt)
+            }
+            .sorted { left, right in
+                left.count == right.count ? left.last > right.last : left.count > right.count
+            }
+            .prefix(limit)
+            .map(\.note)
+    }
+
     /// Corrects one. Same rules as writing it: a correction cannot make it invalid.
     @discardableResult
     func updateExpense(id: String, amount: Double, note: String, spentAt: Date) -> Expense? {

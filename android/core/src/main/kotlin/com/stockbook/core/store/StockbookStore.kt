@@ -931,6 +931,47 @@ class StockbookStore(private val repository: StockbookRepository) {
         return expense
     }
 
+    /**
+     * What the owner has called an expense before, most-used first.
+     *
+     * A shop buys petrol every week and a fan belt once. Typing "Petrol" fifty
+     * times a year is fifty chances to spell it three ways, and a ledger with
+     * "Petrol", "petrol" and "Petrol " in it cannot be read as one thing.
+     *
+     * **Nothing new is stored for this.** These are the notes already on the
+     * expenses themselves — the memory existed, it was simply never read back.
+     * No new field, nothing added to the backup, no format version to bump.
+     *
+     * Grouped case-insensitively, and the spelling shown is the **most recent**
+     * one: an owner who has started writing "Petrol" should be offered that
+     * rather than the "petrol" they abandoned in March. Ties on how often go to
+     * whichever was used last.
+     *
+     * @param matching what has been typed so far. Empty offers the usual few,
+     *   which is the whole point of the list appearing before a key is pressed.
+     * @param limit kept small on purpose. This is a shortcut for the handful of
+     *   things a shop buys constantly, not a directory of everything it has ever
+     *   bought — that is what the expenses list itself is.
+     */
+    fun expenseNotes(matching: String = "", limit: Int = 6): List<String> {
+        val needle = matching.trim().lowercase()
+        return expenses
+            .filter { it.note.isNotBlank() }
+            .groupBy { it.note.trim().lowercase() }
+            .filterKeys { needle.isEmpty() || it.contains(needle) }
+            .values
+            .map { group ->
+                val newest = group.maxBy { it.spentAt }
+                Triple(newest.note.trim(), group.size, newest.spentAt)
+            }
+            .sortedWith(
+                compareByDescending<Triple<String, Int, Instant>> { it.second }
+                    .thenByDescending { it.third }
+            )
+            .take(limit)
+            .map { it.first }
+    }
+
     /** Corrects one. Same rules as writing it: a correction cannot make it invalid. */
     fun updateExpense(id: String, amount: Double, note: String, spentAt: Instant): Expense? {
         val existing = expenses.firstOrNull { it.id == id } ?: return null

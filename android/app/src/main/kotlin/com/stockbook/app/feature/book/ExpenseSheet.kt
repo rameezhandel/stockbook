@@ -1,5 +1,6 @@
 package com.stockbook.app.feature.book
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,16 +18,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.design.DateField
 import com.stockbook.app.design.GhostButton
+import com.stockbook.app.design.Glyph
+import com.stockbook.app.design.Icon
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneField
 import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.PrimaryButton
 import com.stockbook.app.design.SheetHeader
+import com.stockbook.app.design.card
+import com.stockbook.app.design.hairline
 import com.stockbook.core.model.Expense
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.Timestamps
@@ -72,6 +79,20 @@ fun ExpenseSheet(
     val typed = Money.parse(amount) ?: 0.0
     val canSave = typed > 0 && note.isNotBlank()
 
+    // What the shop has called an expense before, filtered by what is typed.
+    // Keyed on `state` as well as the text: a plain call over a StateFlow's
+    // current value subscribes to nothing, so the list would sit still after the
+    // expense that should have joined it was saved.
+    //
+    // Dropped entirely once the box matches one exactly — offering somebody the
+    // word they have just finished typing is a row that can only be in the way.
+    val suggestions = remember(state, note) {
+        store.expenseNotes(note).let { found ->
+            if (found.size == 1 && found.single().equals(note.trim(), ignoreCase = true)) emptyList()
+            else found
+        }
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(
             title = if (editing == null) strings.newExpense else strings.editExpense,
@@ -86,6 +107,40 @@ fun ExpenseSheet(
             isRequiredAndEmpty = note.isBlank(),
             modifier = Modifier.fillMaxWidth()
         )
+
+        // A shortcut and never a requirement: unlike the customer picker, where a
+        // typed name has no account behind it, anything typed here is a perfectly
+        // good expense — so this list only ever saves keystrokes.
+        if (suggestions.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .card(Metrics.controlRadius)
+                    .hairline(Nocturne.accent, Metrics.controlRadius)
+                    .padding(vertical = 3.dp)
+            ) {
+                suggestions.forEach { suggestion ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { note = suggestion }
+                            .padding(horizontal = 11.dp, vertical = 8.dp)
+                    ) {
+                        Glyph(Icon.expenses, size = 12.dp, tint = Nocturne.neutral500)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            suggestion,
+                            style = NocturneType.inter(13.5),
+                            color = Nocturne.text,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
         Spacer(Modifier.height(10.dp))
 
         Row(modifier = Modifier.fillMaxWidth()) {
