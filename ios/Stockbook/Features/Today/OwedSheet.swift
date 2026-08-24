@@ -149,6 +149,11 @@ private struct OwedList: View {
 
     @State private var query = ""
 
+    /// How long the list has to be before it is worth a box to search it. The
+    /// same figure `PartyList` uses, and only one of the two reasons the box
+    /// appears — see the call site.
+    private static let searchable = 5
+
     private var searching: Bool { !query.isBlank }
 
     /// Searching leaves the debt list behind entirely: it answers from the whole
@@ -169,14 +174,18 @@ private struct OwedList: View {
                     .padding(.bottom, 12)
             }
 
-            // Offered whenever there is somebody the list is not showing.
+            // Two reasons to offer it, and either is enough.
             //
-            // Not on a size threshold, as the Book's list uses: that list shows
-            // the top few of everybody, so a short one is complete. This one
-            // shows only those who owe, so a shop with five customers and one
-            // debtor sees a single row — and without the box there is no way
-            // from here to the other four at all.
-            if rosterSize > rows.count {
+            // Somebody is missing from the list — this sheet shows only those
+            // who owe, so a shop with five customers and one debtor sees a
+            // single row, and without the box there is no way from here to the
+            // other four.
+            //
+            // Or the list is long enough to be worth searching, which is the
+            // Book's rule and the case the first test misses entirely: a shop
+            // where every one of two hundred customers owes something has a
+            // roster exactly the size of its list, and needs the box most.
+            if rosterSize > rows.count || rows.count > Self.searchable {
                 NocturneField(
                     placeholder: Loc.search,
                     text: $query,
