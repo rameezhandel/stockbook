@@ -26,7 +26,6 @@ import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneField
 import com.stockbook.app.design.NocturneType
-import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.SheetHeader
 import com.stockbook.app.design.card
 import com.stockbook.core.model.Currency
@@ -173,6 +172,12 @@ private fun OwedList(
         SheetHeader(
             title = title,
             subtitle = Money.text(total, currency),
+            // A glyph in the corner rather than a worded button across the body.
+            // The list *is* the document, so handing it to the chooser is chrome
+            // of the same standing as the close beside it — and a full-width
+            // button for it sat between the search box and the first name, which
+            // is the one place on this sheet nothing should come between.
+            onShare = onSave,
             onClose = onClose
         )
 
@@ -191,17 +196,6 @@ private fun OwedList(
             fontSize = 13.5,
             modifier = Modifier.padding(bottom = Metrics.rowGap)
         )
-
-        if (onSave != null) {
-            SecondaryButton(
-                strings.sharePdf,
-                onClick = onSave,
-                fullWidth = true,
-                height = 40.dp,
-                fontSize = 13.0
-            )
-            Spacer(Modifier.height(12.dp))
-        }
 
         // The banner that opens this sheet only appears when somebody owes, so an
         // empty list here means the last of it was settled while the sheet was

@@ -156,6 +156,13 @@ private struct OwedList: View {
             SheetHeader(
                 title: title,
                 subtitle: Money.text(total, in: currency),
+                // A glyph in the corner rather than a worded button across the
+                // body. The list *is* the document, so handing it to the chooser
+                // is chrome of the same standing as the close beside it — and a
+                // full-width button for it sat between the search box and the
+                // first name, which is the one place on this sheet nothing
+                // should come between.
+                onShare: onSave,
                 onClose: onClose
             )
 
@@ -173,12 +180,6 @@ private struct OwedList: View {
                 fontSize: 13.5
             )
             .padding(.bottom, Metrics.rowGap)
-
-            if let onSave {
-                Button(Loc.sharePdf, action: onSave)
-                    .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 40, fontSize: 13))
-                    .padding(.bottom, 12)
-            }
 
             // The banner that opens this sheet only appears when somebody owes, so
             // an empty list here means the last of it was settled while the sheet
