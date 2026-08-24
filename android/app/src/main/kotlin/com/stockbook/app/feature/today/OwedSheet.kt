@@ -59,8 +59,7 @@ fun WhoOwesYouSheet(
 ) {
     // The whole roster is read and only the *list* is about debt. A customer who
     // owes nothing still walks in to pay a deposit or to settle a bill the
-    // moment it is written, so the search box behind this list reaches
-    // everybody — and the roster's size is what decides whether the box appears.
+    // moment it is written, so the search box above this list reaches everybody.
     //
     // Keyed on the state rather than read off the store bare: `customers()` is a
     // plain function over a StateFlow's current value and subscribes to nothing,
@@ -82,7 +81,6 @@ fun WhoOwesYouSheet(
         title = strings.receivableStat,
         rows = owing.map { row(it) },
         total = owing.sumOf { it.owed },
-        rosterSize = roster.size,
         search = { query -> store.customers(matching = query).map { row(it) } },
         // The list is the document, so the button that makes it belongs here.
         // Only where there is something to chase: a page saying nobody owes
@@ -125,7 +123,6 @@ fun WhoYouOweSheet(
         title = strings.payableStat,
         rows = owed.map { row(it) },
         total = owed.sumOf { it.owed },
-        rosterSize = roster.size,
         search = { query -> store.suppliers(matching = query).map { row(it) } },
         onSave = if (owed.isEmpty()) null else onSave,
         // Money leaving, not arriving. "Take payment" beside a supplier the shop
@@ -153,8 +150,6 @@ private fun OwedList(
      * the typing.
      */
     total: Double,
-    /** How many names there are in all — what decides whether searching is offered. */
-    rosterSize: Int,
     /** Everybody, by name or phone, matching what has been typed. */
     search: (String) -> List<OwedRow>,
     /** Makes a page of this list. Absent where there is no list worth making. */
@@ -181,6 +176,22 @@ private fun OwedList(
             onClose = onClose
         )
 
+        // Always, and directly under the title. This sheet was twice built with
+        // a rule deciding when the box was worth showing — longer than five
+        // names, or somebody missing from the list — and both times the owner
+        // opened it, saw no box, and had to ask where it had gone. A control
+        // that appears only under conditions the owner cannot see is a control
+        // they cannot learn, and the cost of drawing one unnecessary field is
+        // nothing beside that.
+        NocturneField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = strings.search,
+            height = 40.dp,
+            fontSize = 13.5,
+            modifier = Modifier.padding(bottom = Metrics.rowGap)
+        )
+
         if (onSave != null) {
             SecondaryButton(
                 strings.sharePdf,
@@ -190,27 +201,6 @@ private fun OwedList(
                 fontSize = 13.0
             )
             Spacer(Modifier.height(12.dp))
-        }
-
-        // Two reasons to offer it, and either is enough.
-        //
-        // Somebody is missing from the list — this sheet shows only those who
-        // owe, so a shop with five customers and one debtor sees a single row,
-        // and without the box there is no way from here to the other four.
-        //
-        // Or the list is long enough to be worth searching, which is the Book's
-        // rule and the case the first test misses entirely: a shop where every
-        // one of two hundred customers owes something has a roster exactly the
-        // size of its list, and needs the box more than anybody.
-        if (rosterSize > rows.size || rows.size > SEARCHABLE) {
-            NocturneField(
-                value = query,
-                onValueChange = { query = it },
-                placeholder = strings.search,
-                height = 40.dp,
-                fontSize = 13.5,
-                modifier = Modifier.padding(bottom = Metrics.rowGap)
-            )
         }
 
         // The banner that opens this sheet only appears when somebody owes, so an
@@ -271,11 +261,3 @@ private fun OwedList(
         Spacer(Modifier.height(4.dp))
     }
 }
-
-/**
- * How long the list has to be before it is worth a box to search it.
- *
- * The same figure `PartyList` uses, and only ever one of the two reasons the
- * box appears — see the call site.
- */
-private const val SEARCHABLE = 5

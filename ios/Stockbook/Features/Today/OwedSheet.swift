@@ -28,7 +28,6 @@ struct WhoOwesYouSheet: View {
             title: Loc.receivableStat,
             rows: store.customers().filter { $0.owed > 0 }.map(row),
             total: store.customers().reduce(0) { $0 + $1.owed },
-            rosterSize: store.customers().count,
             search: { query in store.customers(matching: query).map(row) },
             // The list is the document, so the button that makes it belongs
             // here. Only where there is something to chase: a page saying
@@ -41,9 +40,9 @@ struct WhoOwesYouSheet: View {
     }
 
     /// One customer as a row. Written once because the list reads only those who
-    /// owe and the search box reads the whole roster — a customer who owes
-    /// nothing still walks in to pay a deposit, or to settle a bill the moment
-    /// it is written.
+    /// owe and the search box above it reads the whole roster — a customer who
+    /// owes nothing still walks in to pay a deposit, or to settle a bill the
+    /// moment it is written.
     private func row(_ customer: Customer) -> OwedRow {
         OwedRow(id: customer.key, name: customer.name, amount: customer.owed) {
             router.paymentFor = customer
@@ -84,7 +83,6 @@ struct WhoYouOweSheet: View {
             title: Loc.payableStat,
             rows: store.suppliers().filter { $0.owed > 0 }.map(row),
             total: store.suppliers().reduce(0) { $0 + $1.owed },
-            rosterSize: store.suppliers().count,
             search: { query in store.suppliers(matching: query).map(row) },
             onSave: store.suppliers().contains { $0.owed > 0 } ? save : nil,
             // Money leaving, not arriving. "Take payment" beside a supplier the
@@ -134,8 +132,6 @@ private struct OwedList: View {
     /// it to one name would leave the sheet's headline figure quietly following
     /// the typing.
     let total: Double
-    /// How many names there are in all — what decides whether searching is offered.
-    let rosterSize: Int
     /// Everybody, by name or phone, matching what has been typed.
     let search: (String) -> [OwedRow]
     /// Makes a page of this list. Absent where there is no list worth making.
@@ -148,11 +144,6 @@ private struct OwedList: View {
     @Environment(\.currency) private var currency
 
     @State private var query = ""
-
-    /// How long the list has to be before it is worth a box to search it. The
-    /// same figure `PartyList` uses, and only one of the two reasons the box
-    /// appears — see the call site.
-    private static let searchable = 5
 
     private var searching: Bool { !query.isBlank }
 
@@ -168,31 +159,25 @@ private struct OwedList: View {
                 onClose: onClose
             )
 
+            // Always, and directly under the title. This sheet was twice built
+            // with a rule deciding when the box was worth showing — longer than
+            // five names, or somebody missing from the list — and both times
+            // the owner opened it, saw no box, and had to ask where it had
+            // gone. A control that appears only under conditions the owner
+            // cannot see is a control they cannot learn, and the cost of
+            // drawing one unnecessary field is nothing beside that.
+            NocturneField(
+                placeholder: Loc.search,
+                text: $query,
+                height: 40,
+                fontSize: 13.5
+            )
+            .padding(.bottom, Metrics.rowGap)
+
             if let onSave {
                 Button(Loc.sharePdf, action: onSave)
                     .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 40, fontSize: 13))
                     .padding(.bottom, 12)
-            }
-
-            // Two reasons to offer it, and either is enough.
-            //
-            // Somebody is missing from the list — this sheet shows only those
-            // who owe, so a shop with five customers and one debtor sees a
-            // single row, and without the box there is no way from here to the
-            // other four.
-            //
-            // Or the list is long enough to be worth searching, which is the
-            // Book's rule and the case the first test misses entirely: a shop
-            // where every one of two hundred customers owes something has a
-            // roster exactly the size of its list, and needs the box most.
-            if rosterSize > rows.count || rows.count > Self.searchable {
-                NocturneField(
-                    placeholder: Loc.search,
-                    text: $query,
-                    height: 40,
-                    fontSize: 13.5
-                )
-                .padding(.bottom, Metrics.rowGap)
             }
 
             // The banner that opens this sheet only appears when somebody owes, so
