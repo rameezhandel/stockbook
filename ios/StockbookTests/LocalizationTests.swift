@@ -96,7 +96,7 @@ struct LocalizationTests {
         \.previousDay, \.nextDay,
         \.earningsSummary, \.costOfGoods, \.goodsEarned, \.shopKept,
         \.notCounted, \.countedSales, \.creditNotesNotSubtracted, \.nothingSoldThen,
-        \.nothingCostableYet,
+        \.nothingCostableYet, \.costsEstimated,
         \.currencySection, \.currencyNote, \.setupCurrencyNote, \.moveToAnotherPhone,
         \.moveToAnotherPhoneNote, \.exportEverything, \.exportNoteFirstTime, \.exportNoteAfterBackup,
         \.writeAFreshFile, \.createBackupFile, \.importABackupFile, \.chooseAFile,

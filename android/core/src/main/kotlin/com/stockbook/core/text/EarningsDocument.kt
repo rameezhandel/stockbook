@@ -101,6 +101,12 @@ data class EarningsDocument(
                 if (earnings.billsBeforeCosts > 0) {
                     add(Line(strings.billsBeforeCosts(earnings.billsBeforeCosts), money(earnings.soldBeforeCosts)))
                 }
+                // Counted, unlike the two above — but the owner is told which
+                // part of the answer rests on today's prices rather than on what
+                // was actually paid.
+                if (earnings.billsEstimated > 0) {
+                    add(Line(strings.billsEstimated(earnings.billsEstimated), money(earnings.soldEstimated)))
+                }
                 if (earnings.creditNotes > 0) {
                     add(Line(strings.creditNotesIssued(earnings.creditNotes), money(earnings.credited)))
                 }
@@ -120,6 +126,10 @@ data class EarningsDocument(
                 gapHeading = strings.notCounted,
                 gap = if (earnings.isEmpty) emptyList() else gap,
                 gapNote = when {
+                    // Said above everything else where it applies: a figure the
+                    // owner might act on is partly guessed, and that is the most
+                    // important thing on the page.
+                    earnings.hasEstimates -> strings.costsEstimated
                     // The page owes an explanation before it owes a caveat: a
                     // shop whose whole book predates cost-keeping needs to know
                     // the figures will arrive as it trades, not that credit

@@ -242,24 +242,89 @@ struct EarningsTests {
         #expect(!document.title.lowercased().contains("statement"))
     }
 
-    @Test("A book written before costs existed reports an absence, not a loss")
-    func nothingCostable() {
+    @Test("A book written before costs existed is costed at today's prices")
+    func estimatedFromTheShelf() {
         // Found by the owner on real data the day this shipped. Every bill
-        // predates the cost field, so nothing can be costed — and the page was
-        // running the chain anyway: earnings of zero, then the month's expenses
+        // predates the cost field, so nothing could be costed — and the page ran
+        // the chain anyway: earnings of zero, then the month's expenses
         // subtracted from it, landing on "kept -1,150" as though the shop had
-        // lost its rent. It had not. The page simply could not say.
+        // lost its rent. The shelf still knows what a padlock costs, so the page
+        // answers with that and names the guess rather than refusing.
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Ahmed", paid: nil)
+        store.addExpense(amount: 45, note: "Rent")
+        stripCosts(store)
+
+        let earnings = store.earningsIn(period())
+        #expect(!earnings.nothingCostable)
+        #expect(earnings.counted == 300)
+        #expect(earnings.costOfGoods == 200)
+        #expect(earnings.goodsEarned == 100)
+        #expect(earnings.kept == 55)
+        // Counted, and counted out loud.
+        #expect(earnings.hasEstimates)
+        #expect(earnings.billsEstimated == 1)
+        #expect(earnings.soldEstimated == 300)
+
+        let document = page(store)
+        #expect(document.lines.map(\.label) ==
+            ["Sold", "Cost of goods", "What the goods earned", "Expenses", "What the shop kept"])
+        #expect(document.gap.map(\.label) == ["1 bill costed at today's prices"])
+        #expect(document.gapNote == Loc.costsEstimated)
+    }
+
+    @Test("Nothing is written back, so the estimate follows the shelf")
+    func estimateIsNotStored() {
+        // The bill's own cost stays absent, because absent is the truth about
+        // it. The consequence is deliberate: reprice the product and the
+        // estimate moves, which is exactly what an estimate should do and
+        // exactly what a recorded cost must never do.
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Ahmed", paid: nil)
+        stripCosts(store)
+
+        #expect(store.earningsIn(period()).goodsEarned == 100)
+        store.update(store.product(uid: padlock.uid)!, name: "Padlock 40mm", cost: 25, price: 30)
+
+        #expect(store.earningsIn(period()).goodsEarned == 50)
+        // And the line itself still knows nothing, which is what keeps a real
+        // recorded cost from ever being overwritten by a guess.
+        #expect(store.bills.first?.lines.first?.cost == nil)
+    }
+
+    @Test("A recorded cost always wins over today's price")
+    func recordedCostWins() {
+        // The whole point of the field. An estimate is only ever a fallback, and
+        // a bill that carries its own figure must be immune to the shelf.
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Ahmed", paid: nil)
+        store.update(store.product(uid: padlock.uid)!, name: "Padlock 40mm", cost: 25, price: 30)
+
+        let earnings = store.earningsIn(period())
+        #expect(earnings.costOfGoods == 200)
+        #expect(!earnings.hasEstimates)
+    }
+
+    @Test("A book that cannot even be estimated reports an absence, not a loss")
+    func nothingCostable() {
+        // The shelf is the last source of a figure for an old bill, so a product
+        // deleted since takes it away for good. That bill is set aside whole and
+        // the chain stops — an absence is not a loss.
         let store = makeStore()
         let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
         store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Ahmed", paid: nil)
         store.addExpense(amount: 1150, note: "Rent")
         stripCosts(store)
+        store.delete(store.product(uid: padlock.uid)!)
 
         let earnings = store.earningsIn(period())
         #expect(earnings.nothingCostable)
         #expect(earnings.counted == 0)
         #expect(earnings.billsBeforeCosts == 1)
-        #expect(earnings.billsAsTotal == 0)
+        #expect(earnings.billsEstimated == 0)
 
         // What was sold, what could not be costed, and then it stops.
         let document = page(store)
@@ -268,26 +333,33 @@ struct EarningsTests {
         #expect(document.gapNote == Loc.nothingCostableYet)
     }
 
-    @Test("The two reasons a bill cannot be costed are named apart")
-    func twoReasons() {
-        // One asks the owner to itemise the next bill; the other asks nothing of
-        // them at all and fixes itself as the shop trades. Telling somebody to
-        // itemise a bill they already itemised is how an app earns a reputation.
+    @Test("The three reasons a bill misses its cost are named apart")
+    func threeReasons() {
+        // One asks the owner to itemise the next bill; one asks nothing of them
+        // at all; and one is answered, but on a price that may have moved since.
+        // Telling somebody to itemise a bill they already itemised is how an app
+        // earns a reputation.
         let store = makeStore()
         let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
-        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Ahmed", paid: nil)
+        let hinge = store.addProduct(name: "Hinge 4in", stock: 100, cost: 5, price: 8)
+        store.saveBill(lines: [.init(productUID: hinge.uid, qty: 10, price: 8)], customer: "Ahmed", paid: nil)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Saeed", paid: nil)
         stripCosts(store)
+        store.delete(store.product(uid: hinge.uid)!)
         store.saveBill(customer: "Khalid", paid: nil, amount: 500)
-        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 1, price: 30)], customer: "Saeed", paid: nil)
 
         let document = page(store)
 
         #expect(document.gap.map(\.label) == [
             "1 bill entered as a total",
-            "1 bill written before costs were recorded"
+            "1 bill written before costs were recorded",
+            "1 bill costed at today's prices"
         ])
-        // One costable bill, so the chain runs its full length.
+        #expect(document.gap.map(\.value) == ["SAR 500", "SAR 80", "SAR 300"])
+        // One bill can be costed, so the chain runs its full length — and the
+        // caveat that reaches the reader is the one about the figure it printed.
         #expect(document.lines.last?.label == "What the shop kept")
+        #expect(document.gapNote == Loc.costsEstimated)
     }
 
     @Test("A quiet period states that and draws no chain of zeroes")

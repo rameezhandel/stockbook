@@ -35,6 +35,21 @@ class EarningsDocumentTests {
     private fun StockbookStore.stocked(name: String, cost: Double, price: Double) =
         addProduct(name, stock = 100, cost = cost, price = price)
 
+    /**
+     * Every bill in the book as an older file would have restored it: itemised,
+     * but with no cost on any line.
+     */
+    private fun StockbookStore.stripCosts() {
+        val document = makeBackupDocument()
+        replaceEverything(
+            document.copy(
+                bills = document.bills.map { bill ->
+                    bill.copy(lines = bill.lines.map { it.copy(cost = null) })
+                }
+            )
+        )
+    }
+
     @Test
     fun `a shop that itemises everything reads sold, cost, earned, spent, kept`() {
         // The short chain: nothing to confess, so no "Not counted" pair and no
@@ -152,22 +167,49 @@ class EarningsDocumentTests {
     }
 
     @Test
-    fun `a book written before costs existed stops the chain and explains itself`() {
+    fun `an old bill is costed at today's prices and the page says so`() {
         // The bug an owner found on real data: the page ran Sold → 0 → 0 and
         // then took the month's expenses off nothing, printing "kept -1,150" as
-        // though the shop had lost its rent. An absence is not a loss.
+        // though the shop had lost its rent. The shelf still knows what a
+        // padlock costs, so the page answers with that and names the guess
+        // rather than refusing.
         val store = store()
         val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
         store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
         store.addExpense(1150.0, "Rent")
-        val document = store.makeBackupDocument()
-        store.replaceEverything(
-            document.copy(
-                bills = document.bills.map { bill ->
-                    bill.copy(lines = bill.lines.map { it.copy(cost = null) })
-                }
-            )
+        store.stripCosts()
+
+        val page = store.page()
+
+        // The full chain, with nothing set aside: the estimate is counted.
+        assertEquals(
+            listOf("Sold", "Cost of goods", "What the goods earned", "Expenses", "What the shop kept"),
+            page.lines.map { it.label }
         )
+        assertEquals(
+            listOf("SAR 300", "SAR 200", "SAR 100", "SAR 1,150", "-SAR 1,050"),
+            page.lines.map { it.value }
+        )
+        // Counted, but the owner is told which part of it was guessed.
+        assertEquals(listOf("1 bill costed at today's prices"), page.gap.map { it.label })
+        assertEquals(
+            "Some costs are estimated from today's buying prices, because those bills were written " +
+                "before the app recorded them.",
+            page.gapNote
+        )
+    }
+
+    @Test
+    fun `a book that cannot even be estimated stops the chain and explains itself`() {
+        // The shelf is the last source of a figure for an old bill, so a product
+        // deleted since takes it away for good. That bill is set aside whole and
+        // the chain stops — an absence is not a loss.
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
+        store.addExpense(1150.0, "Rent")
+        store.stripCosts()
+        store.delete(requireNotNull(store.product(padlock.uid)))
 
         val page = store.page()
 
@@ -183,29 +225,34 @@ class EarningsDocumentTests {
     }
 
     @Test
-    fun `a bill entered as a total and one written too early are named apart`() {
+    fun `the three reasons a bill misses its cost are named apart`() {
         val store = store()
         val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
-        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
-        val document = store.makeBackupDocument()
-        store.replaceEverything(
-            document.copy(
-                bills = document.bills.map { bill ->
-                    bill.copy(lines = bill.lines.map { it.copy(cost = null) })
-                }
-            )
-        )
+        val hinge = store.stocked("Hinge 4in", cost = 5.0, price = 8.0)
+        // One written before costs were kept whose product has since gone, and
+        // one written before costs were kept that the shelf can still answer for.
+        store.saveBill(lines = listOf(DraftLine(hinge.uid, qty = 10, price = 8.0)), customer = "Ahmed", paid = null)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Saeed", paid = null)
+        store.stripCosts()
+        store.delete(requireNotNull(store.product(hinge.uid)))
+        // And one that was never itemised at all.
         store.saveBill(customer = "Khalid", paid = null, amount = 500.0)
-        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 1, price = 30.0)), customer = "Saeed", paid = null)
 
         val page = store.page()
 
         assertEquals(
-            listOf("1 bill entered as a total", "1 bill written before costs were recorded"),
+            listOf(
+                "1 bill entered as a total",
+                "1 bill written before costs were recorded",
+                "1 bill costed at today's prices"
+            ),
             page.gap.map { it.label }
         )
-        // One costable bill, so the chain runs its full length.
+        assertEquals(listOf("SAR 500", "SAR 80", "SAR 300"), page.gap.map { it.value })
+        // One bill can be costed, so the chain runs its full length — and the
+        // caveat that reaches the reader is the one about the figure it printed.
         assertEquals("What the shop kept", page.lines.last().label)
+        assertTrue(page.gapNote!!.startsWith("Some costs are estimated"))
     }
 
     @Test

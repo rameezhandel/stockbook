@@ -92,6 +92,12 @@ struct EarningsDocument: Equatable {
         if earnings.billsBeforeCosts > 0 {
             gap.append(Line(label: strings.billsBeforeCosts(earnings.billsBeforeCosts), value: text(earnings.soldBeforeCosts)))
         }
+        // Counted, unlike the two above — but the owner is told which part of
+        // the answer rests on today's prices rather than on what was actually
+        // paid.
+        if earnings.billsEstimated > 0 {
+            gap.append(Line(label: strings.billsEstimated(earnings.billsEstimated), value: text(earnings.soldEstimated)))
+        }
         if earnings.creditNotes > 0 {
             gap.append(Line(label: strings.creditNotesIssued(earnings.creditNotes), value: text(earnings.credited)))
         }
@@ -109,15 +115,22 @@ struct EarningsDocument: Equatable {
             lines: earnings.isEmpty ? [] : lines,
             gapHeading: strings.notCounted,
             gap: earnings.isEmpty ? [] : gap,
-            // The page owes an explanation before it owes a caveat: a shop whose
-            // whole book predates cost-keeping needs to know the figures will
-            // arrive as it trades, not that credit notes are handled a
-            // particular way. Otherwise said only where a note was actually
-            // written — a standing disclaimer under a page with none on it is a
-            // line the owner learns to skip.
-            gapNote: earnings.nothingCostable
-                ? strings.nothingCostableYet
-                : (earnings.creditNotes > 0 ? strings.creditNotesNotSubtracted : nil),
+            // Said above everything else where it applies: a figure the owner
+            // might act on is partly guessed, and that is the most important
+            // thing on the page.
+            //
+            // Then the page owes an explanation before it owes a caveat: a shop
+            // whose whole book predates cost-keeping needs to know the figures
+            // will arrive as it trades, not that credit notes are handled a
+            // particular way. Last, said only where a note was actually written
+            // — a standing disclaimer under a page with none on it is a line the
+            // owner learns to skip.
+            gapNote: {
+                if earnings.hasEstimates { return strings.costsEstimated }
+                if earnings.nothingCostable { return strings.nothingCostableYet }
+                if earnings.creditNotes > 0 { return strings.creditNotesNotSubtracted }
+                return nil
+            }(),
             emptyLine: strings.nothingSoldThen
         )
     }

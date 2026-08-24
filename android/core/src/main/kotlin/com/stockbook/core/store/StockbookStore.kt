@@ -74,14 +74,30 @@ data class Earnings(
     val soldAsTotal: Double,
     val billsAsTotal: Int,
     /**
-     * And how much came from bills that *were* itemised but carry no cost,
-     * because they were written before the app recorded one.
+     * How much came from bills costed at **today's** buying price rather than at
+     * the price recorded when they were sold.
      *
-     * **Kept apart from [soldAsTotal] because the two mean opposite things to
-     * the owner.** One says "you did not tell me what was on this bill"; the
-     * other says "I was not keeping this yet". The second fixes itself as the
-     * shop trades on, and telling somebody to itemise bills they already
-     * itemised is the kind of advice that makes an app feel broken.
+     * These are counted, and they are counted honestly labelled. A bill written
+     * before the app kept costs has no figure of its own, so the only one
+     * available is what the product costs now — near enough on a shelf whose
+     * prices have not moved, and wrong by the drift where they have. Better than
+     * a page that cannot answer at all, and only while the old book is still the
+     * bulk of the shop's history.
+     *
+     * **Nothing is written back.** The line's stored cost stays absent, because
+     * absent is the truth about it; this is an estimate made at the moment the
+     * page is read, and it disappears from the page as costed bills replace the
+     * old ones.
+     */
+    val soldEstimated: Double,
+    val billsEstimated: Int,
+    /**
+     * And how much cannot be costed even by estimate, because a line names a
+     * product that has since been deleted.
+     *
+     * Kept apart from [soldAsTotal] for the reason that one is kept apart at
+     * all: the two ask different things of the owner. This one asks nothing —
+     * there is no price left anywhere to use.
      */
     val soldBeforeCosts: Double,
     val billsBeforeCosts: Int,
@@ -105,6 +121,9 @@ data class Earnings(
     /** Everything this page cannot account for, whichever of the two reasons. */
     val soldWithoutCost: Double get() = soldAsTotal + soldBeforeCosts
     val billsWithoutCost: Int get() = billsAsTotal + billsBeforeCosts
+
+    /** Whether any of [costOfGoods] was guessed from the shelf as it stands now. */
+    val hasEstimates: Boolean get() = billsEstimated > 0
 
     /** Takings this page can actually account for. */
     val counted: Double get() = sold - soldWithoutCost
@@ -1323,20 +1342,33 @@ class StockbookStore(private val repository: StockbookRepository) {
         val range = period.range()
         val inPeriod = bills.filter { it.createdAt in range }
 
-        val countable = inPeriod.filter { it.isItemised && it.lines.all { line -> line.cost != null } }
-        // Split by *why* it cannot be counted, because the two are different
-        // news: one is a way of working, the other is a book older than the
-        // field.
+        // What one line cost, preferring what was recorded at the sale and
+        // falling back to what the product costs today. Null only where there is
+        // no figure to be had at all — the product has been deleted, so even the
+        // shelf cannot answer.
+        fun unitCost(line: BillLine): Double? = line.cost ?: product(line.productUid)?.cost
+
         val asTotal = inPeriod.filterNot { it.isItemised }
-        val beforeCosts = inPeriod.filter { it.isItemised && it.lines.any { line -> line.cost == null } }
+        val itemised = inPeriod.filter { it.isItemised }
+        val (costable, beforeCosts) = itemised.partition { bill ->
+            bill.lines.all { unitCost(it) != null }
+        }
+        // Counted, but on today's prices rather than the day's. Labelled as such
+        // on the page, and self-clearing: every bill written from now on carries
+        // its own figure.
+        val estimated = costable.filter { bill -> bill.lines.any { it.cost == null } }
 
         return Earnings(
             sold = inPeriod.sumOf { it.total },
             soldAsTotal = asTotal.sumOf { it.total },
             billsAsTotal = asTotal.size,
+            soldEstimated = estimated.sumOf { it.total },
+            billsEstimated = estimated.size,
             soldBeforeCosts = beforeCosts.sumOf { it.total },
             billsBeforeCosts = beforeCosts.size,
-            costOfGoods = countable.sumOf { bill -> bill.lines.sumOf { it.lineCost ?: 0.0 } },
+            costOfGoods = costable.sumOf { bill ->
+                bill.lines.sumOf { line -> line.qty * (unitCost(line) ?: 0.0) }
+            },
             expenses = spentIn(period),
             credited = creditNotes.filter { it.issuedAt in range }.sumOf { it.total },
             creditNotes = creditNotes.count { it.issuedAt in range }

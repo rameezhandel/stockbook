@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -114,36 +115,43 @@ class EarningsTests {
     }
 
     @Test
-    fun `a bill with one costless line is set aside whole, not half counted`() {
-        // The flattering bug this prevents: taking one line's cost off the whole
-        // bill's takings. A bill from an older book can look like this, and the
-        // wrong answer here is always too high.
+    fun `a bill part recorded and part estimated uses each line's best figure`() {
+        // Not "half counted" — every line gets a figure, the recorded one where
+        // there is one and the shelf's where there is not. The bill only falls
+        // out when a line has neither, which is what the deleted-product test
+        // below covers.
         val store = store()
         val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        val handle = store.stocked("Door handle", cost = 35.0, price = 50.0)
         val bill = assertNotNull(
             store.saveBill(
-                lines = listOf(DraftLine(padlock.uid, qty = 3, price = 30.0)),
+                lines = listOf(
+                    DraftLine(padlock.uid, qty = 3, price = 30.0),
+                    DraftLine(handle.uid, qty = 2, price = 50.0)
+                ),
                 customer = "Ahmed",
                 paid = null
             )
         )
-        // A line as an older file would have restored it.
+        // One line as an older file would have left it.
+        val document = store.makeBackupDocument()
         store.replaceEverything(
-            store.makeBackupDocument().let { document ->
-                document.copy(
-                    bills = document.bills.map { row ->
-                        row.copy(lines = row.lines.map { it.copy(cost = null) })
-                    }
-                )
-            }
+            document.copy(
+                bills = document.bills.map { row ->
+                    row.copy(lines = row.lines.mapIndexed { index, line ->
+                        if (index == 0) line.copy(cost = null) else line
+                    })
+                }
+            )
         )
 
         val earnings = store.earningsIn(thisMonth())
 
-        assertEquals(bill.total, earnings.sold)
-        assertEquals(bill.total, earnings.soldWithoutCost)
-        assertEquals(0.0, earnings.counted)
-        assertEquals(0.0, earnings.goodsEarned)
+        assertEquals(bill.total, earnings.counted)
+        // 3 padlocks estimated at 20, 2 handles recorded at 35.
+        assertEquals(130.0, earnings.costOfGoods)
+        assertTrue(earnings.hasEstimates)
+        assertEquals(1, earnings.billsEstimated)
     }
 
     @Test
@@ -258,68 +266,95 @@ class EarningsTests {
     }
 
     @Test
-    fun `a book written before costs existed reports an absence, not a loss`() {
-        // Found by the owner on real data the day this shipped. Every bill
-        // predates the cost field, so nothing can be costed — and the page was
-        // running the chain anyway: earnings of zero, then the month's expenses
-        // subtracted from it, landing on "kept -1,150" as though the shop had
-        // lost its rent. It had not. The page simply could not say.
+    fun `a book written before costs existed is costed at today's prices`() {
+        // Raised by the owner on real data: every bill predated the cost field,
+        // so the page could answer nothing. It now falls back to what the
+        // product costs today — near enough on a shelf whose prices have not
+        // moved, and the page says which figures rest on it.
         val store = store()
         val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
         store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
-        store.addExpense(1150.0, "Rent")
+        store.addExpense(45.0, "Rent")
         store.stripCosts()
-
-        val earnings = store.earningsIn(thisMonth())
-
-        assertTrue(earnings.nothingCostable)
-        assertEquals(300.0, earnings.sold)
-        assertEquals(0.0, earnings.counted)
-        // The figures are still computable; the page is what must not print
-        // them. `EarningsDocumentTests` holds that end.
-        assertEquals(300.0, earnings.soldBeforeCosts)
-        assertEquals(1, earnings.billsBeforeCosts)
-        assertEquals(0, earnings.billsAsTotal)
-    }
-
-    @Test
-    fun `the two reasons a bill cannot be costed are counted apart`() {
-        // One asks the owner to itemise the next bill; the other asks nothing of
-        // them at all and fixes itself as the shop trades. Telling somebody to
-        // itemise a bill they already itemised is how an app earns a reputation.
-        val store = store()
-        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
-        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
-        store.stripCosts()
-        // And a fresh one entered as a figure, which will never be costable.
-        store.saveBill(customer = "Khalid", paid = null, amount = 500.0)
-
-        val earnings = store.earningsIn(thisMonth())
-
-        assertEquals(1, earnings.billsBeforeCosts)
-        assertEquals(300.0, earnings.soldBeforeCosts)
-        assertEquals(1, earnings.billsAsTotal)
-        assertEquals(500.0, earnings.soldAsTotal)
-        assertEquals(2, earnings.billsWithoutCost)
-        assertEquals(800.0, earnings.soldWithoutCost)
-    }
-
-    @Test
-    fun `one costable bill is enough to answer, alongside older ones`() {
-        // The shape a shop is in a week after this arrives: the old book cannot
-        // be costed, the new bills can, and the page answers for what it can.
-        val store = store()
-        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
-        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
-        store.stripCosts()
-        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 5, price = 30.0)), customer = "Khalid", paid = null)
 
         val earnings = store.earningsIn(thisMonth())
 
         assertFalse(earnings.nothingCostable)
-        assertEquals(150.0, earnings.counted)
-        assertEquals(100.0, earnings.costOfGoods)
-        assertEquals(50.0, earnings.goodsEarned)
+        assertEquals(300.0, earnings.counted)
+        assertEquals(200.0, earnings.costOfGoods)
+        assertEquals(100.0, earnings.goodsEarned)
+        assertEquals(55.0, earnings.kept)
+        // Counted, and counted out loud.
+        assertTrue(earnings.hasEstimates)
+        assertEquals(1, earnings.billsEstimated)
+        assertEquals(300.0, earnings.soldEstimated)
+    }
+
+    @Test
+    fun `nothing is written back, so the estimate follows the shelf`() {
+        // The bill's own cost stays absent, because absent is the truth about
+        // it. The consequence is deliberate: reprice the product and the
+        // estimate moves, which is exactly what an estimate should do and
+        // exactly what a recorded cost must never do.
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
+        store.stripCosts()
+
+        assertEquals(100.0, store.earningsIn(thisMonth()).goodsEarned)
+        store.update(assertNotNull(store.product(padlock.uid)), name = "Padlock 40mm", cost = 25.0, price = 30.0)
+
+        assertEquals(50.0, store.earningsIn(thisMonth()).goodsEarned)
+        // And the line itself still knows nothing, which is what keeps a real
+        // recorded cost from ever being overwritten by a guess.
+        assertNull(store.bills.first().lines.first().cost)
+    }
+
+    @Test
+    fun `a recorded cost always wins over today's price`() {
+        // The whole point of the field. An estimate is only ever a fallback, and
+        // a bill that carries its own figure must be immune to the shelf.
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
+        store.update(assertNotNull(store.product(padlock.uid)), name = "Padlock 40mm", cost = 25.0, price = 30.0)
+
+        val earnings = store.earningsIn(thisMonth())
+
+        assertEquals(200.0, earnings.costOfGoods)
+        assertFalse(earnings.hasEstimates)
+    }
+
+    @Test
+    fun `a line whose product is gone cannot be estimated either`() {
+        // The shelf is the only source left for an old bill, so a deleted
+        // product takes the last figure with it. That bill goes back to being
+        // set aside — and the whole bill, never half of it.
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
+        store.stripCosts()
+        store.delete(assertNotNull(store.product(padlock.uid)))
+
+        val earnings = store.earningsIn(thisMonth())
+
+        assertTrue(earnings.nothingCostable)
+        assertEquals(1, earnings.billsBeforeCosts)
+        assertEquals(0, earnings.billsEstimated)
+    }
+
+    @Test
+    fun `a bill entered as a total is still beyond estimating`() {
+        // No lines, so nothing to look up. This one never becomes countable,
+        // which is why it stays named apart from the rest.
+        val store = store()
+        store.saveBill(customer = "Khalid", paid = null, amount = 500.0)
+
+        val earnings = store.earningsIn(thisMonth())
+
+        assertTrue(earnings.nothingCostable)
+        assertEquals(1, earnings.billsAsTotal)
+        assertEquals(0, earnings.billsEstimated)
     }
 
     @Test

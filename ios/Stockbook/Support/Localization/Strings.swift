@@ -1062,6 +1062,25 @@ struct Strings {
             "\(n) ಬಿಲ್ ಬೆಲೆ ದಾಖಲಿಸುವ ಮೊದಲು ಬರೆದದ್ದು"
         )
     }
+    /// Bills counted at today's buying price, because they carry none of their
+    /// own.
+    ///
+    /// Counted rather than set aside — an estimate beats no answer while the old
+    /// book is most of the history — and named so the owner knows which part of
+    /// the figure rests on it.
+    func billsEstimated(_ n: Int) -> String {
+        pick(
+            n == 1 ? "1 bill costed at today's prices" : "\(n) bills costed at today's prices",
+            "\(n) ಬಿಲ್ ಇಂದಿನ ಬೆಲೆಯಲ್ಲಿ ಲೆಕ್ಕ"
+        )
+    }
+    /// Why part of the answer is a guess, said where any of it is.
+    var costsEstimated: String {
+        pick(
+            "Some costs are estimated from today's buying prices, because those bills were written before the app recorded them.",
+            "ಕೆಲವು ಬೆಲೆಗಳನ್ನು ಇಂದಿನ ಖರೀದಿ ಬೆಲೆಯಿಂದ ಅಂದಾಜಿಸಲಾಗಿದೆ — ಆ ಬಿಲ್‌ಗಳನ್ನು ಬೆಲೆ ದಾಖಲಿಸುವ ಮೊದಲು ಬರೆಯಲಾಗಿದೆ."
+        )
+    }
     /// Said when the period has takings but nothing in it can be costed.
     ///
     /// The state every existing shop is in on the day this arrives, and the one
