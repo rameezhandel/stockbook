@@ -45,6 +45,62 @@ data class DraftLine(
 data class SpendLine(val what: String, val times: Int, val total: Double)
 
 /**
+ * What a stretch of trading actually left the shop with.
+ *
+ * Four figures and a confession. Takings, less what the goods on those bills
+ * cost, is what the goods earned; less what the owner spent is what they kept.
+ * The confession is [soldWithoutCost] — takings this cannot account for, because
+ * the bill they came from listed no products and so carries no cost.
+ *
+ * **The gap is not an edge case.** Entering a paper bill as a single figure is
+ * the ordinary way to use this app, and every such bill is revenue with no cost
+ * behind it. A page that quietly answered for the rest of the month would be
+ * flattering by exactly the amount it left out, so the amount it left out is on
+ * the page.
+ */
+data class Earnings(
+    /**
+     * Every bill in the period — the same figure Home shows, so the two can be
+     * held side by side and agree.
+     */
+    val sold: Double,
+    /** How much of [sold] came from bills that listed no products. */
+    val soldWithoutCost: Double,
+    val billsWithoutCost: Int,
+    /** What the goods on the countable bills cost the shop, as at their sale. */
+    val costOfGoods: Double,
+    /** What the owner spent over the same days. */
+    val expenses: Double,
+    /**
+     * Credit notes written in the period, **disclosed and never subtracted**.
+     *
+     * `soldIn` counts bills and not notes, on the settled argument that a note
+     * reduces what somebody *owes* without unselling the goods — and a month's
+     * takings that shrank when a note was written weeks later is a figure nobody
+     * can reconcile against the till. Netting them here and not there would put
+     * two answers to "what did we sell" on two screens. So the owner is told the
+     * notes exist and left to judge.
+     */
+    val credited: Double,
+    val creditNotes: Int
+) {
+    /** Takings this page can actually account for. */
+    val counted: Double get() = sold - soldWithoutCost
+
+    /** What the goods earned: what they sold for, less what they cost. */
+    val goodsEarned: Double get() = counted - costOfGoods
+
+    /** And what was left after the owner's own spending. */
+    val kept: Double get() = goodsEarned - expenses
+
+    /** Whether anything was sold at all, countable or not. */
+    val isEmpty: Boolean get() = sold == 0.0 && expenses == 0.0
+
+    /** Whether there is anything to confess. */
+    val hasGap: Boolean get() = billsWithoutCost > 0 || creditNotes > 0
+}
+
+/**
  * What kind of thing happened, and — through [direction] — which way the money
  * moved when it did.
  *
@@ -1208,6 +1264,45 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun billCountIn(period: StatementPeriod): Int {
         val range = period.range()
         return bills.count { it.createdAt in range }
+    }
+
+    /**
+     * What [period] left the shop with, and what it could not account for.
+     *
+     * **Cost comes off the bill's own lines, never off the shelf.** Each line
+     * carries what one piece cost at the moment it was sold; `Product.cost` is
+     * what it costs *now* and would rewrite last March every time a supplier put
+     * a price up. It is also why this is not `boughtIn`: a hundred padlocks
+     * delivered in March and three sold is not a March loss, and only the three
+     * belong here.
+     *
+     * **The discount needs no apportioning.** `Bill.total` is stored after the
+     * discount, so a bill's takings less its lines' cost is exactly what that
+     * bill earned — no share-out across lines, and no rounding drift from doing
+     * one.
+     *
+     * A bill is countable only when it lists products **and every line knows its
+     * cost**. One line that does not is enough to set the whole bill aside:
+     * counting the rest would subtract part of the cost from all of the takings,
+     * which flatters the answer rather than admitting it cannot give one.
+     */
+    fun earningsIn(period: StatementPeriod): Earnings {
+        val range = period.range()
+        val inPeriod = bills.filter { it.createdAt in range }
+
+        val (countable, unaccounted) = inPeriod.partition { bill ->
+            bill.isItemised && bill.lines.all { it.cost != null }
+        }
+
+        return Earnings(
+            sold = inPeriod.sumOf { it.total },
+            soldWithoutCost = unaccounted.sumOf { it.total },
+            billsWithoutCost = unaccounted.size,
+            costOfGoods = countable.sumOf { bill -> bill.lines.sumOf { it.lineCost ?: 0.0 } },
+            expenses = spentIn(period),
+            credited = creditNotes.filter { it.issuedAt in range }.sumOf { it.total },
+            creditNotes = creditNotes.count { it.issuedAt in range }
+        )
     }
 
     /**

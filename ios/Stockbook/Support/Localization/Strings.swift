@@ -1022,6 +1022,48 @@ struct Strings {
     var nextDay: String { pick("Next day", "ಮುಂದಿನ ದಿನ") }
     func dayFileName(date: String) -> String { "day-\(date).pdf" }
 
+    // MARK: - What the trading left the shop with
+    //
+    // The owner's page and nobody else's: it says what the shop makes. Every
+    // line names exactly what it counted, because the one thing this page must
+    // never do is flatter — a figure read as the whole truth about a month is
+    // worse than no figure at all.
+
+    var earningsSummary: String { pick("Earnings Summary", "ಗಳಿಕೆಯ ಸಾರಾಂಶ") }
+    /// What the goods on the bills cost the shop, as at the day each was sold.
+    var costOfGoods: String { pick("Cost of goods", "ಸಾಮಾನಿನ ಬೆಲೆ") }
+    /// Takings less what the goods cost. Not called profit: rent and wages are not in it.
+    var goodsEarned: String { pick("What the goods earned", "ಸಾಮಾನಿನಿಂದ ಬಂದ ಗಳಿಕೆ") }
+    /// And what was left after the owner's own spending came off.
+    var shopKept: String { pick("What the shop kept", "ಅಂಗಡಿಗೆ ಉಳಿದದ್ದು") }
+    /// Takings the page cannot answer for, because the bill listed no products.
+    ///
+    /// Entering a paper bill as one figure is the ordinary way to use this app,
+    /// so this is not an edge case and is not hidden in a footnote.
+    var notCounted: String { pick("Not counted", "ಲೆಕ್ಕಕ್ಕೆ ಸಿಗದ್ದು") }
+    /// What is left of the takings once the uncountable bills are set aside.
+    var countedSales: String { pick("Counted", "ಲೆಕ್ಕಕ್ಕೆ ಸಿಕ್ಕಿದ್ದು") }
+    func billsAsTotal(_ n: Int) -> String {
+        pick(
+            n == 1 ? "1 bill entered as a total" : "\(n) bills entered as a total",
+            "\(n) ಬಿಲ್ ಒಟ್ಟು ಮೊತ್ತವಾಗಿ ದಾಖಲು"
+        )
+    }
+    func creditNotesIssued(_ n: Int) -> String {
+        pick(
+            n == 1 ? "1 credit note issued" : "\(n) credit notes issued",
+            "\(n) ಕ್ರೆಡಿಟ್ ನೋಟ್ ನೀಡಲಾಗಿದೆ"
+        )
+    }
+    var creditNotesNotSubtracted: String {
+        pick(
+            "Credit notes are not taken off the figures above.",
+            "ಮೇಲಿನ ಮೊತ್ತಗಳಿಂದ ಕ್ರೆಡಿಟ್ ನೋಟ್ ಕಳೆದಿಲ್ಲ."
+        )
+    }
+    var nothingSoldThen: String { pick("Nothing sold in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಮಾರಾಟ ಇಲ್ಲ.") }
+    func earningsFileName(date: String) -> String { "earnings-\(date).pdf" }
+
     func accountSummaryTill(_ date: String) -> String {
         pick("Account summary till \(date)", "\(date) ವರೆಗಿನ ಖಾತೆ ಸಾರಾಂಶ")
     }

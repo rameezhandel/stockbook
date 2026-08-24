@@ -973,6 +973,47 @@ class Strings(val language: AppLanguage) {
     val nextDay: String get() = pick("Next day", "ಮುಂದಿನ ದಿನ")
     fun dayFileName(date: String): String = "day-$date.pdf"
 
+    // --- What the trading left the shop with
+    //
+    // The owner's page and nobody else's: it says what the shop makes. Every
+    // line names exactly what it counted, because the one thing this page must
+    // never do is flatter — a figure read as the whole truth about a month is
+    // worse than no figure at all.
+
+    val earningsSummary: String get() = pick("Earnings Summary", "ಗಳಿಕೆಯ ಸಾರಾಂಶ")
+    /** What the goods on the bills cost the shop, as at the day each was sold. */
+    val costOfGoods: String get() = pick("Cost of goods", "ಸಾಮಾನಿನ ಬೆಲೆ")
+    /** Takings less what the goods cost. Not called profit: rent and wages are not in it. */
+    val goodsEarned: String get() = pick("What the goods earned", "ಸಾಮಾನಿನಿಂದ ಬಂದ ಗಳಿಕೆ")
+    /** And what was left after the owner's own spending came off. */
+    val shopKept: String get() = pick("What the shop kept", "ಅಂಗಡಿಗೆ ಉಳಿದದ್ದು")
+    /**
+     * Takings the page cannot answer for, because the bill listed no products.
+     *
+     * Entering a paper bill as one figure is the ordinary way to use this app,
+     * so this is not an edge case and is not hidden in a footnote.
+     */
+    val notCounted: String get() = pick("Not counted", "ಲೆಕ್ಕಕ್ಕೆ ಸಿಗದ್ದು")
+    /** What is left of the takings once the uncountable bills are set aside. */
+    val countedSales: String get() = pick("Counted", "ಲೆಕ್ಕಕ್ಕೆ ಸಿಕ್ಕಿದ್ದು")
+    fun billsAsTotal(n: Int): String =
+            pick(
+                if (n == 1) "1 bill entered as a total" else "$n bills entered as a total",
+                "$n ಬಿಲ್ ಒಟ್ಟು ಮೊತ್ತವಾಗಿ ದಾಖಲು"
+            )
+    fun creditNotesIssued(n: Int): String =
+            pick(
+                if (n == 1) "1 credit note issued" else "$n credit notes issued",
+                "$n ಕ್ರೆಡಿಟ್ ನೋಟ್ ನೀಡಲಾಗಿದೆ"
+            )
+    val creditNotesNotSubtracted: String
+        get() = pick(
+            "Credit notes are not taken off the figures above.",
+            "ಮೇಲಿನ ಮೊತ್ತಗಳಿಂದ ಕ್ರೆಡಿಟ್ ನೋಟ್ ಕಳೆದಿಲ್ಲ."
+        )
+    val nothingSoldThen: String get() = pick("Nothing sold in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಮಾರಾಟ ಇಲ್ಲ.")
+    fun earningsFileName(date: String): String = "earnings-$date.pdf"
+
     fun accountSummaryTill(date: String): String =
             pick("Account summary till $date", "$date ವರೆಗಿನ ಖಾತೆ ಸಾರಾಂಶ")
 

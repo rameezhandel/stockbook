@@ -1062,6 +1062,45 @@ final class StockbookStore {
         return bills.filter { range.contains($0.createdAt) }.count
     }
 
+    /// What `period` left the shop with, and what it could not account for.
+    ///
+    /// **Cost comes off the bill's own lines, never off the shelf.** Each line
+    /// carries what one piece cost at the moment it was sold; `Product.cost` is
+    /// what it costs *now* and would rewrite last March every time a supplier
+    /// put a price up. It is also why this is not `boughtIn`: a hundred padlocks
+    /// delivered in March and three sold is not a March loss, and only the three
+    /// belong here.
+    ///
+    /// **The discount needs no apportioning.** `Bill.total` is stored after the
+    /// discount, so a bill's takings less its lines' cost is exactly what that
+    /// bill earned — no share-out across lines, and no rounding drift from doing
+    /// one.
+    ///
+    /// A bill is countable only when it lists products **and every line knows
+    /// its cost**. One line that does not is enough to set the whole bill aside:
+    /// counting the rest would subtract part of the cost from all of the
+    /// takings, which flatters the answer rather than admitting it cannot give
+    /// one.
+    func earningsIn(_ period: StatementPeriod) -> Earnings {
+        let range = period.range()
+        let inPeriod = bills.filter { range.contains($0.createdAt) }
+
+        let countable = inPeriod.filter { $0.isItemised && $0.lines.allSatisfy { $0.cost != nil } }
+        let unaccounted = inPeriod.filter { !($0.isItemised && $0.lines.allSatisfy { $0.cost != nil }) }
+
+        return Earnings(
+            sold: inPeriod.reduce(0) { $0 + $1.total },
+            soldWithoutCost: unaccounted.reduce(0) { $0 + $1.total },
+            billsWithoutCost: unaccounted.count,
+            costOfGoods: countable.reduce(0) { running, bill in
+                running + bill.lines.reduce(0) { $0 + ($1.lineCost ?? 0) }
+            },
+            expenses: spentIn(period),
+            credited: creditNotes.filter { range.contains($0.issuedAt) }.reduce(0) { $0 + $1.total },
+            creditNotes: creditNotes.filter { range.contains($0.issuedAt) }.count
+        )
+    }
+
     /// Everything that happened on one day, oldest first.
     ///
     /// The one place in this app that reads all six dated records together, and
@@ -2061,6 +2100,56 @@ struct SpendLine: Equatable {
     let what: String
     let times: Int
     let total: Double
+}
+
+/// What a stretch of trading actually left the shop with.
+///
+/// Four figures and a confession. Takings, less what the goods on those bills
+/// cost, is what the goods earned; less what the owner spent is what they kept.
+/// The confession is `soldWithoutCost` — takings this cannot account for,
+/// because the bill they came from listed no products and so carries no cost.
+///
+/// **The gap is not an edge case.** Entering a paper bill as a single figure is
+/// the ordinary way to use this app, and every such bill is revenue with no cost
+/// behind it. A page that quietly answered for the rest of the month would be
+/// flattering by exactly the amount it left out, so the amount it left out is on
+/// the page.
+struct Earnings: Equatable {
+    /// Every bill in the period — the same figure Home shows, so the two can be
+    /// held side by side and agree.
+    let sold: Double
+    /// How much of `sold` came from bills that listed no products.
+    let soldWithoutCost: Double
+    let billsWithoutCost: Int
+    /// What the goods on the countable bills cost the shop, as at their sale.
+    let costOfGoods: Double
+    /// What the owner spent over the same days.
+    let expenses: Double
+    /// Credit notes written in the period, **disclosed and never subtracted**.
+    ///
+    /// `soldIn` counts bills and not notes, on the settled argument that a note
+    /// reduces what somebody *owes* without unselling the goods — and a month's
+    /// takings that shrank when a note was written weeks later is a figure
+    /// nobody can reconcile against the till. Netting them here and not there
+    /// would put two answers to "what did we sell" on two screens. So the owner
+    /// is told the notes exist and left to judge.
+    let credited: Double
+    let creditNotes: Int
+
+    /// Takings this page can actually account for.
+    var counted: Double { sold - soldWithoutCost }
+
+    /// What the goods earned: what they sold for, less what they cost.
+    var goodsEarned: Double { counted - costOfGoods }
+
+    /// And what was left after the owner's own spending.
+    var kept: Double { goodsEarned - expenses }
+
+    /// Whether anything was sold at all, countable or not.
+    var isEmpty: Bool { sold == 0 && expenses == 0 }
+
+    /// Whether there is anything to confess.
+    var hasGap: Bool { billsWithoutCost > 0 || creditNotes > 0 }
 }
 
 /// What kind of thing happened, and — through `direction` — which way the money

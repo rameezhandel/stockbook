@@ -123,7 +123,8 @@ fun TodayScreen(
                     spentValue = Money.text(spent, currency),
                     span = span,
                     strings = strings,
-                    onChoose = { span = it }
+                    onChoose = { span = it },
+                    onOpen = { router.earningsFor = period }
                 )
                 Spacer(Modifier.height(Metrics.cardGap))
 
@@ -435,18 +436,33 @@ private fun SoldCard(
      *
      * A line inside this card rather than a card of its own, and the size
      * difference is the point. Two cards of equal weight saying "Sold 40,200"
-     * and "Spent 3,100" invite the subtraction — and the answer would be wrong,
-     * because what the goods cost is not in it. A companion figure in smaller
-     * type reads as another fact about the same period, which is what it is.
+     * and "Spent 3,100" invite the subtraction, and the answer would be wrong —
+     * what the goods cost is not in it.
+     *
+     * That answer now exists: bill lines carry their cost, and tapping this card
+     * opens the page that does the arithmetic properly. Which is the argument
+     * for leaving these two as they are rather than promoting them — the
+     * subtraction has somewhere honest to happen, one tap away, and it is not
+     * here.
      */
     spentLabel: String?,
     spentValue: String,
     span: Span,
     strings: Strings,
-    onChoose: (Span) -> Unit
+    onChoose: (Span) -> Unit,
+    /** Opens what these two figures come to, over the span the chips are showing. */
+    onOpen: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth().card().padding(14.dp)) {
-        Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
+    Column(modifier = Modifier.fillMaxWidth().card().clickable(onClick = onOpen).padding(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
+            // The caret is the whole of what says this card goes somewhere. The
+            // two stat cards below it are tappable without one, and they get
+            // away with it because a balance obviously has a list behind it —
+            // "what did all this come to" is not a question anybody thinks to
+            // press a figure for.
+            Glyph(Icon.openRow, size = 13.dp, tint = Nocturne.accent)
+        }
         Text(
             value,
             style = NocturneType.bigNumber(26.0),

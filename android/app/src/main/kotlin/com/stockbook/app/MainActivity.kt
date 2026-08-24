@@ -53,6 +53,8 @@ import com.stockbook.app.feature.settings.SettingsScreen
 import com.stockbook.app.feature.setup.SetupFlow
 import com.stockbook.app.feature.today.TodayScreen
 import com.stockbook.app.feature.today.DaySheet
+import com.stockbook.app.feature.today.EarningsPdf
+import com.stockbook.app.feature.today.EarningsSheet
 import com.stockbook.app.feature.today.DaySummaryPdf
 import com.stockbook.app.feature.today.SummaryPdf
 import com.stockbook.app.feature.today.WhoOwesYouSheet
@@ -65,6 +67,7 @@ import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppTab
 import com.stockbook.core.text.Dates
 import com.stockbook.core.text.DaySummaryDocument
+import com.stockbook.core.text.EarningsDocument
 import com.stockbook.core.text.SummaryDocument
 import com.stockbook.core.text.Strings
 import java.io.File
@@ -462,6 +465,37 @@ private fun Shell(store: StockbookStore) {
                 },
                 onClose = { router.showingCreditors = false }
             )
+        }
+
+        // What the trading left the shop with, from the Sold card on Home.
+        BottomSheet(
+            visible = router.earningsFor != null,
+            onDismiss = { router.earningsFor = null }
+        ) {
+            router.earningsFor?.let { period ->
+                EarningsSheet(
+                    period = period,
+                    state = state,
+                    store = store,
+                    strings = strings,
+                    onSave = {
+                        sharePdf(
+                            context,
+                            EarningsPdf.write(
+                                EarningsDocument.make(
+                                    store.earningsIn(period),
+                                    period.range(),
+                                    state.settings,
+                                    strings
+                                ),
+                                context,
+                                strings.earningsFileName(Dates.fileDate(Timestamps.now()))
+                            )
+                        )
+                    },
+                    onClose = { router.earningsFor = null }
+                )
+            }
         }
 
         // One day of the shop, from the date at the top of Home.

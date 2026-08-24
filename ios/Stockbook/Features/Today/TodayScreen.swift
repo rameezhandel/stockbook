@@ -110,9 +110,18 @@ struct TodayScreen: View {
         let sold = store.soldIn(span.period)
 
         return VStack(alignment: .leading, spacing: 0) {
-            Text(Loc.soldInPeriod)
-                .font(NocturneType.inter(11))
-                .foregroundStyle(Nocturne.neutral500)
+            HStack(spacing: 0) {
+                Text(Loc.soldInPeriod)
+                    .font(NocturneType.inter(11))
+                    .foregroundStyle(Nocturne.neutral500)
+                // The caret is the whole of what says this card goes somewhere.
+                // The two stat cards below it are tappable without one, and they
+                // get away with it because a balance obviously has a list behind
+                // it — "what did all this come to" is not a question anybody
+                // thinks to press a figure for.
+                Glyph(Icon.openRow, size: 13)
+                    .foregroundStyle(Nocturne.accent)
+            }
             Text(Money.text(sold, in: currency))
                 .nocturneText(.bigNumber(26))
                 .lineLimit(1)
@@ -140,6 +149,12 @@ struct TodayScreen: View {
         .padding(14)
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.statRadius, style: .continuous))
         .hairline(radius: Metrics.statRadius)
+        .contentShape(Rectangle())
+        // Opens what these two figures come to, over the span the chips below
+        // are showing. A tap gesture rather than wrapping the card in a Button:
+        // the chips inside it are buttons already, and nesting one in another
+        // makes them both feel spongy.
+        .onTapGesture { router.earningsFor = span.period }
         .padding(.bottom, Metrics.cardGap)
     }
 
@@ -147,9 +162,14 @@ struct TodayScreen: View {
     ///
     /// A line inside the card rather than a card of its own, and the size
     /// difference is the point. Two cards of equal weight saying "Sold 40,200"
-    /// and "Expense 3,100" invite the subtraction — and the answer would be wrong,
-    /// because what the goods cost is not in it. A companion figure in smaller
-    /// type reads as another fact about the same period, which is what it is.
+    /// and "Expense 3,100" invite the subtraction, and the answer would be wrong
+    /// — what the goods cost is not in it.
+    ///
+    /// That answer now exists: bill lines carry their cost, and tapping this
+    /// card opens the page that does the arithmetic properly. Which is the
+    /// argument for leaving these two as they are rather than promoting them —
+    /// the subtraction has somewhere honest to happen, one tap away, and it is
+    /// not here.
     private var spentLine: some View {
         let spent = store.spentIn(span.period)
 

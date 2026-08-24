@@ -107,6 +107,14 @@ final class AppRouter {
     var showingDebtors = false
     var showingCreditors = false
 
+    /// Which span the earnings page is showing, or nil when it is closed.
+    ///
+    /// The period rather than a flag, because the page is opened *from* a span
+    /// the owner already picked on Home and must show that one — reading the
+    /// chips again from in here would be a second opinion about which month it
+    /// is.
+    var earningsFor: StatementPeriod?
+
     /// Which day the day summary is showing, or nil when it is closed.
     ///
     /// The day itself rather than a flag, because the sheet steps between days
@@ -235,6 +243,7 @@ final class AppRouter {
         showingDebtors = false
         showingCreditors = false
         dayInView = nil
+        earningsFor = nil
     }
 }
 

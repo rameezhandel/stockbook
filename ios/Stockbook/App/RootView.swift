@@ -233,6 +233,19 @@ private struct AppShell: View {
         .nocturneSheet(isPresented: $router.showingCreditors) {
             WhoYouOweSheet { router.showingCreditors = false }
         }
+        // What the trading left the shop with, from the Sold card on Home.
+        // Presented on *whether* there is a span rather than keyed on which one,
+        // for the reason the day sheet is.
+        .nocturneSheet(
+            isPresented: Binding(
+                get: { router.earningsFor != nil },
+                set: { if !$0 { router.earningsFor = nil } }
+            )
+        ) {
+            if let period = router.earningsFor {
+                EarningsSheet(period: period) { router.earningsFor = nil }
+            }
+        }
         // One day of the shop, from the date at the top of Home. Presented on
         // *whether* there is a day rather than keyed on which one: stepping to
         // yesterday changes what the sheet shows, and a sheet keyed on the day

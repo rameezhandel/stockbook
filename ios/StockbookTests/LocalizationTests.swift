@@ -94,6 +94,8 @@ struct LocalizationTests {
         \.daySummary, \.deliveriesTitle, \.paidToSuppliers,
         \.moneyInLabel, \.moneyOutLabel, \.netForTheDay, \.nothingOnThisDay,
         \.previousDay, \.nextDay,
+        \.earningsSummary, \.costOfGoods, \.goodsEarned, \.shopKept,
+        \.notCounted, \.countedSales, \.creditNotesNotSubtracted, \.nothingSoldThen,
         \.currencySection, \.currencyNote, \.setupCurrencyNote, \.moveToAnotherPhone,
         \.moveToAnotherPhoneNote, \.exportEverything, \.exportNoteFirstTime, \.exportNoteAfterBackup,
         \.writeAFreshFile, \.createBackupFile, \.importABackupFile, \.chooseAFile,

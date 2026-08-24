@@ -93,6 +93,16 @@ class AppRouter {
     var showingCreditors by mutableStateOf(false)
 
     /**
+     * Which span the earnings page is showing, or null when it is closed.
+     *
+     * The period rather than a flag, because the page is opened *from* a span
+     * the owner already picked on Home and must show that one — reading the
+     * chips again from in here would be a second opinion about which month it
+     * is.
+     */
+    var earningsFor by mutableStateOf<com.stockbook.core.model.StatementPeriod?>(null)
+
+    /**
      * Which day the day summary is showing, or null when it is closed.
      *
      * The day itself rather than a flag, because the sheet steps between days
@@ -334,6 +344,7 @@ class AppRouter {
         showingDebtors = false
         showingCreditors = false
         dayInView = null
+        earningsFor = null
         receipt = null
         billDetail = null
         editingBill = null
