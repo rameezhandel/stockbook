@@ -26,12 +26,10 @@ struct WhoOwesYouSheet: View {
             // one string: a sheet with a title of its own is a title that
             // drifts from the card the thumb just touched.
             title: Loc.receivableStat,
-            rows: store.customers().filter { $0.owed > 0 }.map { customer in
-                OwedRow(id: customer.key, name: customer.name, amount: customer.owed) {
-                    router.paymentFor = customer
-                    onClose()
-                }
-            },
+            rows: store.customers().filter { $0.owed > 0 }.map(row),
+            total: store.customers().reduce(0) { $0 + $1.owed },
+            rosterSize: store.customers().count,
+            search: { query in store.customers(matching: query).map(row) },
             // The list is the document, so the button that makes it belongs
             // here. Only where there is something to chase: a page saying
             // nobody owes anything is a page nobody needs.
@@ -40,6 +38,17 @@ struct WhoOwesYouSheet: View {
             onClose: onClose
         )
         .sheet(item: $file) { ShareSheet(url: $0.url) }
+    }
+
+    /// One customer as a row. Written once because the list reads only those who
+    /// owe and the search box reads the whole roster — a customer who owes
+    /// nothing still walks in to pay a deposit, or to settle a bill the moment
+    /// it is written.
+    private func row(_ customer: Customer) -> OwedRow {
+        OwedRow(id: customer.key, name: customer.name, amount: customer.owed) {
+            router.paymentFor = customer
+            onClose()
+        }
     }
 
     /// A failure leaves `file` nil and nothing opens, which is the honest
@@ -73,12 +82,10 @@ struct WhoYouOweSheet: View {
     var body: some View {
         OwedList(
             title: Loc.payableStat,
-            rows: store.suppliers().filter { $0.owed > 0 }.map { supplier in
-                OwedRow(id: supplier.key, name: supplier.name, amount: supplier.owed) {
-                    router.supplierPaymentFor = supplier
-                    onClose()
-                }
-            },
+            rows: store.suppliers().filter { $0.owed > 0 }.map(row),
+            total: store.suppliers().reduce(0) { $0 + $1.owed },
+            rosterSize: store.suppliers().count,
+            search: { query in store.suppliers(matching: query).map(row) },
             onSave: store.suppliers().contains { $0.owed > 0 } ? save : nil,
             // Money leaving, not arriving. "Take payment" beside a supplier the
             // shop owes describes the wrong direction entirely, and it is the one
@@ -87,6 +94,13 @@ struct WhoYouOweSheet: View {
             onClose: onClose
         )
         .sheet(item: $file) { ShareSheet(url: $0.url) }
+    }
+
+    private func row(_ supplier: Supplier) -> OwedRow {
+        OwedRow(id: supplier.key, name: supplier.name, amount: supplier.owed) {
+            router.supplierPaymentFor = supplier
+            onClose()
+        }
     }
 
     private func save() {
@@ -114,6 +128,16 @@ private struct OwedRow: Identifiable {
 private struct OwedList: View {
     let title: String
     let rows: [OwedRow]
+    /// What is outstanding altogether, passed in rather than summed from `rows`.
+    ///
+    /// The subtitle answers "how much is out there", and a search that narrowed
+    /// it to one name would leave the sheet's headline figure quietly following
+    /// the typing.
+    let total: Double
+    /// How many names there are in all — what decides whether searching is offered.
+    let rosterSize: Int
+    /// Everybody, by name or phone, matching what has been typed.
+    let search: (String) -> [OwedRow]
     /// Makes a page of this list. Absent where there is no list worth making.
     let onSave: (() -> Void)?
     /// What the row's button says. One body serves both directions, and the
@@ -123,11 +147,23 @@ private struct OwedList: View {
 
     @Environment(\.currency) private var currency
 
+    @State private var query = ""
+
+    /// How many names there must be before the sheet offers a way to search
+    /// them. The same figure `PartyList` uses, for the same reason.
+    private static let searchable = 5
+
+    private var searching: Bool { !query.isBlank }
+
+    /// Searching leaves the debt list behind entirely: it answers from the whole
+    /// roster, so somebody who owes nothing today can still be found and paid.
+    private var shown: [OwedRow] { searching ? search(query) : rows }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SheetHeader(
                 title: title,
-                subtitle: Money.text(rows.reduce(0) { $0 + $1.amount }, in: currency),
+                subtitle: Money.text(total, in: currency),
                 onClose: onClose
             )
 
@@ -137,11 +173,27 @@ private struct OwedList: View {
                     .padding(.bottom, 12)
             }
 
+            // Offered only once there are more names than are worth reading
+            // through, and counted against the whole roster rather than the debt
+            // list: a shop with three debtors and two hundred customers is
+            // exactly the shop that needs to reach the other hundred and
+            // ninety-seven.
+            if rosterSize > Self.searchable {
+                NocturneField(
+                    placeholder: Loc.search,
+                    text: $query,
+                    height: 40,
+                    fontSize: 13.5
+                )
+                .padding(.bottom, Metrics.rowGap)
+            }
+
             // The banner that opens this sheet only appears when somebody owes, so
             // an empty list here means the last of it was settled while the sheet
-            // was open. Worth saying rather than leaving a blank sheet behind.
-            if rows.isEmpty {
-                Text(Loc.settledUp)
+            // was open. Worth saying rather than leaving a blank sheet behind —
+            // and while searching the answer is about the typing, not the debt.
+            if shown.isEmpty {
+                Text(searching ? Loc.nobodyMatches : Loc.settledUp)
                     .nocturneText(.meta)
                     .padding(.vertical, 14)
             } else {
@@ -150,7 +202,7 @@ private struct OwedList: View {
                 // than this screen. Sorted by what is owed — `customers()` and
                 // `suppliers()` both hand them over that way.
                 VStack(spacing: Metrics.rowGap) {
-                    ForEach(rows) { row in
+                    ForEach(shown) { row in
                         HStack(spacing: 9) {
                             Glyph(Icon.customer, size: 13)
                                 .foregroundStyle(Nocturne.neutral500)
@@ -160,7 +212,12 @@ private struct OwedList: View {
                                     .lineLimit(1)
                                 Text(Money.text(row.amount, in: currency))
                                     .font(NocturneType.inter(11.5))
-                                    .foregroundStyle(Nocturne.accent400)
+                                    // Accent is the colour of an outstanding
+                                    // figure. A name the search turned up who
+                                    // owes nothing reads in the ordinary grey,
+                                    // so nothing on the row says "debt" when
+                                    // there is none.
+                                    .foregroundStyle(row.amount > 0 ? Nocturne.accent400 : Nocturne.neutral500)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
 
