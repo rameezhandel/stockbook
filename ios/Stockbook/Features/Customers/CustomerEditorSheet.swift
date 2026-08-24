@@ -42,9 +42,12 @@ struct CustomerEditorSheet: View {
                 removeNote: Loc.removeCustomerNote,
                 identifier: "customer"
             ),
+            // Asked on every keystroke. The store is `@Observable`, so this
+            // re-answers as the roster changes underneath the open sheet.
+            clash: { store.customerClashing($0, exceptKey: existing?.key)?.name },
             onSave: { name, phone, place, opening, key in
                 if let key {
-                    store.updateCustomer(key: key, name: name, phone: phone, place: place, openingBalance: opening)
+                    _ = store.updateCustomer(key: key, name: name, phone: phone, place: place, openingBalance: opening)
                 } else {
                     // A name that has only ever appeared on bills lands here too:
                     // adding it is what puts it on the roster, and `addCustomer`
@@ -96,9 +99,10 @@ struct SupplierEditorSheet: View {
                 removeNote: Loc.removeSupplierNote,
                 identifier: "supplier"
             ),
+            clash: { store.supplierClashing($0, exceptKey: existing?.key)?.name },
             onSave: { name, phone, place, opening, key in
                 if let key {
-                    store.updateSupplier(key: key, name: name, phone: phone, place: place, openingBalance: opening)
+                    _ = store.updateSupplier(key: key, name: name, phone: phone, place: place, openingBalance: opening)
                 } else {
                     store.addSupplier(name: name, phone: phone, place: place, openingBalance: opening)
                 }
@@ -140,6 +144,13 @@ private struct PartyEditorSheet: View {
 
     let party: EditableParty?
     let words: PartyWords
+    /// The account the typed name already belongs to, or nil where it is free.
+    ///
+    /// The gate on renaming. Identity here is the name, so a rename onto a name
+    /// somebody else answers to used to join the two accounts — on a keystroke,
+    /// with no warning, taking the other one's opening balance with it. Asked
+    /// while the owner types, so the answer arrives before the tap.
+    let clash: (String) -> String?
     let onSave: (String, String, String, Double, String?) -> Void
     let onRemove: (String) -> Void
     let onClose: () -> Void
@@ -154,7 +165,9 @@ private struct PartyEditorSheet: View {
 
     private var isEditing: Bool { party?.isOnRoster == true }
 
-    private var canSave: Bool { !name.isBlank }
+    private var taken: String? { clash(name) }
+
+    private var canSave: Bool { !name.isBlank && taken == nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -173,7 +186,16 @@ private struct PartyEditorSheet: View {
                 fontSize: 15,
                 identifier: "\(words.identifier).name"
             )
-            .padding(.bottom, 12)
+            .padding(.bottom, taken == nil ? 12 : 6)
+
+            // Under the box that caused it, in the colour of a figure owed,
+            // because it is the one thing standing between the owner and Save.
+            if let taken {
+                Text(Loc.nameAlreadyUsed(taken))
+                    .font(NocturneType.inter(11.5))
+                    .foregroundStyle(Nocturne.accent400)
+                    .padding(.bottom, 12)
+            }
 
             HStack(alignment: .top, spacing: 8) {
                 NocturneField(

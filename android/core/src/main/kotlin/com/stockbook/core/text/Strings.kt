@@ -376,6 +376,18 @@ class Strings(val language: AppLanguage) {
             "ಸ್ಟಾಕ್‌ಬುಕ್ ಶುರು ಮಾಡುವ ಮೊದಲು ಹಳೆಯ ಪುಸ್ತಕದಲ್ಲಿ ಅವರು ಕೊಡಬೇಕಿದ್ದ ಮೊತ್ತ. ಏನೂ ಇಲ್ಲದಿದ್ದರೆ ಖಾಲಿ ಬಿಡಿ."
         )
     val enterCustomerNameFirst: String get() = pick("Enter a name", "ಹೆಸರು ಬರೆಯಿರಿ")
+    /**
+     * Said under the name box the moment what is typed belongs to somebody else.
+     *
+     * Names the account it would have collided with, because "that name is
+     * taken" leaves the owner hunting for who took it — and on a book of firms
+     * with similar names that is the whole question.
+     */
+    fun nameAlreadyUsed(name: String): String =
+            pick(
+                "$name is already on your list",
+                "$name ಈಗಾಗಲೇ ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿದೆ"
+            )
 
     // Said when removing a roster entry, because "remove" beside somebody's
     // name reads like deleting them and their history.

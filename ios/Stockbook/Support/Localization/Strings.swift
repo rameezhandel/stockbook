@@ -404,6 +404,14 @@ struct Strings {
         )
     }
     var enterCustomerNameFirst: String { pick("Enter a name", "ಹೆಸರು ಬರೆಯಿರಿ") }
+    /// Said under the name box the moment what is typed belongs to somebody else.
+    ///
+    /// Names the account it would have collided with, because "that name is
+    /// taken" leaves the owner hunting for who took it — and on a book of firms
+    /// with similar names that is the whole question.
+    func nameAlreadyUsed(_ name: String) -> String {
+        pick("\(name) is already on your list", "\(name) ಈಗಾಗಲೇ ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿದೆ")
+    }
 
     /// Said when removing a roster entry, because "remove" beside somebody's
     /// name reads like deleting them and their history.

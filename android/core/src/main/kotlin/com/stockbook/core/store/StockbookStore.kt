@@ -869,7 +869,35 @@ class StockbookStore(private val repository: StockbookRepository) {
     }
 
     /**
+     * The customer a typed name would land on, where that is somebody other than
+     * [exceptKey].
+     *
+     * Identity in this book is the name, so two accounts cannot share one. The
+     * question this answers — *is that name already taken?* — is the whole of the
+     * gate on renaming, and the form asks it while the owner types so the answer
+     * arrives before the tap rather than after it.
+     *
+     * [exceptKey] is the account being edited. Passing it is what lets somebody
+     * correct a phone number without the form objecting that the name they are
+     * keeping already exists — and what lets a name that has only ever appeared
+     * on bills be promoted onto the roster under its own spelling.
+     */
+    fun customerClashing(name: String, exceptKey: String? = null): Customer? {
+        val key = Customer.key(name)
+        if (key.isEmpty() || key == exceptKey) return null
+        return customers().firstOrNull { it.key == key }
+    }
+
+    /**
      * Corrects the facts about a customer already on the roster.
+     *
+     * **Refuses, returning false, where the new name belongs to somebody else.**
+     * It used to merge the two, and merging is defensible when the name is the
+     * identity — but it happened on a keystroke, with no warning and no undo,
+     * and it took the other account's opening balance with it. A mistyped
+     * correction fused two companies' books and quietly changed what each of them
+     * owed. Deliberately joining two accounts is a thing worth building; doing it
+     * by accident is not, and the two are told apart by asking first.
      *
      * A name changed enough to change its key is a **rename**, and a rename
      * rewrites `who` on that customer's bills. That is the one case where a saved
@@ -883,10 +911,14 @@ class StockbookStore(private val repository: StockbookRepository) {
         phone: String?,
         place: String?,
         openingBalance: Double = 0.0
-    ) {
-        if (name.isBlank()) return
-        val existing = customerRecords.firstOrNull { it.key == key } ?: return
+    ): Boolean {
+        if (name.isBlank()) return false
+        val existing = customerRecords.firstOrNull { it.key == key } ?: return false
         val newKey = Customer.key(name)
+        // The gate. Checked here and not only in the form, because a rename that
+        // silently swallowed another account is the kind of thing that must be
+        // impossible rather than merely discouraged.
+        if (customerClashing(name, exceptKey = key) != null) return false
         val record = existing.copy(
             key = newKey,
             name = name.trim(),
@@ -900,12 +932,12 @@ class StockbookStore(private val repository: StockbookRepository) {
                 customers = customerRecords.map { if (it.key == key) record else it }
             )
             attempt { repository.upsert(record) }
-            return
+            return true
         }
 
-        // Renamed. Move the roster entry, then bring the bills and payments with
-        // it so nothing is left filed under a name that no longer exists. A
-        // rename onto somebody already there merges: one person, not two.
+        // Renamed, and onto a name nothing else answers to — the gate above saw
+        // to that. Move the roster entry, then bring the bills and payments with
+        // it so nothing is left filed under a name that no longer exists.
         val movedBills = bills.map { if (Customer.key(it.who) == key) it.copy(who = record.name) else it }
         val movedPayments = payments.map { if (it.customerKey == key) it.copy(customerKey = newKey) else it }
         _state.value = _state.value.copy(
@@ -926,6 +958,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 }
             }
         }
+        return true
     }
 
     /**
@@ -1660,11 +1693,22 @@ class StockbookStore(private val repository: StockbookRepository) {
         return record
     }
 
+    /** The supplier a typed name would land on. The twin of [customerClashing]. */
+    fun supplierClashing(name: String, exceptKey: String? = null): Supplier? {
+        val key = Supplier.key(name)
+        if (key.isEmpty() || key == exceptKey) return null
+        return suppliers().firstOrNull { it.key == key }
+    }
+
     /**
      * Corrects a supplier. A changed name that produces a different key is a
      * **rename**, and the purchases move with it — they carry the key, so unlike a
      * bill there is no spelling to rewrite, which makes this the simpler half of
      * the pair.
+     *
+     * **Refuses, returning false, where the new name belongs to somebody else**,
+     * for the reason [updateCustomer] gives: a rename that swallows another
+     * account is a merge, and a merge nobody asked for is data loss.
      */
     fun updateSupplier(
         key: String,
@@ -1672,10 +1716,11 @@ class StockbookStore(private val repository: StockbookRepository) {
         phone: String?,
         place: String?,
         openingBalance: Double = 0.0
-    ) {
-        if (name.isBlank()) return
-        val existing = supplierRecords.firstOrNull { it.key == key } ?: return
+    ): Boolean {
+        if (name.isBlank()) return false
+        val existing = supplierRecords.firstOrNull { it.key == key } ?: return false
         val newKey = Supplier.key(name)
+        if (supplierClashing(name, exceptKey = key) != null) return false
         val record = existing.copy(
             key = newKey,
             name = name.trim(),
@@ -1694,8 +1739,7 @@ class StockbookStore(private val repository: StockbookRepository) {
         )
         // Disk follows memory, in the same order: the old roster entry goes, the
         // corrected one lands, and every moved purchase and payment is rewritten
-        // under the new key. A rename onto somebody already there merges — one
-        // supplier, not two — which is why the old key is deleted either way.
+        // under the new key.
         attempt {
             repository.deleteSupplier(key)
             repository.deleteSupplier(newKey)
@@ -1706,6 +1750,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 repository.append(payment)
             }
         }
+        return true
     }
 
     fun removeSupplier(key: String) {

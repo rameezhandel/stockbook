@@ -121,7 +121,7 @@ struct CustomerRosterTests {
         store.addCustomer(name: "ahmed")
         store.saveBill(lines: [DraftLine(productUID: product.uid, qty: 1, price: 95)], customer: "ahmed", paid: nil)
 
-        store.updateCustomer(key: "ahmed", name: "Ahmed", phone: "0500 111 222", place: nil)
+        #expect(store.updateCustomer(key: "ahmed", name: "Ahmed", phone: "0500 111 222", place: nil))
 
         let customer = try #require(store.customers().first)
         #expect(customer.name == "Ahmed")
@@ -139,7 +139,7 @@ struct CustomerRosterTests {
         store.saveBill(lines: [DraftLine(productUID: product.uid, qty: 1, price: 95)], customer: "Ahmed", paid: 0)
         store.recordPayment(customerKey: "ahmed", amount: 40)
 
-        store.updateCustomer(key: "ahmed", name: "Ahmed Contracting", phone: nil, place: nil)
+        #expect(store.updateCustomer(key: "ahmed", name: "Ahmed Contracting", phone: nil, place: nil))
 
         #expect(store.customers().count == 1, "not one customer with the bills and another with the name")
         let customer = try #require(store.customers().first)
@@ -151,16 +151,62 @@ struct CustomerRosterTests {
         #expect(customer.owed == 55)
     }
 
-    @Test("Renaming onto somebody already there merges rather than duplicating")
-    func renameOntoExisting() {
+    /// The rename that used to swallow another account.
+    ///
+    /// It merged them: one customer, the other's opening balance thrown away and
+    /// their credit notes stranded under a key nothing pointed at any more. On a
+    /// book of companies that is two firms' ledgers fused by a typo, with what
+    /// each of them owes quietly changed and no undo. Merging deliberately is a
+    /// feature worth having; merging on a keystroke is data loss.
+    @Test("A rename onto somebody already there is refused")
+    func renameOntoExisting() throws {
+        let (store, product) = shopWithProduct()
+        store.addCustomer(name: "Ahmed", openingBalance: 300)
+        store.addCustomer(name: "Ahmed Contracting", openingBalance: 700)
+        store.saveBill(lines: [DraftLine(productUID: product.uid, qty: 1, price: 95)], customer: "Ahmed", paid: 0)
+        store.addCreditNote(customerKey: "ahmed", amount: 50)
+
+        #expect(!store.updateCustomer(key: "ahmed", name: "Ahmed Contracting", phone: "0500 111 222", place: nil, openingBalance: 300))
+
+        // Both still there, both still whole. The figures are the assertion that
+        // matters: the old merge left this test passing on counts alone.
+        #expect(store.customers().count == 2)
+        let ahmed = try #require(store.customer(key: "ahmed"))
+        let contracting = try #require(store.customer(key: "ahmed contracting"))
+        #expect(ahmed.owed == 345, "300 opening + 95 billed - 50 credited")
+        #expect(contracting.owed == 700, "untouched, opening balance and all")
+        #expect(contracting.openingBalance == 700)
+        // And nothing was half-moved on the way to being refused.
+        #expect(store.bills[0].who == "Ahmed")
+        #expect(store.creditNotes[0].customerKey == "ahmed")
+    }
+
+    @Test("The form is told which account a name would collide with")
+    func clashLookup() {
         let store = makeStore()
         store.addCustomer(name: "Ahmed")
         store.addCustomer(name: "Ahmed Contracting")
 
-        store.updateCustomer(key: "ahmed", name: "Ahmed Contracting", phone: "0500 111 222", place: nil)
+        // Spelling and spacing are not identity, so neither is what it answers on.
+        #expect(store.customerClashing("  ahmed CONTRACTING ")?.name == "Ahmed Contracting")
+        // Their own name is not a clash, or correcting a phone number would be
+        // refused for the name the owner is keeping.
+        #expect(store.customerClashing("Ahmed", exceptKey: "ahmed") == nil)
+        #expect(store.customerClashing("Ahmed Sons") == nil)
+        #expect(store.customerClashing("   ") == nil)
+    }
 
-        #expect(store.customerRecords.count == 1)
+    /// A rename onto a name nobody answers to is still a rename, and still works.
+    @Test("A rename onto a free name is untouched by the gate")
+    func renameOntoFreeName() {
+        let (store, product) = shopWithProduct()
+        store.addCustomer(name: "Ahmed")
+        store.saveBill(lines: [DraftLine(productUID: product.uid, qty: 1, price: 95)], customer: "Ahmed", paid: 0)
+
+        #expect(store.updateCustomer(key: "ahmed", name: "Ahmed Sons", phone: nil, place: nil))
+
         #expect(store.customers().count == 1)
+        #expect(store.bills[0].who == "Ahmed Sons")
     }
 }
 
@@ -333,7 +379,7 @@ struct OpeningBalanceTests {
         let store = makeStore()
         store.addCustomer(name: "Ahmed", openingBalance: 5000)
 
-        store.updateCustomer(key: "ahmed", name: "Ahmed", phone: nil, place: nil, openingBalance: 500)
+        #expect(store.updateCustomer(key: "ahmed", name: "Ahmed", phone: nil, place: nil, openingBalance: 500))
 
         let customer = try #require(store.customers().first)
         #expect(customer.owed == 500)

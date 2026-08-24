@@ -68,7 +68,7 @@ struct SupplierTests {
         store.recordPurchase(product: product, supplierKey: record.key, quantity: 10, unitCost: 60, paid: 0)
         store.recordSupplierPayment(supplierKey: record.key, amount: 200)
 
-        store.updateSupplier(key: record.key, name: "Al Faisal Hardware", phone: nil, place: nil)
+        #expect(store.updateSupplier(key: record.key, name: "Al Faisal Hardware", phone: nil, place: nil))
 
         #expect(store.suppliers().count == 1)
         let supplier = try #require(store.suppliers().first)
@@ -77,6 +77,23 @@ struct SupplierTests {
         #expect(store.supplierPayments(for: supplier.key).count == 1)
         // 600 delivered, nothing paid on the day, 200 paid since.
         #expect(supplier.owed == 400)
+    }
+
+    /// The customer gate's twin, and there for the same reason.
+    @Test("A rename onto somebody already there is refused")
+    func renameOntoExisting() throws {
+        let store = makeStore()
+        let product = aProduct(in: store)
+        let faisal = try #require(store.addSupplier(name: "Al Faisal"))
+        _ = try #require(store.addSupplier(name: "Al Faisal Hardware", openingBalance: 500))
+        store.recordPurchase(product: product, supplierKey: faisal.key, quantity: 10, unitCost: 60, paid: 0)
+
+        #expect(!store.updateSupplier(key: faisal.key, name: "Al Faisal Hardware", phone: nil, place: nil))
+
+        #expect(store.suppliers().count == 2)
+        #expect(try #require(store.supplier(key: "al faisal")).owed == 600)
+        #expect(try #require(store.supplier(key: "al faisal hardware")).owed == 500)
+        #expect(store.purchases[0].supplierKey == "al faisal")
     }
 
     // MARK: Deliveries

@@ -73,6 +73,9 @@ fun CustomerEditorSheet(
         ),
         currency = currency,
         strings = strings,
+        // Asked on every keystroke, off the state so it re-answers as the roster
+        // changes underneath the open sheet.
+        clash = { typed -> store.customerClashing(typed, exceptKey = existing?.key)?.name },
         onSave = { name, phone, place, opening, key ->
             if (key != null) {
                 store.updateCustomer(key, name, phone, place, opening)
@@ -127,6 +130,7 @@ fun SupplierEditorSheet(
         ),
         currency = currency,
         strings = strings,
+        clash = { typed -> store.supplierClashing(typed, exceptKey = existing?.key)?.name },
         onSave = { name, phone, place, opening, key ->
             if (key != null) {
                 store.updateSupplier(key, name, phone, place, opening)
@@ -168,6 +172,15 @@ private fun PartyEditorSheet(
     words: PartyWords,
     currency: Currency,
     strings: Strings,
+    /**
+     * The account the typed name already belongs to, or null where it is free.
+     *
+     * The gate on renaming. Identity here is the name, so a rename onto a name
+     * somebody else answers to used to join the two accounts — on a keystroke,
+     * with no warning, taking the other one's opening balance with it. Asked
+     * while the owner types, so the answer arrives before the tap.
+     */
+    clash: (String) -> String?,
     onSave: (name: String, phone: String, place: String, opening: Double, key: String?) -> Unit,
     onRemove: (String) -> Unit,
     onClose: () -> Unit
@@ -186,7 +199,8 @@ private fun PartyEditorSheet(
     var confirmingRemoval by remember(existing?.key) { mutableStateOf(false) }
 
     val isEditing = existing?.isOnRoster == true
-    val canSave = name.isNotBlank()
+    val taken = clash(name)
+    val canSave = name.isNotBlank() && taken == null
 
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(
@@ -205,6 +219,16 @@ private fun PartyEditorSheet(
             fontSize = 15.0,
             imeAction = ImeAction.Next
         )
+        // Under the box that caused it, in the colour of a figure owed, because
+        // it is the one thing standing between the owner and Save.
+        if (taken != null) {
+            Text(
+                strings.nameAlreadyUsed(taken),
+                style = NocturneType.meta,
+                color = Nocturne.accent400,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        }
         Spacer(Modifier.height(12.dp))
 
         Row(modifier = Modifier.fillMaxWidth()) {
@@ -248,7 +272,10 @@ private fun PartyEditorSheet(
         Spacer(Modifier.height(16.dp))
 
         PrimaryButton(
-            title = if (canSave) words.saveTitle else words.nameFirst,
+            // The clash says its piece under the name box, in full. Repeating it
+            // here would put a sentence on a button; the button only has to be
+            // unavailable, and the reason is already on screen above it.
+            title = if (name.isBlank()) words.nameFirst else words.saveTitle,
             onClick = {
                 if (!canSave) return@PrimaryButton
                 onSave(name, phone, place, Money.parse(opening) ?: 0.0, existing?.key?.takeIf { isEditing })

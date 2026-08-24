@@ -82,6 +82,23 @@ class SupplierTests {
         assertEquals(400.0, supplier.owed)
     }
 
+    /** The customer gate's twin, and there for the same reason. */
+    @Test
+    fun `a rename onto somebody already there is refused`() {
+        val store = store()
+        val product = store.aProduct()
+        val faisal = assertNotNull(store.addSupplier("Al Faisal"))
+        assertNotNull(store.addSupplier("Al Faisal Hardware", openingBalance = 500.0))
+        store.recordPurchase(product, faisal.key, quantity = 10, unitCost = 60.0, paid = 0.0)
+
+        assertFalse(store.updateSupplier(faisal.key, "Al Faisal Hardware", null, null))
+
+        assertEquals(2, store.suppliers().size)
+        assertEquals(600.0, assertNotNull(store.supplier("al faisal")).owed)
+        assertEquals(500.0, assertNotNull(store.supplier("al faisal hardware")).owed)
+        assertEquals("al faisal", store.purchases[0].supplierKey)
+    }
+
     // --- Deliveries
 
     @Test

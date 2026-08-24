@@ -640,7 +640,33 @@ final class StockbookStore {
         return record
     }
 
+    /// The customer a typed name would land on, where that is somebody other
+    /// than `exceptKey`.
+    ///
+    /// Identity in this book is the name, so two accounts cannot share one. The
+    /// question this answers — *is that name already taken?* — is the whole of
+    /// the gate on renaming, and the form asks it while the owner types so the
+    /// answer arrives before the tap rather than after it.
+    ///
+    /// `exceptKey` is the account being edited. Passing it is what lets somebody
+    /// correct a phone number without the form objecting that the name they are
+    /// keeping already exists — and what lets a name that has only ever appeared
+    /// on bills be promoted onto the roster under its own spelling.
+    func customerClashing(_ name: String, exceptKey: String? = nil) -> Customer? {
+        let key = Customer.key(for: name)
+        guard !key.isEmpty, key != exceptKey else { return nil }
+        return customers().first { $0.key == key }
+    }
+
     /// Corrects the facts about a customer already on the roster.
+    ///
+    /// **Refuses, returning false, where the new name belongs to somebody
+    /// else.** It used to merge the two, and merging is defensible when the name
+    /// is the identity — but it happened on a keystroke, with no warning and no
+    /// undo, and it took the other account's opening balance with it. A mistyped
+    /// correction fused two companies' books and quietly changed what each of
+    /// them owed. Deliberately joining two accounts is a thing worth building;
+    /// doing it by accident is not, and the two are told apart by asking first.
     ///
     /// A name changed enough to change its key is a **rename**, and a rename
     /// rewrites `who` on that customer's bills. That is the one case where a
@@ -654,9 +680,13 @@ final class StockbookStore {
         phone: String?,
         place: String?,
         openingBalance: Double = 0
-    ) {
-        guard !name.isBlank, let index = customerRecords.firstIndex(where: { $0.key == key }) else { return }
+    ) -> Bool {
+        guard !name.isBlank, let index = customerRecords.firstIndex(where: { $0.key == key }) else { return false }
         let newKey = Customer.key(for: name)
+        // The gate. Checked here and not only in the form, because a rename that
+        // silently swallowed another account is the kind of thing that must be
+        // impossible rather than merely discouraged.
+        guard customerClashing(name, exceptKey: key) == nil else { return false }
 
         var record = customerRecords[index]
         record.name = name.trimmed
@@ -667,18 +697,14 @@ final class StockbookStore {
         guard newKey != key else {
             customerRecords[index] = record
             attempt { try repository.upsert(record) }
-            return
+            return true
         }
 
-        // Renamed. Move the roster entry, then bring the bills and payments with
+        // Renamed, and onto a name nothing else answers to — the gate above saw
+        // to that. Move the roster entry, then bring the bills and payments with
         // it so nothing is left filed under a name that no longer exists.
         record.key = newKey
         customerRecords.remove(at: index)
-        if let clash = customerRecords.firstIndex(where: { $0.key == newKey }) {
-            // Renamed onto somebody who is already there: one person, not two.
-            customerRecords.remove(at: clash)
-            attempt { try repository.delete(customerKey: newKey) }
-        }
         customerRecords.append(record)
         attempt {
             try repository.delete(customerKey: key)
@@ -703,6 +729,7 @@ final class StockbookStore {
                 try repository.append(moved)
             }
         }
+        return true
     }
 
     /// Takes a customer off the roster. Their bills and payments stay: this
@@ -1428,19 +1455,31 @@ final class StockbookStore {
         return record
     }
 
+    /// The supplier a typed name would land on. The twin of `customerClashing`.
+    func supplierClashing(_ name: String, exceptKey: String? = nil) -> Supplier? {
+        let key = Supplier.key(for: name)
+        guard !key.isEmpty, key != exceptKey else { return nil }
+        return suppliers().first { $0.key == key }
+    }
+
     /// Corrects a supplier. A changed name that produces a different key is a
     /// **rename**, and the purchases move with it — they carry the key, so unlike
     /// a bill there is no spelling to rewrite, which makes this the simpler half
     /// of the pair.
+    ///
+    /// **Refuses, returning false, where the new name belongs to somebody
+    /// else**, for the reason `updateCustomer` gives: a rename that swallows
+    /// another account is a merge, and a merge nobody asked for is data loss.
     func updateSupplier(
         key: String,
         name: String,
         phone: String?,
         place: String?,
         openingBalance: Double = 0
-    ) {
-        guard !name.isBlank, let existing = supplierRecords.first(where: { $0.key == key }) else { return }
+    ) -> Bool {
+        guard !name.isBlank, let existing = supplierRecords.first(where: { $0.key == key }) else { return false }
         let newKey = Supplier.key(for: name)
+        guard supplierClashing(name, exceptKey: key) == nil else { return false }
         let record = SupplierRecord(
             key: newKey,
             name: name,
@@ -1450,7 +1489,6 @@ final class StockbookStore {
             createdAt: existing.createdAt
         )
 
-        // A rename onto somebody already there merges: one supplier, not two.
         supplierRecords.removeAll { $0.key == key || $0.key == newKey }
         supplierRecords.append(record)
         purchases = purchases.map { purchase in
@@ -1478,6 +1516,7 @@ final class StockbookStore {
                 try repository.append(payment)
             }
         }
+        return true
     }
 
     func removeSupplier(key: String) {

@@ -165,16 +165,75 @@ class CustomerRosterTests {
         assertEquals(55.0, customer.owed)
     }
 
+    /**
+     * The rename that used to swallow another account.
+     *
+     * It merged them: one customer, the other's opening balance thrown away and
+     * their credit notes stranded under a key nothing pointed at any more. On a
+     * book of companies that is two firms' ledgers fused by a typo, with what
+     * each of them owes quietly changed and no undo. Merging deliberately is a
+     * feature worth having; merging on a keystroke is data loss.
+     */
     @Test
-    fun `renaming onto somebody already there merges rather than duplicating`() {
+    fun `a rename onto somebody already there is refused`() {
+        val (store, product) = shopWithProduct()
+        store.addCustomer("Ahmed", openingBalance = 300.0)
+        store.addCustomer("Ahmed Contracting", openingBalance = 700.0)
+        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Ahmed", 0.0)
+        store.addCreditNote("ahmed", amount = 50.0)
+
+        assertFalse(store.updateCustomer("ahmed", "Ahmed Contracting", "0500 111 222", null, 300.0))
+
+        // Both still there, both still whole. The figures are the assertion that
+        // matters: the old merge left this test passing on counts alone.
+        assertEquals(2, store.customers().size)
+        val ahmed = assertNotNull(store.customer("ahmed"))
+        val contracting = assertNotNull(store.customer("ahmed contracting"))
+        assertEquals(345.0, ahmed.owed, "300 opening + 95 billed - 50 credited")
+        assertEquals(700.0, contracting.owed, "untouched, opening balance and all")
+        assertEquals(700.0, contracting.openingBalance)
+        // And nothing was half-moved on the way to being refused.
+        assertEquals("Ahmed", store.bills[0].who)
+        assertEquals("ahmed", store.creditNotes[0].customerKey)
+    }
+
+    @Test
+    fun `the form is told which account a name would collide with`() {
         val store = store()
         store.addCustomer("Ahmed")
         store.addCustomer("Ahmed Contracting")
 
-        store.updateCustomer("ahmed", "Ahmed Contracting", "0500 111 222", null)
+        // Spelling and spacing are not identity, so neither is what it answers on.
+        assertEquals("Ahmed Contracting", store.customerClashing("  ahmed CONTRACTING ")?.name)
+        // Their own name is not a clash, or correcting a phone number would be
+        // refused for the name the owner is keeping.
+        assertNull(store.customerClashing("Ahmed", exceptKey = "ahmed"))
+        assertNull(store.customerClashing("Ahmed Sons"))
+        assertNull(store.customerClashing("   "))
+    }
 
-        assertEquals(1, store.customerRecords.size)
+    @Test
+    fun `a correction that keeps the name still saves`() {
+        val store = store()
+        store.addCustomer("Ahmed")
+        store.addCustomer("Ahmed Contracting")
+
+        assertTrue(store.updateCustomer("ahmed", "Ahmed", "0500 111 222", "Riyadh"))
+
+        assertEquals("0500 111 222", assertNotNull(store.customer("ahmed")).phone)
+    }
+
+    /** A rename onto a name nobody answers to is still a rename, and still works. */
+    @Test
+    fun `a rename onto a free name is untouched by the gate`() {
+        val (store, product) = shopWithProduct()
+        store.addCustomer("Ahmed")
+        store.saveBill(listOf(DraftLine(product.uid, 1, 95.0)), "Ahmed", 0.0)
+
+        assertTrue(store.updateCustomer("ahmed", "Ahmed Sons", null, null))
+
         assertEquals(1, store.customers().size)
+        assertEquals("Ahmed Sons", store.bills[0].who)
     }
 }
 
