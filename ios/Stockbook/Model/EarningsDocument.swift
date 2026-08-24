@@ -68,16 +68,29 @@ struct EarningsDocument: Equatable {
             lines.append(Line(label: strings.countedSales, value: text(earnings.counted), weight: .total))
         }
 
-        lines.append(Line(label: strings.costOfGoods, value: text(earnings.costOfGoods), weight: .minus))
-        lines.append(Line(label: strings.goodsEarned, value: text(earnings.goodsEarned), weight: .total))
-        lines.append(Line(label: strings.expensesTitle, value: text(earnings.expenses), weight: .minus))
-        // The one figure on the page that can go either way, so the one that
-        // carries a sign.
-        lines.append(Line(label: strings.shopKept, value: Money.signed(earnings.kept, in: money), weight: .total))
+        // And the chain stops there when there is nothing to cost. Running it on
+        // would subtract nothing from nothing, arrive at an earnings figure of
+        // zero, and hand back the month's expenses with a minus in front as
+        // though the shop had lost them. It has not lost anything; this page
+        // simply cannot say.
+        if !earnings.nothingCostable {
+            lines.append(Line(label: strings.costOfGoods, value: text(earnings.costOfGoods), weight: .minus))
+            lines.append(Line(label: strings.goodsEarned, value: text(earnings.goodsEarned), weight: .total))
+            lines.append(Line(label: strings.expensesTitle, value: text(earnings.expenses), weight: .minus))
+            // The one figure on the page that can go either way, so the one that
+            // carries a sign.
+            lines.append(Line(label: strings.shopKept, value: Money.signed(earnings.kept, in: money), weight: .total))
+        }
 
         var gap: [Line] = []
-        if earnings.billsWithoutCost > 0 {
-            gap.append(Line(label: strings.billsAsTotal(earnings.billsWithoutCost), value: text(earnings.soldWithoutCost)))
+        // Named by *why*, because the two ask different things of the owner: one
+        // is "itemise the next one", the other is "this book is older than the
+        // field" and needs nothing from them at all.
+        if earnings.billsAsTotal > 0 {
+            gap.append(Line(label: strings.billsAsTotal(earnings.billsAsTotal), value: text(earnings.soldAsTotal)))
+        }
+        if earnings.billsBeforeCosts > 0 {
+            gap.append(Line(label: strings.billsBeforeCosts(earnings.billsBeforeCosts), value: text(earnings.soldBeforeCosts)))
         }
         if earnings.creditNotes > 0 {
             gap.append(Line(label: strings.creditNotesIssued(earnings.creditNotes), value: text(earnings.credited)))
@@ -96,10 +109,15 @@ struct EarningsDocument: Equatable {
             lines: earnings.isEmpty ? [] : lines,
             gapHeading: strings.notCounted,
             gap: earnings.isEmpty ? [] : gap,
-            // Said only where a note was actually written. A standing disclaimer
-            // under a page with no credit notes on it is a line the owner learns
-            // to skip.
-            gapNote: earnings.creditNotes > 0 ? strings.creditNotesNotSubtracted : nil,
+            // The page owes an explanation before it owes a caveat: a shop whose
+            // whole book predates cost-keeping needs to know the figures will
+            // arrive as it trades, not that credit notes are handled a
+            // particular way. Otherwise said only where a note was actually
+            // written — a standing disclaimer under a page with none on it is a
+            // line the owner learns to skip.
+            gapNote: earnings.nothingCostable
+                ? strings.nothingCostableYet
+                : (earnings.creditNotes > 0 ? strings.creditNotesNotSubtracted : nil),
             emptyLine: strings.nothingSoldThen
         )
     }

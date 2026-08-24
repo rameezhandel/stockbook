@@ -28,6 +28,21 @@ class EarningsTests {
     private fun store() = StockbookStore(InMemoryRepository())
     private fun thisMonth() = StatementPeriod.thisMonth()
 
+    /**
+     * Every bill in the book as an older file would have restored it: itemised,
+     * but with no cost on any line.
+     */
+    private fun StockbookStore.stripCosts() {
+        val document = makeBackupDocument()
+        replaceEverything(
+            document.copy(
+                bills = document.bills.map { bill ->
+                    bill.copy(lines = bill.lines.map { it.copy(cost = null) })
+                }
+            )
+        )
+    }
+
     /** A product bought at [cost] and sold at [price]. */
     private fun StockbookStore.stocked(name: String, cost: Double, price: Double) =
         addProduct(name, stock = 100, cost = cost, price = price)
@@ -240,6 +255,71 @@ class EarningsTests {
         assertEquals(0.0, earnings.sold)
         assertTrue(earnings.isEmpty)
         assertFalse(earnings.hasGap)
+    }
+
+    @Test
+    fun `a book written before costs existed reports an absence, not a loss`() {
+        // Found by the owner on real data the day this shipped. Every bill
+        // predates the cost field, so nothing can be costed — and the page was
+        // running the chain anyway: earnings of zero, then the month's expenses
+        // subtracted from it, landing on "kept -1,150" as though the shop had
+        // lost its rent. It had not. The page simply could not say.
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
+        store.addExpense(1150.0, "Rent")
+        store.stripCosts()
+
+        val earnings = store.earningsIn(thisMonth())
+
+        assertTrue(earnings.nothingCostable)
+        assertEquals(300.0, earnings.sold)
+        assertEquals(0.0, earnings.counted)
+        // The figures are still computable; the page is what must not print
+        // them. `EarningsDocumentTests` holds that end.
+        assertEquals(300.0, earnings.soldBeforeCosts)
+        assertEquals(1, earnings.billsBeforeCosts)
+        assertEquals(0, earnings.billsAsTotal)
+    }
+
+    @Test
+    fun `the two reasons a bill cannot be costed are counted apart`() {
+        // One asks the owner to itemise the next bill; the other asks nothing of
+        // them at all and fixes itself as the shop trades. Telling somebody to
+        // itemise a bill they already itemised is how an app earns a reputation.
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
+        store.stripCosts()
+        // And a fresh one entered as a figure, which will never be costable.
+        store.saveBill(customer = "Khalid", paid = null, amount = 500.0)
+
+        val earnings = store.earningsIn(thisMonth())
+
+        assertEquals(1, earnings.billsBeforeCosts)
+        assertEquals(300.0, earnings.soldBeforeCosts)
+        assertEquals(1, earnings.billsAsTotal)
+        assertEquals(500.0, earnings.soldAsTotal)
+        assertEquals(2, earnings.billsWithoutCost)
+        assertEquals(800.0, earnings.soldWithoutCost)
+    }
+
+    @Test
+    fun `one costable bill is enough to answer, alongside older ones`() {
+        // The shape a shop is in a week after this arrives: the old book cannot
+        // be costed, the new bills can, and the page answers for what it can.
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
+        store.stripCosts()
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 5, price = 30.0)), customer = "Khalid", paid = null)
+
+        val earnings = store.earningsIn(thisMonth())
+
+        assertFalse(earnings.nothingCostable)
+        assertEquals(150.0, earnings.counted)
+        assertEquals(100.0, earnings.costOfGoods)
+        assertEquals(50.0, earnings.goodsEarned)
     }
 
     @Test

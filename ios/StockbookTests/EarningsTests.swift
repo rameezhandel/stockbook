@@ -26,6 +26,22 @@ struct EarningsTests {
 
     private func period() -> StatementPeriod { .thisMonth() }
 
+    /// Every bill in the book as an older file would have restored it: itemised,
+    /// but with no cost on any line.
+    private func stripCosts(_ store: StockbookStore) {
+        var document = store.makeBackupDocument()
+        document.bills = document.bills.map { bill in
+            var bill = bill
+            bill.lines = bill.lines.map { line in
+                var line = line
+                line.cost = nil
+                return line
+            }
+            return bill
+        }
+        store.replaceEverything(with: document)
+    }
+
     private func page(_ store: StockbookStore) -> EarningsDocument {
         EarningsDocument.make(
             earnings: store.earningsIn(period()),
@@ -224,6 +240,54 @@ struct EarningsTests {
         #expect(document.shopName == "Al Salam Hardware")
         #expect(document.title == "Earnings Summary")
         #expect(!document.title.lowercased().contains("statement"))
+    }
+
+    @Test("A book written before costs existed reports an absence, not a loss")
+    func nothingCostable() {
+        // Found by the owner on real data the day this shipped. Every bill
+        // predates the cost field, so nothing can be costed — and the page was
+        // running the chain anyway: earnings of zero, then the month's expenses
+        // subtracted from it, landing on "kept -1,150" as though the shop had
+        // lost its rent. It had not. The page simply could not say.
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Ahmed", paid: nil)
+        store.addExpense(amount: 1150, note: "Rent")
+        stripCosts(store)
+
+        let earnings = store.earningsIn(period())
+        #expect(earnings.nothingCostable)
+        #expect(earnings.counted == 0)
+        #expect(earnings.billsBeforeCosts == 1)
+        #expect(earnings.billsAsTotal == 0)
+
+        // What was sold, what could not be costed, and then it stops.
+        let document = page(store)
+        #expect(document.lines.map(\.label) == ["Sold", "Not counted", "Counted"])
+        #expect(document.gap.map(\.label) == ["1 bill written before costs were recorded"])
+        #expect(document.gapNote == Loc.nothingCostableYet)
+    }
+
+    @Test("The two reasons a bill cannot be costed are named apart")
+    func twoReasons() {
+        // One asks the owner to itemise the next bill; the other asks nothing of
+        // them at all and fixes itself as the shop trades. Telling somebody to
+        // itemise a bill they already itemised is how an app earns a reputation.
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Ahmed", paid: nil)
+        stripCosts(store)
+        store.saveBill(customer: "Khalid", paid: nil, amount: 500)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 1, price: 30)], customer: "Saeed", paid: nil)
+
+        let document = page(store)
+
+        #expect(document.gap.map(\.label) == [
+            "1 bill entered as a total",
+            "1 bill written before costs were recorded"
+        ])
+        // One costable bill, so the chain runs its full length.
+        #expect(document.lines.last?.label == "What the shop kept")
     }
 
     @Test("A quiet period states that and draws no chain of zeroes")

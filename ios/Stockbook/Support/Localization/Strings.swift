@@ -1049,6 +1049,30 @@ struct Strings {
             "\(n) ಬಿಲ್ ಒಟ್ಟು ಮೊತ್ತವಾಗಿ ದಾಖಲು"
         )
     }
+    /// Bills that *were* itemised but carry no cost, because they were written
+    /// before the app kept one.
+    ///
+    /// Worded away from `billsAsTotal` on purpose: telling somebody to itemise
+    /// bills they already itemised is the kind of advice that makes an app feel
+    /// broken.
+    func billsBeforeCosts(_ n: Int) -> String {
+        pick(
+            n == 1 ? "1 bill written before costs were recorded"
+                   : "\(n) bills written before costs were recorded",
+            "\(n) ಬಿಲ್ ಬೆಲೆ ದಾಖಲಿಸುವ ಮೊದಲು ಬರೆದದ್ದು"
+        )
+    }
+    /// Said when the period has takings but nothing in it can be costed.
+    ///
+    /// The state every existing shop is in on the day this arrives, and the one
+    /// message that matters then: nothing is broken, and the figures fill in
+    /// from here rather than needing to be fixed.
+    var nothingCostableYet: String {
+        pick(
+            "No earnings figure yet — these bills were written before the app recorded what goods cost. Bills from now on will count.",
+            "ಇನ್ನೂ ಗಳಿಕೆಯ ಲೆಕ್ಕ ಇಲ್ಲ — ಸಾಮಾನಿನ ಬೆಲೆ ದಾಖಲಿಸುವ ಮೊದಲು ಈ ಬಿಲ್‌ಗಳನ್ನು ಬರೆಯಲಾಗಿದೆ. ಇನ್ನು ಮುಂದಿನ ಬಿಲ್‌ಗಳು ಲೆಕ್ಕಕ್ಕೆ ಬರುತ್ತವೆ."
+        )
+    }
     func creditNotesIssued(_ n: Int) -> String {
         pick(
             n == 1 ? "1 credit note issued" : "\(n) credit notes issued",

@@ -1086,12 +1086,18 @@ final class StockbookStore {
         let inPeriod = bills.filter { range.contains($0.createdAt) }
 
         let countable = inPeriod.filter { $0.isItemised && $0.lines.allSatisfy { $0.cost != nil } }
-        let unaccounted = inPeriod.filter { !($0.isItemised && $0.lines.allSatisfy { $0.cost != nil }) }
+        // Split by *why* it cannot be counted, because the two are different
+        // news: one is a way of working, the other is a book older than the
+        // field.
+        let asTotal = inPeriod.filter { !$0.isItemised }
+        let beforeCosts = inPeriod.filter { $0.isItemised && $0.lines.contains { $0.cost == nil } }
 
         return Earnings(
             sold: inPeriod.reduce(0) { $0 + $1.total },
-            soldWithoutCost: unaccounted.reduce(0) { $0 + $1.total },
-            billsWithoutCost: unaccounted.count,
+            soldAsTotal: asTotal.reduce(0) { $0 + $1.total },
+            billsAsTotal: asTotal.count,
+            soldBeforeCosts: beforeCosts.reduce(0) { $0 + $1.total },
+            billsBeforeCosts: beforeCosts.count,
             costOfGoods: countable.reduce(0) { running, bill in
                 running + bill.lines.reduce(0) { $0 + ($1.lineCost ?? 0) }
             },
@@ -2118,9 +2124,23 @@ struct Earnings: Equatable {
     /// Every bill in the period — the same figure Home shows, so the two can be
     /// held side by side and agree.
     let sold: Double
-    /// How much of `sold` came from bills that listed no products.
-    let soldWithoutCost: Double
-    let billsWithoutCost: Int
+    /// How much of `sold` came from bills that listed no products at all.
+    ///
+    /// The owner's own choice, and a permanent one for those bills: a paper bill
+    /// entered as a single figure has nothing to cost. Itemising future ones is
+    /// the only thing that shrinks this.
+    let soldAsTotal: Double
+    let billsAsTotal: Int
+    /// And how much came from bills that *were* itemised but carry no cost,
+    /// because they were written before the app recorded one.
+    ///
+    /// **Kept apart from `soldAsTotal` because the two mean opposite things to
+    /// the owner.** One says "you did not tell me what was on this bill"; the
+    /// other says "I was not keeping this yet". The second fixes itself as the
+    /// shop trades on, and telling somebody to itemise bills they already
+    /// itemised is the kind of advice that makes an app feel broken.
+    let soldBeforeCosts: Double
+    let billsBeforeCosts: Int
     /// What the goods on the countable bills cost the shop, as at their sale.
     let costOfGoods: Double
     /// What the owner spent over the same days.
@@ -2136,8 +2156,21 @@ struct Earnings: Equatable {
     let credited: Double
     let creditNotes: Int
 
+    /// Everything this page cannot account for, whichever of the two reasons.
+    var soldWithoutCost: Double { soldAsTotal + soldBeforeCosts }
+    var billsWithoutCost: Int { billsAsTotal + billsBeforeCosts }
+
     /// Takings this page can actually account for.
     var counted: Double { sold - soldWithoutCost }
+
+    /// Whether the period has takings but nothing costable in it.
+    ///
+    /// The state a shop is in the day cost-keeping arrives: every bill in the
+    /// book predates it, so the chain would run Sold → 0 → 0 and land on a
+    /// "kept" figure that is really just the month's expenses with a minus in
+    /// front. **That is not a loss, it is an absence**, and a page that prints
+    /// one as the other is worse than a page that admits it cannot say.
+    var nothingCostable: Bool { sold > 0 && counted == 0 }
 
     /// What the goods earned: what they sold for, less what they cost.
     var goodsEarned: Double { counted - costOfGoods }

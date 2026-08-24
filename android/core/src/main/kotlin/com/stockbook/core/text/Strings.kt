@@ -1001,6 +1001,32 @@ class Strings(val language: AppLanguage) {
                 if (n == 1) "1 bill entered as a total" else "$n bills entered as a total",
                 "$n ಬಿಲ್ ಒಟ್ಟು ಮೊತ್ತವಾಗಿ ದಾಖಲು"
             )
+    /**
+     * Bills that *were* itemised but carry no cost, because they were written
+     * before the app kept one.
+     *
+     * Worded away from [billsAsTotal] on purpose: telling somebody to itemise
+     * bills they already itemised is the kind of advice that makes an app feel
+     * broken.
+     */
+    fun billsBeforeCosts(n: Int): String =
+            pick(
+                if (n == 1) "1 bill written before costs were recorded"
+                else "$n bills written before costs were recorded",
+                "$n ಬಿಲ್ ಬೆಲೆ ದಾಖಲಿಸುವ ಮೊದಲು ಬರೆದದ್ದು"
+            )
+    /**
+     * Said when the period has takings but nothing in it can be costed.
+     *
+     * The state every existing shop is in on the day this arrives, and the one
+     * message that matters then: nothing is broken, and the figures fill in from
+     * here rather than needing to be fixed.
+     */
+    val nothingCostableYet: String
+        get() = pick(
+            "No earnings figure yet — these bills were written before the app recorded what goods cost. Bills from now on will count.",
+            "ಇನ್ನೂ ಗಳಿಕೆಯ ಲೆಕ್ಕ ಇಲ್ಲ — ಸಾಮಾನಿನ ಬೆಲೆ ದಾಖಲಿಸುವ ಮೊದಲು ಈ ಬಿಲ್‌ಗಳನ್ನು ಬರೆಯಲಾಗಿದೆ. ಇನ್ನು ಮುಂದಿನ ಬಿಲ್‌ಗಳು ಲೆಕ್ಕಕ್ಕೆ ಬರುತ್ತವೆ."
+        )
     fun creditNotesIssued(n: Int): String =
             pick(
                 if (n == 1) "1 credit note issued" else "$n credit notes issued",

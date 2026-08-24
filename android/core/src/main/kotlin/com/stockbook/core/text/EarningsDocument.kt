@@ -35,7 +35,10 @@ data class EarningsDocument(
     /** What the page could not account for. Empty when there is nothing. */
     val gapHeading: String,
     val gap: List<Line>,
-    /** Why the credit notes below are listed but not subtracted. */
+    /**
+     * The line under the gap: why nothing could be costed, or why the credit
+     * notes are listed and not subtracted.
+     */
     val gapNote: String?,
     /** Shown instead of everything when nothing was sold or spent. */
     val emptyLine: String
@@ -73,6 +76,13 @@ data class EarningsDocument(
                     add(Line(strings.countedSales, money(earnings.counted), Weight.TOTAL))
                 }
 
+                // And the chain stops there when there is nothing to cost.
+                // Running it on would subtract nothing from nothing, arrive at
+                // an earnings figure of zero, and hand back the month's expenses
+                // with a minus in front as though the shop had lost them. It has
+                // not lost anything; this page simply cannot say.
+                if (earnings.nothingCostable) return@buildList
+
                 add(Line(strings.costOfGoods, money(earnings.costOfGoods), Weight.MINUS))
                 add(Line(strings.goodsEarned, money(earnings.goodsEarned), Weight.TOTAL))
                 add(Line(strings.expensesTitle, money(earnings.expenses), Weight.MINUS))
@@ -82,8 +92,14 @@ data class EarningsDocument(
             }
 
             val gap = buildList {
-                if (earnings.billsWithoutCost > 0) {
-                    add(Line(strings.billsAsTotal(earnings.billsWithoutCost), money(earnings.soldWithoutCost)))
+                // Named by *why*, because the two ask different things of the
+                // owner: one is "itemise the next one", the other is "this book
+                // is older than the field" and needs nothing from them at all.
+                if (earnings.billsAsTotal > 0) {
+                    add(Line(strings.billsAsTotal(earnings.billsAsTotal), money(earnings.soldAsTotal)))
+                }
+                if (earnings.billsBeforeCosts > 0) {
+                    add(Line(strings.billsBeforeCosts(earnings.billsBeforeCosts), money(earnings.soldBeforeCosts)))
                 }
                 if (earnings.creditNotes > 0) {
                     add(Line(strings.creditNotesIssued(earnings.creditNotes), money(earnings.credited)))
@@ -103,10 +119,18 @@ data class EarningsDocument(
                 lines = if (earnings.isEmpty) emptyList() else lines,
                 gapHeading = strings.notCounted,
                 gap = if (earnings.isEmpty) emptyList() else gap,
-                // Said only where a note was actually written. A standing
-                // disclaimer under a page with no credit notes on it is a line
-                // the owner learns to skip.
-                gapNote = strings.creditNotesNotSubtracted.takeIf { earnings.creditNotes > 0 },
+                gapNote = when {
+                    // The page owes an explanation before it owes a caveat: a
+                    // shop whose whole book predates cost-keeping needs to know
+                    // the figures will arrive as it trades, not that credit
+                    // notes are handled a particular way.
+                    earnings.nothingCostable -> strings.nothingCostableYet
+                    // Otherwise said only where a note was actually written. A
+                    // standing disclaimer under a page with no credit notes on
+                    // it is a line the owner learns to skip.
+                    earnings.creditNotes > 0 -> strings.creditNotesNotSubtracted
+                    else -> null
+                },
                 emptyLine = strings.nothingSoldThen
             )
         }

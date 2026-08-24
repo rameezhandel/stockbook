@@ -152,6 +152,63 @@ class EarningsDocumentTests {
     }
 
     @Test
+    fun `a book written before costs existed stops the chain and explains itself`() {
+        // The bug an owner found on real data: the page ran Sold → 0 → 0 and
+        // then took the month's expenses off nothing, printing "kept -1,150" as
+        // though the shop had lost its rent. An absence is not a loss.
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
+        store.addExpense(1150.0, "Rent")
+        val document = store.makeBackupDocument()
+        store.replaceEverything(
+            document.copy(
+                bills = document.bills.map { bill ->
+                    bill.copy(lines = bill.lines.map { it.copy(cost = null) })
+                }
+            )
+        )
+
+        val page = store.page()
+
+        // What was sold, what could not be costed, and then it stops.
+        assertEquals(listOf("Sold", "Not counted", "Counted"), page.lines.map { it.label })
+        // The reason names the right cause: these bills were itemised.
+        assertEquals(listOf("1 bill written before costs were recorded"), page.gap.map { it.label })
+        assertEquals(
+            "No earnings figure yet — these bills were written before the app recorded what goods cost. " +
+                "Bills from now on will count.",
+            page.gapNote
+        )
+    }
+
+    @Test
+    fun `a bill entered as a total and one written too early are named apart`() {
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
+        val document = store.makeBackupDocument()
+        store.replaceEverything(
+            document.copy(
+                bills = document.bills.map { bill ->
+                    bill.copy(lines = bill.lines.map { it.copy(cost = null) })
+                }
+            )
+        )
+        store.saveBill(customer = "Khalid", paid = null, amount = 500.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 1, price = 30.0)), customer = "Saeed", paid = null)
+
+        val page = store.page()
+
+        assertEquals(
+            listOf("1 bill entered as a total", "1 bill written before costs were recorded"),
+            page.gap.map { it.label }
+        )
+        // One costable bill, so the chain runs its full length.
+        assertEquals("What the shop kept", page.lines.last().label)
+    }
+
+    @Test
     fun `a quiet period states that and draws no chain of zeroes`() {
         val page = store().page()
 
