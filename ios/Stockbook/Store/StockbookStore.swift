@@ -343,7 +343,12 @@ final class StockbookStore {
                 productUID: product.uid,
                 name: product.name,
                 qty: max(1, line.qty),
-                price: line.price
+                price: line.price,
+                // Taken here, from the shelf, at the moment of sale — the only
+                // moment it is knowable. `Product.cost` is "what it costs now"
+                // and moves every time a delivery is priced, so a line that read
+                // it later would answer with a figure from after the sale.
+                cost: product.cost
             )
         }
     }
@@ -1796,7 +1801,7 @@ final class StockbookStore {
             bills: document.bills.map { record in
                 Bill(
                     number: record.number,
-                    lines: record.lines.map { BillLine(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price) },
+                    lines: record.lines.map { BillLine(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price, cost: $0.cost) },
                     total: record.total,
                     paid: record.paid,
                     who: record.who,
@@ -1878,7 +1883,7 @@ final class StockbookStore {
                 CreditNote(
                     id: row.id,
                     customerKey: row.customerKey,
-                    lines: row.lines.map { BillLine(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price) },
+                    lines: row.lines.map { BillLine(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price, cost: $0.cost) },
                     total: row.total,
                     noteNo: row.noteNo,
                     reason: row.reason,
@@ -1955,7 +1960,7 @@ final class StockbookStore {
                     discountPercent: bill.discountPercent,
                     discountAmount: bill.discountAmount,
                     lines: bill.lines.map {
-                        BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price)
+                        BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price, cost: $0.cost)
                     }
                 )
             },
@@ -2030,7 +2035,7 @@ final class StockbookStore {
                     reason: note.reason,
                     issuedAt: note.issuedAt,
                     lines: note.lines.map {
-                        BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price)
+                        BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price, cost: $0.cost)
                     }
                 )
             },

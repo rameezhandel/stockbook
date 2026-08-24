@@ -245,7 +245,17 @@ data class BackupDocument(
         val productUid: String? = null,
         val name: String,
         val qty: Int,
-        val price: Double
+        val price: Double,
+        /**
+         * What one piece cost the shop at the moment of sale — see
+         * [com.stockbook.core.model.BillLine.cost].
+         *
+         * Absent, not zero, on a line written before the field existed. A reader
+         * that drops it loses the ability to say what a sale earned and misreads
+         * no figure it does show, which is why this did not bump the document
+         * version.
+         */
+        val cost: Double? = null
     )
 
     /**

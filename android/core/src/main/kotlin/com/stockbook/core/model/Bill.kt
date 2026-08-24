@@ -155,8 +155,8 @@ data class Bill(
 /**
  * A single line on a bill.
  *
- * [name] and [price] are **snapshots** taken at sale time. The product may be
- * renamed, repriced or deleted afterwards; history must not move.
+ * [name], [price] and [cost] are **snapshots** taken at sale time. The product
+ * may be renamed, repriced or deleted afterwards; history must not move.
  */
 @Serializable
 data class BillLine(
@@ -167,7 +167,36 @@ data class BillLine(
     /** At least 1. */
     val qty: Int,
     /** The price actually charged — which may be an override, not the list price. */
-    val price: Double
+    val price: Double,
+    /**
+     * What one piece cost the shop, **as at the moment of sale**.
+     *
+     * Stored for the reason [Bill.total] is stored, and it is the same reason:
+     * anything recomputed from the shelf answers with today's figure. Read
+     * `Product.cost` to work out what a sale earned and a supplier's price rise
+     * next month silently rewrites what last March made — the bill has not
+     * changed, but the number under it has. The delivery side already knew this;
+     * `PurchaseLine.unitCost` has always snapshotted what was paid.
+     *
+     * **Null means never recorded, and that is not the same as zero.** A line
+     * written before this field existed genuinely cannot answer, and goods that
+     * really did cost nothing are a different fact. Anything netting cost off
+     * takings has to keep the two apart or a bill from the old book reads as
+     * pure profit.
+     */
+    val cost: Double? = null
 ) {
     val lineTotal: Double get() = qty * price
+
+    /**
+     * What this line's goods cost the shop, or null where it was never recorded.
+     *
+     * The arithmetic stops here on purpose. What the line *earned* is not
+     * `lineTotal - lineCost`: a discount is applied to the whole bill and not to
+     * any one line, so subtracting here overstates every line on a discounted
+     * bill. That figure belongs to whoever builds the screen, along with the
+     * decision about a bill entered as a total, which has no lines and so no
+     * cost at all.
+     */
+    val lineCost: Double? get() = cost?.let { qty * it }
 }

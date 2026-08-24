@@ -197,8 +197,8 @@ struct Bill: Identifiable, Codable, Equatable {
 
 /// A single line on a bill.
 ///
-/// `name` and `price` are **snapshots** taken at sale time. The product may be
-/// renamed, repriced or deleted afterwards; history must not move.
+/// `name`, `price` and `cost` are **snapshots** taken at sale time. The product
+/// may be renamed, repriced or deleted afterwards; history must not move.
 struct BillLine: Identifiable, Codable, Equatable {
 
     /// Which product this was. Optional because a line can outlive its product.
@@ -213,16 +213,43 @@ struct BillLine: Identifiable, Codable, Equatable {
     /// The price actually charged — which may be an override, not the list price.
     var price: Double
 
+    /// What one piece cost the shop, **as at the moment of sale**.
+    ///
+    /// Stored for the reason `Bill.total` is stored, and it is the same reason:
+    /// anything recomputed from the shelf answers with today's figure. Read
+    /// `Product.cost` to work out what a sale earned and a supplier's price rise
+    /// next month silently rewrites what last March made — the bill has not
+    /// changed, but the number under it has. The delivery side already knew
+    /// this; `PurchaseLine.unitCost` has always snapshotted what was paid.
+    ///
+    /// **Nil means never recorded, and that is not the same as zero.** A line
+    /// written before this field existed genuinely cannot answer, and goods that
+    /// really did cost nothing are a different fact. Anything netting cost off
+    /// takings has to keep the two apart or a bill from the old book reads as
+    /// pure profit.
+    var cost: Double?
+
     /// Lines are identified by position within their bill; nothing outside a
     /// bill ever refers to one.
     var id: String { "\(productUID?.uuidString ?? "none")-\(name)-\(qty)-\(price)" }
 
-    init(productUID: UUID?, name: String, qty: Int, price: Double) {
+    init(productUID: UUID?, name: String, qty: Int, price: Double, cost: Double? = nil) {
         self.productUID = productUID
         self.name = name
         self.qty = qty
         self.price = price
+        self.cost = cost
     }
 
     var lineTotal: Double { Double(qty) * price }
+
+    /// What this line's goods cost the shop, or nil where it was never recorded.
+    ///
+    /// The arithmetic stops here on purpose. What the line *earned* is not
+    /// `lineTotal - lineCost`: a discount is applied to the whole bill and not
+    /// to any one line, so subtracting here overstates every line on a
+    /// discounted bill. That figure belongs to whoever builds the screen, along
+    /// with the decision about a bill entered as a total, which has no lines and
+    /// so no cost at all.
+    var lineCost: Double? { cost.map { Double(qty) * $0 } }
 }

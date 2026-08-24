@@ -302,6 +302,14 @@ struct BackupDocument: Codable, Equatable {
         var name: String
         var qty: Int
         var price: Double
+        /// What one piece cost the shop at the moment of sale — see
+        /// `BillLine.cost`.
+        ///
+        /// Absent, not zero, on a line written before the field existed. A
+        /// reader that drops it loses the ability to say what a sale earned and
+        /// misreads no figure it does show, which is why this did not bump the
+        /// document version.
+        var cost: Double?
     }
 
     /// A delivery's line. Its own record rather than `LineRecord` because the

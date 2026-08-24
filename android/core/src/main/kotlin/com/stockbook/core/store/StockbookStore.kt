@@ -493,7 +493,12 @@ class StockbookStore(private val repository: StockbookRepository) {
                 productUid = product.uid,
                 name = product.name,
                 qty = maxOf(1, line.qty),
-                price = line.price
+                price = line.price,
+                // Taken here, from the shelf, at the moment of sale — the only
+                // moment it is knowable. `Product.cost` is "what it costs now"
+                // and moves every time a delivery is priced, so a line that read
+                // it later would answer with a figure from after the sale.
+                cost = product.cost
             )
         }
 
@@ -1946,7 +1951,8 @@ class StockbookStore(private val repository: StockbookRepository) {
                             productUid = it.productUid,
                             name = it.name,
                             qty = it.qty,
-                            price = it.price
+                            price = it.price,
+                            cost = it.cost
                         )
                     },
                     total = record.total,
@@ -2032,7 +2038,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 CreditNote(
                     id = row.id,
                     customerKey = row.customerKey,
-                    lines = row.lines.map { BillLine(it.productUid, it.name, it.qty, it.price) },
+                    lines = row.lines.map { BillLine(it.productUid, it.name, it.qty, it.price, it.cost) },
                     total = row.total,
                     noteNo = row.noteNo,
                     reason = row.reason,
@@ -2073,7 +2079,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 reason = note.reason,
                 issuedAt = note.issuedAt,
                 lines = note.lines.map {
-                    BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price)
+                    BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price, it.cost)
                 }
             )
         },
@@ -2094,7 +2100,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 discountPercent = bill.discountPercent,
                 discountAmount = bill.discountAmount,
                 lines = bill.lines.map {
-                    BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price)
+                    BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price, it.cost)
                 }
             )
         },
