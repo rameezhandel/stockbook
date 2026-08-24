@@ -149,10 +149,6 @@ private struct OwedList: View {
 
     @State private var query = ""
 
-    /// How many names there must be before the sheet offers a way to search
-    /// them. The same figure `PartyList` uses, for the same reason.
-    private static let searchable = 5
-
     private var searching: Bool { !query.isBlank }
 
     /// Searching leaves the debt list behind entirely: it answers from the whole
@@ -173,12 +169,14 @@ private struct OwedList: View {
                     .padding(.bottom, 12)
             }
 
-            // Offered only once there are more names than are worth reading
-            // through, and counted against the whole roster rather than the debt
-            // list: a shop with three debtors and two hundred customers is
-            // exactly the shop that needs to reach the other hundred and
-            // ninety-seven.
-            if rosterSize > Self.searchable {
+            // Offered whenever there is somebody the list is not showing.
+            //
+            // Not on a size threshold, as the Book's list uses: that list shows
+            // the top few of everybody, so a short one is complete. This one
+            // shows only those who owe, so a shop with five customers and one
+            // debtor sees a single row — and without the box there is no way
+            // from here to the other four at all.
+            if rosterSize > rows.count {
                 NocturneField(
                     placeholder: Loc.search,
                     text: $query,

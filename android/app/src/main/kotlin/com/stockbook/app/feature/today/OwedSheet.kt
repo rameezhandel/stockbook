@@ -192,11 +192,14 @@ private fun OwedList(
             Spacer(Modifier.height(12.dp))
         }
 
-        // Offered only once there are more names than are worth reading through,
-        // and counted against the whole roster rather than the debt list: a shop
-        // with three debtors and two hundred customers is exactly the shop that
-        // needs to be able to find the other hundred and ninety-seven.
-        if (rosterSize > SEARCHABLE) {
+        // Offered whenever there is somebody the list is not showing.
+        //
+        // Not on a size threshold, as the Book's list uses: that list shows the
+        // top few of everybody, so a short one is complete. This one shows only
+        // those who owe, so a shop with five customers and one debtor sees a
+        // single row — and without the box there is no way from here to the
+        // other four at all.
+        if (rosterSize > rows.size) {
             NocturneField(
                 value = query,
                 onValueChange = { query = it },
@@ -265,11 +268,3 @@ private fun OwedList(
         Spacer(Modifier.height(4.dp))
     }
 }
-
-/**
- * How many names there must be before the sheet offers a way to search them.
- *
- * The same figure `PartyList` uses, for the same reason: a shop with four
- * customers does not need a box to find four names.
- */
-private const val SEARCHABLE = 5
