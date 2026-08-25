@@ -18,9 +18,9 @@ on:
         required: true
         type: string
       versionName:
-        description: "The version people see, e.g. 1.0"
+        description: "The version people see, three parts — e.g. 1.0.0"
         required: true
-        default: "1.0"
+        default: "1.0.0"
         type: string
 
 concurrency:

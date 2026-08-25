@@ -51,7 +51,7 @@ android {
         // and can never be reused or lowered, so the release workflow passes it
         // in rather than relying on somebody remembering to edit this line.
         versionCode = (findProperty("stockbook.versionCode") as String?)?.toInt() ?: 1
-        versionName = (findProperty("stockbook.versionName") as String?) ?: "1.0"
+        versionName = (findProperty("stockbook.versionName") as String?) ?: "1.0.0"
     }
 
     signingConfigs {
