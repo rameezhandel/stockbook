@@ -3,10 +3,10 @@
 What is left, recorded here because the work happens in throwaway containers and
 anything not written down is gone with them.
 
-None of it is a code problem any more: account setup, store paperwork, and
-housekeeping that is now done. The one that was — photographs not travelling in
-the backup file — is finished; see the closed item at the bottom for what was
-built and why.
+Nothing blocking is a code problem: what is left before going live is account
+setup and store paperwork, all of it done by hand in Apple's and Google's
+consoles. Everything under *Parked* is a choice nobody has had to make yet, not
+work that is owed.
 
 ## 1. TestFlight — Apple account setup
 
@@ -44,35 +44,6 @@ The signing config and the bundle workflow are written; see
 
 ## Parked, not blocking
 
-- **What the goods earned — the screen, now that the field is stored.**
-
-  `BillLine.cost` snapshots what one piece cost the shop at the moment of sale,
-  captured from the shelf in `snapshot()` and carried through the backup on both
-  platforms. That was the part with a deadline: the figure is only knowable while
-  the sale is being written, and every bill saved without it could never have
-  answered. It is stored now, so the screen can be built whenever.
-
-  **The arithmetic deliberately stops at `lineCost`** — `qty * cost`, which is
-  unambiguous. What a sale *earned* is not `lineTotal - lineCost`, and whoever
-  builds the screen has three decisions to make first:
-
-  - **The discount is applied to the bill, not to any one line.** Subtracting per
-    line overstates every line on a discounted bill. Either apportion
-    `discountAmount` across the lines, or compute earnings at the bill level and
-    never per line.
-  - **A bill entered as a figure has no lines**, so no cost at all. It must be
-    excluded and *said* to be excluded, or it reads as pure profit — and entering
-    a paper bill as a total is the ordinary case here, not the edge one.
-  - **A figure-only credit note has no goods to reverse.** An itemised one does:
-    its lines are `BillLine`s and carry a cost, so a return can put the cost back.
-
-  All three argue for calling it **what the goods earned** rather than *profit*,
-  which claims to have counted rent, wages and petrol.
-
-  A line from a book restored off an older file has `cost = null`, which is not
-  zero: "nobody wrote it down" and "these were free" are different facts, and the
-  page has to keep them apart.
-
 - **Photographs on deliveries.** `Purchase` would take `photoIDs` exactly as
   `Bill` did — a supplier's invoice is arguably the more valuable of the two,
   since it is paper the shop cannot reprint.
@@ -84,6 +55,62 @@ The signing config and the bundle workflow are written; see
   it means a lost iPhone restores the whole book.
 
 ## Settled, so nobody reopens them
+
+- **A customer is identified by their name, and merging is deliberate.**
+  `Customer.key` is the trimmed, lowercased name, so two accounts cannot share
+  one. That was examined properly when an owner asked whether customers should
+  carry an id instead, as products do.
+
+  **Renaming onto a name somebody else answers to is refused**, by the form
+  while the owner types and again by the store on save. It used to *merge* the
+  two — silently, on a keystroke, keeping one opening balance and throwing the
+  other away while stranding the credit notes under a key nothing pointed at.
+  On a book of firms that is two companies' ledgers fused by a typo.
+
+  **Joining two accounts is now something you ask for**, from the account that
+  will be the one to go, with what moves and what the survivor will owe shown
+  before you agree. The two opening balances are *added*: two entries in the
+  paper book for one firm are two debts really owed.
+
+  Ids were **deferred, not rejected**. The case for them is real — two different
+  people with the same name are one account, and no amount of gating fixes
+  that — but this is a B2B book where company names are distinct, and the change
+  reaches `Bill.who`, four foreign keys, the backup format and every screen that
+  derives a party from a bill. If it is ever done it has to be **before** real
+  books exist: a year of history containing one name that is really three firms
+  cannot be untangled afterwards, because what would separate them was never
+  recorded.
+
+- **What the goods earned — the screen, done.** Reached from the Sold card on
+  Home. It walks Sold → Cost of goods → What the goods earned → Credited →
+  Expenses → What the shop kept, and shares its arithmetic with the PDF through
+  `EarningsDocument`. Called *what the goods earned* rather than *profit*, which
+  would claim to have counted rent, wages and petrol.
+
+  The three decisions the parked note left open were settled by building it:
+
+  - **The discount needs no apportioning.** `Bill.total` is stored *after* the
+    discount, so a bill's takings less its lines' cost is exactly what that bill
+    earned. The whole apportion-across-the-lines branch was unnecessary.
+  - **A bill entered as a figure is set aside whole and said to be** — never
+    half-counted, which would flatter the figure by the difference. Named apart
+    from the other reasons in the "Not counted" block, because "itemise the next
+    one" and "this book is older than the field" ask different things of the
+    owner.
+  - **A credit note is netted, and its goods go back.** A return is a sale run
+    backwards: take off what was credited, add back what the returned goods
+    cost. A figure-only note hands nothing back, so that second figure is zero
+    and the whole credit comes off — the rule arriving at the right answer
+    rather than an exception to it.
+
+  Two things an owner found on real data are pinned by tests. **An absence is
+  not a loss**: where nothing in the period can be costed, the chain stops after
+  "Counted" rather than subtracting the month's expenses from zero and printing
+  the rent as a loss. And **a book written before `BillLine.cost` existed is
+  costed at today's buying price**, labelled as an estimate on the page, written
+  back nowhere — so it follows the shelf and clears itself as costed bills
+  replace the old ones. A line whose product has since been deleted has no
+  figure anywhere and is still set aside.
 
 - **Multi-line supplier bills — done.** A delivery holds `lines`, the shape
   `Bill` already had. This was not the enhancement it looked like: the sheet
@@ -118,9 +145,17 @@ The signing config and the bundle workflow are written; see
 
   A bare `.json` still imports forever, sniffed by its magic bytes. Photograph
   ids were already in the document, so nothing had to migrate.
-- **The stale branches — done.** Every branch whose commits were already on
-  `main` has been deleted; `git branch -r --no-merged origin/main` was empty
-  first.
+- **The stale branches — cannot be deleted from a session container.** Around
+  thirty merged branches are still on the remote. `git push origin --delete`
+  answers **HTTP 403** here while ordinary pushes succeed all day, so it is a
+  permission the session's token does not carry rather than a flaky network —
+  retrying with backoff does not help. Delete them from the GitHub UI, or
+  locally with a token that can. Nothing depends on them; `main` is unaffected.
+
+  Two of them hold commits that are *not* on `main` and are dead rather than
+  pending: `owed-full-screen`, whose full-screen owed list was tried and
+  rejected in favour of keeping the bottom sheet, and `rename-gate`, whose work
+  reached `main` by cherry-pick under a different sha.
 
 - **Bundled fonts — decided against.** Every type style names Inter and neither
   app bundles it, so both fall back to the system face: San Francisco on iOS,
