@@ -174,11 +174,30 @@ The signing config and the bundle workflow are written; see
   <https://sites.google.com/view/stockbook-privacy/home>, with the wording kept
   under [`docs/privacy/index.html`](docs/privacy/index.html) so it stays
   versioned beside the code whose behaviour it describes.
-- **The package name is `com.stockbook.app`.** Confirmed before the first
-  upload, which is the last moment it could be. Play binds a listing to its
-  package name permanently: it cannot be renamed afterwards by anyone, and
-  changing it means a new listing with every existing install orphaned on the
-  old one.
+- **The Play package name is `com.stockbook.application`, and it is not the
+  Kotlin package.** `com.stockbook.app` was taken — Play burns a name the moment
+  any app is created with it, a deleted draft included, so it was never
+  available to claim. The Console said so at listing time, which is exactly the
+  last moment it could have.
+
+  Only `applicationId` moved. `namespace` is still `com.stockbook.app`, so no
+  Kotlin package, import or file moved with it — the two are separate on purpose
+  and this is what that separation is for.
+
+  Two things follow from `applicationId` and cost a build if forgotten: androidx
+  derives its private permission from it, so the APK now declares
+  `com.stockbook.application.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` and the
+  CI allowlist had to move with it; and the `FileProvider` authority is
+  `${applicationId}.files`, which followed on its own because the manifest never
+  hardcoded it.
+
+  **iOS is unaffected.** Apple's bundle IDs are a separate namespace from
+  Google's, so the app is still `com.stockbook.app` there. The two platforms
+  disagree on this one string, and that is the correct answer rather than a
+  drift to tidy up.
+
+  Play still binds a listing to its package name permanently. This one cannot be
+  changed again either.
 - **The receipt number stays required.** Consistent with invoice and credit-note
   numbers: a payment that cannot be matched to a slip in a drawer is the thing
   the number exists to prevent.

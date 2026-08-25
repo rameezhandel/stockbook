@@ -40,7 +40,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.stockbook.app"
+        applicationId = "com.stockbook.application"
         // API 26 for java.time without desugaring, which the domain leans on for
         // every timestamp. Anything older is a rounding error of the install base
         // by now and would cost a compatibility layer on the one thing this app
