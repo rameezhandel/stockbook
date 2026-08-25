@@ -145,17 +145,20 @@ The signing config and the bundle workflow are written; see
 
   A bare `.json` still imports forever, sniffed by its magic bytes. Photograph
   ids were already in the document, so nothing had to migrate.
-- **The stale branches — cannot be deleted from a session container.** Around
-  thirty merged branches are still on the remote. `git push origin --delete`
-  answers **HTTP 403** here while ordinary pushes succeed all day, so it is a
-  permission the session's token does not carry rather than a flaky network —
-  retrying with backoff does not help. Delete them from the GitHub UI, or
-  locally with a token that can. Nothing depends on them; `main` is unaffected.
+- **Branch cleanup cannot be done from a session container.** Not a permission
+  on the token and not a flaky network: the agent proxy refuses write access to
+  the paths that would do it. `git push origin --delete` answers **403**, and so
+  does `DELETE /repos/.../git/refs/heads/...` — with the proxy saying so in as
+  many words. Ordinary pushes, and creating and closing pull requests, all work
+  fine, so the proxy allows some write paths and not others.
 
-  Two of them hold commits that are *not* on `main` and are dead rather than
-  pending: `owed-full-screen`, whose full-screen owed list was tried and
-  rejected in favour of keeping the bottom sheet, and `rename-gate`, whose work
-  reached `main` by cherry-pick under a different sha.
+  The same wall stops `POST /actions/workflows/ios.yml/dispatches`, which is why
+  the iOS workflow cannot be started by hand from here even though its own
+  comment offers that as the easy route. **A pull request is the only way to
+  reach the iOS build from a session**, and where everything is already on
+  `main` that means opening one from `main` into a throwaway base branch.
+
+  Delete merged branches from the GitHub UI instead. Nothing depends on them.
 
 - **Bundled fonts — decided against.** Every type style names Inter and neither
   app bundles it, so both fall back to the system face: San Francisco on iOS,
