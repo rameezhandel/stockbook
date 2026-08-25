@@ -88,7 +88,16 @@ fun PartyScreen(
     // Only ever asked whether there is more than one, for the merge button: an
     // account with nobody to be joined to should not offer to join it.
     val others = remember(state, partyKey) {
-        (if (isSupplier) store.suppliers() else store.customers()).count { it.key != partyKey }
+        // Reduced to keys inside each branch. `Customer` and `Supplier` share no
+        // supertype, so a value holding either is inferred as `Any` and `key`
+        // does not resolve — which this module cannot be compiled locally to
+        // discover.
+        val keys = if (isSupplier) {
+            store.suppliers().map { it.key }
+        } else {
+            store.customers().map { it.key }
+        }
+        keys.count { it != partyKey }
     }
 
     val bills = remember(state, partyKey) {
