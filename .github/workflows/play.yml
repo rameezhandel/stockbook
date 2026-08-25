@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       versionCode:
-        description: "Play's ordering number — must be higher than every upload before it"
+        description: "Play's ordering number — a whole number like 1, never 1.0.0. Must beat every upload before it"
         required: true
         type: string
       versionName:
@@ -73,6 +73,22 @@ jobs:
 
       # Written to the runner's disk, never to the workspace, so nothing can
       # sweep it into an artifact.
+      # The two inputs are different kinds of number and the form cannot say so
+      # in a way anybody reads. Gradle calls `.toInt()` on this one and throws
+      # `For input string: "1.0.0"` half a minute in, naming a line in
+      # build.gradle.kts rather than the box that was filled in wrong.
+      - name: The version code must be a whole number
+        run: |
+          CODE="${{ inputs.versionCode }}"
+          case "$CODE" in
+            ''|*[!0-9]*)
+              echo "::error::versionCode must be a whole number like 1 — got '$CODE'. The three-part version (1.0.0) is versionName."
+              exit 1
+              ;;
+          esac
+          [ "$CODE" -gt 0 ] || { echo "::error::versionCode must be greater than zero — got '$CODE'."; exit 1; }
+          echo "versionCode $CODE, versionName ${{ inputs.versionName }}."
+
       - name: Unpack the keystore
         env:
           KEYSTORE: ${{ secrets.PLAY_KEYSTORE_BASE64 }}
@@ -92,9 +108,28 @@ jobs:
           STOCKBOOK_KEY_ALIAS: ${{ secrets.PLAY_KEY_ALIAS }}
           STOCKBOOK_KEY_PASSWORD: ${{ secrets.PLAY_KEY_PASSWORD }}
         run: |
+          set -o pipefail
           ./gradlew :app:bundleRelease \
             -Pstockbook.versionCode=${{ inputs.versionCode }} \
-            -Pstockbook.versionName=${{ inputs.versionName }}
+            -Pstockbook.versionName=${{ inputs.versionName }} 2>&1 | tee ../build.log
+
+      # As annotations, not only into the step summary. The summary is rendered
+      # by client-side script and is invisible to anything reading the run
+      # without a browser session; annotations are served with the run itself.
+      # This workflow had neither, so its one failure so far had to be copied out
+      # of the log by hand.
+      - name: Report the errors where they can be read
+        if: failure()
+        working-directory: android
+        run: |
+          ERRORS=$(grep -E "^e: |FAILURE:|What went wrong|Caused by:|^> " ../build.log | head -30 || true)
+          if [ -n "$ERRORS" ]; then
+            echo "$ERRORS" | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          else
+            echo "::error::The bundle failed with nothing recognisable in the log — read the Gradle output."
+          fi
 
       # Gradle happily produces an unsigned bundle if the config did not take.
       # Asking the artifact itself is the only answer worth having — the same
