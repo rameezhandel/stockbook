@@ -80,7 +80,10 @@ struct StoreTests {
             store.saveBill(lines: [.init(productUID: product.uid, qty: 1, price: 45)], customer: "Walk-in", paid: nil)
         )
 
-        store.update(product, name: "Padlock 50mm", stock: 5, cost: 25, price: 60)
+        // No `stock:` — the editor never moves the shelf. Stock arrives through a
+        // delivery and leaves through a bill, which is the whole reason
+        // `update` does not take it.
+        store.update(product, name: "Padlock 50mm", cost: 25, price: 60)
 
         let stored = try #require(store.bills.first { $0.number == bill.number })
         #expect(stored.lines.first?.name == "Padlock")
