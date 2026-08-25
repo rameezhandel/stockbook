@@ -119,7 +119,12 @@ jobs:
           set -o pipefail
           AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
           APK=app/build/outputs/apk/debug/app-debug.apk
-          OWN="com.stockbook.application.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+          # The debug APK, so the id carries `applicationIdSuffix` — androidx
+          # derives this permission from `applicationId`, and the release build
+          # declares it without the `.debug`. Checking the wrong one of the two
+          # fails this step on the app's own permission, which reads exactly like
+          # the thing it exists to catch.
+          OWN="com.stockbook.application.debug.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
 
           ALL=$("$AAPT" dump permissions "$APK" | grep -E "^uses-permission" || true)
           FOUND=$(echo "$ALL" | grep -v "name='$OWN'" | grep -E "^uses-permission" || true)

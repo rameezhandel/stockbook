@@ -186,8 +186,9 @@ The signing config and the bundle workflow are written; see
 
   Two things follow from `applicationId` and cost a build if forgotten: androidx
   derives its private permission from it, so the APK now declares
-  `com.stockbook.application.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` and the
-  CI allowlist had to move with it; and the `FileProvider` authority is
+  `com.stockbook.application.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` — or
+  `…application.debug.…` on the debug build, which is the one CI reads — and the
+  allowlist had to move with it; and the `FileProvider` authority is
   `${applicationId}.files`, which followed on its own because the manifest never
   hardcoded it.
 

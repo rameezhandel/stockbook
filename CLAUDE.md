@@ -16,7 +16,9 @@ There is one user: the owner, standing at a counter with a customer waiting.
   matters more than it looks.
 - **Single user.** No login, no roles, no accounts.
 - **The APK asks the phone for nothing.** CI reads the built APK and fails on any
-  `uses-permission` except `com.stockbook.application.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`
+  `uses-permission` except `com.stockbook.application.debug.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`
+  — the **debug** id, because that is the APK the check reads, and `debug` gets
+  `applicationIdSuffix = ".debug"` so the two builds can sit on one phone
   — androidx.core's own signature permission, app-private, no dialog. Do not add
   one. Do not strip that one with `tools:node="remove"`: a library expecting it
   throws `SecurityException`, a real crash traded for a cosmetic line.

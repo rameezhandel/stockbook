@@ -90,8 +90,20 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("debug")
-            // So a debug build can sit beside a future release one rather than
-            // fighting it for the same package name.
+            // So a debug build sits *beside* a release one rather than fighting
+            // it for the same package name.
+            //
+            // `applicationIdSuffix` is what does that. `versionNameSuffix` alone
+            // was here for months carrying this comment, and it changes only the
+            // version string — both builds installed as the same package, signed
+            // by different keys, so putting one on a phone that had the other
+            // failed with a signature mismatch and the only way through was to
+            // uninstall. In an app whose whole premise is that the shop lives on
+            // this phone, that means throwing the shop away to look at a build.
+            //
+            // The `FileProvider` authority follows on its own: the manifest
+            // writes `${applicationId}.files` rather than the name.
+            applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
         release {
