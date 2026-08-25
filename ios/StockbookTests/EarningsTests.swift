@@ -145,8 +145,9 @@ struct EarningsTests {
         let store = makeStore()
         let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
         let supplier = try #require(store.addSupplier(name: "Gulf Locks"))
+        let stocked = try #require(store.product(uid: padlock.uid))
         store.recordPurchase(
-            product: try #require(store.product(uid: padlock.uid)),
+            product: stocked,
             supplierKey: supplier.key,
             quantity: 100,
             unitCost: 20
@@ -165,7 +166,8 @@ struct EarningsTests {
         store.saveBill(lines: [.init(productUID: padlock.uid, qty: 3, price: 30)], customer: "Ahmed", paid: nil)
 
         let before = store.earningsIn(period()).goodsEarned
-        store.update(try #require(store.product(uid: padlock.uid)), name: "Padlock 40mm", cost: 26, price: 30)
+        let repriced = try #require(store.product(uid: padlock.uid))
+        store.update(repriced, name: "Padlock 40mm", cost: 26, price: 30)
 
         #expect(store.earningsIn(period()).goodsEarned == before)
         #expect(before == 30)
@@ -367,7 +369,8 @@ struct EarningsTests {
             return note
         }
         store.replaceEverything(with: document)
-        store.delete(try #require(store.product(uid: hinge.uid)))
+        let gone = try #require(store.product(uid: hinge.uid))
+        store.delete(gone)
 
         let rendered = page(store)
 

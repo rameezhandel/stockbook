@@ -150,7 +150,10 @@ struct ZipArchiveTests {
         // works perfectly until the bytes arrive from something that sliced them.
         let written = ZipArchive.write([entry("stockbook.json", #"{"version":3}"#)])
         let padded = Data([0xFF, 0xFF]) + written
-        let slice = padded[padded.startIndex + 2...]
+        // An explicit range, not `padded[padded.startIndex + 2...]`: a partial
+        // range does not match `Data`'s subscript here and resolves to the
+        // single-byte one instead, which fails to compile rather than misreading.
+        let slice = padded[(padded.startIndex + 2)..<padded.endIndex]
 
         let read = try ZipArchive.read(slice)
 

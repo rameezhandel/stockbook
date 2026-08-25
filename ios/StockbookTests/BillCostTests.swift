@@ -49,8 +49,13 @@ struct BillCostTests {
 
         // A delivery at the new price, which is how `Product.cost` moves.
         let supplier = try #require(store.addSupplier(name: "Gulf Locks"))
+        // Hoisted out of the call. `#require` inside a plain argument is type
+        // checked against the parameter — a non-optional `Product` — so the
+        // macro sees an expression that "never equals nil" and refuses to
+        // compile. `#expect(try #require(x))` is fine; a bare call is not.
+        let stocked = try #require(store.product(uid: padlock.uid))
         store.recordPurchase(
-            product: try #require(store.product(uid: padlock.uid)),
+            product: stocked,
             supplierKey: supplier.key,
             quantity: 10,
             unitCost: 25
@@ -73,7 +78,8 @@ struct BillCostTests {
             store.saveBill(lines: [.init(productUID: padlock.uid, qty: 3, price: 30)], customer: "Ahmed", paid: nil)
         )
 
-        store.update(try #require(store.product(uid: padlock.uid)), name: "Padlock 40mm", cost: 22, price: 30)
+        let repriced = try #require(store.product(uid: padlock.uid))
+        store.update(repriced, name: "Padlock 40mm", cost: 22, price: 30)
         store.updateBill(
             number: bill.number,
             lines: [.init(productUID: padlock.uid, qty: 4, price: 30)],
