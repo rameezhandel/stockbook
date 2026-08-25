@@ -1283,4 +1283,56 @@ struct Strings {
     func pickedDate(_ date: Date) -> String {
         Copy.pickedDate(date, locale: language.locale)
     }
+
+    // MARK: - Merging two accounts
+
+    /// The way in, from the account that will be the one to go.
+    ///
+    /// Worded from where the owner is standing: they are looking at the
+    /// duplicate when they notice it, so this account merges *into* the one they
+    /// pick.
+    var mergeIntoAnotherCustomer: String { pick("Merge into another customer", "ಇನ್ನೊಬ್ಬ ಗ್ರಾಹಕರೊಂದಿಗೆ ಸೇರಿಸಿ") }
+    var mergeIntoAnotherSupplier: String { pick("Merge into another supplier", "ಇನ್ನೊಬ್ಬ ಪೂರೈಕೆದಾರರೊಂದಿಗೆ ಸೇರಿಸಿ") }
+    var mergeAccounts: String { pick("Merge accounts", "ಖಾತೆಗಳನ್ನು ಸೇರಿಸಿ") }
+    /// Says which way round it goes, above the list of who it could go into.
+    func mergeChoose(_ name: String) -> String {
+        pick(
+            "Choose the account to keep. \(name) will be merged into it.",
+            "ಇಟ್ಟುಕೊಳ್ಳಬೇಕಾದ ಖಾತೆ ಆರಿಸಿ. \(name) ಅದರೊಳಗೆ ಸೇರುತ್ತದೆ."
+        )
+    }
+    func mergeConfirm(from: String, into: String) -> String {
+        pick("Merge \(from) into \(into)?", "\(from) ಅನ್ನು \(into) ಒಳಗೆ ಸೇರಿಸಬೇಕೆ?")
+    }
+    func billsMoving(_ n: Int) -> String {
+        pick(n == 1 ? "1 bill moves across" : "\(n) bills move across", "\(n) ಬಿಲ್ ವರ್ಗಾವಣೆ")
+    }
+    func paymentsMoving(_ n: Int) -> String {
+        pick(n == 1 ? "1 payment moves across" : "\(n) payments move across", "\(n) ಪಾವತಿ ವರ್ಗಾವಣೆ")
+    }
+    func creditNotesMoving(_ n: Int) -> String {
+        pick(
+            n == 1 ? "1 credit note moves across" : "\(n) credit notes move across",
+            "\(n) ಕ್ರೆಡಿಟ್ ನೋಟ್ ವರ್ಗಾವಣೆ"
+        )
+    }
+    func deliveriesMoving(_ n: Int) -> String {
+        pick(
+            n == 1 ? "1 delivery moves across" : "\(n) deliveries move across",
+            "\(n) ಡೆಲಿವರಿ ವರ್ಗಾವಣೆ"
+        )
+    }
+    /// The figure the owner is really agreeing to, so it is named rather than implied.
+    func willOwe(_ name: String) -> String { pick("\(name) will owe", "\(name) ಬಾಕಿ ಇರುತ್ತದೆ") }
+    func willBeGone(_ name: String) -> String { pick("\(name) will be gone", "\(name) ಇರುವುದಿಲ್ಲ") }
+    /// Said on the confirmation, because it is true and because the only way back
+    /// is a file the owner has to have exported already.
+    var mergeCannotBeUndone: String {
+        pick(
+            "This cannot be undone. Export a backup first if you want a way back.",
+            "ಇದನ್ನು ಹಿಂತಿರುಗಿಸಲಾಗದು. ಹಿಂದಿರುಗುವ ದಾರಿ ಬೇಕಿದ್ದರೆ ಮೊದಲು ಬ್ಯಾಕಪ್ ಉಳಿಸಿ."
+        )
+    }
+    var nobodyToMergeWith: String { pick("There is nobody else to merge with", "ಸೇರಿಸಲು ಬೇರೆ ಯಾರೂ ಇಲ್ಲ") }
+
 }

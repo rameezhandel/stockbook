@@ -33,6 +33,8 @@ struct LocalizationTests {
         \.customerPhone, \.customerPlace, \.optionalField, \.saveCustomer,
         \.removeFromCustomers, \.tapAgainToRemove, \.noBillsYet,
         \.openingBalanceField, \.openingBalanceNote, \.chooseFromTheList, \.enterCustomerNameFirst, \.removeCustomerNote,
+        \.mergeIntoAnotherCustomer, \.mergeIntoAnotherSupplier, \.mergeAccounts, \.mergeCannotBeUndone,
+        \.nobodyToMergeWith,
         \.creditNoteLabel, \.creditNotes, \.issueACreditNote, \.editCreditNote,
         \.creditNoteNo, \.creditNoteNoHint, \.amountCredited, \.creditedOn,
         \.creditReason, \.creditReasonExample, \.saveCreditNote, \.removeCreditNote,

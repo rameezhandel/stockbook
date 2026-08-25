@@ -85,6 +85,12 @@ fun PartyScreen(
         customer?.place ?: supplier?.place
     ).takeIf { it.isNotEmpty() }?.joinToString(" · ")
 
+    // Only ever asked whether there is more than one, for the merge button: an
+    // account with nobody to be joined to should not offer to join it.
+    val others = remember(state, partyKey) {
+        (if (isSupplier) store.suppliers() else store.customers()).count { it.key != partyKey }
+    }
+
     val bills = remember(state, partyKey) {
         if (isSupplier) emptyList() else store.billsForCustomer(partyKey)
     }
@@ -143,6 +149,17 @@ fun PartyScreen(
                             router.editingCreditNote = null
                             router.creditNoteFor = who
                         }
+                    },
+                    // Offered only where there is somebody to merge *with*. On a
+                    // one-customer shop the button would open a sheet that could
+                    // only say "there is nobody else".
+                    onMerge = {
+                        router.startMerge(partyKey, isSupplier)
+                    }.takeIf { others > 0 },
+                    mergeTitle = if (isSupplier) {
+                        strings.mergeIntoAnotherSupplier
+                    } else {
+                        strings.mergeIntoAnotherCustomer
                     },
                     editLabel = if (isSupplier) strings.editSupplier else strings.editCustomer
                 )
@@ -208,6 +225,12 @@ private fun AccountCard(
     onStatement: () -> Unit,
     onRecordPayment: () -> Unit,
     onCreditNote: (() -> Unit)?,
+    /**
+     * Joining this account into another. Null where there is nobody else on this
+     * side of the book to join it to.
+     */
+    onMerge: (() -> Unit)?,
+    mergeTitle: String,
     editLabel: String
 ) {
     Column(
@@ -284,6 +307,20 @@ private fun AccountCard(
                     modifier = Modifier.weight(1f)
                 )
             }
+        }
+
+        // Last and quietest. Merging is rare, it rewrites history, and it is not
+        // something anybody should reach for while a customer waits — but it
+        // belongs on the account it would remove, which is where the owner is
+        // standing when they notice the duplicate.
+        if (onMerge != null) {
+            GhostButton(
+                mergeTitle,
+                onClick = onMerge,
+                fontSize = 12.0,
+                tint = Nocturne.neutral500,
+                modifier = Modifier.padding(top = 10.dp)
+            )
         }
     }
 }

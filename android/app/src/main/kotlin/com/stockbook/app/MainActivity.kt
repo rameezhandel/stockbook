@@ -32,6 +32,7 @@ import com.stockbook.app.design.StockbookTheme
 import com.stockbook.app.design.BottomSheet
 import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.book.BookScreen
+import com.stockbook.app.feature.book.MergeSheet
 import com.stockbook.app.feature.book.PurchaseSheet
 import com.stockbook.app.feature.customers.CreditNoteSheet
 import com.stockbook.app.feature.customers.CustomerEditorSheet
@@ -416,6 +417,32 @@ private fun Shell(store: StockbookStore) {
                 editing = router.editingPurchase,
                 onClose = { router.closeAddStock() }
             )
+        }
+
+        // Joining two accounts entered for one firm, from the one that goes.
+        BottomSheet(
+            visible = router.mergeFrom != null,
+            onDismiss = { router.mergeFrom = null }
+        ) {
+            router.mergeFrom?.let { key ->
+                MergeSheet(
+                    fromKey = key,
+                    isSupplier = router.mergeIsSupplier,
+                    state = state,
+                    store = store,
+                    currency = state.settings.currency,
+                    strings = strings,
+                    onClose = { router.mergeFrom = null },
+                    onMerged = {
+                        router.mergeFrom = null
+                        // The account the owner was looking at is the one that is
+                        // gone, so the screen behind this sheet is about somebody
+                        // who no longer exists. Close it too rather than leave a
+                        // screen showing an empty account.
+                        router.partyFor = null
+                    }
+                )
+            }
         }
 
         // Who is behind the Today banners, and the way to collect from them.

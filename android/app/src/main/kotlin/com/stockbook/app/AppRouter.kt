@@ -188,6 +188,21 @@ class AppRouter {
     var partyFor by mutableStateOf<String?>(null)
     var partyIsSupplier by mutableStateOf(false)
 
+    /**
+     * The account being merged away, by key, and which side of the book it is on.
+     *
+     * Its own pair rather than leaning on [partyIsSupplier]: the merge sheet
+     * outlives nothing, but a flag shared with the screen underneath is a flag
+     * that can be changed out from under it.
+     */
+    var mergeFrom by mutableStateOf<String?>(null)
+    var mergeIsSupplier by mutableStateOf(false)
+
+    fun startMerge(key: String, isSupplier: Boolean) {
+        mergeIsSupplier = isSupplier
+        mergeFrom = key
+    }
+
     fun openCustomerScreen(key: String) {
         partyIsSupplier = false
         partyFor = key
