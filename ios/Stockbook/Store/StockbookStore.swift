@@ -739,6 +739,88 @@ final class StockbookStore {
         attempt { try repository.delete(customerKey: key) }
     }
 
+    /// What joining `from` into `into` would move. Nil where either name is not a
+    /// customer, or where they are the same one.
+    func previewCustomerMerge(from: String, into: String) -> MergePreview? {
+        guard from != into, let goes = customer(key: from), let stays = customer(key: into) else { return nil }
+        return MergePreview(
+            from: goes.name,
+            into: stays.name,
+            bills: bills.filter { Customer.key(for: $0.who) == from }.count,
+            payments: payments.filter { $0.customerKey == from }.count,
+            creditNotes: creditNotes.filter { $0.customerKey == from }.count,
+            // Both `owed` figures already carry their opening balance, their
+            // bills, their payments and their credit notes, so the survivor owes
+            // exactly the sum. Rounded for the reason `customers()` rounds.
+            openingBalance: goes.openingBalance + stays.openingBalance,
+            owed: ((goes.owed + stays.owed) * 100).rounded() / 100
+        )
+    }
+
+    /// Files one customer's whole history under another and takes the first off
+    /// the roster. **One firm entered twice becomes one account.**
+    ///
+    /// Deliberate, unlike the merge a rename used to do by accident — and it has
+    /// to move everything that accident forgot. Bills carry a *name* and so are
+    /// rewritten; payments and credit notes carry a key and are re-filed; the two
+    /// opening balances are **added**, because two entries in the paper book for
+    /// one firm are two debts really owed.
+    ///
+    /// Bills already handed across a counter said the old name. The app shows the
+    /// new one from here on, which is the point of merging and is the same thing
+    /// a rename has always done — the invoice number is untouched, so a slip in
+    /// somebody's file can still be found.
+    ///
+    /// Written through `persistEverything` rather than record by record: credit
+    /// notes are already saved that way, and a merge is rare, deliberate and
+    /// touches four kinds of record at once. Half a merge on disk is the one
+    /// outcome worth spending a whole rewrite to avoid.
+    @discardableResult
+    func mergeCustomer(from: String, into: String) -> Bool {
+        guard from != into, !from.isEmpty, !into.isEmpty else { return false }
+        guard customer(key: from) != nil, let stays = customer(key: into) else { return false }
+
+        let leaving = customerRecords.first { $0.key == from }
+        let kept = customerRecords.first { $0.key == into }
+        var survivor: CustomerRecord?
+        if var record = kept {
+            // Both on the roster: the surviving entry keeps its own name and
+            // takes what the other was carrying. Its contact details win, and
+            // fall back to the other's only where it has none — a blank field is
+            // not a decision the owner made.
+            record.openingBalance += leaving?.openingBalance ?? 0
+            record.phone = record.phone ?? leaving?.phone
+            record.place = record.place ?? leaving?.place
+            survivor = record
+        } else if var record = leaving {
+            // Only the one going has an entry. It moves across under the
+            // survivor's name rather than being deleted, or its opening balance
+            // — a real debt — would go with it.
+            record.key = into
+            record.name = stays.name
+            survivor = record
+        }
+        // Neither on the roster: two names that have only ever appeared on
+        // bills. There is nothing to keep, and the bills below are the whole of
+        // the merge.
+
+        for (index, bill) in bills.enumerated() where Customer.key(for: bill.who) == from {
+            bills[index].who = stays.name
+        }
+        for (index, payment) in payments.enumerated() where payment.customerKey == from {
+            payments[index].customerKey = into
+        }
+        for (index, note) in creditNotes.enumerated() where note.customerKey == from {
+            creditNotes[index].customerKey = into
+        }
+        customerRecords.removeAll { $0.key == from || $0.key == into }
+        if let survivor { customerRecords.append(survivor) }
+        customerRecords.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+
+        persistEverything()
+        return true
+    }
+
     // MARK: - Payments
 
     /// Records money handed over after the bill.
@@ -1524,6 +1606,54 @@ final class StockbookStore {
         attempt { try repository.delete(supplierKey: key) }
     }
 
+    /// What joining `from` into `into` would move. The twin of `previewCustomerMerge`.
+    func previewSupplierMerge(from: String, into: String) -> MergePreview? {
+        guard from != into, let goes = supplier(key: from), let stays = supplier(key: into) else { return nil }
+        return MergePreview(
+            from: goes.name,
+            into: stays.name,
+            payments: supplierPayments.filter { $0.supplierKey == from }.count,
+            deliveries: purchases.filter { $0.supplierKey == from }.count,
+            openingBalance: goes.openingBalance + stays.openingBalance,
+            owed: ((goes.owed + stays.owed) * 100).rounded() / 100
+        )
+    }
+
+    /// The twin of `mergeCustomer`, and the simpler half: a delivery carries the
+    /// supplier's key rather than their name, so there is no spelling to rewrite.
+    @discardableResult
+    func mergeSupplier(from: String, into: String) -> Bool {
+        guard from != into, !from.isEmpty, !into.isEmpty else { return false }
+        guard supplier(key: from) != nil, let stays = supplier(key: into) else { return false }
+
+        let leaving = supplierRecords.first { $0.key == from }
+        let kept = supplierRecords.first { $0.key == into }
+        var survivor: SupplierRecord?
+        if var record = kept {
+            record.openingBalance += leaving?.openingBalance ?? 0
+            record.phone = record.phone ?? leaving?.phone
+            record.place = record.place ?? leaving?.place
+            survivor = record
+        } else if var record = leaving {
+            record.key = into
+            record.name = stays.name
+            survivor = record
+        }
+
+        for (index, purchase) in purchases.enumerated() where purchase.supplierKey == from {
+            purchases[index].supplierKey = into
+        }
+        for (index, payment) in supplierPayments.enumerated() where payment.supplierKey == from {
+            supplierPayments[index].supplierKey = into
+        }
+        supplierRecords.removeAll { $0.key == from || $0.key == into }
+        if let survivor { supplierRecords.append(survivor) }
+        supplierRecords.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+
+        persistEverything()
+        return true
+    }
+
     // MARK: - Purchases
 
     /// Records a delivery: stock goes on the shelf, the buying price becomes what
@@ -2171,6 +2301,39 @@ struct SpendLine: Equatable {
 /// behind it. A page that quietly answered for the rest of the month would be
 /// flattering by exactly the amount it left out, so the amount it left out is on
 /// the page.
+/// What joining two accounts would move, worked out before anything is touched.
+///
+/// The confirmation is the whole point of this type. A merge rewrites history —
+/// it re-files somebody else's bills under this name — and there is no undo in
+/// this app, so the owner is owed the figures *before* they agree rather than a
+/// changed balance afterwards. It is also what the tests assert, which is how
+/// the arithmetic and the sentence on screen are kept from drifting apart.
+///
+/// One type for both sides of the book. A customer merge fills `bills`,
+/// `payments` and `creditNotes`; a supplier merge fills `deliveries` and
+/// `payments`. A zero is a line the confirmation does not draw.
+struct MergePreview: Equatable {
+    /// The account that will be gone, by the name it is known by now.
+    let from: String
+    /// The one that survives.
+    let into: String
+    var bills = 0
+    var payments = 0
+    var creditNotes = 0
+    var deliveries = 0
+    /// The two opening balances **added**.
+    ///
+    /// Two entries in the paper book for one firm are two real debts, and the
+    /// merge that used to happen by accident kept one and dropped the other.
+    /// That is the single figure most worth showing before the owner agrees.
+    let openingBalance: Double
+    /// What the survivor will owe once this is done.
+    let owed: Double
+
+    /// Whether there is any history to move at all.
+    var movesNothing: Bool { bills == 0 && payments == 0 && creditNotes == 0 && deliveries == 0 }
+}
+
 struct Earnings: Equatable {
     /// Every bill in the period — the same figure Home shows, so the two can be
     /// held side by side and agree.

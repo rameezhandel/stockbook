@@ -86,6 +86,20 @@ final class AppRouter {
     var partyFor: String?
     var partyIsSupplier = false
 
+    /// The account being merged away, by key, and which side of the book it is
+    /// on.
+    ///
+    /// Its own pair rather than leaning on `partyIsSupplier`: the merge sheet
+    /// outlives nothing, but a flag shared with the screen underneath is a flag
+    /// that can be changed out from under it.
+    var mergeFrom: String?
+    var mergeIsSupplier = false
+
+    func startMerge(key: String, isSupplier: Bool) {
+        mergeIsSupplier = isSupplier
+        mergeFrom = key
+    }
+
     /// Set when the add-stock sheet should open on its purchase half.
     var startingPurchase = false
 

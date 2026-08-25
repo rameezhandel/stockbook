@@ -227,6 +227,29 @@ private struct AppShell: View {
                 router.editingSupplierPayment = nil
             }
         }
+        // Joining two accounts entered for one firm, from the one that goes.
+        .nocturneSheet(
+            isPresented: Binding(
+                get: { router.mergeFrom != nil },
+                set: { if !$0 { router.mergeFrom = nil } }
+            )
+        ) {
+            if let key = router.mergeFrom {
+                MergeSheet(
+                    fromKey: key,
+                    isSupplier: router.mergeIsSupplier,
+                    onClose: { router.mergeFrom = nil },
+                    onMerged: {
+                        router.mergeFrom = nil
+                        // The account the owner was looking at is the one that
+                        // is gone, so the screen behind this sheet is about
+                        // somebody who no longer exists. Close it too rather
+                        // than leave a screen showing an empty account.
+                        router.partyFor = nil
+                    }
+                )
+            }
+        }
         .nocturneSheet(isPresented: $router.showingDebtors) {
             WhoOwesYouSheet { router.showingDebtors = false }
         }

@@ -33,6 +33,14 @@ struct PartyScreen: View {
     private var customer: Customer? { isSupplier ? nil : store.customer(key: partyKey) }
     private var supplier: Supplier? { isSupplier ? store.supplier(key: partyKey) : nil }
 
+    /// Only ever asked whether there is more than one, for the merge button: an
+    /// account with nobody to be joined to should not offer to join it.
+    private var others: Int {
+        (isSupplier ? store.suppliers().map(\.key) : store.customers().map(\.key))
+            .filter { $0 != partyKey }
+            .count
+    }
+
     private var name: String { customer?.name ?? supplier?.name ?? partyKey }
     private var contact: String? { customer?.contactLine ?? supplier?.contactLine }
     private var owed: Double { customer?.owed ?? supplier?.owed ?? 0 }
@@ -158,6 +166,19 @@ struct PartyScreen: View {
                 }
             }
             .padding(.top, 6)
+
+            // Last and quietest. Merging is rare, it rewrites history, and it is
+            // not something anybody should reach for while a customer waits —
+            // but it belongs on the account it would remove, which is where the
+            // owner is standing when they notice the duplicate. Offered only
+            // where there is somebody on this side of the book to be joined to.
+            if others > 0 {
+                Button(isSupplier ? Loc.mergeIntoAnotherSupplier : Loc.mergeIntoAnotherCustomer) {
+                    router.startMerge(key: partyKey, isSupplier: isSupplier)
+                }
+                .buttonStyle(GhostButtonStyle(fontSize: 12, tint: Nocturne.neutral500))
+                .padding(.top, 10)
+            }
         }
         .padding(13)
         .frame(maxWidth: .infinity, alignment: .leading)
