@@ -1211,6 +1211,8 @@ final class StockbookStore {
         // its own figure.
         let estimated = costable.filter { $0.lines.contains { $0.cost == nil } }
 
+        let notes = creditNotes.filter { range.contains($0.issuedAt) }
+
         return Earnings(
             sold: inPeriod.reduce(0) { $0 + $1.total },
             soldAsTotal: asTotal.reduce(0) { $0 + $1.total },
@@ -1222,9 +1224,27 @@ final class StockbookStore {
             costOfGoods: costable.reduce(0) { running, bill in
                 running + bill.lines.reduce(0) { $0 + Double($1.qty) * (unitCost($1) ?? 0) }
             },
+            // A return is a sale run backwards, so it is costed the same way and
+            // with the same fallback. A line whose product has since been
+            // deleted puts nothing back, which understates what the shop earned
+            // rather than overstating it — and the page says so.
+            goodsReturned: notes.reduce(0) { running, note in
+                running + note.lines.reduce(0) { $0 + Double($1.qty) * (unitCost($1) ?? 0) }
+            },
             expenses: spentIn(period),
-            credited: creditNotes.filter { range.contains($0.issuedAt) }.reduce(0) { $0 + $1.total },
-            creditNotes: creditNotes.filter { range.contains($0.issuedAt) }.count
+            credited: notes.reduce(0) { $0 + $1.total },
+            creditNotes: notes.count,
+            // A note written as a plain figure hands nothing back, so there is
+            // nothing to value and it belongs in neither count. The whole credit
+            // comes off it, correctly, with nothing to disclose.
+            creditNotesEstimated: notes.filter { note in
+                !note.lines.isEmpty
+                    && note.lines.allSatisfy { unitCost($0) != nil }
+                    && note.lines.contains { $0.cost == nil }
+            }.count,
+            creditNotesBeforeCosts: notes.filter { note in
+                !note.lines.isEmpty && note.lines.contains { unitCost($0) == nil }
+            }.count
         )
     }
 
@@ -2371,6 +2391,19 @@ struct Earnings: Equatable {
     let billsBeforeCosts: Int
     /// What the goods on the countable bills cost the shop, as at their sale.
     let costOfGoods: Double
+    /// What the goods a credit note brought **back** cost the shop.
+    ///
+    /// The mirror of `costOfGoods`, and the reason a credit note can be taken
+    /// off the earnings honestly. A sale adds what was charged and takes off
+    /// what the goods cost; a return takes off what was credited and puts that
+    /// cost back, because those pieces are on the shelf again and were never
+    /// really sold.
+    ///
+    /// Zero for a note written as a plain figure — "knock two hundred off" hands
+    /// nothing back — and that is not an approximation. It is why the whole
+    /// credited amount comes off such a note and only part of it comes off an
+    /// itemised one.
+    let goodsReturned: Double
     /// What the owner spent over the same days.
     let expenses: Double
     /// Credit notes written in the period, **disclosed and never subtracted**.
@@ -2383,13 +2416,26 @@ struct Earnings: Equatable {
     /// is told the notes exist and left to judge.
     let credited: Double
     let creditNotes: Int
+    /// Notes whose returned goods were valued at today's buying price.
+    let creditNotesEstimated: Int
+    /// Notes with goods on them that could not be valued at all, because a line
+    /// names a product since deleted.
+    ///
+    /// Their goods are put back at nothing, which understates what the shop
+    /// earned rather than overstating it — the safe direction — and is said on
+    /// the page rather than left for the owner to find.
+    ///
+    /// A figure-only note is **not** one of these. It hands nothing back, so
+    /// nothing needs valuing and the full credit comes off correctly.
+    let creditNotesBeforeCosts: Int
 
     /// Everything this page cannot account for, whichever of the two reasons.
     var soldWithoutCost: Double { soldAsTotal + soldBeforeCosts }
     var billsWithoutCost: Int { billsAsTotal + billsBeforeCosts }
 
-    /// Whether any of `costOfGoods` was guessed from the shelf as it stands now.
-    var hasEstimates: Bool { billsEstimated > 0 }
+    /// Whether any of the costs on the page were guessed from the shelf as it
+    /// stands now.
+    var hasEstimates: Bool { billsEstimated > 0 || creditNotesEstimated > 0 }
 
     /// Takings this page can actually account for.
     var counted: Double { sold - soldWithoutCost }
@@ -2403,17 +2449,35 @@ struct Earnings: Equatable {
     /// one as the other is worse than a page that admits it cannot say.
     var nothingCostable: Bool { sold > 0 && counted == 0 }
 
-    /// What the goods earned: what they sold for, less what they cost.
-    var goodsEarned: Double { counted - costOfGoods }
+    /// What the goods that actually left the shop cost it: what the sold ones
+    /// cost, less what the returned ones cost.
+    ///
+    /// The line the page draws. Netting the return in here rather than adding a
+    /// row of its own is what keeps every line on the page a figure the owner
+    /// recognises — and it is the truth about the figure: goods handed back are
+    /// goods the shop still has.
+    var netCostOfGoods: Double { costOfGoods - goodsReturned }
 
-    /// And what was left after the owner's own spending.
-    var kept: Double { goodsEarned - expenses }
+    /// What the goods earned: what they sold for, less what they cost.
+    var goodsEarned: Double { counted - netCostOfGoods }
+
+    /// And what was left after what was credited back and the owner's own
+    /// spending.
+    ///
+    /// `credited` comes off in full here, its goods having already been added
+    /// back through `netCostOfGoods`. Take the note off *and* put its stock back
+    /// and the arithmetic lands where it should: a customer credited 200 for
+    /// goods that cost 140 leaves the shop 60 worse off, not 200.
+    var kept: Double { goodsEarned - credited - expenses }
 
     /// Whether anything was sold at all, countable or not.
     var isEmpty: Bool { sold == 0 && expenses == 0 }
 
     /// Whether there is anything to confess.
-    var hasGap: Bool { billsWithoutCost > 0 || creditNotes > 0 }
+    ///
+    /// No longer true merely because a credit note exists: they are taken off
+    /// the figures now rather than listed beside them.
+    var hasGap: Bool { billsWithoutCost > 0 || creditNotesBeforeCosts > 0 }
 }
 
 /// What kind of thing happened, and — through `direction` — which way the money

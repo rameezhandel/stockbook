@@ -30,7 +30,8 @@ struct EarningsDocument: Equatable {
     /// What the page could not account for. Empty when there is nothing.
     let gapHeading: String
     let gap: [Line]
-    /// Why the credit notes below are listed but not subtracted.
+    /// Why the page could not answer for everything, or which way a figure it
+    /// did answer is wrong.
     let gapNote: String?
     /// Shown instead of everything when nothing was sold or spent.
     let emptyLine: String
@@ -74,8 +75,19 @@ struct EarningsDocument: Equatable {
         // though the shop had lost them. It has not lost anything; this page
         // simply cannot say.
         if !earnings.nothingCostable {
-            lines.append(Line(label: strings.costOfGoods, value: text(earnings.costOfGoods), weight: .minus))
+            // Net of what came back. Goods handed back are goods the shop still
+            // has, so their cost was never really spent — and netting it here
+            // rather than on a row of its own keeps every line a figure the
+            // owner recognises.
+            lines.append(Line(label: strings.costOfGoods, value: text(earnings.netCostOfGoods), weight: .minus))
             lines.append(Line(label: strings.goodsEarned, value: text(earnings.goodsEarned), weight: .total))
+            // Only where one was written. The full credit comes off, its goods
+            // having already been added back above: credit 200 for goods that
+            // cost 140 and the shop is 60 worse off, which is what these two
+            // lines together say.
+            if earnings.creditNotes > 0 {
+                lines.append(Line(label: strings.creditedLabel, value: text(earnings.credited), weight: .minus))
+            }
             lines.append(Line(label: strings.expensesTitle, value: text(earnings.expenses), weight: .minus))
             // The one figure on the page that can go either way, so the one that
             // carries a sign.
@@ -98,8 +110,12 @@ struct EarningsDocument: Equatable {
         if earnings.billsEstimated > 0 {
             gap.append(Line(label: strings.billsEstimated(earnings.billsEstimated), value: text(earnings.soldEstimated)))
         }
-        if earnings.creditNotes > 0 {
-            gap.append(Line(label: strings.creditNotesIssued(earnings.creditNotes), value: text(earnings.credited)))
+        // Only the notes whose goods could not be valued at all. The rest are on
+        // the page above, taken off rather than listed beside — which is what
+        // this block used to do and what made it the owner's arithmetic instead
+        // of the app's.
+        if earnings.creditNotesBeforeCosts > 0 {
+            gap.append(Line(label: strings.creditNotesBeforeCosts(earnings.creditNotesBeforeCosts), value: ""))
         }
 
         return EarningsDocument(
@@ -121,14 +137,13 @@ struct EarningsDocument: Equatable {
             //
             // Then the page owes an explanation before it owes a caveat: a shop
             // whose whole book predates cost-keeping needs to know the figures
-            // will arrive as it trades, not that credit notes are handled a
-            // particular way. Last, said only where a note was actually written
-            // — a standing disclaimer under a page with none on it is a line the
-            // owner learns to skip.
+            // will arrive as it trades. Last, where a return could not be
+            // valued, why that leaves the figure low rather than merely
+            // uncertain.
             gapNote: {
                 if earnings.hasEstimates { return strings.costsEstimated }
                 if earnings.nothingCostable { return strings.nothingCostableYet }
-                if earnings.creditNotes > 0 { return strings.creditNotesNotSubtracted }
+                if earnings.creditNotesBeforeCosts > 0 { return strings.returnsNotValued }
                 return nil
             }(),
             emptyLine: strings.nothingSoldThen

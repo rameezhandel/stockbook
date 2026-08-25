@@ -26,8 +26,12 @@ struct EarningsTests {
 
     private func period() -> StatementPeriod { .thisMonth() }
 
-    /// Every bill in the book as an older file would have restored it: itemised,
-    /// but with no cost on any line.
+    /// Every bill **and credit note** in the book as an older file would have
+    /// restored it: itemised, but with no cost on any line.
+    ///
+    /// The notes matter as much as the bills. A return is costed the same way,
+    /// so a helper that stripped only one of the two would leave every
+    /// old-book test quietly half-modern.
     private func stripCosts(_ store: StockbookStore) {
         var document = store.makeBackupDocument()
         document.bills = document.bills.map { bill in
@@ -38,6 +42,15 @@ struct EarningsTests {
                 return line
             }
             return bill
+        }
+        document.creditNotes = document.creditNotes.map { note in
+            var note = note
+            note.lines = note.lines.map { line in
+                var line = line
+                line.cost = nil
+                return line
+            }
+            return note
         }
         store.replaceEverything(with: document)
     }
@@ -158,8 +171,11 @@ struct EarningsTests {
         #expect(before == 30)
     }
 
-    @Test("Credit notes are disclosed and never subtracted")
-    func creditNotesAreDisclosed() {
+    @Test("A credit note written as a figure comes off in full")
+    func figureOnlyCreditNote() {
+        // Nothing was handed back, so nothing goes back on the shelf and the
+        // whole credit is a real loss. Not an approximation — it is why a
+        // figure-only note needs no special case and nothing disclosed.
         let store = makeStore()
         let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
         store.saveBill(lines: [.init(productUID: padlock.uid, qty: 3, price: 30)], customer: "Ahmed", paid: 0)
@@ -167,10 +183,85 @@ struct EarningsTests {
 
         let earnings = store.earningsIn(period())
 
+        // Sold still counts bills and not notes, so it cannot disagree with Home.
         #expect(earnings.sold == 90)
-        #expect(earnings.goodsEarned == 30)
+        #expect(earnings.goodsReturned == 0)
+        #expect(earnings.costOfGoods == 60)
+        #expect(earnings.goodsEarned == 30, "90 sold less 60 cost")
         #expect(earnings.credited == 30)
         #expect(earnings.creditNotes == 1)
+        // 30 earned on the goods, 30 given straight back.
+        #expect(earnings.kept == 0)
+        // Nothing to confess: it is taken off the page rather than listed beside.
+        #expect(!earnings.hasGap)
+        #expect(earnings.creditNotesBeforeCosts == 0)
+    }
+
+    @Test("A credit note with goods on it puts their cost back")
+    func itemisedCreditNote() {
+        // The pair of the test above, and the reason the two cannot share one
+        // rule blindly: 30 credited on goods that cost the shop 20 leaves it 10
+        // worse off, not 30. Those pieces are on the shelf again.
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 3, price: 30)], customer: "Ahmed", paid: 0)
+        store.addCreditNote(
+            customerKey: Customer.key(for: "Ahmed"),
+            lines: [.init(productUID: padlock.uid, qty: 1, price: 30)]
+        )
+
+        let earnings = store.earningsIn(period())
+
+        #expect(earnings.sold == 90, "a return does not unsell the bill")
+        #expect(earnings.costOfGoods == 60)
+        #expect(earnings.goodsReturned == 20, "one padlock back, at what it cost")
+        #expect(earnings.netCostOfGoods == 40)
+        #expect(earnings.goodsEarned == 50)
+        #expect(earnings.credited == 30)
+        // 50 earned, 30 credited: 20 kept, which is the 30 profit on the two
+        // still sold less the 10 the returned one was marked up by.
+        #expect(earnings.kept == 20)
+        #expect(!earnings.hasGap)
+    }
+
+    @Test("A return whose product is gone is put back at nothing and said to be")
+    func returnBeyondValuing() {
+        // The one case that leaves the figure low. Better low than high, and
+        // better said than either.
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 3, price: 30)], customer: "Ahmed", paid: 0)
+        store.addCreditNote(
+            customerKey: Customer.key(for: "Ahmed"),
+            lines: [.init(productUID: padlock.uid, qty: 1, price: 30)]
+        )
+        stripCosts(store)
+        store.delete(store.product(uid: padlock.uid)!)
+
+        let earnings = store.earningsIn(period())
+
+        #expect(earnings.goodsReturned == 0)
+        #expect(earnings.creditNotesBeforeCosts == 1)
+        #expect(earnings.hasGap)
+    }
+
+    @Test("An old return is valued at today's price, and counted as an estimate")
+    func returnEstimated() {
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 3, price: 30)], customer: "Ahmed", paid: 0)
+        store.addCreditNote(
+            customerKey: Customer.key(for: "Ahmed"),
+            lines: [.init(productUID: padlock.uid, qty: 1, price: 30)]
+        )
+        stripCosts(store)
+
+        let earnings = store.earningsIn(period())
+
+        #expect(earnings.goodsReturned == 20, "the shelf still knows")
+        #expect(earnings.creditNotesEstimated == 1)
+        #expect(earnings.creditNotesBeforeCosts == 0)
+        #expect(earnings.hasEstimates)
     }
 
     @Test("Sold matches what Home shows, so the two screens cannot disagree")
@@ -200,6 +291,91 @@ struct EarningsTests {
         #expect(document.lines.map(\.value) == ["SAR 300", "SAR 200", "SAR 100", "SAR 45", "SAR 55"])
         #expect(!document.hasGap)
         #expect(document.gapNote == nil)
+    }
+
+    @Test("A credit note is a line in the chain, not a footnote beside it")
+    func creditedIsALine() {
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Ahmed", paid: 0)
+        store.addCreditNote(customerKey: Customer.key(for: "Ahmed"), amount: 60)
+
+        let document = page(store)
+
+        #expect(document.lines.map(\.label) == [
+            "Sold", "Cost of goods", "What the goods earned", "Credited", "Expenses", "What the shop kept"
+        ])
+        // Nothing came back, so the whole 60 comes off: 100 earned, 40 kept.
+        #expect(document.lines.map(\.value) == ["SAR 300", "SAR 200", "SAR 100", "SAR 60", "SAR 0", "SAR 40"])
+        // The page did the arithmetic, so it has nothing left to confess.
+        #expect(!document.hasGap)
+        #expect(document.gapNote == nil)
+    }
+
+    @Test("A returned padlock takes its cost off the cost of goods")
+    func returnedGoodsNetOff() {
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Ahmed", paid: 0)
+        store.addCreditNote(
+            customerKey: Customer.key(for: "Ahmed"),
+            lines: [.init(productUID: padlock.uid, qty: 2, price: 30)]
+        )
+
+        let document = page(store)
+
+        // 200 of goods went out, 40 came back: the shop parted with 160.
+        #expect(document.lines.first { $0.label == "Cost of goods" }?.value == "SAR 160")
+        #expect(document.lines.first { $0.label == "What the goods earned" }?.value == "SAR 140")
+        #expect(document.lines.first { $0.label == "Credited" }?.value == "SAR 60")
+        // 140 earned less 60 credited: 80, which is the 8 padlocks still sold at
+        // 10 each. The line the whole change exists to make right.
+        #expect(document.lines.last?.value == "SAR 80")
+    }
+
+    @Test("A page with no credit note does not draw the line")
+    func noCreditedLineWhenNoNote() {
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Ahmed", paid: nil)
+
+        #expect(!page(store).lines.contains { $0.label == "Credited" })
+    }
+
+    @Test("A return that could not be valued is confessed and explains which way it is wrong")
+    func unvaluedReturnIsConfessed() throws {
+        // The bill keeps its recorded cost; only the note is beyond valuing, and
+        // only its product is gone. Written this way round on purpose — strand
+        // the bill as well and the page has a bigger thing to say first, which
+        // is right but is not what this test is about.
+        let store = makeStore()
+        let padlock = store.addProduct(name: "Padlock 40mm", stock: 100, cost: 20, price: 30)
+        let hinge = store.addProduct(name: "Hinge 4in", stock: 100, cost: 5, price: 8)
+        store.saveBill(lines: [.init(productUID: padlock.uid, qty: 10, price: 30)], customer: "Ahmed", paid: 0)
+        store.addCreditNote(
+            customerKey: Customer.key(for: "Ahmed"),
+            lines: [.init(productUID: hinge.uid, qty: 2, price: 8)]
+        )
+        var document = store.makeBackupDocument()
+        document.creditNotes = document.creditNotes.map { note in
+            var note = note
+            note.lines = note.lines.map { line in
+                var line = line
+                line.cost = nil
+                return line
+            }
+            return note
+        }
+        store.replaceEverything(with: document)
+        store.delete(try #require(store.product(uid: hinge.uid)))
+
+        let rendered = page(store)
+
+        #expect(rendered.gap.map(\.label) == ["1 credit note whose returned goods could not be valued"])
+        #expect(rendered.gapNote == Loc.returnsNotValued)
+        // Nothing put back, so the 16 credited comes off whole: 300 sold, 200
+        // cost, 100 earned, 84 kept.
+        #expect(rendered.lines.last?.value == "SAR 84")
     }
 
     @Test("Takings the page cannot answer for are taken off in front of the reader")
