@@ -30,8 +30,12 @@ class EarningsTests {
     private fun thisMonth() = StatementPeriod.thisMonth()
 
     /**
-     * Every bill in the book as an older file would have restored it: itemised,
-     * but with no cost on any line.
+     * Every bill **and credit note** in the book as an older file would have
+     * restored it: itemised, but with no cost on any line.
+     *
+     * The notes matter as much as the bills. A return is costed the same way, so
+     * a helper that stripped only one of the two would leave every
+     * old-book test quietly half-modern.
      */
     private fun StockbookStore.stripCosts() {
         val document = makeBackupDocument()
@@ -39,6 +43,9 @@ class EarningsTests {
             document.copy(
                 bills = document.bills.map { bill ->
                     bill.copy(lines = bill.lines.map { it.copy(cost = null) })
+                },
+                creditNotes = document.creditNotes.map { note ->
+                    note.copy(lines = note.lines.map { it.copy(cost = null) })
                 }
             )
         )
@@ -219,10 +226,10 @@ class EarningsTests {
     }
 
     @Test
-    fun `credit notes are disclosed and never subtracted`() {
-        // `soldIn` counts bills and not notes, so netting them here would put two
-        // answers to "what did we sell" on two screens. The owner is told
-        // instead.
+    fun `a credit note written as a figure comes off in full`() {
+        // Nothing was handed back, so nothing goes back on the shelf and the
+        // whole credit is a real loss. Not an approximation — it is why a
+        // figure-only note needs no special case and nothing disclosed.
         val store = store()
         val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
         store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 3, price = 30.0)), customer = "Ahmed", paid = 0.0)
@@ -230,11 +237,85 @@ class EarningsTests {
 
         val earnings = store.earningsIn(thisMonth())
 
+        // Sold still counts bills and not notes, so it cannot disagree with Home.
         assertEquals(90.0, earnings.sold)
-        assertEquals(30.0, earnings.goodsEarned)
+        assertEquals(0.0, earnings.goodsReturned)
+        assertEquals(60.0, earnings.costOfGoods)
+        assertEquals(30.0, earnings.goodsEarned, "90 sold less 60 cost")
         assertEquals(30.0, earnings.credited)
         assertEquals(1, earnings.creditNotes)
+        // 30 earned on the goods, 30 given straight back.
+        assertEquals(0.0, earnings.kept)
+        // Nothing to confess: it is taken off the page rather than listed beside it.
+        assertFalse(earnings.hasGap)
+        assertEquals(0, earnings.creditNotesBeforeCosts)
+    }
+
+    @Test
+    fun `a credit note with goods on it puts their cost back`() {
+        // The pair of the test above, and the reason the two cannot share one
+        // rule blindly: 30 credited on goods that cost the shop 20 leaves it 10
+        // worse off, not 30. Those pieces are on the shelf again.
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 3, price = 30.0)), customer = "Ahmed", paid = 0.0)
+        store.addCreditNote(
+            com.stockbook.core.model.Customer.key("Ahmed"),
+            lines = listOf(DraftLine(padlock.uid, qty = 1, price = 30.0))
+        )
+
+        val earnings = store.earningsIn(thisMonth())
+
+        assertEquals(90.0, earnings.sold, "a return does not unsell the bill")
+        assertEquals(60.0, earnings.costOfGoods)
+        assertEquals(20.0, earnings.goodsReturned, "one padlock back, at what it cost")
+        assertEquals(40.0, earnings.netCostOfGoods)
+        assertEquals(50.0, earnings.goodsEarned)
+        assertEquals(30.0, earnings.credited)
+        // 50 earned, 30 credited: 20 kept, which is the 30 profit on the two
+        // still sold less the 10 the returned one was marked up by.
+        assertEquals(20.0, earnings.kept)
+        assertFalse(earnings.hasGap)
+    }
+
+    @Test
+    fun `a return whose product is gone is put back at nothing and said to be`() {
+        // The one case that leaves the figure low. Better low than high, and
+        // better said than either.
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 3, price = 30.0)), customer = "Ahmed", paid = 0.0)
+        store.addCreditNote(
+            com.stockbook.core.model.Customer.key("Ahmed"),
+            lines = listOf(DraftLine(padlock.uid, qty = 1, price = 30.0))
+        )
+        store.stripCosts()
+        store.delete(assertNotNull(store.product(padlock.uid)))
+
+        val earnings = store.earningsIn(thisMonth())
+
+        assertEquals(0.0, earnings.goodsReturned)
+        assertEquals(1, earnings.creditNotesBeforeCosts)
         assertTrue(earnings.hasGap)
+    }
+
+    @Test
+    fun `an old return is valued at today's price, and counted as an estimate`() {
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 3, price = 30.0)), customer = "Ahmed", paid = 0.0)
+        store.addCreditNote(
+            com.stockbook.core.model.Customer.key("Ahmed"),
+            lines = listOf(DraftLine(padlock.uid, qty = 1, price = 30.0))
+        )
+        store.stripCosts()
+
+        val earnings = store.earningsIn(thisMonth())
+
+        assertEquals(20.0, earnings.goodsReturned, "the shelf still knows")
+        assertEquals(1, earnings.creditNotesEstimated)
+        assertEquals(0, earnings.creditNotesBeforeCosts)
+        assertTrue(earnings.hasEstimates)
     }
 
     @Test

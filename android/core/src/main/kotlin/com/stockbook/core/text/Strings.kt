@@ -1109,15 +1109,26 @@ class Strings(val language: AppLanguage) {
             "No earnings figure yet — these bills were written before the app recorded what goods cost. Bills from now on will count.",
             "ಇನ್ನೂ ಗಳಿಕೆಯ ಲೆಕ್ಕ ಇಲ್ಲ — ಸಾಮಾನಿನ ಬೆಲೆ ದಾಖಲಿಸುವ ಮೊದಲು ಈ ಬಿಲ್‌ಗಳನ್ನು ಬರೆಯಲಾಗಿದೆ. ಇನ್ನು ಮುಂದಿನ ಬಿಲ್‌ಗಳು ಲೆಕ್ಕಕ್ಕೆ ಬರುತ್ತವೆ."
         )
-    fun creditNotesIssued(n: Int): String =
+    /** What was credited back over the period, taken off the earnings. */
+    val creditedLabel: String get() = pick("Credited", "ಕ್ರೆಡಿಟ್")
+    /**
+     * Notes with goods on them that could not be valued, because a line names a
+     * product since deleted.
+     *
+     * Not a figure-only note — one of those hands nothing back, so there is
+     * nothing to value and the whole credit comes off correctly.
+     */
+    fun creditNotesBeforeCosts(n: Int): String =
             pick(
-                if (n == 1) "1 credit note issued" else "$n credit notes issued",
-                "$n ಕ್ರೆಡಿಟ್ ನೋಟ್ ನೀಡಲಾಗಿದೆ"
+                if (n == 1) "1 credit note whose returned goods could not be valued"
+                else "$n credit notes whose returned goods could not be valued",
+                "$n ಕ್ರೆಡಿಟ್ ನೋಟ್‌ನ ವಾಪಸಾದ ಸಾಮಾನಿನ ಬೆಲೆ ತಿಳಿದಿಲ್ಲ"
             )
-    val creditNotesNotSubtracted: String
+    /** Why that leaves the earnings low rather than merely uncertain. */
+    val returnsNotValued: String
         get() = pick(
-            "Credit notes are not taken off the figures above.",
-            "ಮೇಲಿನ ಮೊತ್ತಗಳಿಂದ ಕ್ರೆಡಿಟ್ ನೋಟ್ ಕಳೆದಿಲ್ಲ."
+            "Those goods were put back at nothing, so the earnings above are lower than the truth.",
+            "ಆ ಸಾಮಾನನ್ನು ಶೂನ್ಯ ಬೆಲೆಗೆ ಹಿಂತಿರುಗಿಸಲಾಗಿದೆ, ಹಾಗಾಗಿ ಮೇಲಿನ ಗಳಿಕೆ ನಿಜಕ್ಕಿಂತ ಕಡಿಮೆ."
         )
     val nothingSoldThen: String get() = pick("Nothing sold in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಮಾರಾಟ ಇಲ್ಲ.")
     fun earningsFileName(date: String): String = "earnings-$date.pdf"

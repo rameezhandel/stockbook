@@ -97,7 +97,7 @@ struct LocalizationTests {
         \.moneyInLabel, \.moneyOutLabel, \.netForTheDay, \.nothingOnThisDay,
         \.previousDay, \.nextDay,
         \.earningsSummary, \.costOfGoods, \.goodsEarned, \.shopKept,
-        \.notCounted, \.countedSales, \.creditNotesNotSubtracted, \.nothingSoldThen,
+        \.notCounted, \.countedSales, \.creditedLabel, \.returnsNotValued, \.nothingSoldThen,
         \.nothingCostableYet, \.costsEstimated,
         \.currencySection, \.currencyNote, \.setupCurrencyNote, \.moveToAnotherPhone,
         \.moveToAnotherPhoneNote, \.exportEverything, \.exportNoteFirstTime, \.exportNoteAfterBackup,

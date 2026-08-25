@@ -45,6 +45,9 @@ class EarningsDocumentTests {
             document.copy(
                 bills = document.bills.map { bill ->
                     bill.copy(lines = bill.lines.map { it.copy(cost = null) })
+                },
+                creditNotes = document.creditNotes.map { note ->
+                    note.copy(lines = note.lines.map { it.copy(cost = null) })
                 }
             )
         )
@@ -130,7 +133,7 @@ class EarningsDocumentTests {
     }
 
     @Test
-    fun `credit notes are listed under the gap with a line saying why`() {
+    fun `a credit note is a line in the chain, not a footnote beside it`() {
         val store = store()
         val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
         store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = 0.0)
@@ -138,10 +141,81 @@ class EarningsDocumentTests {
 
         val page = store.page()
 
-        assertEquals(listOf("1 credit note issued"), page.gap.map { it.label })
-        assertEquals("Credit notes are not taken off the figures above.", page.gapNote)
-        // And they really are not: the chain is untouched by the note.
-        assertEquals("SAR 100", page.lines.first { it.label == "What the goods earned" }.value)
+        assertEquals(
+            listOf("Sold", "Cost of goods", "What the goods earned", "Credited", "Expenses", "What the shop kept"),
+            page.lines.map { it.label }
+        )
+        // Nothing came back, so the whole 60 comes off: 100 earned, 40 kept.
+        assertEquals(
+            listOf("SAR 300", "SAR 200", "SAR 100", "SAR 60", "SAR 0", "SAR 40"),
+            page.lines.map { it.value }
+        )
+        // The page did the arithmetic, so it has nothing left to confess.
+        assertFalse(page.hasGap)
+        assertNull(page.gapNote)
+    }
+
+    @Test
+    fun `a returned padlock takes its cost off the cost of goods`() {
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = 0.0)
+        store.addCreditNote(Customer.key("Ahmed"), lines = listOf(DraftLine(padlock.uid, qty = 2, price = 30.0)))
+
+        val page = store.page()
+
+        // 200 of goods went out, 40 came back: the shop parted with 160.
+        assertEquals("SAR 160", page.lines.first { it.label == "Cost of goods" }.value)
+        assertEquals("SAR 140", page.lines.first { it.label == "What the goods earned" }.value)
+        assertEquals("SAR 60", page.lines.first { it.label == "Credited" }.value)
+        // 140 earned less 60 credited: 80, which is the 8 padlocks still sold at
+        // 10 each. The line the whole change exists to make right.
+        assertEquals("SAR 80", page.lines.last().value)
+    }
+
+    @Test
+    fun `a page with no credit note does not draw the line`() {
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = null)
+
+        assertFalse(store.page().lines.any { it.label == "Credited" })
+    }
+
+    @Test
+    fun `a return that could not be valued is confessed and explains which way it is wrong`() {
+        val store = store()
+        val padlock = store.stocked("Padlock 40mm", cost = 20.0, price = 30.0)
+        store.saveBill(lines = listOf(DraftLine(padlock.uid, qty = 10, price = 30.0)), customer = "Ahmed", paid = 0.0)
+        val hinge = store.stocked("Hinge 4in", cost = 5.0, price = 8.0)
+        store.addCreditNote(Customer.key("Ahmed"), lines = listOf(DraftLine(hinge.uid, qty = 2, price = 8.0)))
+        // The bill keeps its recorded cost; only the note is beyond valuing, and
+        // only its product is gone. Written this way round on purpose — strand
+        // the bill as well and the page has a bigger thing to say first, which
+        // is right but is not what this test is about.
+        val document = store.makeBackupDocument()
+        store.replaceEverything(
+            document.copy(
+                creditNotes = document.creditNotes.map { note ->
+                    note.copy(lines = note.lines.map { it.copy(cost = null) })
+                }
+            )
+        )
+        store.delete(requireNotNull(store.product(hinge.uid)))
+
+        val page = store.page()
+
+        assertEquals(
+            listOf("1 credit note whose returned goods could not be valued"),
+            page.gap.map { it.label }
+        )
+        assertEquals(
+            "Those goods were put back at nothing, so the earnings above are lower than the truth.",
+            page.gapNote
+        )
+        // Nothing put back, so the 16 credited comes off whole: 300 sold, 200
+        // cost, 100 earned, 84 kept.
+        assertEquals("SAR 84", page.lines.last().value)
     }
 
     @Test

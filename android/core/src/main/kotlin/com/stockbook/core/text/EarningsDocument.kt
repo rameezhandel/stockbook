@@ -83,8 +83,19 @@ data class EarningsDocument(
                 // not lost anything; this page simply cannot say.
                 if (earnings.nothingCostable) return@buildList
 
-                add(Line(strings.costOfGoods, money(earnings.costOfGoods), Weight.MINUS))
+                // Net of what came back. Goods handed back are goods the shop
+                // still has, so their cost was never really spent — and netting
+                // it here rather than on a row of its own keeps every line a
+                // figure the owner recognises.
+                add(Line(strings.costOfGoods, money(earnings.netCostOfGoods), Weight.MINUS))
                 add(Line(strings.goodsEarned, money(earnings.goodsEarned), Weight.TOTAL))
+                // Only where one was written. The full credit comes off, its
+                // goods having already been added back above: credit 200 for
+                // goods that cost 140 and the shop is 60 worse off, which is
+                // what these two lines together say.
+                if (earnings.creditNotes > 0) {
+                    add(Line(strings.creditedLabel, money(earnings.credited), Weight.MINUS))
+                }
                 add(Line(strings.expensesTitle, money(earnings.expenses), Weight.MINUS))
                 // The one figure on the page that can go either way, so the one
                 // that carries a sign.
@@ -107,8 +118,12 @@ data class EarningsDocument(
                 if (earnings.billsEstimated > 0) {
                     add(Line(strings.billsEstimated(earnings.billsEstimated), money(earnings.soldEstimated)))
                 }
-                if (earnings.creditNotes > 0) {
-                    add(Line(strings.creditNotesIssued(earnings.creditNotes), money(earnings.credited)))
+                // Only the notes whose goods could not be valued at all. The
+                // rest are on the page above, taken off rather than listed
+                // beside — which is what this block used to do and what made it
+                // the owner's arithmetic instead of the app's.
+                if (earnings.creditNotesBeforeCosts > 0) {
+                    add(Line(strings.creditNotesBeforeCosts(earnings.creditNotesBeforeCosts), ""))
                 }
             }
 
@@ -135,10 +150,9 @@ data class EarningsDocument(
                     // the figures will arrive as it trades, not that credit
                     // notes are handled a particular way.
                     earnings.nothingCostable -> strings.nothingCostableYet
-                    // Otherwise said only where a note was actually written. A
-                    // standing disclaimer under a page with no credit notes on
-                    // it is a line the owner learns to skip.
-                    earnings.creditNotes > 0 -> strings.creditNotesNotSubtracted
+                    // And where a return could not be valued, why that leaves
+                    // the figure low rather than merely uncertain.
+                    earnings.creditNotesBeforeCosts > 0 -> strings.returnsNotValued
                     else -> null
                 },
                 emptyLine = strings.nothingSoldThen

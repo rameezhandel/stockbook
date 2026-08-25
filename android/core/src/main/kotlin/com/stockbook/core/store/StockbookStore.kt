@@ -141,6 +141,20 @@ data class Earnings(
     val billsBeforeCosts: Int,
     /** What the goods on the countable bills cost the shop, as at their sale. */
     val costOfGoods: Double,
+    /**
+     * What the goods a credit note brought **back** cost the shop.
+     *
+     * The mirror of [costOfGoods], and the reason a credit note can be taken off
+     * the earnings honestly. A sale adds what was charged and takes off what the
+     * goods cost; a return takes off what was credited and puts that cost back,
+     * because those pieces are on the shelf again and were never really sold.
+     *
+     * Zero for a note written as a plain figure — "knock two hundred off" hands
+     * nothing back — and that is not an approximation. It is why the whole
+     * credited amount comes off such a note and only part of it comes off an
+     * itemised one.
+     */
+    val goodsReturned: Double,
     /** What the owner spent over the same days. */
     val expenses: Double,
     /**
@@ -154,14 +168,28 @@ data class Earnings(
      * notes exist and left to judge.
      */
     val credited: Double,
-    val creditNotes: Int
+    val creditNotes: Int,
+    /** Notes whose returned goods were valued at today's buying price. */
+    val creditNotesEstimated: Int,
+    /**
+     * Notes with goods on them that could not be valued at all, because a line
+     * names a product since deleted.
+     *
+     * Their goods are put back at nothing, which understates what the shop
+     * earned rather than overstating it — the safe direction — and is said on the
+     * page rather than left for the owner to find.
+     *
+     * A figure-only note is **not** one of these. It hands nothing back, so
+     * nothing needs valuing and the full credit comes off correctly.
+     */
+    val creditNotesBeforeCosts: Int
 ) {
     /** Everything this page cannot account for, whichever of the two reasons. */
     val soldWithoutCost: Double get() = soldAsTotal + soldBeforeCosts
     val billsWithoutCost: Int get() = billsAsTotal + billsBeforeCosts
 
-    /** Whether any of [costOfGoods] was guessed from the shelf as it stands now. */
-    val hasEstimates: Boolean get() = billsEstimated > 0
+    /** Whether any of the costs on the page were guessed from the shelf as it stands now. */
+    val hasEstimates: Boolean get() = billsEstimated > 0 || creditNotesEstimated > 0
 
     /** Takings this page can actually account for. */
     val counted: Double get() = sold - soldWithoutCost
@@ -177,17 +205,41 @@ data class Earnings(
      */
     val nothingCostable: Boolean get() = sold > 0 && counted == 0.0
 
-    /** What the goods earned: what they sold for, less what they cost. */
-    val goodsEarned: Double get() = counted - costOfGoods
+    /**
+     * What the goods that actually left the shop cost it: what the sold ones
+     * cost, less what the returned ones cost.
+     *
+     * The line the page draws. Netting the return in here rather than adding a
+     * row of its own is what keeps every line on the page a figure the owner
+     * recognises — and it is the truth about the figure: goods handed back are
+     * goods the shop still has.
+     */
+    val netCostOfGoods: Double get() = costOfGoods - goodsReturned
 
-    /** And what was left after the owner's own spending. */
-    val kept: Double get() = goodsEarned - expenses
+    /** What the goods earned: what they sold for, less what they cost. */
+    val goodsEarned: Double get() = counted - netCostOfGoods
+
+    /**
+     * And what was left after what was credited back and the owner's own
+     * spending.
+     *
+     * [credited] comes off in full here, its goods having already been added
+     * back through [netCostOfGoods]. Take the note off *and* put its stock back
+     * and the arithmetic lands where it should: a customer credited 200 for
+     * goods that cost 140 leaves the shop 60 worse off, not 200.
+     */
+    val kept: Double get() = goodsEarned - credited - expenses
 
     /** Whether anything was sold at all, countable or not. */
     val isEmpty: Boolean get() = sold == 0.0 && expenses == 0.0
 
-    /** Whether there is anything to confess. */
-    val hasGap: Boolean get() = billsWithoutCost > 0 || creditNotes > 0
+    /**
+     * Whether there is anything to confess.
+     *
+     * No longer true merely because a credit note exists: they are taken off the
+     * figures now rather than listed beside them.
+     */
+    val hasGap: Boolean get() = billsWithoutCost > 0 || creditNotesBeforeCosts > 0
 }
 
 /**
@@ -1511,6 +1563,8 @@ class StockbookStore(private val repository: StockbookRepository) {
         // its own figure.
         val estimated = costable.filter { bill -> bill.lines.any { it.cost == null } }
 
+        val notes = creditNotes.filter { it.issuedAt in range }
+
         return Earnings(
             sold = inPeriod.sumOf { it.total },
             soldAsTotal = asTotal.sumOf { it.total },
@@ -1522,9 +1576,27 @@ class StockbookStore(private val repository: StockbookRepository) {
             costOfGoods = costable.sumOf { bill ->
                 bill.lines.sumOf { line -> line.qty * (unitCost(line) ?: 0.0) }
             },
+            // A return is a sale run backwards, so it is costed the same way and
+            // with the same fallback. A line whose product has since been
+            // deleted puts nothing back, which understates what the shop earned
+            // rather than overstating it — and the page says so.
+            goodsReturned = notes.sumOf { note ->
+                note.lines.sumOf { line -> line.qty * (unitCost(line) ?: 0.0) }
+            },
             expenses = spentIn(period),
-            credited = creditNotes.filter { it.issuedAt in range }.sumOf { it.total },
-            creditNotes = creditNotes.count { it.issuedAt in range }
+            credited = notes.sumOf { it.total },
+            creditNotes = notes.size,
+            // A note written as a plain figure hands nothing back, so there is
+            // nothing to value and it belongs in neither count. The whole credit
+            // comes off it, correctly, with nothing to disclose.
+            creditNotesEstimated = notes.count { note ->
+                note.lines.isNotEmpty() &&
+                    note.lines.all { unitCost(it) != null } &&
+                    note.lines.any { it.cost == null }
+            },
+            creditNotesBeforeCosts = notes.count { note ->
+                note.lines.isNotEmpty() && note.lines.any { unitCost(it) == null }
+            }
         )
     }
 
