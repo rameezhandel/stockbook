@@ -76,13 +76,20 @@ fun MergeSheet(
     // Everybody except the one going. Keyed on the state so a payment taken
     // elsewhere while this is open does not leave a stale figure on the
     // confirmation.
-    val candidates = remember(state, fromKey, query) {
-        val found = if (isSupplier) {
-            if (query.isBlank()) store.suppliers() else store.suppliers(matching = query)
+    // Reduced to key-and-name inside each branch rather than after them.
+    // `Customer` and `Supplier` share no supertype, so a `found` holding either
+    // is inferred as `List<Any>` and neither field resolves — which compiles
+    // nowhere and is only found in CI, this module having no local build.
+    val candidates: List<Pair<String, String>> = remember(state, fromKey, query) {
+        if (isSupplier) {
+            (if (query.isBlank()) store.suppliers() else store.suppliers(matching = query))
+                .filterNot { it.key == fromKey }
+                .map { it.key to it.name }
         } else {
-            if (query.isBlank()) store.customers() else store.customers(matching = query)
+            (if (query.isBlank()) store.customers() else store.customers(matching = query))
+                .filterNot { it.key == fromKey }
+                .map { it.key to it.name }
         }
-        found.filterNot { it.key == fromKey }.map { it.key to it.name }
     }
 
     val preview: MergePreview? = remember(state, fromKey, chosen) {
