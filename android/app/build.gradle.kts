@@ -37,7 +37,7 @@ val canSignRelease = listOf(
 
 android {
     namespace = "com.stockbook.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.stockbook.application"
@@ -46,7 +46,7 @@ android {
         // by now and would cost a compatibility layer on the one thing this app
         // must get exactly right.
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         // The number Play orders uploads by. It must increase with every upload
         // and can never be reused or lowered, so the release workflow passes it
         // in rather than relying on somebody remembering to edit this line.

@@ -40,6 +40,17 @@
           with no way to scroll to it. The layout moving is the lesser cost by a
           long way — see the `imePadding` calls that go with this.
         -->
+        <!--
+          `screenOrientation` is a request rather than a rule from `targetSdk
+          36`. Android 16 ignores orientation and resizability restrictions on
+          displays 600dp and wider, so a tablet or an unfolded foldable rotates
+          this app whatever the attribute says. Phones — every device this is
+          actually for, a shopkeeper's hand at a counter — still honour it.
+
+          Left in place deliberately: it still does its job where it matters, and
+          removing it would change nothing on a large screen while letting phones
+          rotate too.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
