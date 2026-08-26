@@ -268,8 +268,8 @@ struct Statement: Equatable {
     let transferredIn: Double
     let transferredOut: Double
 
-    /// `openingBalance + billed − received − credited`. What they owe at the end
-    /// of it.
+    /// `openingBalance + billed + transferredIn − received − credited −
+    /// transferredOut`. What they owe at the end of it.
     let closingBalance: Double
 
     /// The running balance after each entry, parallel to `entries`, so the
@@ -341,10 +341,10 @@ struct Statement: Equatable {
                 .reduce(0) { $0 + $1.charge - $1.settledAtOnce }
 
         let inRange = ordered.filter { range.contains($0.date) }
-        let billed = trade.reduce(0) { $0 + $1.charge }
-        // Split by where the reduction came from, not by how big it was. Both
-        // still come off the running balance below, together.
+        // Split by where each figure came from, not by how big it was. All of
+        // them still move the running balance below, together.
         let trade = inRange.filter { $0.kind == .trade }
+        let billed = trade.reduce(0) { $0 + $1.charge }
         let received = trade.reduce(0) { $0 + $1.settledAtOnce }
         let credited = inRange.filter { $0.kind == .creditNote }.reduce(0) { $0 + $1.settledAtOnce }
         let transfers = inRange.filter { $0.kind == .transfer }

@@ -114,6 +114,28 @@ struct StatementDocument: Equatable {
                 )
             )
         }
+        // Their own rows, drawn only where there is one — for the reason the
+        // credit notes have theirs: a transfer in is not something the shop
+        // invoiced and a transfer out is not money it took, so folding either
+        // into a trading figure would make that figure mean two things on a
+        // document somebody is handed.
+        if statement.transferredIn > 0 {
+            summary.append(
+                Row(
+                    label: strings.transferredInLabel,
+                    value: Money.text(statement.transferredIn, in: money)
+                )
+            )
+        }
+        if statement.transferredOut > 0 {
+            summary.append(
+                Row(
+                    label: strings.transferredOutLabel,
+                    value: Money.text(statement.transferredOut, in: money),
+                    deduction: true
+                )
+            )
+        }
 
         return StatementDocument(
             shopName: settings.ownerName,

@@ -144,6 +144,46 @@ class StatementDocumentTests {
         assertEquals("SAR 460", document.closingValue, "1000 billed less 540 credited")
     }
 
+    /**
+     * The gap this closes was real: the rows existed on Android and not on iOS,
+     * so an iPhone printed a statement whose closing balance had moved with no
+     * line saying why. On a document handed across a counter that is the worst
+     * kind of wrong — it looks like an arithmetic mistake by the shop.
+     */
+    @Test
+    fun `a moved balance gets its own summary row at each end`() {
+        val store = store().aShop()
+        store.addCustomer("Ahmed Jeddah")
+        store.addCustomer("Ahmed Riyadh")
+        store.saveBill(customer = "Ahmed Jeddah", paid = 0.0, amount = 1000.0, invoiceNo = "06011")
+
+        assertTrue(
+            document(store, "ahmed jeddah").summaryRows.none {
+                it.label == english.transferredInLabel || it.label == english.transferredOutLabel
+            },
+            "no rows before anything has moved"
+        )
+
+        assertNotNull(
+            store.transferBalance(fromKey = "ahmed jeddah", intoKey = "ahmed riyadh", amount = 600.0)
+        )
+
+        // The end it left: a deduction, and the closing figure follows it down.
+        val left = document(store, "ahmed jeddah")
+        val out = assertNotNull(left.summaryRows.firstOrNull { it.label == english.transferredOutLabel })
+        assertEquals("SAR 600", out.value)
+        assertTrue(out.deduction)
+        assertEquals("SAR 400", left.closingValue, "1000 billed less 600 moved away")
+
+        // The end it arrived at: a charge, not a deduction, because the account
+        // now owes it.
+        val arrived = document(store, "ahmed riyadh")
+        val into = assertNotNull(arrived.summaryRows.firstOrNull { it.label == english.transferredInLabel })
+        assertEquals("SAR 600", into.value)
+        assertTrue(!into.deduction)
+        assertEquals("SAR 600", arrived.closingValue)
+    }
+
     @Test
     fun `a supplier statement says bought and paid out rather than billed and received`() {
         val store = store().aShop()

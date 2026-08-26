@@ -395,6 +395,9 @@ struct StatementScreen: View {
         switch entry {
         case .bill, .purchase: Nocturne.text
         case .payment, .supplierPayment, .creditNote: Nocturne.accent400
+        // Whichever way this one moves the account, so it reads like the charge
+        // or the settlement it is.
+        case .transfer(_, let outgoing, _): outgoing ? Nocturne.accent400 : Nocturne.text
         }
     }
 

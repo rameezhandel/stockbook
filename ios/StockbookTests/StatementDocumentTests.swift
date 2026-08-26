@@ -153,6 +153,43 @@ struct StatementDocumentTests {
         #expect(document.closingValue == "SAR 460", "1000 billed less 540 credited")
     }
 
+    /// The gap this closes was real: the rows existed on Android and not on iOS,
+    /// so an iPhone printed a statement whose closing balance had moved with no
+    /// line saying why. On a document handed across a counter that is the worst
+    /// kind of wrong — it looks like an arithmetic mistake by the shop.
+    @Test("A moved balance gets its own summary row at each end")
+    func transferRows() throws {
+        let store = makeStore()
+        aShop(store)
+        store.addCustomer(name: "Ahmed Jeddah")
+        store.addCustomer(name: "Ahmed Riyadh")
+        store.saveBill(customer: "Ahmed Jeddah", paid: 0, amount: 1000, invoiceNo: "06011")
+
+        let before = try document(store, key: "ahmed jeddah").summaryRows
+        #expect(
+            !before.contains { $0.label == english.transferredInLabel || $0.label == english.transferredOutLabel },
+            "no rows before anything has moved"
+        )
+
+        let moved = store.transferBalance(fromKey: "ahmed jeddah", intoKey: "ahmed riyadh", amount: 600)
+        #expect(moved != nil)
+
+        // The end it left: a deduction, and the closing figure follows it down.
+        let left = try document(store, key: "ahmed jeddah")
+        let out = try #require(left.summaryRows.first { $0.label == english.transferredOutLabel })
+        #expect(out.value == "SAR 600")
+        #expect(out.deduction)
+        #expect(left.closingValue == "SAR 400", "1000 billed less 600 moved away")
+
+        // The end it arrived at: a charge, not a deduction, because the account
+        // now owes it.
+        let arrived = try document(store, key: "ahmed riyadh")
+        let into = try #require(arrived.summaryRows.first { $0.label == english.transferredInLabel })
+        #expect(into.value == "SAR 600")
+        #expect(!into.deduction)
+        #expect(arrived.closingValue == "SAR 600")
+    }
+
     @Test("A supplier statement says bought and paid out rather than billed and received")
     func supplierWording() throws {
         let store = makeStore()
