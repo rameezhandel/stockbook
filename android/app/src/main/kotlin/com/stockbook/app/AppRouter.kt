@@ -203,6 +203,21 @@ class AppRouter {
         mergeFrom = key
     }
 
+    /**
+     * The account a balance is being moved *from*, and which side it is on.
+     *
+     * Its own pair rather than sharing [mergeFrom]. The two acts sit next to each
+     * other on the party screen and look alike; one sheet reading the other's
+     * state would be a very quiet way to run the wrong one.
+     */
+    var moveBalanceFrom by mutableStateOf<String?>(null)
+    var moveBalanceIsSupplier by mutableStateOf(false)
+
+    fun startMoveBalance(key: String, isSupplier: Boolean) {
+        moveBalanceIsSupplier = isSupplier
+        moveBalanceFrom = key
+    }
+
     fun openCustomerScreen(key: String) {
         partyIsSupplier = false
         partyFor = key

@@ -33,6 +33,7 @@ import com.stockbook.app.design.BottomSheet
 import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.book.BookScreen
 import com.stockbook.app.feature.book.MergeSheet
+import com.stockbook.app.feature.book.MoveBalanceSheet
 import com.stockbook.app.feature.book.PurchaseSheet
 import com.stockbook.app.feature.customers.CreditNoteSheet
 import com.stockbook.app.feature.customers.CustomerEditorSheet
@@ -441,6 +442,27 @@ private fun Shell(store: StockbookStore) {
                         // screen showing an empty account.
                         router.partyFor = null
                     }
+                )
+            }
+        }
+
+        // Moving a balance between two accounts that are both real. Beside the
+        // merge sheet, and deliberately not the same thing.
+        BottomSheet(
+            visible = router.moveBalanceFrom != null,
+            onDismiss = { router.moveBalanceFrom = null }
+        ) {
+            router.moveBalanceFrom?.let { key ->
+                MoveBalanceSheet(
+                    fromKey = key,
+                    isSupplier = router.moveBalanceIsSupplier,
+                    state = state,
+                    store = store,
+                    currency = state.settings.currency,
+                    strings = strings,
+                    // Both accounts survive, so the screen behind this stays
+                    // open and correct — unlike a merge, which closes it.
+                    onClose = { router.moveBalanceFrom = null }
                 )
             }
         }

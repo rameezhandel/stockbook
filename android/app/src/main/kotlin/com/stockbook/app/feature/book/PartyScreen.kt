@@ -170,6 +170,16 @@ fun PartyScreen(
                     } else {
                         strings.mergeIntoAnotherCustomer
                     },
+                    // Offered on the same terms as the merge, and beside it: both
+                    // need somebody else on this side of the book to act on.
+                    onMoveBalance = {
+                        router.startMoveBalance(partyKey, isSupplier)
+                    }.takeIf { others > 0 },
+                    moveBalanceTitle = if (isSupplier) {
+                        strings.moveBalanceToSupplier
+                    } else {
+                        strings.moveBalanceToCustomer
+                    },
                     editLabel = if (isSupplier) strings.editSupplier else strings.editCustomer
                 )
                 Spacer(Modifier.height(20.dp))
@@ -240,6 +250,12 @@ private fun AccountCard(
      */
     onMerge: (() -> Unit)?,
     mergeTitle: String,
+    /**
+     * Moving what this account owes onto another. Null where there is nobody on
+     * this side of the book to move it to.
+     */
+    onMoveBalance: (() -> Unit)?,
+    moveBalanceTitle: String,
     editLabel: String
 ) {
     Column(
@@ -329,6 +345,18 @@ private fun AccountCard(
                 fontSize = 12.0,
                 tint = Nocturne.neutral500,
                 modifier = Modifier.padding(top = 10.dp)
+            )
+        }
+        // Beneath the merge, quieter still. The two read alike and do opposite
+        // things to the history, so they are worded for what they *keep*: one
+        // says "merge into another customer", this says "move a balance".
+        if (onMoveBalance != null) {
+            GhostButton(
+                moveBalanceTitle,
+                onClick = onMoveBalance,
+                fontSize = 12.0,
+                tint = Nocturne.neutral500,
+                modifier = Modifier.padding(top = 6.dp)
             )
         }
     }

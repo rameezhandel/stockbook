@@ -463,6 +463,37 @@ class Strings(val language: AppLanguage) {
     val transferredInLabel: String get() = pick("Transferred in", "ಒಳಬಂದ ವರ್ಗಾವಣೆ")
     val transferredOutLabel: String get() = pick("Transferred out", "ಹೊರಹೋದ ವರ್ಗಾವಣೆ")
 
+    /** The way in, from the account the balance will leave. */
+    val moveBalanceToCustomer: String
+        get() = pick("Move a balance to another customer", "ಬಾಕಿಯನ್ನು ಇನ್ನೊಬ್ಬ ಗ್ರಾಹಕರಿಗೆ ಸರಿಸಿ")
+    val moveBalanceToSupplier: String
+        get() = pick("Move a balance to another supplier", "ಬಾಕಿಯನ್ನು ಇನ್ನೊಬ್ಬ ಪೂರೈಕೆದಾರರಿಗೆ ಸರಿಸಿ")
+    val moveABalance: String get() = pick("Move a balance", "ಬಾಕಿ ಸರಿಸಿ")
+    /** Says which way round it goes, above the list of who it could go to. */
+    fun moveBalanceChoose(name: String): String =
+            pick(
+                "Choose the account to move it to. $name keeps its bills either way.",
+                "ಎಲ್ಲಿಗೆ ಸರಿಸಬೇಕೆಂದು ಆರಿಸಿ. $name ನ ಬಿಲ್‌ಗಳು ಹಾಗೇ ಉಳಿಯುತ್ತವೆ."
+            )
+    val amountToMove: String get() = pick("Amount to move", "ಸರಿಸಬೇಕಾದ ಮೊತ್ತ")
+    val whyMoved: String get() = pick("Why", "ಏಕೆ")
+    val whyMovedExample: String
+        get() = pick("Consolidating on the Riyadh account", "ರಿಯಾದ್ ಖಾತೆಗೆ ಒಟ್ಟುಗೂಡಿಸುವಿಕೆ")
+    fun willOweAfter(name: String): String = pick("$name will owe", "$name ಬಾಕಿ ಇರುತ್ತದೆ")
+    /**
+     * Said on the confirmation. Shorter than the merge's warning on purpose: a
+     * transfer keeps both accounts and can be removed from the statement, so it
+     * is undoable in the way a merge is not.
+     */
+    val movedBalanceIsAnEntry: String
+        get() = pick(
+            "This shows on both statements and can be removed from either.",
+            "ಇದು ಎರಡೂ ಸ್ಟೇಟ್‌ಮೆಂಟ್‌ನಲ್ಲಿ ಕಾಣುತ್ತದೆ ಮತ್ತು ಯಾವುದರಿಂದಲಾದರೂ ತೆಗೆಯಬಹುದು."
+        )
+    val enterAnAmountToMove: String get() = pick("Enter an amount", "ಮೊತ್ತ ಬರೆಯಿರಿ")
+    val nobodyToMoveTo: String get() = pick("There is nobody else to move it to", "ಸರಿಸಲು ಬೇರೆ ಯಾರೂ ಇಲ್ಲ")
+    val removeThisTransfer: String get() = pick("Remove this transfer", "ಈ ವರ್ಗಾವಣೆ ತೆಗೆಯಿರಿ")
+
     // --- Payments
 
     val recordAPayment: String get() = pick("Record a payment", "ಪಾವತಿ ದಾಖಲಿಸಿ")

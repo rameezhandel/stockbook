@@ -1360,4 +1360,38 @@ struct Strings {
     var transferredInLabel: String { pick("Transferred in", "ಒಳಬಂದ ವರ್ಗಾವಣೆ") }
     var transferredOutLabel: String { pick("Transferred out", "ಹೊರಹೋದ ವರ್ಗಾವಣೆ") }
 
+    /// The way in, from the account the balance will leave.
+    var moveBalanceToCustomer: String {
+        pick("Move a balance to another customer", "ಬಾಕಿಯನ್ನು ಇನ್ನೊಬ್ಬ ಗ್ರಾಹಕರಿಗೆ ಸರಿಸಿ")
+    }
+    var moveBalanceToSupplier: String {
+        pick("Move a balance to another supplier", "ಬಾಕಿಯನ್ನು ಇನ್ನೊಬ್ಬ ಪೂರೈಕೆದಾರರಿಗೆ ಸರಿಸಿ")
+    }
+    var moveABalance: String { pick("Move a balance", "ಬಾಕಿ ಸರಿಸಿ") }
+    /// Says which way round it goes, above the list of who it could go to.
+    func moveBalanceChoose(_ name: String) -> String {
+        pick(
+            "Choose the account to move it to. \(name) keeps its bills either way.",
+            "ಎಲ್ಲಿಗೆ ಸರಿಸಬೇಕೆಂದು ಆರಿಸಿ. \(name) ನ ಬಿಲ್‌ಗಳು ಹಾಗೇ ಉಳಿಯುತ್ತವೆ."
+        )
+    }
+    var amountToMove: String { pick("Amount to move", "ಸರಿಸಬೇಕಾದ ಮೊತ್ತ") }
+    var whyMoved: String { pick("Why", "ಏಕೆ") }
+    var whyMovedExample: String {
+        pick("Consolidating on the Riyadh account", "ರಿಯಾದ್ ಖಾತೆಗೆ ಒಟ್ಟುಗೂಡಿಸುವಿಕೆ")
+    }
+    func willOweAfter(_ name: String) -> String { pick("\(name) will owe", "\(name) ಬಾಕಿ ಇರುತ್ತದೆ") }
+    /// Said on the confirmation. Shorter than the merge's warning on purpose: a
+    /// transfer keeps both accounts and can be removed from the statement, so it
+    /// is undoable in the way a merge is not.
+    var movedBalanceIsAnEntry: String {
+        pick(
+            "This shows on both statements and can be removed from either.",
+            "ಇದು ಎರಡೂ ಸ್ಟೇಟ್‌ಮೆಂಟ್‌ನಲ್ಲಿ ಕಾಣುತ್ತದೆ ಮತ್ತು ಯಾವುದರಿಂದಲಾದರೂ ತೆಗೆಯಬಹುದು."
+        )
+    }
+    var enterAnAmountToMove: String { pick("Enter an amount", "ಮೊತ್ತ ಬರೆಯಿರಿ") }
+    var nobodyToMoveTo: String { pick("There is nobody else to move it to", "ಸರಿಸಲು ಬೇರೆ ಯಾರೂ ಇಲ್ಲ") }
+    var removeThisTransfer: String { pick("Remove this transfer", "ಈ ವರ್ಗಾವಣೆ ತೆಗೆಯಿರಿ") }
+
 }
