@@ -296,7 +296,13 @@ struct CreditNoteTests {
         // A reader that dropped these would show every credited customer owing
         // more than they do, and send the owner to ask for money written off
         // weeks ago. That is a figure misread, which is what bumps the version.
-        #expect(document.version == 3)
+        //
+        // Asserted as "at least the version that carried them" rather than as a
+        // literal: what this test is about is that credit notes travel, and
+        // pinning the number here means every later bump edits a credit-note
+        // test to say something it was never about.
+        #expect(document.version >= 3)
+        #expect(document.version == BackupDocument.currentVersion)
 
         let restored = makeStore()
         restored.replaceEverything(with: document)
