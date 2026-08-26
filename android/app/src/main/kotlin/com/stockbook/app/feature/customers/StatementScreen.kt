@@ -495,6 +495,19 @@ private fun EntryRow(
                             Text(it, style = NocturneType.meta, color = Nocturne.neutral500)
                         }
                     }
+                    is Statement.Entry.ForTransfer -> {
+                        // Named by the account at the other end — see
+                        // `reference` — because there is no number to show. The
+                        // reason is drawn under it for the same purpose a credit
+                        // note's is: a figure the customer cannot place is one
+                        // they have to come and ask about.
+                        Text(
+                            reference(entry, strings),
+                            style = NocturneType.inter(13.0),
+                            color = Nocturne.text
+                        )
+                        Detail(entry.transfer.note)
+                    }
                 }
                 Text(strings.longDate(entry.date), style = NocturneType.meta, color = Nocturne.neutral500)
             }
@@ -511,6 +524,10 @@ private fun EntryRow(
                         is Statement.Entry.ForPayment,
                         is Statement.Entry.ForSupplierPayment,
                         is Statement.Entry.ForCreditNote -> Nocturne.accent400
+                        // Whichever way this one moves the account, so it reads
+                        // like the charge or the settlement it is.
+                        is Statement.Entry.ForTransfer ->
+                            if (entry.outgoing) Nocturne.accent400 else Nocturne.text
                     }
                 )
                 // The running balance beside every line: the column that turns a list
@@ -559,6 +576,12 @@ private fun amountText(entry: Statement.Entry, currency: Currency): String = whe
     is Statement.Entry.ForCreditNote -> "− ${Money.text(entry.note.total, currency)}"
     is Statement.Entry.ForPayment -> "− ${Money.text(entry.payment.amount, currency)}"
     is Statement.Entry.ForSupplierPayment -> "− ${Money.text(entry.payment.amount, currency)}"
+    // The sign says which way this account moved, not which way the money went —
+    // no money went anywhere. Out of this account is a reduction like a payment;
+    // into it is a charge like a bill.
+    is Statement.Entry.ForTransfer ->
+        if (entry.outgoing) "− ${Money.text(entry.transfer.amount, currency)}"
+        else Money.text(entry.transfer.amount, currency)
 }
 
 /**
@@ -638,6 +661,10 @@ private fun plainText(
                 "${strings.longDate(entry.payment.paidAt)}  ${reference(entry, strings)}  " +
                     "− ${Money.text(entry.payment.amount, currency)}  →  $balance"
             )
+            is Statement.Entry.ForTransfer -> lines.add(
+                "${strings.longDate(entry.date)}  ${reference(entry, strings)}  " +
+                    "${amountText(entry, currency)}  →  $balance"
+            )
         }
     }
 
@@ -646,6 +673,14 @@ private fun plainText(
     lines.add("${settledLabel(statement, strings)}: ${Money.text(statement.received, currency)}")
     if (statement.credited > 0) {
         lines.add("${strings.creditNotes}: ${Money.text(statement.credited, currency)}")
+    }
+    // Their own lines, drawn only where there is one — for the reason `credited`
+    // has its own: a transfer is neither what the shop invoiced nor money it took.
+    if (statement.transferredIn > 0) {
+        lines.add("${strings.transferredInLabel}: ${Money.text(statement.transferredIn, currency)}")
+    }
+    if (statement.transferredOut > 0) {
+        lines.add("${strings.transferredOutLabel}: ${Money.text(statement.transferredOut, currency)}")
     }
     lines.add("${strings.closingBalance}: ${closingText(statement, currency, strings)}")
     return lines.joinToString("\n")

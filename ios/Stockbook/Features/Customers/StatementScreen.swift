@@ -196,6 +196,15 @@ struct StatementScreen: View {
             if statement.credited > 0 {
                 row(Loc.creditNotes, Money.text(statement.credited, in: currency))
             }
+            // Their own lines, and only where there is one — for the reason the
+            // credit notes have theirs: a transfer in is not something the shop
+            // invoiced and a transfer out is not money it took.
+            if statement.transferredIn > 0 {
+                row(Loc.transferredInLabel, Money.text(statement.transferredIn, in: currency))
+            }
+            if statement.transferredOut > 0 {
+                row(Loc.transferredOutLabel, Money.text(statement.transferredOut, in: currency))
+            }
 
             FadedRule().padding(.vertical, 10)
 
@@ -260,6 +269,11 @@ struct StatementScreen: View {
                 guard let supplier = store.supplier(key: payment.supplierKey) else { return }
                 router.editingSupplierPayment = payment
                 router.supplierPaymentFor = supplier
+            case .transfer:
+                // Nothing to reopen. A transfer is an amount and a reason, and
+                // correcting it means removing it and moving the right figure —
+                // which the account screen it came from already offers.
+                break
             case .bill, .purchase:
                 // Not corrected from here. Removing one puts stock back on the
                 // shelf, and offering that from a row on a document somebody is
@@ -309,6 +323,16 @@ struct StatementScreen: View {
                     Text(deliveryDetail(purchase))
                         .nocturneText(.meta)
                         .lineLimit(2)
+                case .transfer(let transfer, _, _):
+                    // Named by the account at the other end — see `reference` —
+                    // because there is no number to show. The reason is drawn
+                    // under it for the same purpose a credit note's is: a figure
+                    // the customer cannot place is one they come and ask about.
+                    Text(reference(entry))
+                        .font(NocturneType.inter(13))
+                    if let note = transfer.note {
+                        Text(note).nocturneText(.meta).lineLimit(2)
+                    }
                 case .supplierPayment(let payment):
                     HStack(spacing: 5) {
                         Glyph(Icon.confirm, size: 10).foregroundStyle(Nocturne.accent400)
@@ -357,6 +381,13 @@ struct StatementScreen: View {
         case .creditNote(let note): "− \(Money.text(note.total, in: currency))"
         case .payment(let payment): "− \(Money.text(payment.amount, in: currency))"
         case .supplierPayment(let payment): "− \(Money.text(payment.amount, in: currency))"
+        // The sign says which way this account moved, not which way the money
+        // went — no money went anywhere. Out of this account is a reduction like
+        // a payment; into it is a charge like a bill.
+        case .transfer(let transfer, let outgoing, _):
+            outgoing
+                ? "− \(Money.text(transfer.amount, in: currency))"
+                : Money.text(transfer.amount, in: currency)
         }
     }
 
@@ -443,6 +474,8 @@ struct StatementScreen: View {
                 lines.append("\(Loc.longDate(purchase.createdAt))  \(reference(entry))  \(deliveryDetail(purchase))  \(Money.text(purchase.total, in: currency))  →  \(balance)")
             case .supplierPayment(let payment):
                 lines.append("\(Loc.longDate(payment.paidAt))  \(reference(entry))  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
+            case .transfer:
+                lines.append("\(Loc.longDate(entry.date))  \(reference(entry))  \(amountText(entry))  →  \(balance)")
             }
         }
 
@@ -451,6 +484,12 @@ struct StatementScreen: View {
         lines.append("\(settledLabel(statement)): \(Money.text(statement.received, in: currency))")
         if statement.credited > 0 {
             lines.append("\(Loc.creditNotes): \(Money.text(statement.credited, in: currency))")
+        }
+        if statement.transferredIn > 0 {
+            lines.append("\(Loc.transferredInLabel): \(Money.text(statement.transferredIn, in: currency))")
+        }
+        if statement.transferredOut > 0 {
+            lines.append("\(Loc.transferredOutLabel): \(Money.text(statement.transferredOut, in: currency))")
         }
         lines.append("\(Loc.closingBalance): \(closingText(statement))")
         return lines.joined(separator: "\n")

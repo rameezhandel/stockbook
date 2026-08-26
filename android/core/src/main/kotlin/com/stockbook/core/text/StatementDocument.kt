@@ -114,6 +114,23 @@ data class StatementDocument(
                 if (statement.credited > 0) {
                     add(Row(strings.creditNotes, Money.text(statement.credited, currency), deduction = true))
                 }
+                // Their own rows, drawn only where there is one — for the reason
+                // the credit notes have theirs: a transfer in is not something
+                // the shop invoiced and a transfer out is not money it took, so
+                // folding either into a trading figure would make that figure
+                // mean two things on a document somebody is handed.
+                if (statement.transferredIn > 0) {
+                    add(Row(strings.transferredInLabel, Money.text(statement.transferredIn, currency)))
+                }
+                if (statement.transferredOut > 0) {
+                    add(
+                        Row(
+                            strings.transferredOutLabel,
+                            Money.text(statement.transferredOut, currency),
+                            deduction = true
+                        )
+                    )
+                }
             }
 
             return StatementDocument(
