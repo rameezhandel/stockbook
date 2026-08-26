@@ -1,10 +1,12 @@
 package com.stockbook.core
 
 import com.stockbook.core.model.Customer
+import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.store.DraftLine
 import com.stockbook.core.store.InMemoryRepository
 import com.stockbook.core.store.StockbookStore
+import com.stockbook.core.transfer.BackupService
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -187,6 +189,33 @@ class BalanceTransferTests {
         assertEquals("Consolidating on Riyadh", reopened.balanceTransfers[0].note)
         assertEquals(0.0, assertNotNull(reopened.customer("ahmed jeddah")).owed)
         assertEquals(1330.0, assertNotNull(reopened.customer("ahmed riyadh")).owed)
+    }
+
+    /**
+     * The app's own database, not the backup file — a different door, and until
+     * now an untested one.
+     *
+     * The backup round trip above goes through `BackupDocument`. What the phone
+     * reads on every launch is `ShopState`, serialised straight, and on iOS that
+     * decoder is written out by hand key by key. It was missing this one: the
+     * transfers were written to the file and dropped on the way back in, so the
+     * shop would have looked right until it was next opened and then quietly
+     * owed different figures. Kotlin fills a missing key from the default and so
+     * could never have shown it.
+     */
+    @Test
+    fun `a transfer survives the app's own save file`() {
+        val store = shopWithTwoBranches()
+        store.transferBalance("ahmed jeddah", "ahmed riyadh", 380.0, note = "Consolidating on Riyadh")
+
+        val written = BackupService.json.encodeToString(ShopState.serializer(), store.state.value)
+        val read = BackupService.json.decodeFromString(ShopState.serializer(), written)
+
+        assertEquals(1, read.balanceTransfers.size)
+        assertEquals("Consolidating on Riyadh", read.balanceTransfers[0].note)
+        assertEquals(380.0, read.balanceTransfers[0].amount)
+        assertEquals("ahmed jeddah", read.balanceTransfers[0].fromKey)
+        assertEquals("ahmed riyadh", read.balanceTransfers[0].intoKey)
     }
 
     @Test

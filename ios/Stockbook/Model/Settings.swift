@@ -135,6 +135,7 @@ struct ShopState: Codable, Equatable {
         supplierPayments: [SupplierPayment] = [],
         creditNotes: [CreditNote] = [],
         expenses: [Expense] = [],
+        balanceTransfers: [BalanceTransfer] = [],
         settings: Settings = Settings()
     ) {
         self.products = products
@@ -146,6 +147,7 @@ struct ShopState: Codable, Equatable {
         self.supplierPayments = supplierPayments
         self.creditNotes = creditNotes
         self.expenses = expenses
+        self.balanceTransfers = balanceTransfers
         self.settings = settings
     }
 
@@ -168,6 +170,8 @@ struct ShopState: Codable, Equatable {
         supplierPayments = try container.decodeIfPresent([SupplierPayment].self, forKey: .supplierPayments) ?? []
         creditNotes = try container.decodeIfPresent([CreditNote].self, forKey: .creditNotes) ?? []
         expenses = try container.decodeIfPresent([Expense].self, forKey: .expenses) ?? []
+        balanceTransfers = try container
+            .decodeIfPresent([BalanceTransfer].self, forKey: .balanceTransfers) ?? []
         settings = try container.decodeIfPresent(Settings.self, forKey: .settings) ?? Settings()
     }
 }

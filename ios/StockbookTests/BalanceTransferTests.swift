@@ -6,9 +6,9 @@ import Foundation
 ///
 /// The twin of `BalanceTransferTests.kt`. The case is two branches of one
 /// contractor consolidating: both were rightly invoiced, both keep their
-/// invoices, and only the outstanding figure moves. It is the opposite of a
-/// merge, where one row was a mistake and its history re-files under the
-/// survivor.
+/// invoices, and only the outstanding figure moves. Neither account is absorbed
+/// and no history is re-filed — that is the whole point, and it is why this is
+/// the only way the app joins anything up.
 ///
 /// **The invariant that matters is that nothing is created or destroyed.** A
 /// transfer moves money between two columns of the same book, so what the shop
@@ -188,6 +188,48 @@ struct BalanceTransferTests {
         #expect(reopened.balanceTransfers[0].note == "Consolidating on Riyadh")
         #expect(try #require(reopened.customer(key: "ahmed jeddah")).owed == 0)
         #expect(try #require(reopened.customer(key: "ahmed riyadh")).owed == 1330)
+    }
+
+    /// The app's own database, not the backup file — a different door, and until
+    /// now an untested one.
+    ///
+    /// The backup round trip above goes through `BackupDocument`. What the phone
+    /// reads on every launch is `ShopState`, and its decoder here is written out
+    /// by hand key by key. It was missing this one: the transfers were written to
+    /// the file and dropped on the way back in, so the shop would have looked
+    /// right until it was next opened and then quietly owed different figures.
+    /// Kotlin fills a missing key from the default and so could never have shown
+    /// it — this is the half of the pair that has to catch it.
+    @Test("A transfer survives the app's own save file")
+    func savedStateRoundTrip() throws {
+        let repository = InMemoryRepository()
+        let store = StockbookStore(repository: repository)
+        store.addCustomer(name: "Ahmed Riyadh")
+        store.addCustomer(name: "Ahmed Jeddah")
+        store.saveBill(customer: "Ahmed Jeddah", paid: 0, amount: 380)
+        #expect(
+            store.transferBalance(
+                fromKey: "ahmed jeddah",
+                intoKey: "ahmed riyadh",
+                amount: 380,
+                note: "Consolidating on Riyadh"
+            ) != nil
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let written = try encoder.encode(repository.loadAll())
+        let read = try decoder.decode(ShopState.self, from: written)
+
+        #expect(read.balanceTransfers.count == 1)
+        let transfer = try #require(read.balanceTransfers.first)
+        #expect(transfer.note == "Consolidating on Riyadh")
+        #expect(transfer.amount == 380)
+        #expect(transfer.fromKey == "ahmed jeddah")
+        #expect(transfer.intoKey == "ahmed riyadh")
     }
 
     @Test("A customer transfer leaves the supplier side alone")
