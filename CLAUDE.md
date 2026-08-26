@@ -104,9 +104,9 @@ the other.
   `List<Any>`, and every field access on it fails to resolve. Reduce to the
   field you actually want *inside* each branch. Written the wrong way round it
   compiles nowhere, and `android/app` has no local build, so each occurrence
-  costs a CI round trip; the merge sheet and the party screen cost one each,
-  because only the line CI named was fixed the first time. **Grep for the
-  pattern after the first fix, not just the line in the error.**
+  costs a CI round trip; two screens cost one each, because only the line CI
+  named was fixed the first time. **Grep for the pattern after the first fix,
+  not just the line in the error.**
 - `kotlinx.serialization` fills a missing key from the property's default. Swift
   does not. The Swift twin of a field you add may need hand-written decoding.
 

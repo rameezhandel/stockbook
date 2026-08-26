@@ -227,8 +227,7 @@ private struct AppShell: View {
                 router.editingSupplierPayment = nil
             }
         }
-        // Moving a balance between two accounts that are both real. Beside the
-        // merge sheet, and deliberately not the same thing.
+        // Moving a balance between two accounts that are both real.
         .nocturneSheet(
             isPresented: Binding(
                 get: { router.moveBalanceFrom != nil },
@@ -240,31 +239,8 @@ private struct AppShell: View {
                     fromKey: key,
                     isSupplier: router.moveBalanceIsSupplier,
                     // Both accounts survive, so the screen behind this stays open
-                    // and correct — unlike a merge, which closes it.
+                    // and still correct.
                     onClose: { router.moveBalanceFrom = nil }
-                )
-            }
-        }
-        // Joining two accounts entered for one firm, from the one that goes.
-        .nocturneSheet(
-            isPresented: Binding(
-                get: { router.mergeFrom != nil },
-                set: { if !$0 { router.mergeFrom = nil } }
-            )
-        ) {
-            if let key = router.mergeFrom {
-                MergeSheet(
-                    fromKey: key,
-                    isSupplier: router.mergeIsSupplier,
-                    onClose: { router.mergeFrom = nil },
-                    onMerged: {
-                        router.mergeFrom = nil
-                        // The account the owner was looking at is the one that
-                        // is gone, so the screen behind this sheet is about
-                        // somebody who no longer exists. Close it too rather
-                        // than leave a screen showing an empty account.
-                        router.partyFor = nil
-                    }
                 )
             }
         }

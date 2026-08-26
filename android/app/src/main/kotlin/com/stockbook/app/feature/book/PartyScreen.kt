@@ -85,8 +85,8 @@ fun PartyScreen(
         customer?.place ?: supplier?.place
     ).takeIf { it.isNotEmpty() }?.joinToString(" · ")
 
-    // Only ever asked whether there is more than one, for the merge button: an
-    // account with nobody to be joined to should not offer to join it.
+    // Only ever asked whether there is more than one, for the move-balance
+    // button: an account with nowhere to move a balance to should not offer to.
     val others = remember(state, partyKey) {
         // Reduced to keys inside each branch. `Customer` and `Supplier` share no
         // supertype, so a value holding either is inferred as `Any` and `key`
@@ -159,19 +159,9 @@ fun PartyScreen(
                             router.creditNoteFor = who
                         }
                     },
-                    // Offered only where there is somebody to merge *with*. On a
+                    // Offered only where there is somebody to move it *to*. On a
                     // one-customer shop the button would open a sheet that could
                     // only say "there is nobody else".
-                    onMerge = {
-                        router.startMerge(partyKey, isSupplier)
-                    }.takeIf { others > 0 },
-                    mergeTitle = if (isSupplier) {
-                        strings.mergeIntoAnotherSupplier
-                    } else {
-                        strings.mergeIntoAnotherCustomer
-                    },
-                    // Offered on the same terms as the merge, and beside it: both
-                    // need somebody else on this side of the book to act on.
                     onMoveBalance = {
                         router.startMoveBalance(partyKey, isSupplier)
                     }.takeIf { others > 0 },
@@ -244,12 +234,6 @@ private fun AccountCard(
     onStatement: () -> Unit,
     onRecordPayment: () -> Unit,
     onCreditNote: (() -> Unit)?,
-    /**
-     * Joining this account into another. Null where there is nobody else on this
-     * side of the book to join it to.
-     */
-    onMerge: (() -> Unit)?,
-    mergeTitle: String,
     /**
      * Moving what this account owes onto another. Null where there is nobody on
      * this side of the book to move it to.
@@ -334,29 +318,17 @@ private fun AccountCard(
             }
         }
 
-        // Last and quietest. Merging is rare, it rewrites history, and it is not
-        // something anybody should reach for while a customer waits — but it
-        // belongs on the account it would remove, which is where the owner is
-        // standing when they notice the duplicate.
-        if (onMerge != null) {
-            GhostButton(
-                mergeTitle,
-                onClick = onMerge,
-                fontSize = 12.0,
-                tint = Nocturne.neutral500,
-                modifier = Modifier.padding(top = 10.dp)
-            )
-        }
-        // Beneath the merge, quieter still. The two read alike and do opposite
-        // things to the history, so they are worded for what they *keep*: one
-        // says "merge into another customer", this says "move a balance".
+        // Last and quietest. Moving a balance is rare and it writes to two
+        // accounts at once, so it is not something to reach for while a customer
+        // waits — but it belongs on the account the balance would leave, which
+        // is where the owner is standing when they decide to.
         if (onMoveBalance != null) {
             GhostButton(
                 moveBalanceTitle,
                 onClick = onMoveBalance,
                 fontSize = 12.0,
                 tint = Nocturne.neutral500,
-                modifier = Modifier.padding(top = 6.dp)
+                modifier = Modifier.padding(top = 10.dp)
             )
         }
     }

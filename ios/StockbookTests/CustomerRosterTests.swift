@@ -156,8 +156,8 @@ struct CustomerRosterTests {
     /// It merged them: one customer, the other's opening balance thrown away and
     /// their credit notes stranded under a key nothing pointed at any more. On a
     /// book of companies that is two firms' ledgers fused by a typo, with what
-    /// each of them owes quietly changed and no undo. Merging deliberately is a
-    /// feature worth having; merging on a keystroke is data loss.
+    /// each of them owes quietly changed and no undo. This app now offers no way
+    /// to join two accounts at all — a keystroke is certainly not one.
     @Test("A rename onto somebody already there is refused")
     func renameOntoExisting() throws {
         let (store, product) = shopWithProduct()

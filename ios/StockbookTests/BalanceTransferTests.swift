@@ -59,7 +59,7 @@ struct BalanceTransferTests {
 
     @Test("The invoices stay where they were issued")
     func invoicesDoNotMove() {
-        // The whole difference from a merge. The Jeddah branch's copy of its
+        // The line this feature is built on. The Jeddah branch's copy of its
         // invoice says Jeddah, and rewriting it would put this book out of step
         // with paper the customer is holding.
         let store = shopWithTwoBranches()

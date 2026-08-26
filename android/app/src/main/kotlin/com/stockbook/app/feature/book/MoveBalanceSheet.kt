@@ -37,12 +37,10 @@ import com.stockbook.core.text.Strings
 /**
  * Moving what one account owes onto another, both of them real.
  *
- * The same two steps as [MergeSheet] — pick the other account, then agree to the
- * figures — because it is the same kind of act seen from the same place. What it
- * is *not* is the same operation: nothing is absorbed, both accounts survive,
- * and every invoice stays where it was issued. The sheet says so in as many
- * words, because the two entry points sit next to each other on the party screen
- * and the wrong one would be very hard to notice afterwards.
+ * Two steps: pick the other account, then agree to the figures. Nothing is
+ * absorbed — both accounts survive and every invoice stays where it was issued,
+ * which the sheet says in as many words, because the amount is the only thing
+ * that moves and the owner is agreeing to it on two accounts at once.
  */
 @Composable
 fun MoveBalanceSheet(
@@ -88,8 +86,8 @@ fun MoveBalanceSheet(
         SheetHeader(
             title = strings.moveABalance,
             subtitle = leaving.first,
-            // Back to the list rather than out of the sheet, as the merge sheet
-            // does: the owner who picked the wrong name wants the other name.
+            // Back to the list rather than out of the sheet: the owner who picked
+            // the wrong name wants the other name, not to start again.
             onClose = if (target == null) onClose else ({ chosen = null })
         )
 

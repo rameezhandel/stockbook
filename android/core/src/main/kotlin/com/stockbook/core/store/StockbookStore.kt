@@ -59,44 +59,6 @@ data class SpendLine(val what: String, val times: Int, val total: Double)
  * flattering by exactly the amount it left out, so the amount it left out is on
  * the page.
  */
-/**
- * What joining two accounts would move, worked out before anything is touched.
- *
- * The confirmation is the whole point of this type. A merge rewrites history —
- * it re-files somebody else's bills under this name — and there is no undo in
- * this app, so the owner is owed the figures *before* they agree rather than a
- * changed balance afterwards. It is also what the tests assert, which is how the
- * arithmetic and the sentence on screen are kept from drifting apart.
- *
- * One type for both sides of the book. A customer merge fills [bills],
- * [payments] and [creditNotes]; a supplier merge fills [deliveries] and
- * [payments]. A zero is a line the confirmation does not draw.
- */
-data class MergePreview(
-    /** The account that will be gone, by the name it is known by now. */
-    val from: String,
-    /** The one that survives. */
-    val into: String,
-    val bills: Int = 0,
-    val payments: Int = 0,
-    val creditNotes: Int = 0,
-    val deliveries: Int = 0,
-    /**
-     * The two opening balances **added**.
-     *
-     * Two entries in the paper book for one firm are two real debts, and the
-     * merge that used to happen by accident kept one and dropped the other. That
-     * is the single figure most worth showing before the owner agrees.
-     */
-    val openingBalance: Double,
-    /** What the survivor will owe once this is done. */
-    val owed: Double
-) {
-    /** Whether there is any history to move at all. */
-    val movesNothing: Boolean
-        get() = bills == 0 && payments == 0 && creditNotes == 0 && deliveries == 0
-}
-
 data class Earnings(
     /**
      * Every bill in the period — the same figure Home shows, so the two can be
@@ -887,7 +849,7 @@ class StockbookStore(private val repository: StockbookRepository) {
         // Both ends of every transfer, before either is asked for.
         //
         // `book[key]?.let` below drops anything not already in it **without a
-        // sound** — the shape that stranded the credit notes on a merge. A party
+        // sound** — the shape that stranded the credit notes on a rename. A party
         // reached only by a transfer has no bill and may have no roster entry,
         // so seeding is what keeps the two halves of one transfer from being
         // separated, which would leave the shop's total receivable wrong.
@@ -1006,8 +968,9 @@ class StockbookStore(private val repository: StockbookRepository) {
      * identity — but it happened on a keystroke, with no warning and no undo,
      * and it took the other account's opening balance with it. A mistyped
      * correction fused two companies' books and quietly changed what each of them
-     * owed. Deliberately joining two accounts is a thing worth building; doing it
-     * by accident is not, and the two are told apart by asking first.
+     * owed. Two accounts entered for one firm are reconciled by moving a balance
+     * — see [transferBalance] — which the owner agrees to on both sides and can
+     * remove afterwards. Doing it on a keystroke instead is data loss.
      *
      * A name changed enough to change its key is a **rename**, and a rename
      * rewrites `who` on that customer's bills. That is the one case where a saved
@@ -1071,7 +1034,7 @@ class StockbookStore(private val repository: StockbookRepository) {
 
         // Written whole rather than record by record. A rename now touches four
         // kinds at once and is rare and deliberate; half of one on disk is the
-        // outcome worth spending a full rewrite to avoid, exactly as for a merge.
+        // outcome worth spending a full rewrite to avoid.
         attempt { repository.replaceAll(_state.value) }
         return true
     }
@@ -1079,9 +1042,9 @@ class StockbookStore(private val repository: StockbookRepository) {
     /**
      * One transfer with [old] rewritten to [new] at whichever end it appears.
      *
-     * Both ends, because a rename or a merge can touch either — and the two ends
-     * of one transfer must never be separated, or the shop's total owed stops
-     * balancing while both screens look fine.
+     * Both ends, because a rename can touch either — and the two ends of one
+     * transfer must never be separated, or the shop's total owed stops balancing
+     * while both screens look fine.
      */
     private fun moveTransfer(
         transfer: BalanceTransfer,
@@ -1105,89 +1068,6 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun removeCustomer(key: String) {
         _state.value = _state.value.copy(customers = customerRecords.filterNot { it.key == key })
         attempt { repository.deleteCustomer(key) }
-    }
-
-    /**
-     * What joining [from] into [into] would move. Null where either name is not a
-     * customer, or where they are the same one.
-     */
-    fun previewCustomerMerge(from: String, into: String): MergePreview? {
-        if (from == into) return null
-        val goes = customer(from) ?: return null
-        val stays = customer(into) ?: return null
-        return MergePreview(
-            from = goes.name,
-            into = stays.name,
-            bills = bills.count { Customer.key(it.who) == from },
-            payments = payments.count { it.customerKey == from },
-            creditNotes = creditNotes.count { it.customerKey == from },
-            // Both `owed` figures already carry their opening balance, their
-            // bills, their payments and their credit notes, so the survivor owes
-            // exactly the sum. Rounded for the reason `customers()` rounds.
-            openingBalance = goes.openingBalance + stays.openingBalance,
-            owed = Math.round((goes.owed + stays.owed) * 100) / 100.0
-        )
-    }
-
-    /**
-     * Files one customer's whole history under another and takes the first off
-     * the roster. **One firm entered twice becomes one account.**
-     *
-     * Deliberate, unlike the merge a rename used to do by accident — and it has
-     * to move everything that accident forgot. Bills carry a *name* and so are
-     * rewritten; payments and credit notes carry a key and are re-filed; the two
-     * opening balances are **added**, because two entries in the paper book for
-     * one firm are two debts really owed.
-     *
-     * Bills already handed across a counter said the old name. The app shows the
-     * new one from here on, which is the point of merging and is the same thing a
-     * rename has always done — the invoice number is untouched, so a slip in
-     * somebody's file can still be found.
-     *
-     * Written through [StockbookRepository.replaceAll] rather than record by
-     * record: credit notes are already saved that way, and a merge is rare,
-     * deliberate and touches four kinds of record at once. Half a merge on disk
-     * is the one outcome worth spending a whole rewrite to avoid.
-     */
-    fun mergeCustomer(from: String, into: String): Boolean {
-        if (from == into || from.isEmpty() || into.isEmpty()) return false
-        if (customer(from) == null) return false
-        val stays = customer(into) ?: return false
-
-        val leaving = customerRecords.firstOrNull { it.key == from }
-        val kept = customerRecords.firstOrNull { it.key == into }
-        val survivor = when {
-            // Both on the roster: the surviving entry keeps its own name and
-            // takes what the other was carrying. Its contact details win, and
-            // fall back to the other's only where it has none — a blank field is
-            // not a decision the owner made.
-            kept != null -> kept.copy(
-                openingBalance = kept.openingBalance + (leaving?.openingBalance ?: 0.0),
-                phone = kept.phone ?: leaving?.phone,
-                place = kept.place ?: leaving?.place
-            )
-            // Only the one going has an entry. It moves across under the
-            // survivor's name rather than being deleted, or its opening balance
-            // — a real debt — would go with it.
-            leaving != null -> leaving.copy(key = into, name = stays.name)
-            // Neither is on the roster: two names that have only ever appeared on
-            // bills. There is nothing to keep, and the bills below are the whole
-            // of the merge.
-            else -> null
-        }
-
-        _state.value = _state.value.copy(
-            bills = bills.map { if (Customer.key(it.who) == from) it.copy(who = stays.name) else it },
-            payments = payments.map { if (it.customerKey == from) it.copy(customerKey = into) else it },
-            creditNotes = creditNotes.map {
-                if (it.customerKey == from) it.copy(customerKey = into) else it
-            },
-            balanceTransfers = balanceTransfers.map { moveTransfer(it, from, into, isSupplier = false) },
-            customers = customerRecords.filterNot { it.key == from || it.key == into } +
-                listOfNotNull(survivor)
-        )
-        attempt { repository.replaceAll(_state.value) }
-        return true
     }
 
     // --- Payments
@@ -1797,11 +1677,10 @@ class StockbookStore(private val repository: StockbookRepository) {
     /**
      * Moves [amount] of what one account owes onto another, both of them real.
      *
-     * **Not [mergeCustomer].** That one says two rows were always the same firm
-     * and re-files the loser's history under the survivor. This says both are
-     * genuine — two branches of one contractor, say — and only the outstanding
-     * figure moves. The invoices stay where they were issued, because the copy
-     * in the customer's file says which branch it went to.
+     * Both accounts survive and both keep their invoices — the copy in the
+     * customer's file says which branch it went to, so re-filing it under the
+     * other would put this book out of step with paper they are holding. Only
+     * the outstanding figure moves.
      *
      * Refused between an account and itself, and where either side is unknown.
      * An amount larger than what is owed is allowed: the app already reads a
@@ -2092,55 +1971,6 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun removeSupplier(key: String) {
         _state.value = _state.value.copy(suppliers = supplierRecords.filterNot { it.key == key })
         attempt { repository.deleteSupplier(key) }
-    }
-
-    /** What joining [from] into [into] would move. The twin of [previewCustomerMerge]. */
-    fun previewSupplierMerge(from: String, into: String): MergePreview? {
-        if (from == into) return null
-        val goes = supplier(from) ?: return null
-        val stays = supplier(into) ?: return null
-        return MergePreview(
-            from = goes.name,
-            into = stays.name,
-            payments = supplierPayments.count { it.supplierKey == from },
-            deliveries = purchases.count { it.supplierKey == from },
-            openingBalance = goes.openingBalance + stays.openingBalance,
-            owed = Math.round((goes.owed + stays.owed) * 100) / 100.0
-        )
-    }
-
-    /**
-     * The twin of [mergeCustomer], and the simpler half: a delivery carries the
-     * supplier's key rather than their name, so there is no spelling to rewrite.
-     */
-    fun mergeSupplier(from: String, into: String): Boolean {
-        if (from == into || from.isEmpty() || into.isEmpty()) return false
-        if (supplier(from) == null) return false
-        val stays = supplier(into) ?: return false
-
-        val leaving = supplierRecords.firstOrNull { it.key == from }
-        val kept = supplierRecords.firstOrNull { it.key == into }
-        val survivor = when {
-            kept != null -> kept.copy(
-                openingBalance = kept.openingBalance + (leaving?.openingBalance ?: 0.0),
-                phone = kept.phone ?: leaving?.phone,
-                place = kept.place ?: leaving?.place
-            )
-            leaving != null -> leaving.copy(key = into, name = stays.name)
-            else -> null
-        }
-
-        _state.value = _state.value.copy(
-            purchases = purchases.map { if (it.supplierKey == from) it.copy(supplierKey = into) else it },
-            supplierPayments = supplierPayments.map {
-                if (it.supplierKey == from) it.copy(supplierKey = into) else it
-            },
-            balanceTransfers = balanceTransfers.map { moveTransfer(it, from, into, isSupplier = true) },
-            suppliers = supplierRecords.filterNot { it.key == from || it.key == into } +
-                listOfNotNull(survivor)
-        )
-        attempt { repository.replaceAll(_state.value) }
-        return true
     }
 
     // --- Purchases

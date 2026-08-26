@@ -117,7 +117,8 @@ struct ShopState: Codable, Equatable {
     var expenses: [Expense] = []
 
     /// Balances moved between two accounts on the same side of the book, newest
-    /// first. Both parties are real — see `BalanceTransfer`, which is not a merge.
+    /// first. Both parties are real and both keep their history — see
+    /// `BalanceTransfer`.
     var balanceTransfers: [BalanceTransfer] = []
 
     var settings: Settings = Settings()

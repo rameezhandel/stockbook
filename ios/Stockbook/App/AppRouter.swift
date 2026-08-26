@@ -86,25 +86,11 @@ final class AppRouter {
     var partyFor: String?
     var partyIsSupplier = false
 
-    /// The account being merged away, by key, and which side of the book it is
-    /// on.
-    ///
-    /// Its own pair rather than leaning on `partyIsSupplier`: the merge sheet
-    /// outlives nothing, but a flag shared with the screen underneath is a flag
-    /// that can be changed out from under it.
-    var mergeFrom: String?
-    var mergeIsSupplier = false
-
-    func startMerge(key: String, isSupplier: Bool) {
-        mergeIsSupplier = isSupplier
-        mergeFrom = key
-    }
-
     /// The account a balance is being moved *from*, and which side it is on.
     ///
-    /// Its own pair rather than sharing `mergeFrom`. The two acts sit next to
-    /// each other on the party screen and look alike; one sheet reading the
-    /// other's state would be a very quiet way to run the wrong one.
+    /// Its own pair rather than leaning on `partyFor`: the sheet outlives
+    /// nothing, but a flag shared with the screen underneath is a flag that can
+    /// be changed out from under it.
     var moveBalanceFrom: String?
     var moveBalanceIsSupplier = false
 

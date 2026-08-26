@@ -109,7 +109,8 @@ data class ShopState(
     val expenses: List<Expense> = emptyList(),
     /**
      * Balances moved between two accounts on the same side of the book, newest
-     * first. Both parties are real — see [BalanceTransfer], which is not a merge.
+     * first. Both parties are real and both keep their history — see
+     * [BalanceTransfer].
      */
     val balanceTransfers: List<BalanceTransfer> = emptyList(),
     val settings: Settings = Settings()

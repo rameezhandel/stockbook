@@ -16,9 +16,9 @@ import kotlin.test.assertTrue
  * A balance moved between two accounts that are both real.
  *
  * The case is two branches of one contractor consolidating: both were rightly
- * invoiced, both keep their invoices, and only the outstanding figure moves. It
- * is the opposite of a merge, where one row was a mistake and its history
- * re-files under the survivor.
+ * invoiced, both keep their invoices, and only the outstanding figure moves.
+ * Neither account is absorbed and no history is re-filed — that is the whole
+ * point, and it is why this is the only way the app joins anything up.
  *
  * **The invariant that matters is that nothing is created or destroyed.** A
  * transfer moves money between two columns of the same book, so what the shop is
@@ -67,7 +67,7 @@ class BalanceTransferTests {
 
     @Test
     fun `the invoices stay where they were issued`() {
-        // The whole difference from a merge. The Jeddah branch's copy of its
+        // The line this feature is built on. The Jeddah branch's copy of its
         // invoice says Jeddah, and rewriting it would put this book out of step
         // with paper the customer is holding.
         val store = shopWithTwoBranches()

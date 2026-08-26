@@ -32,7 +32,6 @@ import com.stockbook.app.design.StockbookTheme
 import com.stockbook.app.design.BottomSheet
 import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.book.BookScreen
-import com.stockbook.app.feature.book.MergeSheet
 import com.stockbook.app.feature.book.MoveBalanceSheet
 import com.stockbook.app.feature.book.PurchaseSheet
 import com.stockbook.app.feature.customers.CreditNoteSheet
@@ -420,34 +419,7 @@ private fun Shell(store: StockbookStore) {
             )
         }
 
-        // Joining two accounts entered for one firm, from the one that goes.
-        BottomSheet(
-            visible = router.mergeFrom != null,
-            onDismiss = { router.mergeFrom = null }
-        ) {
-            router.mergeFrom?.let { key ->
-                MergeSheet(
-                    fromKey = key,
-                    isSupplier = router.mergeIsSupplier,
-                    state = state,
-                    store = store,
-                    currency = state.settings.currency,
-                    strings = strings,
-                    onClose = { router.mergeFrom = null },
-                    onMerged = {
-                        router.mergeFrom = null
-                        // The account the owner was looking at is the one that is
-                        // gone, so the screen behind this sheet is about somebody
-                        // who no longer exists. Close it too rather than leave a
-                        // screen showing an empty account.
-                        router.partyFor = null
-                    }
-                )
-            }
-        }
-
-        // Moving a balance between two accounts that are both real. Beside the
-        // merge sheet, and deliberately not the same thing.
+        // Moving a balance between two accounts that are both real.
         BottomSheet(
             visible = router.moveBalanceFrom != null,
             onDismiss = { router.moveBalanceFrom = null }
@@ -461,7 +433,7 @@ private fun Shell(store: StockbookStore) {
                     currency = state.settings.currency,
                     strings = strings,
                     // Both accounts survive, so the screen behind this stays
-                    // open and correct — unlike a merge, which closes it.
+                    // open and still correct.
                     onClose = { router.moveBalanceFrom = null }
                 )
             }

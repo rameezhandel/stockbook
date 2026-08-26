@@ -59,7 +59,7 @@ Play will grant production access at all.
 
 ## Settled, so nobody reopens them
 
-- **A customer is identified by their name, and merging is deliberate.**
+- **A customer is identified by their name, and two accounts are never joined.**
   `Customer.key` is the trimmed, lowercased name, so two accounts cannot share
   one. That was examined properly when an owner asked whether customers should
   carry an id instead, as products do.
@@ -70,10 +70,18 @@ Play will grant production access at all.
   other away while stranding the credit notes under a key nothing pointed at.
   On a book of firms that is two companies' ledgers fused by a typo.
 
-  **Joining two accounts is now something you ask for**, from the account that
-  will be the one to go, with what moves and what the survivor will owe shown
-  before you agree. The two opening balances are *added*: two entries in the
-  paper book for one firm are two debts really owed.
+  **A merge feature was built and then removed.** It asked first and showed the
+  figures, which answered the accidental case — but it was never wanted in
+  practice: on this book two accounts entered for one firm are two real branches,
+  and absorbing one re-files invoices the customer is holding paper copies of.
+  Moving a balance does what was actually needed, so the merge went. The rename
+  gate stays, because that bug was real whether or not a merge exists.
+
+  **Reconciling two accounts is a balance transfer.** Both survive, every
+  invoice stays where it was issued, and only the outstanding figure moves —
+  agreed to on both sides and removable from either statement afterwards. What
+  it does *not* offer is a way to make one duplicate row disappear; a genuine
+  double entry is left with a zero balance and taken off the roster.
 
   Ids were **deferred, not rejected**. The case for them is real — two different
   people with the same name are one account, and no amount of gating fixes

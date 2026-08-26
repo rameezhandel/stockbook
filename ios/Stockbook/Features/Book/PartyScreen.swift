@@ -33,8 +33,8 @@ struct PartyScreen: View {
     private var customer: Customer? { isSupplier ? nil : store.customer(key: partyKey) }
     private var supplier: Supplier? { isSupplier ? store.supplier(key: partyKey) : nil }
 
-    /// Only ever asked whether there is more than one, for the merge button: an
-    /// account with nobody to be joined to should not offer to join it.
+    /// Only ever asked whether there is more than one, for the move-balance
+    /// button: an account with nowhere to move a balance to should not offer to.
     private var others: Int {
         (isSupplier ? store.suppliers().map(\.key) : store.customers().map(\.key))
             .filter { $0 != partyKey }
@@ -167,27 +167,19 @@ struct PartyScreen: View {
             }
             .padding(.top, 6)
 
-            // Last and quietest. Merging is rare, it rewrites history, and it is
-            // not something anybody should reach for while a customer waits —
-            // but it belongs on the account it would remove, which is where the
-            // owner is standing when they notice the duplicate. Offered only
-            // where there is somebody on this side of the book to be joined to.
+            // Offered only where there is somebody on this side of the book to
+            // move a balance to.
             if others > 0 {
-                Button(isSupplier ? Loc.mergeIntoAnotherSupplier : Loc.mergeIntoAnotherCustomer) {
-                    router.startMerge(key: partyKey, isSupplier: isSupplier)
-                }
-                .buttonStyle(GhostButtonStyle(fontSize: 12, tint: Nocturne.neutral500))
-                .padding(.top, 10)
-
-                // Beneath the merge, quieter still. The two read alike and do
-                // opposite things to the history, so they are worded for what
-                // they *keep*: one says "merge into another customer", this says
-                // "move a balance".
+                // Last and quietest. Moving a balance is rare and it writes to
+                // two accounts at once, so it is not something to reach for
+                // while a customer waits — but it belongs on the account the
+                // balance would leave, which is where the owner is standing when
+                // they decide to.
                 Button(isSupplier ? Loc.moveBalanceToSupplier : Loc.moveBalanceToCustomer) {
                     router.startMoveBalance(key: partyKey, isSupplier: isSupplier)
                 }
                 .buttonStyle(GhostButtonStyle(fontSize: 12, tint: Nocturne.neutral500))
-                .padding(.top, 6)
+                .padding(.top, 10)
             }
         }
         .padding(13)

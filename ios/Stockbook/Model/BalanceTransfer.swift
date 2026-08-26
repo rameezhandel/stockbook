@@ -2,11 +2,12 @@ import Foundation
 
 /// A balance moved from one account to another, both of them real.
 ///
-/// **Not a merge.** A merge says two rows were always one firm entered twice, and
-/// the loser disappears with its history re-filed under the survivor. This says
-/// the opposite: both accounts are genuine, both were rightly invoiced, and from
-/// today they settle through one of them. Two branches of one contractor
-/// consolidating is the case it exists for.
+/// **Nothing is absorbed, and the app deliberately offers no way to absorb it.**
+/// A merge — one row disappearing with its history re-filed under another — was
+/// built here once and taken out again: on this book two accounts are two real
+/// branches, not one firm entered twice. Both are genuine, both were rightly
+/// invoiced, and from today they settle through one of them. Two branches of one
+/// contractor consolidating is the case this exists for.
 ///
 /// That is why **the invoices do not move.** The Jeddah branch's copy of invoice
 /// #1042 says Jeddah; re-filing it under Riyadh would put this book out of step
