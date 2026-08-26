@@ -100,6 +100,19 @@ final class AppRouter {
         mergeFrom = key
     }
 
+    /// The account a balance is being moved *from*, and which side it is on.
+    ///
+    /// Its own pair rather than sharing `mergeFrom`. The two acts sit next to
+    /// each other on the party screen and look alike; one sheet reading the
+    /// other's state would be a very quiet way to run the wrong one.
+    var moveBalanceFrom: String?
+    var moveBalanceIsSupplier = false
+
+    func startMoveBalance(key: String, isSupplier: Bool) {
+        moveBalanceIsSupplier = isSupplier
+        moveBalanceFrom = key
+    }
+
     /// Set when the add-stock sheet should open on its purchase half.
     var startingPurchase = false
 

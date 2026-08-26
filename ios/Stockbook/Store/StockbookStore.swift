@@ -40,6 +40,8 @@ final class StockbookStore {
     /// The owner's own spending, newest first.
     private(set) var expenses: [Expense] = []
 
+    private(set) var balanceTransfers: [BalanceTransfer] = []
+
     private(set) var settings: Settings = Settings()
 
     /// Set when the disk refuses a write. Nothing in the UI surfaces it yet;
@@ -511,6 +513,7 @@ final class StockbookStore {
     /// Where a roster entry exists its spelling wins, because it was typed on
     /// purpose rather than in a hurry with a customer waiting.
     func customers() -> [Customer] {
+        let transfers = balanceTransfers.filter { !$0.isSupplier }
         var order: [String] = []
         var book: [String: (name: String, count: Int, total: Double, owed: Double)] = [:]
 
@@ -565,6 +568,30 @@ final class StockbookStore {
             if var entry = book[note.customerKey] {
                 entry.owed -= note.total
                 book[note.customerKey] = entry
+            }
+        }
+
+        // Both ends of every transfer, before either is asked for.
+        //
+        // The lookups below skip a key that is not already in the book **without
+        // a sound** — the shape that stranded the credit notes on a merge. A
+        // party reached only by a transfer has no bill and may have no roster
+        // entry, so seeding is what keeps the two halves of one transfer from
+        // being separated, which would leave the shop's total owed wrong.
+        for transfer in transfers {
+            for key in [transfer.fromKey, transfer.intoKey] where book[key] == nil {
+                book[key] = (name: key, count: 0, total: 0, owed: 0)
+                order.append(key)
+            }
+        }
+        for transfer in transfers {
+            if var entry = book[transfer.fromKey] {
+                entry.owed -= transfer.amount
+                book[transfer.fromKey] = entry
+            }
+            if var entry = book[transfer.intoKey] {
+                entry.owed += transfer.amount
+                book[transfer.intoKey] = entry
             }
         }
 
@@ -729,7 +756,31 @@ final class StockbookStore {
                 try repository.append(moved)
             }
         }
+
+        // And the two kinds this had never carried. Credit notes were missing
+        // for months: rename a credited customer and the note was left under a
+        // key nothing pointed at, so it stopped coming off what they owed and
+        // their balance silently rose by the credited amount. Balance transfers
+        // would have been the same story.
+        for (index, note) in creditNotes.enumerated() where note.customerKey == key {
+            creditNotes[index].customerKey = newKey
+        }
+        moveTransfers(from: key, to: newKey, isSupplier: false)
+        persistEverything()
         return true
+    }
+
+
+    /// One transfer with `old` rewritten to `new` at whichever end it appears.
+    ///
+    /// Both ends, because a rename or a merge can touch either — and the two ends
+    /// of one transfer must never be separated, or the shop's total owed stops
+    /// balancing while both screens look fine.
+    private func moveTransfers(from old: String, to new: String, isSupplier: Bool) {
+        for (index, transfer) in balanceTransfers.enumerated() where transfer.isSupplier == isSupplier {
+            if transfer.fromKey == old { balanceTransfers[index].fromKey = new }
+            if transfer.intoKey == old { balanceTransfers[index].intoKey = new }
+        }
     }
 
     /// Takes a customer off the roster. Their bills and payments stay: this
@@ -813,6 +864,7 @@ final class StockbookStore {
         for (index, note) in creditNotes.enumerated() where note.customerKey == from {
             creditNotes[index].customerKey = into
         }
+        moveTransfers(from: from, to: into, isSupplier: false)
         customerRecords.removeAll { $0.key == from || $0.key == into }
         if let survivor { customerRecords.append(survivor) }
         customerRecords.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
@@ -1382,8 +1434,81 @@ final class StockbookStore {
             bills: bills(forCustomer: key),
             payments: payments(forCustomer: key),
             creditNotes: creditNotes(forCustomer: key),
+            transfers: transferEntries(for: key, isSupplier: false),
             period: period
         )
+    }
+
+
+    // MARK: - Moving a balance between two accounts
+
+    /// Moves `amount` of what one account owes onto another, both of them real.
+    ///
+    /// **Not `mergeCustomer`.** That one says two rows were always the same firm
+    /// and re-files the loser's history under the survivor. This says both are
+    /// genuine — two branches of one contractor, say — and only the outstanding
+    /// figure moves. The invoices stay where they were issued, because the copy
+    /// in the customer's file says which branch it went to.
+    ///
+    /// Refused between an account and itself, and where either side is unknown.
+    /// An amount larger than what is owed is allowed: the app already reads a
+    /// negative balance as money held in advance.
+    @discardableResult
+    func transferBalance(
+        fromKey: String,
+        intoKey: String,
+        amount: Double,
+        isSupplier: Bool = false,
+        note: String? = nil,
+        movedAt: Date = .now
+    ) -> BalanceTransfer? {
+        guard fromKey != intoKey, !fromKey.isEmpty, !intoKey.isEmpty, amount > 0 else { return nil }
+        let known: (String) -> Bool = isSupplier
+            ? { self.supplier(key: $0) != nil }
+            : { self.customer(key: $0) != nil }
+        guard known(fromKey), known(intoKey) else { return nil }
+
+        let transfer = BalanceTransfer(
+            fromKey: fromKey,
+            intoKey: intoKey,
+            isSupplier: isSupplier,
+            amount: amount,
+            note: CustomerRecord.tidied(note),
+            movedAt: movedAt
+        )
+        balanceTransfers.append(transfer)
+        balanceTransfers.sort { $0.movedAt > $1.movedAt }
+        persistEverything()
+        return transfer
+    }
+
+    /// Removes one. A mistake is edited or removed, not voided — and unlike a
+    /// bill there is no stock to give back, so this is the whole of it.
+    func deleteBalanceTransfer(id: UUID) {
+        balanceTransfers.removeAll { $0.id == id }
+        persistEverything()
+    }
+
+    /// One account's transfers as statement entries, each already knowing which
+    /// end it is and what the account at the other end is called.
+    ///
+    /// The name is resolved here rather than stored on the record, so a party
+    /// renamed afterwards reads correctly and there is no second copy to drift.
+    func transferEntries(for key: String, isSupplier: Bool) -> [Statement.Entry] {
+        let names: [String: String] = isSupplier
+            ? Dictionary(uniqueKeysWithValues: suppliers().map { ($0.key, $0.name) })
+            : Dictionary(uniqueKeysWithValues: customers().map { ($0.key, $0.name) })
+        return balanceTransfers
+            .filter { $0.isSupplier == isSupplier && ($0.fromKey == key || $0.intoKey == key) }
+            .map { transfer in
+                let outgoing = transfer.fromKey == key
+                let other = outgoing ? transfer.intoKey : transfer.fromKey
+                return Statement.Entry.transfer(
+                    transfer,
+                    outgoing: outgoing,
+                    otherName: names[other] ?? other
+                )
+            }
     }
 
     /// Every bill for one customer. A bill removed as a mistake is not here,
@@ -1446,6 +1571,7 @@ final class StockbookStore {
     /// supplier is entered with what the paper book says is owed, and the first
     /// thing that ever happens to them is being paid.
     func suppliers() -> [Supplier] {
+        let transfers = balanceTransfers.filter(\.isSupplier)
         var order: [String] = []
         var book: [String: (name: String, count: Int, total: Double, owed: Double)] = [:]
 
@@ -1478,6 +1604,26 @@ final class StockbookStore {
             if var entry = book[payment.supplierKey] {
                 entry.owed -= payment.amount
                 book[payment.supplierKey] = entry
+            }
+        }
+
+        // Both ends seeded before either is asked for, exactly as on the
+        // customer side and for the same reason: a lookup that misses is skipped
+        // in silence, and half a transfer is a book that no longer balances.
+        for transfer in transfers {
+            for key in [transfer.fromKey, transfer.intoKey] where book[key] == nil {
+                book[key] = (name: key, count: 0, total: 0, owed: 0)
+                order.append(key)
+            }
+        }
+        for transfer in transfers {
+            if var entry = book[transfer.fromKey] {
+                entry.owed -= transfer.amount
+                book[transfer.fromKey] = entry
+            }
+            if var entry = book[transfer.intoKey] {
+                entry.owed += transfer.amount
+                book[transfer.intoKey] = entry
             }
         }
 
@@ -1605,6 +1751,7 @@ final class StockbookStore {
             moved.supplierKey = newKey
             return moved
         }
+        moveTransfers(from: key, to: newKey, isSupplier: true)
 
         attempt {
             try repository.delete(supplierKey: key)
@@ -1666,6 +1813,7 @@ final class StockbookStore {
         for (index, payment) in supplierPayments.enumerated() where payment.supplierKey == from {
             supplierPayments[index].supplierKey = into
         }
+        moveTransfers(from: from, to: into, isSupplier: true)
         supplierRecords.removeAll { $0.key == from || $0.key == into }
         if let survivor { supplierRecords.append(survivor) }
         supplierRecords.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
@@ -1982,6 +2130,7 @@ final class StockbookStore {
             supplier: supplier,
             purchases: purchases(forSupplier: key),
             payments: supplierPayments(for: key),
+            transfers: transferEntries(for: key, isSupplier: true),
             period: period
         )
     }
@@ -2006,6 +2155,8 @@ final class StockbookStore {
         purchases = []
         supplierPayments = []
         creditNotes = []
+        expenses = []
+        balanceTransfers = []
         // Everything goes except the language and the theme. Wiping the shop is a
         // data decision; being handed setup in a language you cannot read — or in
         // a colour scheme you turned off — is not one the owner asked for.
@@ -2139,6 +2290,17 @@ final class StockbookStore {
             expenses: document.expenses.map {
                 Expense(id: $0.id, amount: $0.amount, note: $0.note, spentAt: $0.spentAt)
             },
+            balanceTransfers: document.balanceTransfers.map {
+                BalanceTransfer(
+                    id: $0.id,
+                    fromKey: $0.fromKey,
+                    intoKey: $0.intoKey,
+                    isSupplier: $0.isSupplier,
+                    amount: $0.amount,
+                    note: $0.note,
+                    movedAt: $0.movedAt
+                )
+            },
             settings: restored
         )
 
@@ -2152,6 +2314,7 @@ final class StockbookStore {
         supplierPayments = state.supplierPayments.sorted { $0.paidAt > $1.paidAt }
         creditNotes = state.creditNotes.sorted { $0.issuedAt > $1.issuedAt }
         expenses = state.expenses.sorted { $0.spentAt > $1.spentAt }
+        balanceTransfers = state.balanceTransfers.sorted { $0.movedAt > $1.movedAt }
         settings = restored
     }
 
@@ -2173,6 +2336,7 @@ final class StockbookStore {
             supplierPayments: supplierPayments,
             creditNotes: creditNotes,
             expenses: expenses,
+            balanceTransfers: balanceTransfers,
             settings: settings
         )
         attempt { try repository.replaceAll(with: state) }
@@ -2287,6 +2451,17 @@ final class StockbookStore {
             },
             expenses: expenses.map {
                 BackupDocument.ExpenseRow(id: $0.id, amount: $0.amount, note: $0.note, spentAt: $0.spentAt)
+            },
+            balanceTransfers: balanceTransfers.map {
+                BackupDocument.BalanceTransferRow(
+                    id: $0.id,
+                    fromKey: $0.fromKey,
+                    intoKey: $0.intoKey,
+                    isSupplier: $0.isSupplier,
+                    amount: $0.amount,
+                    note: $0.note,
+                    movedAt: $0.movedAt
+                )
             }
         )
     }

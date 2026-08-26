@@ -178,6 +178,16 @@ struct PartyScreen: View {
                 }
                 .buttonStyle(GhostButtonStyle(fontSize: 12, tint: Nocturne.neutral500))
                 .padding(.top, 10)
+
+                // Beneath the merge, quieter still. The two read alike and do
+                // opposite things to the history, so they are worded for what
+                // they *keep*: one says "merge into another customer", this says
+                // "move a balance".
+                Button(isSupplier ? Loc.moveBalanceToSupplier : Loc.moveBalanceToCustomer) {
+                    router.startMoveBalance(key: partyKey, isSupplier: isSupplier)
+                }
+                .buttonStyle(GhostButtonStyle(fontSize: 12, tint: Nocturne.neutral500))
+                .padding(.top, 6)
             }
         }
         .padding(13)

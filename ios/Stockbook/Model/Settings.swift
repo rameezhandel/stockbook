@@ -116,6 +116,10 @@ struct ShopState: Codable, Equatable {
     /// see `Expense`, where that separation is the whole point.
     var expenses: [Expense] = []
 
+    /// Balances moved between two accounts on the same side of the book, newest
+    /// first. Both parties are real — see `BalanceTransfer`, which is not a merge.
+    var balanceTransfers: [BalanceTransfer] = []
+
     var settings: Settings = Settings()
 
     static let empty = ShopState()

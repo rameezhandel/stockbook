@@ -151,6 +151,15 @@ struct Statement: Equatable {
         case creditNote(CreditNote)
         case purchase(Purchase)
         case supplierPayment(SupplierPayment)
+        /// A balance moved to or from another account, seen from one end of it.
+        ///
+        /// One case rather than two, because it is one event: the same record
+        /// appears on both statements and has to say the same amount on each,
+        /// charged on one and settled on the other. `outgoing` is which end this
+        /// is. `otherName` is resolved when the statement is built rather than
+        /// stored on the record, so a party renamed afterwards reads correctly
+        /// and there is no second copy of a name to drift.
+        case transfer(BalanceTransfer, outgoing: Bool, otherName: String)
 
         var date: Date {
             switch self {
@@ -159,6 +168,7 @@ struct Statement: Equatable {
             case .creditNote(let note): note.issuedAt
             case .purchase(let purchase): purchase.createdAt
             case .supplierPayment(let payment): payment.paidAt
+            case .transfer(let transfer, _, _): transfer.movedAt
             }
         }
 
@@ -169,6 +179,7 @@ struct Statement: Equatable {
             case .creditNote(let note): "credit-note-\(note.id.uuidString)"
             case .purchase(let purchase): "purchase-\(purchase.id.uuidString)"
             case .supplierPayment(let payment): "supplier-payment-\(payment.id.uuidString)"
+            case .transfer(let transfer, _, _): "transfer-\(transfer.id.uuidString)"
             }
         }
 
@@ -178,6 +189,7 @@ struct Statement: Equatable {
             case .bill(let bill): bill.total
             case .purchase(let purchase): purchase.total
             case .payment, .supplierPayment, .creditNote: 0
+            case .transfer(let transfer, let outgoing, _): outgoing ? 0 : transfer.amount
             }
         }
 
@@ -190,17 +202,29 @@ struct Statement: Equatable {
             case .payment(let payment): payment.amount
             case .supplierPayment(let payment): payment.amount
             case .creditNote(let note): note.total
+            case .transfer(let transfer, let outgoing, _): outgoing ? transfer.amount : 0
             }
         }
 
-        /// Whether this entry reduces the balance **without money moving**.
+        /// Which total this entry belongs in.
         ///
-        /// Only a credit note does. It exists so the totals can keep cash and
-        /// credit apart while the running balance treats them identically —
-        /// which is exactly right, since both leave the customer owing less.
-        var isCredit: Bool {
-            if case .creditNote = self { return true }
-            return false
+        /// The running balance treats all three identically — a charge is a
+        /// charge and a settlement is a settlement — but the totals must keep
+        /// them apart, because they answer different questions. `trade` is what
+        /// the shop reconciles against its till. `creditNote` reduced the balance
+        /// with no money moving. `transfer` did not touch this shop's money at
+        /// all; it moved a figure between two of its own accounts.
+        ///
+        /// An enum rather than the boolean this replaces: a third bucket cannot
+        /// be expressed by one flag, and two flags could both be true.
+        enum Kind { case trade, creditNote, transfer }
+
+        var kind: Kind {
+            switch self {
+            case .creditNote: .creditNote
+            case .transfer: .transfer
+            case .bill, .payment, .purchase, .supplierPayment: .trade
+            }
         }
     }
 
@@ -234,6 +258,16 @@ struct Statement: Equatable {
     /// given back as two facts, not as one net figure that hides both.
     let credited: Double
 
+    /// A balance that arrived from another account over the period, and one that
+    /// left for another.
+    ///
+    /// Their own lines rather than folded into `billed` and `received`, for the
+    /// reason `credited` has its own: a transfer in is not something the shop
+    /// invoiced, and a transfer out is not money it took. Netting either into a
+    /// trading figure would make that figure mean two things.
+    let transferredIn: Double
+    let transferredOut: Double
+
     /// `openingBalance + billed − received − credited`. What they owe at the end
     /// of it.
     let closingBalance: Double
@@ -251,6 +285,7 @@ struct Statement: Equatable {
         bills: [Bill],
         payments: [Payment],
         creditNotes: [CreditNote] = [],
+        transfers: [Entry] = [],
         period: StatementPeriod,
         calendar: Calendar = .current
     ) -> Statement {
@@ -258,7 +293,8 @@ struct Statement: Equatable {
             party: customer.party,
             entries: bills.map(Entry.bill)
                 + payments.map(Entry.payment)
-                + creditNotes.map(Entry.creditNote),
+                + creditNotes.map(Entry.creditNote)
+                + transfers,
             period: period,
             calendar: calendar
         )
@@ -273,12 +309,13 @@ struct Statement: Equatable {
         supplier: Supplier,
         purchases: [Purchase],
         payments: [SupplierPayment],
+        transfers: [Entry] = [],
         period: StatementPeriod,
         calendar: Calendar = .current
     ) -> Statement {
         make(
             party: supplier.party,
-            entries: purchases.map(Entry.purchase) + payments.map(Entry.supplierPayment),
+            entries: purchases.map(Entry.purchase) + payments.map(Entry.supplierPayment) + transfers,
             period: period,
             calendar: calendar
         )
@@ -304,11 +341,15 @@ struct Statement: Equatable {
                 .reduce(0) { $0 + $1.charge - $1.settledAtOnce }
 
         let inRange = ordered.filter { range.contains($0.date) }
-        let billed = inRange.reduce(0) { $0 + $1.charge }
+        let billed = trade.reduce(0) { $0 + $1.charge }
         // Split by where the reduction came from, not by how big it was. Both
         // still come off the running balance below, together.
-        let received = inRange.filter { !$0.isCredit }.reduce(0) { $0 + $1.settledAtOnce }
-        let credited = inRange.filter(\.isCredit).reduce(0) { $0 + $1.settledAtOnce }
+        let trade = inRange.filter { $0.kind == .trade }
+        let received = trade.reduce(0) { $0 + $1.settledAtOnce }
+        let credited = inRange.filter { $0.kind == .creditNote }.reduce(0) { $0 + $1.settledAtOnce }
+        let transfers = inRange.filter { $0.kind == .transfer }
+        let transferredIn = transfers.reduce(0) { $0 + $1.charge }
+        let transferredOut = transfers.reduce(0) { $0 + $1.settledAtOnce }
 
         var running: [Double] = []
         var balance = opening
@@ -326,7 +367,9 @@ struct Statement: Equatable {
             billed: billed,
             received: received,
             credited: credited,
-            closingBalance: opening + billed - received - credited,
+            transferredIn: transferredIn,
+            transferredOut: transferredOut,
+            closingBalance: opening + billed + transferredIn - received - credited - transferredOut,
             runningBalances: running
         )
     }

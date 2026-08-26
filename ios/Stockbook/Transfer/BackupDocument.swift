@@ -34,7 +34,11 @@ struct BackupDocument: Codable, Equatable {
     /// reader that ignores them shows "Bill #7" where the owner wrote "1024".
     /// The shop address: a statement prints without one. Both are a label lost
     /// rather than a figure misread, and the rule is about meaning.
-    static let currentVersion = 3
+    /// **4** since balance transfers. A reader that dropped them shows both
+    /// parties owing the wrong amount and the shop's total receivable
+    /// unbalanced — the same class of misreading the credit notes were, and the
+    /// same answer.
+    static let currentVersion = 4
 
     var version: Int = BackupDocument.currentVersion
     var exportedAt: Date
@@ -93,6 +97,9 @@ struct BackupDocument: Codable, Equatable {
     /// `creditNotes` is: the key can be legitimately absent.
     var expenses: [ExpenseRow] = []
 
+    /// Balances moved between two real accounts. See `BalanceTransferRow`.
+    var balanceTransfers: [BalanceTransferRow] = []
+
     struct ExpenseRow: Codable, Equatable {
         var id: String
         var amount: Double
@@ -111,6 +118,23 @@ struct BackupDocument: Codable, Equatable {
         var issuedAt: Date
         /// What came back, empty on a note that is only a figure.
         var lines: [LineRecord] = []
+    }
+
+    /// A balance moved between two accounts, both of them real.
+    ///
+    /// **Bumps `currentVersion` to 4.** A reader that dropped these would show
+    /// *both* parties owing the wrong amount — the one that gave the balance up
+    /// still owing it, the one that took it on not — so it misreads a figure
+    /// rather than losing a label, which is the whole test for a bump.
+    struct BalanceTransferRow: Codable, Equatable {
+        var id: UUID
+        var fromKey: String
+        var intoKey: String
+        /// Which side of the book both keys are on. Customers by default.
+        var isSupplier: Bool = false
+        var amount: Double
+        var note: String?
+        var movedAt: Date
     }
 
     struct CustomerRecordRow: Codable, Equatable {
@@ -383,5 +407,11 @@ extension BackupDocument {
         supplierPayments = try container.decode([SupplierPaymentRow].self, forKey: .supplierPayments)
         creditNotes = try container.decodeIfPresent([CreditNoteRow].self, forKey: .creditNotes) ?? []
         expenses = try container.decodeIfPresent([ExpenseRow].self, forKey: .expenses) ?? []
+        // Tolerant, like the two above it. This decoder is hand written, so the
+        // property's default does nothing here — a missing key throws unless the
+        // line says otherwise, and every backup written before version 4 is
+        // missing this one.
+        balanceTransfers = try container
+            .decodeIfPresent([BalanceTransferRow].self, forKey: .balanceTransfers) ?? []
     }
 }

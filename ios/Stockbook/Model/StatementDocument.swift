@@ -185,6 +185,11 @@ struct StatementDocument: Equatable {
         case .supplierPayment(let payment):
             if let no = payment.paymentNo, !no.isBlank { return strings.paymentRef(no) }
             return strings.paymentLabel
+        // No number to show — nothing was written for it — so the row names the
+        // account at the other end instead. "Transferred" alone would leave the
+        // customer holding a figure they cannot place.
+        case .transfer(_, let outgoing, let otherName):
+            return outgoing ? strings.transferredTo(otherName) : strings.transferredFrom(otherName)
         }
     }
 }
