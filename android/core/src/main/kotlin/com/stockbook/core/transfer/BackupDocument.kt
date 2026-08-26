@@ -69,7 +69,9 @@ data class BackupDocument(
      * lost is the ledger itself, which is the "loses a label" side of the line,
      * not the "misreads a figure" side.
      */
-    val expenses: List<ExpenseRow> = emptyList()
+    val expenses: List<ExpenseRow> = emptyList(),
+    /** Balances moved between two real accounts. See [BalanceTransferRow]. */
+    val balanceTransfers: List<BalanceTransferRow> = emptyList()
 ) {
     @Serializable
     data class ExpenseRow(
@@ -93,6 +95,27 @@ data class BackupDocument(
         val issuedAt: Instant,
         /** What came back, empty on a note that is only a figure. */
         val lines: List<LineRecord> = emptyList()
+    )
+
+    /**
+     * A balance moved between two accounts, both of them real.
+     *
+     * **Bumps [currentVersion] to 4.** A reader that dropped these would show
+     * *both* parties owing the wrong amount — the one that gave the balance up
+     * still owing it, the one that took it on not — so it misreads a figure
+     * rather than losing a label, which is the whole test for a bump.
+     */
+    @Serializable
+    data class BalanceTransferRow(
+        val id: String,
+        val fromKey: String,
+        val intoKey: String,
+        /** Which side of the book both keys are on. Customers by default. */
+        val isSupplier: Boolean = false,
+        val amount: Double,
+        val note: String? = null,
+        @Serializable(with = InstantSerializer::class)
+        val movedAt: Instant
     )
 
     @Serializable
@@ -311,7 +334,13 @@ data class BackupDocument(
          * that ignores an address prints a statement without one: a label lost,
          * not a figure misread. The rule is about meaning.
          */
-        const val currentVersion = 3
+        /**
+         * **4** since balance transfers. A reader that dropped them shows both
+         * parties owing the wrong amount and the shop's total receivable
+         * unbalanced — the same class of misreading the credit notes were, and
+         * the same answer.
+         */
+        const val currentVersion = 4
 
         // The invoice numbers added after 2 do **not** bump it. A reader that
         // ignores them shows "Bill #7" where the owner wrote "1024" on the paper:

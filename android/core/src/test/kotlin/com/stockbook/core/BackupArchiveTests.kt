@@ -3,6 +3,7 @@ package com.stockbook.core
 import com.stockbook.core.store.InMemoryRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.transfer.BackupArchive
+import com.stockbook.core.transfer.BackupDocument
 import com.stockbook.core.transfer.BackupError
 import com.stockbook.core.transfer.BackupService
 import com.stockbook.core.transfer.ZipArchive
@@ -122,7 +123,12 @@ class BackupArchiveTests {
         // way to refusing it would leave rubbish behind that nothing references.
         val (store, _) = shopWithAPhotographedBill()
         val document = store.makeBackupDocument()
-        val future = BackupService.encode(document).replace("\"version\": 3", "\"version\": 99")
+        // Written against whatever the current version is rather than a literal.
+        // As a literal this silently stopped substituting the day the version
+        // moved on, so the "future" file was the present one and the test passed
+        // by asserting nothing.
+        val future = BackupService.encode(document)
+            .replace("\"version\": ${BackupDocument.currentVersion}", "\"version\": 99")
         val archive = ZipArchive.write(
             sequenceOf(
                 ZipArchive.Entry(BackupArchive.documentEntry, future.toByteArray()),

@@ -6,6 +6,7 @@ import com.stockbook.core.store.InMemoryRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppLanguage
 import com.stockbook.core.text.Strings
+import com.stockbook.core.transfer.BackupDocument
 import com.stockbook.core.transfer.BackupService
 import java.time.Instant
 import kotlin.test.Test
@@ -320,7 +321,13 @@ class CreditNoteTests {
         // A reader that dropped these would show every credited customer owing
         // more than they do, and send the owner to ask for money written off
         // weeks ago. That is a figure misread, which is what bumps the version.
-        assertEquals(3, document.version)
+        //
+        // Asserted as "at least the version that carried them" rather than as a
+        // literal: what this test is about is that credit notes travel, and
+        // pinning the number here means every later bump edits a credit-note
+        // test to say something it was never about.
+        assertTrue(document.version >= 3)
+        assertEquals(BackupDocument.currentVersion, document.version)
 
         val restored = store()
         restored.replaceEverything(document)

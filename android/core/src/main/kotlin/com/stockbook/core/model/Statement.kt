@@ -161,8 +161,19 @@ data class Statement(
      */
     val credited: Double,
     /**
-     * `openingBalance + billed − received − credited`. What they owe at the end
-     * of it.
+     * A balance that arrived from another account over the period, and one that
+     * left for another.
+     *
+     * Their own lines rather than folded into [billed] and [received], for the
+     * reason [credited] has its own: a transfer in is not something the shop
+     * invoiced, and a transfer out is not money it took. Netting either into a
+     * trading figure would make that figure mean two things.
+     */
+    val transferredIn: Double,
+    val transferredOut: Double,
+    /**
+     * `openingBalance + billed + transferredIn − received − credited −
+     * transferredOut`. What they owe at the end of it.
      */
     val closingBalance: Double,
     /**
@@ -189,13 +200,21 @@ data class Statement(
         val settledAtOnce: Double
 
         /**
-         * Whether this entry reduces the balance **without money moving**.
+         * Which total this entry belongs in.
          *
-         * Only a credit note does. It exists so the totals can keep cash and
-         * credit apart while the running balance treats them identically — which
-         * is exactly right, since both leave the customer owing less.
+         * The running balance treats all three identically — a charge is a
+         * charge and a settlement is a settlement — but the totals must keep
+         * them apart, because they answer different questions. [TRADE] is what
+         * the shop reconciles against its till. [CREDIT_NOTE] reduced the
+         * balance with no money moving. [TRANSFER] did not touch this shop's
+         * money at all; it moved a figure between two of its own accounts.
+         *
+         * An enum rather than the boolean this replaces: a third bucket cannot
+         * be expressed by one flag, and two flags could both be true.
          */
-        val isCredit: Boolean get() = false
+        enum class Kind { TRADE, CREDIT_NOTE, TRANSFER }
+
+        val kind: Kind get() = Kind.TRADE
 
         data class ForBill(val bill: Bill) : Entry {
             override val date: Instant get() = bill.createdAt
@@ -216,7 +235,7 @@ data class Statement(
             override val id: String get() = "credit-note-${note.id}"
             override val charge: Double get() = 0.0
             override val settledAtOnce: Double get() = note.total
-            override val isCredit: Boolean get() = true
+            override val kind: Kind get() = Kind.CREDIT_NOTE
         }
 
         data class ForPurchase(val purchase: Purchase) : Entry {
@@ -224,6 +243,34 @@ data class Statement(
             override val id: String get() = "purchase-${purchase.id}"
             override val charge: Double get() = purchase.total
             override val settledAtOnce: Double get() = purchase.total - purchase.balance
+        }
+
+        /**
+         * A balance moved to or from another account, seen from one end of it.
+         *
+         * One case rather than two, because it is one event: the same record
+         * appears on both statements and has to say the same amount on each,
+         * charged on one and settled on the other. [outgoing] is which end this
+         * is.
+         */
+        data class ForTransfer(
+            val transfer: BalanceTransfer,
+            val outgoing: Boolean,
+            /**
+             * The account at the other end, spelled as the roster spells it.
+             *
+             * Resolved when the statement is built rather than stored on the
+             * record, so a party renamed afterwards reads correctly here and
+             * there is no second copy of a name to drift. `DayBook` names people
+             * the same way and for the same reason.
+             */
+            val otherName: String
+        ) : Entry {
+            override val date: Instant get() = transfer.movedAt
+            override val id: String get() = "transfer-${transfer.id}"
+            override val charge: Double get() = if (outgoing) 0.0 else transfer.amount
+            override val settledAtOnce: Double get() = if (outgoing) transfer.amount else 0.0
+            override val kind: Kind get() = Kind.TRANSFER
         }
 
         data class ForSupplierPayment(val payment: SupplierPayment) : Entry {
@@ -247,13 +294,15 @@ data class Statement(
             bills: List<Bill>,
             payments: List<Payment>,
             creditNotes: List<CreditNote> = emptyList(),
+            transfers: List<Entry.ForTransfer> = emptyList(),
             period: StatementPeriod,
             zone: ZoneId = ZoneId.systemDefault()
         ): Statement = make(
             party = customer.party,
             entries = bills.map { Entry.ForBill(it) } +
                 payments.map { Entry.ForPayment(it) } +
-                creditNotes.map { Entry.ForCreditNote(it) },
+                creditNotes.map { Entry.ForCreditNote(it) } +
+                transfers,
             period = period,
             zone = zone
         )
@@ -269,11 +318,14 @@ data class Statement(
             supplier: Supplier,
             purchases: List<Purchase>,
             payments: List<SupplierPayment>,
+            transfers: List<Entry.ForTransfer> = emptyList(),
             period: StatementPeriod,
             zone: ZoneId = ZoneId.systemDefault()
         ): Statement = make(
             party = supplier.party,
-            entries = purchases.map { Entry.ForPurchase(it) } + payments.map { Entry.ForSupplierPayment(it) },
+            entries = purchases.map { Entry.ForPurchase(it) } +
+                payments.map { Entry.ForSupplierPayment(it) } +
+                transfers,
             period = period,
             zone = zone
         )
@@ -299,11 +351,15 @@ data class Statement(
                 ordered.filter { it.date < range.start }.sumOf { it.charge - it.settledAtOnce }
 
             val inRange = ordered.filter { it.date in range }
-            val billed = inRange.sumOf { it.charge }
-            // Split by where the reduction came from, not by how big it was.
-            // Both still come off the running balance below, together.
-            val received = inRange.filterNot { it.isCredit }.sumOf { it.settledAtOnce }
-            val credited = inRange.filter { it.isCredit }.sumOf { it.settledAtOnce }
+            // Split by where each figure came from, not by how big it was. All
+            // of them still move the running balance below, together.
+            val trade = inRange.filter { it.kind == Entry.Kind.TRADE }
+            val billed = trade.sumOf { it.charge }
+            val received = trade.sumOf { it.settledAtOnce }
+            val credited = inRange.filter { it.kind == Entry.Kind.CREDIT_NOTE }.sumOf { it.settledAtOnce }
+            val transfers = inRange.filter { it.kind == Entry.Kind.TRANSFER }
+            val transferredIn = transfers.sumOf { it.charge }
+            val transferredOut = transfers.sumOf { it.settledAtOnce }
 
             val running = mutableListOf<Double>()
             var balance = opening
@@ -321,7 +377,9 @@ data class Statement(
                 billed = billed,
                 received = received,
                 credited = credited,
-                closingBalance = opening + billed - received - credited,
+                transferredIn = transferredIn,
+                transferredOut = transferredOut,
+                closingBalance = opening + billed + transferredIn - received - credited - transferredOut,
                 runningBalances = running
             )
         }

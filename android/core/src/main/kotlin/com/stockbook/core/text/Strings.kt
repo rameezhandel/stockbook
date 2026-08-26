@@ -448,6 +448,21 @@ class Strings(val language: AppLanguage) {
     val nobodyToMergeWith: String
         get() = pick("There is nobody else to merge with", "ಸೇರಿಸಲು ಬೇರೆ ಯಾರೂ ಇಲ್ಲ")
 
+
+    // --- Moving a balance between two accounts
+
+    /**
+     * The Transaction column's wording for a transfer, which has no number of
+     * its own and so names the account at the other end instead.
+     */
+    fun transferredTo(name: String): String =
+            pick("Transferred to $name", "$name ಗೆ ವರ್ಗಾವಣೆ")
+    fun transferredFrom(name: String): String =
+            pick("Transferred from $name", "$name ಇಂದ ವರ್ಗಾವಣೆ")
+    /** The statement's own totals, kept apart from what was billed and received. */
+    val transferredInLabel: String get() = pick("Transferred in", "ಒಳಬಂದ ವರ್ಗಾವಣೆ")
+    val transferredOutLabel: String get() = pick("Transferred out", "ಹೊರಹೋದ ವರ್ಗಾವಣೆ")
+
     // --- Payments
 
     val recordAPayment: String get() = pick("Record a payment", "ಪಾವತಿ ದಾಖಲಿಸಿ")

@@ -190,6 +190,12 @@ data class StatementDocument(
                 entry.payment.paymentNo?.takeIf { it.isNotBlank() }
                     ?.let { strings.paymentRef(it) }
                     ?: strings.paymentLabel
+            // No number to show — nothing was written for it — so the row names
+            // the account at the other end instead. "Transferred" alone would
+            // leave the customer holding a figure they cannot place.
+            is Statement.Entry.ForTransfer ->
+                if (entry.outgoing) strings.transferredTo(entry.otherName)
+                else strings.transferredFrom(entry.otherName)
         }
     }
 }

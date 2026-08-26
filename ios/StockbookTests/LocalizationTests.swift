@@ -34,6 +34,7 @@ struct LocalizationTests {
         \.removeFromCustomers, \.tapAgainToRemove, \.noBillsYet,
         \.openingBalanceField, \.openingBalanceNote, \.chooseFromTheList, \.enterCustomerNameFirst, \.removeCustomerNote,
         \.mergeIntoAnotherCustomer, \.mergeIntoAnotherSupplier, \.mergeAccounts, \.mergeCannotBeUndone,
+        \.transferredInLabel, \.transferredOutLabel,
         \.nobodyToMergeWith,
         \.creditNoteLabel, \.creditNotes, \.issueACreditNote, \.editCreditNote,
         \.creditNoteNo, \.creditNoteNoHint, \.amountCredited, \.creditedOn,

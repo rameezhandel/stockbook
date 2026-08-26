@@ -1345,4 +1345,19 @@ struct Strings {
     }
     var nobodyToMergeWith: String { pick("There is nobody else to merge with", "ಸೇರಿಸಲು ಬೇರೆ ಯಾರೂ ಇಲ್ಲ") }
 
+
+    // MARK: - Moving a balance between two accounts
+
+    /// The Transaction column's wording for a transfer, which has no number of
+    /// its own and so names the account at the other end instead.
+    func transferredTo(_ name: String) -> String {
+        pick("Transferred to \(name)", "\(name) ಗೆ ವರ್ಗಾವಣೆ")
+    }
+    func transferredFrom(_ name: String) -> String {
+        pick("Transferred from \(name)", "\(name) ಇಂದ ವರ್ಗಾವಣೆ")
+    }
+    /// The statement's own totals, kept apart from what was billed and received.
+    var transferredInLabel: String { pick("Transferred in", "ಒಳಬಂದ ವರ್ಗಾವಣೆ") }
+    var transferredOutLabel: String { pick("Transferred out", "ಹೊರಹೋದ ವರ್ಗಾವಣೆ") }
+
 }

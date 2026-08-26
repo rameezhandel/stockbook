@@ -2,6 +2,7 @@ package com.stockbook.core.store
 
 import com.stockbook.core.model.AppTheme
 import com.stockbook.core.model.Bill
+import com.stockbook.core.model.BalanceTransfer
 import com.stockbook.core.model.BillLine
 import com.stockbook.core.model.CreditNote
 import com.stockbook.core.model.Currency
@@ -392,6 +393,8 @@ class StockbookStore(private val repository: StockbookRepository) {
 
     /** The owner's own spending, newest first. */
     val expenses: List<Expense> get() = _state.value.expenses
+
+    val balanceTransfers: List<BalanceTransfer> get() = _state.value.balanceTransfers
 
     val settings: Settings get() = _state.value.settings
 
@@ -844,6 +847,7 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun customers(): List<Customer> {
         data class Tally(val name: String, var count: Int, var total: Double, var owed: Double)
 
+        val transfers = balanceTransfers.filterNot { it.isSupplier }
         val book = LinkedHashMap<String, Tally>()
         for (bill in bills) {
             if (bill.who.isBlank()) continue
@@ -878,6 +882,22 @@ class StockbookStore(private val repository: StockbookRepository) {
         // book, and the first thing that ever happens to them is paying it off.
         for (payment in payments) {
             book[payment.customerKey]?.let { it.owed -= payment.amount }
+        }
+
+        // Both ends of every transfer, before either is asked for.
+        //
+        // `book[key]?.let` below drops anything not already in it **without a
+        // sound** — the shape that stranded the credit notes on a merge. A party
+        // reached only by a transfer has no bill and may have no roster entry,
+        // so seeding is what keeps the two halves of one transfer from being
+        // separated, which would leave the shop's total receivable wrong.
+        for (transfer in transfers) {
+            book.getOrPut(transfer.fromKey) { Tally(transfer.fromKey, 0, 0.0, 0.0) }
+            book.getOrPut(transfer.intoKey) { Tally(transfer.intoKey, 0, 0.0, 0.0) }
+        }
+        for (transfer in transfers) {
+            book[transfer.fromKey]?.let { it.owed -= transfer.amount }
+            book[transfer.intoKey]?.let { it.owed += transfer.amount }
         }
 
         // Credited goods and figures come off what is owed exactly as payments
@@ -1026,30 +1046,57 @@ class StockbookStore(private val repository: StockbookRepository) {
         }
 
         // Renamed, and onto a name nothing else answers to — the gate above saw
-        // to that. Move the roster entry, then bring the bills and payments with
-        // it so nothing is left filed under a name that no longer exists.
-        val movedBills = bills.map { if (Customer.key(it.who) == key) it.copy(who = record.name) else it }
-        val movedPayments = payments.map { if (it.customerKey == key) it.copy(customerKey = newKey) else it }
+        // to that. Move the roster entry, then bring **everything filed under the
+        // old key** with it.
+        //
+        // All four kinds, and the list has twice been short. Credit notes were
+        // missing here for months: rename a credited customer and the note was
+        // left under a key nothing pointed at, so it stopped coming off what they
+        // owed and their balance silently rose by the credited amount. Balance
+        // transfers would have been the same story, and were caught only because
+        // a test asked what the statement calls the other end after a rename.
+        //
+        // The shape to distrust is `book[key]?.let { … }` in `customers()`: a
+        // record whose key no longer exists is skipped **in silence**, so a
+        // stranded row is never an error, only a wrong figure.
         _state.value = _state.value.copy(
-            bills = movedBills,
-            payments = movedPayments,
+            bills = bills.map { if (Customer.key(it.who) == key) it.copy(who = record.name) else it },
+            payments = payments.map { if (it.customerKey == key) it.copy(customerKey = newKey) else it },
+            creditNotes = creditNotes.map {
+                if (it.customerKey == key) it.copy(customerKey = newKey) else it
+            },
+            balanceTransfers = balanceTransfers.map { moveTransfer(it, key, newKey, isSupplier = false) },
             customers = customerRecords.filterNot { it.key == key || it.key == newKey } + record
         )
 
-        attempt {
-            repository.deleteCustomer(key)
-            repository.deleteCustomer(newKey)
-            repository.upsert(record)
-            for (bill in movedBills) if (bill.who == record.name) repository.update(bill)
-            for (payment in movedPayments) {
-                if (payment.customerKey == newKey) {
-                    repository.deletePayment(payment.id)
-                    repository.append(payment)
-                }
-            }
-        }
+        // Written whole rather than record by record. A rename now touches four
+        // kinds at once and is rare and deliberate; half of one on disk is the
+        // outcome worth spending a full rewrite to avoid, exactly as for a merge.
+        attempt { repository.replaceAll(_state.value) }
         return true
     }
+
+    /**
+     * One transfer with [old] rewritten to [new] at whichever end it appears.
+     *
+     * Both ends, because a rename or a merge can touch either — and the two ends
+     * of one transfer must never be separated, or the shop's total owed stops
+     * balancing while both screens look fine.
+     */
+    private fun moveTransfer(
+        transfer: BalanceTransfer,
+        old: String,
+        new: String,
+        isSupplier: Boolean
+    ): BalanceTransfer =
+        if (transfer.isSupplier != isSupplier) {
+            transfer
+        } else {
+            transfer.copy(
+                fromKey = if (transfer.fromKey == old) new else transfer.fromKey,
+                intoKey = if (transfer.intoKey == old) new else transfer.intoKey
+            )
+        }
 
     /**
      * Takes a customer off the roster. Their bills and payments stay: this
@@ -1135,6 +1182,7 @@ class StockbookStore(private val repository: StockbookRepository) {
             creditNotes = creditNotes.map {
                 if (it.customerKey == from) it.copy(customerKey = into) else it
             },
+            balanceTransfers = balanceTransfers.map { moveTransfer(it, from, into, isSupplier = false) },
             customers = customerRecords.filterNot { it.key == from || it.key == into } +
                 listOfNotNull(survivor)
         )
@@ -1738,8 +1786,89 @@ class StockbookStore(private val repository: StockbookRepository) {
             bills = billsForCustomer(key),
             payments = paymentsForCustomer(key),
             creditNotes = creditNotesForCustomer(key),
+            transfers = transferEntriesFor(key, isSupplier = false),
             period = period
         )
+    }
+
+
+    // --- Moving a balance between two accounts
+
+    /**
+     * Moves [amount] of what one account owes onto another, both of them real.
+     *
+     * **Not [mergeCustomer].** That one says two rows were always the same firm
+     * and re-files the loser's history under the survivor. This says both are
+     * genuine — two branches of one contractor, say — and only the outstanding
+     * figure moves. The invoices stay where they were issued, because the copy
+     * in the customer's file says which branch it went to.
+     *
+     * Refused between an account and itself, and where either side is unknown.
+     * An amount larger than what is owed is allowed: the app already reads a
+     * negative balance as money held in advance.
+     */
+    fun transferBalance(
+        fromKey: String,
+        intoKey: String,
+        amount: Double,
+        isSupplier: Boolean = false,
+        note: String? = null,
+        movedAt: Instant = Timestamps.now()
+    ): BalanceTransfer? {
+        if (fromKey == intoKey || fromKey.isEmpty() || intoKey.isEmpty()) return null
+        if (amount <= 0) return null
+        val known: (String) -> Boolean =
+            if (isSupplier) { key -> supplier(key) != null } else { key -> customer(key) != null }
+        if (!known(fromKey) || !known(intoKey)) return null
+
+        val transfer = BalanceTransfer(
+            fromKey = fromKey,
+            intoKey = intoKey,
+            isSupplier = isSupplier,
+            amount = amount,
+            note = CustomerRecord.tidied(note),
+            movedAt = movedAt
+        )
+        _state.value = _state.value.copy(
+            balanceTransfers = (balanceTransfers + transfer).sortedByDescending { it.movedAt }
+        )
+        attempt { repository.replaceAll(_state.value) }
+        return transfer
+    }
+
+    /**
+     * Removes one. A mistake is edited or removed, not voided — and unlike a
+     * bill there is no stock to give back, so this is the whole of it.
+     */
+    fun deleteBalanceTransfer(id: String) {
+        _state.value = _state.value.copy(balanceTransfers = balanceTransfers.filterNot { it.id == id })
+        attempt { repository.replaceAll(_state.value) }
+    }
+
+    /**
+     * One account's transfers as statement entries, each already knowing which
+     * end it is and what the account at the other end is called.
+     *
+     * The name is resolved here rather than stored on the record, so a party
+     * renamed afterwards reads correctly and there is no second copy to drift.
+     */
+    fun transferEntriesFor(key: String, isSupplier: Boolean): List<Statement.Entry.ForTransfer> {
+        val names = if (isSupplier) {
+            suppliers().associate { it.key to it.name }
+        } else {
+            customers().associate { it.key to it.name }
+        }
+        return balanceTransfers
+            .filter { it.isSupplier == isSupplier && (it.fromKey == key || it.intoKey == key) }
+            .map { transfer ->
+                val outgoing = transfer.fromKey == key
+                val other = if (outgoing) transfer.intoKey else transfer.fromKey
+                Statement.Entry.ForTransfer(
+                    transfer = transfer,
+                    outgoing = outgoing,
+                    otherName = names[other] ?: other
+                )
+            }
     }
 
     /** Every bill for one customer. */
@@ -1788,6 +1917,7 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun suppliers(): List<Supplier> {
         data class Tally(val name: String, var count: Int, var total: Double, var owed: Double)
 
+        val transfers = balanceTransfers.filter { it.isSupplier }
         val book = LinkedHashMap<String, Tally>()
         for (purchase in purchases) {
             if (purchase.supplierKey.isBlank()) continue
@@ -1808,6 +1938,19 @@ class StockbookStore(private val repository: StockbookRepository) {
 
         for (payment in supplierPayments) {
             book[payment.supplierKey]?.let { it.owed -= payment.amount }
+        }
+
+        // Both ends seeded before either is asked for, exactly as on the
+        // customer side and for the same reason: `book[key]?.let` drops what is
+        // not already there without a sound, and half a transfer is a book that
+        // no longer balances.
+        for (transfer in transfers) {
+            book.getOrPut(transfer.fromKey) { Tally(transfer.fromKey, 0, 0.0, 0.0) }
+            book.getOrPut(transfer.intoKey) { Tally(transfer.intoKey, 0, 0.0, 0.0) }
+        }
+        for (transfer in transfers) {
+            book[transfer.fromKey]?.let { it.owed -= transfer.amount }
+            book[transfer.intoKey]?.let { it.owed += transfer.amount }
         }
 
         return book.map { (key, tally) ->
@@ -1927,7 +2070,8 @@ class StockbookStore(private val repository: StockbookRepository) {
             purchases = purchases.map { if (it.supplierKey == key) it.copy(supplierKey = newKey) else it },
             supplierPayments = supplierPayments.map {
                 if (it.supplierKey == key) it.copy(supplierKey = newKey) else it
-            }
+            },
+            balanceTransfers = balanceTransfers.map { moveTransfer(it, key, newKey, isSupplier = true) }
         )
         // Disk follows memory, in the same order: the old roster entry goes, the
         // corrected one lands, and every moved purchase and payment is rewritten
@@ -1991,6 +2135,7 @@ class StockbookStore(private val repository: StockbookRepository) {
             supplierPayments = supplierPayments.map {
                 if (it.supplierKey == from) it.copy(supplierKey = into) else it
             },
+            balanceTransfers = balanceTransfers.map { moveTransfer(it, from, into, isSupplier = true) },
             suppliers = supplierRecords.filterNot { it.key == from || it.key == into } +
                 listOfNotNull(survivor)
         )
@@ -2312,6 +2457,7 @@ class StockbookStore(private val repository: StockbookRepository) {
             supplier = supplier,
             purchases = purchasesForSupplier(key),
             payments = supplierPaymentsFor(key),
+            transfers = transferEntriesFor(key, isSupplier = true),
             period = period
         )
     }
@@ -2498,6 +2644,17 @@ class StockbookStore(private val repository: StockbookRepository) {
             expenses = document.expenses.map {
                 Expense(id = it.id, amount = it.amount, note = it.note, spentAt = it.spentAt)
             }.sortedByDescending { it.spentAt },
+            balanceTransfers = document.balanceTransfers.map {
+                BalanceTransfer(
+                    id = it.id,
+                    fromKey = it.fromKey,
+                    intoKey = it.intoKey,
+                    isSupplier = it.isSupplier,
+                    amount = it.amount,
+                    note = it.note,
+                    movedAt = it.movedAt
+                )
+            }.sortedByDescending { it.movedAt },
             settings = restored
         )
 
@@ -2518,6 +2675,17 @@ class StockbookStore(private val repository: StockbookRepository) {
                 amount = it.amount,
                 note = it.note,
                 spentAt = it.spentAt
+            )
+        },
+        balanceTransfers = balanceTransfers.map {
+            BackupDocument.BalanceTransferRow(
+                id = it.id,
+                fromKey = it.fromKey,
+                intoKey = it.intoKey,
+                isSupplier = it.isSupplier,
+                amount = it.amount,
+                note = it.note,
+                movedAt = it.movedAt
             )
         },
         creditNotes = creditNotes.map { note ->
