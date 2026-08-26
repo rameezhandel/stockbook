@@ -27,7 +27,10 @@ in Apple's web console — nothing in this repo can do them.
 ## 2. Google Play — the parts only a person can do
 
 The signing config and the bundle workflow are written; see
-[`android/keystore/README.md`](android/keystore/README.md).
+[`android/keystore/README.md`](android/keystore/README.md) for the key, and
+[`docs/releasing.md`](docs/releasing.md) for the procedure — including the
+**12 testers for 14 days** a personal account must run in closed testing before
+Play will grant production access at all.
 
 1. **Generate the upload key** with the `keytool` command in that file, and back
    it up somewhere that is not this machine. Lost before the first upload, the

@@ -234,5 +234,5 @@ context than it saves.
 | `ios/Stockbook` | SwiftUI app; `Model`, `Store`, `Transfer`, `Features`, `Support` |
 | `tools/check.py` | The cross-platform invariants |
 | `tools/make_play_assets.py` | Launcher icon and Play listing artwork |
-| `play/`, `docs/` | Store listing assets; the privacy policy |
+| `play/`, `docs/` | Store listing assets; the privacy policy; [releasing](docs/releasing.md) |
 | `BACKLOG.md` | What is left before going live, and what was decided against |
