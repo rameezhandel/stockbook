@@ -12,10 +12,21 @@
 
       The bar icons are set at runtime too, for the same reason: white glyphs
       disappear into a white page.
+
+      **There is no bar colour here, and there cannot be.** `statusBarColor` and
+      `navigationBarColor` were set to the same ground as the window and were
+      silently ignored: Android stopped honouring both at `targetSdk` 35, and this
+      app targets 36. The bars are transparent, the app draws underneath them —
+      that is what `enableEdgeToEdge` in `MainActivity` asks for — and what shows
+      through is whatever pane is behind, which is why every screen pads itself
+      with `statusBarsPadding`. Setting them again would look like it worked,
+      because the colour matched the window anyway.
+
+      `windowLightStatusBar` is a different attribute and is still obeyed. It
+      decides the glyphs on that first frame, before the runtime code above knows
+      which theme the shop chose.
     -->
     <style name="Theme.Stockbook" parent="android:Theme.Material.NoActionBar">
-        <item name="android:statusBarColor">#161826</item>
-        <item name="android:navigationBarColor">#161826</item>
         <item name="android:windowBackground">#161826</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
