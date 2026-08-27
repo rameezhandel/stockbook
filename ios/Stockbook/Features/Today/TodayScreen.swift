@@ -292,6 +292,7 @@ struct TodayScreen: View {
                 note: owedNote(names: owed.names),
                 amount: owed.total,
                 icon: Icon.owed,
+                age: debtorAge,
                 // The banner is where the debt gets noticed; the list behind it is
                 // where it gets collected. Without this tap the only route to
                 // Ahmed's cash was to remember to go and find Ahmed in the Book.
@@ -317,6 +318,7 @@ struct TodayScreen: View {
                     : Loc.youOweWithOthers(payable.names[0], others: payable.names.count - 1),
                 amount: payable.total,
                 icon: Icon.items,
+                age: creditorAge,
                 action: { router.showingCreditors = true }
             )
             .padding(.bottom, 18)
@@ -325,15 +327,34 @@ struct TodayScreen: View {
 
     /// One banner body, both directions — what a debt looks like does not change
     /// with who owes it.
-    private func banner(note: String, amount: Double, icon: String, action: @escaping () -> Void) -> some View {
+    private func banner(
+        note: String,
+        amount: Double,
+        icon: String,
+        /// How long the named party has gone without money moving, or nil when it
+        /// is not long enough to be worth a line. Under the note rather than
+        /// beside the figure: it qualifies who the sentence is about, not how
+        /// much.
+        age: String? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Glyph(icon, size: 19)
                     .foregroundStyle(Nocturne.accent400)
-                Text(note)
-                    .font(NocturneType.inter(12.5))
-                    .foregroundStyle(Nocturne.neutral400)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(note)
+                        .font(NocturneType.inter(12.5))
+                        .foregroundStyle(Nocturne.neutral400)
+                    if let age {
+                        Text(age)
+                            .font(NocturneType.inter(11))
+                            // Quieter than the debt above it. This is the reason
+                            // to act on that figure, not a second figure.
+                            .foregroundStyle(Nocturne.neutral500)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Text(Money.text(amount, in: currency))
                     .font(NocturneType.inter(16))
                     .foregroundStyle(Nocturne.accent400)
@@ -351,6 +372,26 @@ struct TodayScreen: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    /// How long the party each banner names has gone without money moving, said
+    /// only once it is long enough to mean something.
+    ///
+    /// `.now` is read here rather than passed in: these are computed properties
+    /// on a view that recomputes when the store changes, and a date captured any
+    /// earlier would go stale on a phone left open on this screen overnight.
+    private var debtorAge: String? {
+        guard let customer = store.topDebtor() else { return nil }
+        let days = customer.quietDays(now: .now)
+        guard LastPaid.worthSaying(days), let days else { return nil }
+        return customer.hasEverPaid ? Loc.lastPaidDaysAgo(days) : Loc.noPaymentYet
+    }
+
+    private var creditorAge: String? {
+        guard let supplier = store.topCreditor() else { return nil }
+        let days = supplier.quietDays(now: .now)
+        guard LastPaid.worthSaying(days), let days else { return nil }
+        return supplier.hasEverPaid ? Loc.youLastPaidDaysAgo(days) : Loc.youHaveNotPaidYet
     }
 
     /// One name reads as a name; several read as a count of **people**, not bills.

@@ -2,6 +2,7 @@ package com.stockbook.core.model
 
 import com.stockbook.core.money.Money
 import com.stockbook.core.text.Strings
+import java.time.Instant
 
 /**
  * Somebody the shop buys from.
@@ -31,7 +32,15 @@ data class Supplier(
     val place: String? = null,
     /** Carried over from the paper book. Already included in [owed]. */
     val openingBalance: Double = 0.0,
-    val isOnRoster: Boolean = false
+    val isOnRoster: Boolean = false,
+    /**
+     * When the shop last paid *them* — settled on the delivery, or paid
+     * afterwards. The direction is the only thing that differs from a customer's;
+     * the rule is the same one, in [LastPaid].
+     */
+    val lastPaidAt: Instant? = null,
+    /** Their oldest delivery, where the clock starts if nothing has been paid. */
+    val firstBilledAt: Instant? = null
 ) {
     /** `owes SAR 40` — from the shop's side — or `2 purchases`. */
     fun meta(currency: Currency, strings: Strings): String = when {
@@ -41,6 +50,12 @@ data class Supplier(
     }
 
     val hasHistory: Boolean get() = purchaseCount > 0
+
+    /** Whether the shop has ever actually paid them anything. */
+    val hasEverPaid: Boolean get() = lastPaidAt != null
+
+    /** Days since the shop last paid them. The mirror of [Customer.quietDays]. */
+    fun quietDays(now: Instant): Long? = LastPaid.daysSince(lastPaidAt, firstBilledAt, now)
 
     /** For a statement, a supplier is an account like any other. */
     val party: StatementParty

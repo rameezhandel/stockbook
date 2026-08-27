@@ -124,6 +124,27 @@ struct Strings {
         )
     }
 
+    /// How long since money came in, under the debt it belongs to.
+    ///
+    /// The figure on that banner has never carried a date, and without one a debt
+    /// from last week and a debt from last March read exactly alike. This is the
+    /// half of the question the screen was missing.
+    ///
+    /// Said only once it has been long enough to mean something — see `LastPaid`.
+    func lastPaidDaysAgo(_ days: Int) -> String {
+        pick(
+            days == 1 ? "last paid 1 day ago" : "last paid \(days) days ago",
+            "ಕೊನೆಯ ಪಾವತಿ \(days) ದಿನಗಳ ಹಿಂದೆ"
+        )
+    }
+
+    /// The same line for somebody who has never paid anything at all.
+    ///
+    /// No number, because the honest one would be the age of their first bill and
+    /// that reads as though a payment were once made that long ago. "None" is the
+    /// whole fact and is worse news than any figure.
+    var noPaymentYet: String { pick("no payment yet", "ಇನ್ನೂ ಪಾವತಿ ಇಲ್ಲ") }
+
     // MARK: - Items
 
     var itemsTitle: String { pick("Items", "ಸಾಮಾನುಗಳು") }
@@ -376,6 +397,19 @@ struct Strings {
             "\(name) ಮತ್ತು ಇನ್ನೂ \(others) ಜನರಿಗೆ ನೀವು ಕೊಡಬೇಕು"
         )
     }
+    /// The age line on the outward banner. Says **you**, unlike `lastPaidDaysAgo`
+    /// beside it, because on this side of the book the shop is the one who pays
+    /// and "last paid 40 days ago" would read as though the supplier owed money.
+    func youLastPaidDaysAgo(_ days: Int) -> String {
+        pick(
+            days == 1 ? "you last paid 1 day ago" : "you last paid \(days) days ago",
+            "ನೀವು ಕೊನೆಯದಾಗಿ ಪಾವತಿಸಿದ್ದು \(days) ದಿನಗಳ ಹಿಂದೆ"
+        )
+    }
+
+    /// The mirror of `noPaymentYet`, for a supplier the shop has never paid.
+    var youHaveNotPaidYet: String { pick("not paid yet", "ಇನ್ನೂ ಪಾವತಿಸಿಲ್ಲ") }
+
     var nothingOwedOut: String { pick("Nothing owed out", "ಕೊಡಬೇಕಾದ್ದು ಏನೂ ಇಲ್ಲ") }
 
     var chooseSupplierFromTheList: String {

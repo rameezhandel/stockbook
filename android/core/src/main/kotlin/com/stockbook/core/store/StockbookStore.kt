@@ -807,7 +807,14 @@ class StockbookStore(private val repository: StockbookRepository) {
      * recent one and that is the one shown.
      */
     fun customers(): List<Customer> {
-        data class Tally(val name: String, var count: Int, var total: Double, var owed: Double)
+        data class Tally(
+            val name: String,
+            var count: Int,
+            var total: Double,
+            var owed: Double,
+            var lastPaidAt: Instant? = null,
+            var firstBilledAt: Instant? = null
+        )
 
         val transfers = balanceTransfers.filterNot { it.isSupplier }
         val book = LinkedHashMap<String, Tally>()
@@ -818,6 +825,14 @@ class StockbookStore(private val repository: StockbookRepository) {
             tally.count += 1
             tally.total += bill.total
             tally.owed += bill.balance
+            tally.firstBilledAt = earliest(tally.firstBilledAt, bill.createdAt)
+            // Paid at the counter is money in, exactly as a payment made later
+            // is. Only the two together answer "when did they last pay me" — a
+            // shop whose customers settle on the spot has no `Payment` rows at
+            // all, and would otherwise read as never having been paid.
+            if (bill.total - bill.balance > CENT) {
+                tally.lastPaidAt = latest(tally.lastPaidAt, bill.createdAt)
+            }
         }
 
         // The roster and history are merged, not chosen between. Somebody entered
@@ -843,7 +858,10 @@ class StockbookStore(private val repository: StockbookRepository) {
         // an edge one: a customer is entered with what they owed from the old
         // book, and the first thing that ever happens to them is paying it off.
         for (payment in payments) {
-            book[payment.customerKey]?.let { it.owed -= payment.amount }
+            book[payment.customerKey]?.let {
+                it.owed -= payment.amount
+                it.lastPaidAt = latest(it.lastPaidAt, payment.receivedAt)
+            }
         }
 
         // Both ends of every transfer, before either is asked for.
@@ -886,7 +904,12 @@ class StockbookStore(private val repository: StockbookRepository) {
                 phone = record?.phone,
                 place = record?.place,
                 openingBalance = record?.openingBalance ?: 0.0,
-                isOnRoster = record != null
+                isOnRoster = record != null,
+                // Credit notes and transfers were applied to `owed` above and are
+                // deliberately absent here: both reduce a balance without a coin
+                // moving, and neither is being paid. See `LastPaid`.
+                lastPaidAt = tally.lastPaidAt,
+                firstBilledAt = tally.firstBilledAt
             )
         }.sortedWith(compareByDescending<Customer> { it.owed }.thenByDescending { it.billCount })
     }
@@ -1780,6 +1803,23 @@ class StockbookStore(private val repository: StockbookRepository) {
         return owing.map { it.name } to owing.sumOf { it.owed }
     }
 
+    /**
+     * The person the Today banner names: the biggest debtor.
+     *
+     * Returned whole rather than as a name, because the banner now wants a date
+     * off them as well — see [Customer.quietDays]. [customers] is sorted by what
+     * is owed, so the first one owing anything is the one.
+     *
+     * **Not the stalest.** A customer who owes more is not necessarily the one
+     * who has gone quiet longest, and this deliberately answers the first
+     * question rather than the second: the banner is about the biggest debt, and
+     * the age shown is the age of *that* debt.
+     */
+    fun topDebtor(): Customer? = customers().firstOrNull { it.owed > 0 }
+
+    /** The supplier the outward banner names. The mirror of [topDebtor]. */
+    fun topCreditor(): Supplier? = suppliers().firstOrNull { it.owed > 0 }
+
     // --- Suppliers
 
     /**
@@ -1794,7 +1834,14 @@ class StockbookStore(private val repository: StockbookRepository) {
      * thing that ever happens to them is being paid.
      */
     fun suppliers(): List<Supplier> {
-        data class Tally(val name: String, var count: Int, var total: Double, var owed: Double)
+        data class Tally(
+            val name: String,
+            var count: Int,
+            var total: Double,
+            var owed: Double,
+            var lastPaidAt: Instant? = null,
+            var firstBilledAt: Instant? = null
+        )
 
         val transfers = balanceTransfers.filter { it.isSupplier }
         val book = LinkedHashMap<String, Tally>()
@@ -1804,6 +1851,12 @@ class StockbookStore(private val repository: StockbookRepository) {
             tally.count += 1
             tally.total += purchase.total
             tally.owed += purchase.balance
+            tally.firstBilledAt = earliest(tally.firstBilledAt, purchase.createdAt)
+            // Settled on the delivery is money out, exactly as a payment made
+            // afterwards is — the mirror of what a bill does on the other side.
+            if (purchase.total - purchase.balance > CENT) {
+                tally.lastPaidAt = latest(tally.lastPaidAt, purchase.createdAt)
+            }
         }
 
         val roster = supplierRecords.associateBy { it.key }
@@ -1816,7 +1869,10 @@ class StockbookStore(private val repository: StockbookRepository) {
         }
 
         for (payment in supplierPayments) {
-            book[payment.supplierKey]?.let { it.owed -= payment.amount }
+            book[payment.supplierKey]?.let {
+                it.owed -= payment.amount
+                it.lastPaidAt = latest(it.lastPaidAt, payment.paidAt)
+            }
         }
 
         // Both ends seeded before either is asked for, exactly as on the
@@ -1848,7 +1904,11 @@ class StockbookStore(private val repository: StockbookRepository) {
                 phone = record?.phone,
                 place = record?.place,
                 openingBalance = record?.openingBalance ?: 0.0,
-                isOnRoster = record != null
+                isOnRoster = record != null,
+                // Transfers moved a figure between two of the shop's own accounts
+                // and paid nobody, so they are not in here. See `LastPaid`.
+                lastPaidAt = tally.lastPaidAt,
+                firstBilledAt = tally.firstBilledAt
             )
         }.sortedWith(compareByDescending<Supplier> { it.owed }.thenByDescending { it.purchaseCount })
     }
@@ -1860,6 +1920,25 @@ class StockbookStore(private val repository: StockbookRepository) {
         suppliers()
             .filter { partyMatches(it.name, it.phone, matching) }
             .sortedBy { it.name.lowercase() }
+
+    /**
+     * Half a riyal, as the line between "some of this was paid" and floating
+     * point noise.
+     *
+     * `total - balance` is a subtraction of two figures that were themselves
+     * arrived at by adding prices together, so a bill paid in full can land a
+     * hair either side of zero. Comparing to zero would have a bill nobody paid
+     * anything on reset the clock.
+     */
+    private val CENT = 0.005
+
+    /** The later of two moments, either of which may be the first one seen. */
+    private fun latest(current: Instant?, candidate: Instant): Instant =
+        if (current == null || candidate.isAfter(current)) candidate else current
+
+    /** The earlier of two, for the date a history starts rather than ends. */
+    private fun earliest(current: Instant?, candidate: Instant): Instant =
+        if (current == null || candidate.isBefore(current)) candidate else current
 
     /**
      * Whether one person answers to what has been typed.

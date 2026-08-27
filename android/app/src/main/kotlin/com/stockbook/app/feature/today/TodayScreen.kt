@@ -43,6 +43,7 @@ import com.stockbook.app.design.SpanChip
 import com.stockbook.app.design.StatCard
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
+import com.stockbook.core.model.LastPaid
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.money.Money
@@ -83,6 +84,35 @@ fun TodayScreen(
 
     val (owedNames, owedTotal) = store.outstanding()
     val (payableNames, payableTotal) = store.payable()
+
+    // How long the party each banner names has gone without money moving, said
+    // only once it is long enough to mean something. `remember(state)` because a
+    // store getter read bare in a composable subscribes to nothing.
+    //
+    // The date is taken once per composition rather than per banner, so the two
+    // lines can never be counted from different moments.
+    val today = Instant.now()
+    val debtorAge = remember(state, today) {
+        store.topDebtor()?.let { customer ->
+            val days = customer.quietDays(today)
+            when {
+                !LastPaid.worthSaying(days) -> null
+                customer.hasEverPaid -> strings.lastPaidDaysAgo(days!!)
+                else -> strings.noPaymentYet
+            }
+        }
+    }
+    val creditorAge = remember(state, today) {
+        store.topCreditor()?.let { supplier ->
+            val days = supplier.quietDays(today)
+            when {
+                !LastPaid.worthSaying(days) -> null
+                supplier.hasEverPaid -> strings.youLastPaidDaysAgo(days!!)
+                else -> strings.youHaveNotPaidYet
+            }
+        }
+    }
+
     val greetingName = state.settings.ownerName.firstName
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -167,6 +197,7 @@ fun TodayScreen(
                             strings.stillOweWithOthers(owedNames.first(), owedNames.size - 1)
                         },
                         amount = Money.text(owedTotal, currency),
+                        age = debtorAge,
                         onClick = { router.showingDebtors = true }
                     )
                     Spacer(Modifier.height(if (payableNames.isEmpty()) 18.dp else 6.dp))
@@ -186,6 +217,7 @@ fun TodayScreen(
                         },
                         amount = Money.text(payableTotal, currency),
                         icon = Icon.items,
+                        age = creditorAge,
                         onClick = { router.showingCreditors = true }
                     )
                     Spacer(Modifier.height(18.dp))
@@ -373,7 +405,13 @@ private fun OwedBanner(
     note: String,
     amount: String,
     onClick: () -> Unit,
-    icon: ImageVector = Icon.owed
+    icon: ImageVector = Icon.owed,
+    /**
+     * How long the named party has gone without money moving, or null when it is
+     * not long enough to be worth a line. Under the note rather than beside the
+     * figure: it qualifies who the sentence is about, not how much.
+     */
+    age: String? = null
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -385,12 +423,22 @@ private fun OwedBanner(
     ) {
         Glyph(icon, size = 19.dp, tint = Nocturne.accent400)
         Spacer(Modifier.width(10.dp))
-        Text(
-            note,
-            style = NocturneType.inter(12.5),
-            color = Nocturne.neutral400,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                note,
+                style = NocturneType.inter(12.5),
+                color = Nocturne.neutral400
+            )
+            if (age != null) {
+                Text(
+                    age,
+                    style = NocturneType.inter(11.0),
+                    // Quieter than the debt above it. This is the reason to act
+                    // on that figure, not a second figure of its own.
+                    color = Nocturne.neutral500
+                )
+            }
+        }
         Text(amount, style = NocturneType.inter(16.0), color = Nocturne.accent400)
         Spacer(Modifier.width(4.dp))
         Glyph(Icon.openRow, size = 12.dp, tint = Nocturne.neutral600)

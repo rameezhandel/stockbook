@@ -2,6 +2,7 @@ package com.stockbook.core.model
 
 import com.stockbook.core.money.Money
 import com.stockbook.core.text.Strings
+import java.time.Instant
 
 /**
  * Somebody the shop has billed.
@@ -56,7 +57,21 @@ data class Customer(
      * identically; this exists so the editor knows whether it is adding or
      * correcting.
      */
-    val isOnRoster: Boolean = false
+    val isOnRoster: Boolean = false,
+    /**
+     * When money last came in from them — paid at the counter on a bill, or
+     * handed over afterwards. Null where none ever has.
+     *
+     * Credit notes and balance transfers are deliberately not in here; see
+     * [LastPaid], which is the whole rule.
+     */
+    val lastPaidAt: Instant? = null,
+    /**
+     * Their oldest bill, which is where the clock starts for somebody who has
+     * never paid anything. Null for a customer who has only ever been an opening
+     * balance.
+     */
+    val firstBilledAt: Instant? = null
 ) {
     /**
      * `owes SAR 40` when they owe, `SAR 40 in advance` when they have paid ahead,
@@ -74,6 +89,15 @@ data class Customer(
      * "no bills yet" and "nothing outstanding" is worth drawing.
      */
     val hasHistory: Boolean get() = billCount > 0
+
+    /** Whether money has ever actually come in from them. */
+    val hasEverPaid: Boolean get() = lastPaidAt != null
+
+    /**
+     * Days since money last came in, counting from their first bill where none
+     * ever has. Null when there is nothing to count from — see [LastPaid].
+     */
+    fun quietDays(now: Instant): Long? = LastPaid.daysSince(lastPaidAt, firstBilledAt, now)
 
     /** For a statement, a customer is an account like any other. */
     val party: StatementParty

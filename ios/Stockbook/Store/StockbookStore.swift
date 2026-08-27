@@ -515,25 +515,33 @@ final class StockbookStore {
     func customers() -> [Customer] {
         let transfers = balanceTransfers.filter { !$0.isSupplier }
         var order: [String] = []
-        var book: [String: (name: String, count: Int, total: Double, owed: Double)] = [:]
+        var book: [String: PartyTally] = [:]
 
         for bill in bills where !bill.who.isBlank {
             let key = Customer.key(for: bill.who)
-            if var entry = book[key] {
-                entry.count += 1
-                entry.total += bill.total
-                entry.owed += bill.balance
-                book[key] = entry
-            } else {
+            if book[key] == nil {
                 order.append(key)
-                book[key] = (bill.who.trimmed, 1, bill.total, bill.balance)
+                book[key] = PartyTally(name: bill.who.trimmed)
             }
+            guard var entry = book[key] else { continue }
+            entry.count += 1
+            entry.total += bill.total
+            entry.owed += bill.balance
+            entry.firstBilledAt = Self.earliest(entry.firstBilledAt, bill.createdAt)
+            // Paid at the counter is money in, exactly as a payment made later
+            // is. Only the two together answer "when did they last pay me" — a
+            // shop whose customers settle on the spot has no `Payment` rows at
+            // all, and would otherwise read as never having been paid.
+            if bill.total - bill.balance > Self.cent {
+                entry.lastPaidAt = Self.latest(entry.lastPaidAt, bill.createdAt)
+            }
+            book[key] = entry
         }
 
         let roster = Dictionary(uniqueKeysWithValues: customerRecords.map { ($0.key, $0) })
         for record in customerRecords where book[record.key] == nil {
             order.append(record.key)
-            book[record.key] = (record.name, 0, 0, 0)
+            book[record.key] = PartyTally(name: record.name)
         }
 
         // What they brought over from the paper book. Added after the tallies so a
@@ -556,6 +564,7 @@ final class StockbookStore {
         for payment in payments {
             if var entry = book[payment.customerKey] {
                 entry.owed -= payment.amount
+                entry.lastPaidAt = Self.latest(entry.lastPaidAt, payment.receivedAt)
                 book[payment.customerKey] = entry
             }
         }
@@ -580,7 +589,7 @@ final class StockbookStore {
         // being separated, which would leave the shop's total owed wrong.
         for transfer in transfers {
             for key in [transfer.fromKey, transfer.intoKey] where book[key] == nil {
-                book[key] = (name: key, count: 0, total: 0, owed: 0)
+                book[key] = PartyTally(name: key)
                 order.append(key)
             }
         }
@@ -611,7 +620,12 @@ final class StockbookStore {
                     phone: record?.phone,
                     place: record?.place,
                     openingBalance: record?.openingBalance ?? 0,
-                    isOnRoster: record != nil
+                    isOnRoster: record != nil,
+                    // Credit notes and transfers were applied to `owed` above and
+                    // are deliberately absent here: both reduce a balance without
+                    // a coin moving, and neither is being paid. See `LastPaid`.
+                    lastPaidAt: entry.lastPaidAt,
+                    firstBilledAt: entry.firstBilledAt
                 )
             }
             .sorted { $0.owed != $1.owed ? $0.owed > $1.owed : $0.billCount > $1.billCount }
@@ -1460,6 +1474,21 @@ final class StockbookStore {
         return (owing.map(\.name), owing.reduce(0) { $0 + $1.owed })
     }
 
+    /// The person the Today banner names: the biggest debtor.
+    ///
+    /// Returned whole rather than as a name, because the banner now wants a date
+    /// off them as well — see `Customer.quietDays`. `customers()` is sorted by
+    /// what is owed, so the first one owing anything is the one.
+    ///
+    /// **Not the stalest.** A customer who owes more is not necessarily the one
+    /// who has gone quiet longest, and this deliberately answers the first
+    /// question rather than the second: the banner is about the biggest debt, and
+    /// the age shown is the age of *that* debt.
+    func topDebtor() -> Customer? { customers().first { $0.owed > 0 } }
+
+    /// The supplier the outward banner names. The mirror of `topDebtor`.
+    func topCreditor() -> Supplier? { suppliers().first { $0.owed > 0 } }
+
     // MARK: - Restock
 
     /// Sets the shelf count to what was actually counted.
@@ -1490,24 +1519,31 @@ final class StockbookStore {
     func suppliers() -> [Supplier] {
         let transfers = balanceTransfers.filter(\.isSupplier)
         var order: [String] = []
-        var book: [String: (name: String, count: Int, total: Double, owed: Double)] = [:]
+        var book: [String: PartyTally] = [:]
 
         for purchase in purchases where !purchase.supplierKey.isBlank {
-            if var entry = book[purchase.supplierKey] {
-                entry.count += 1
-                entry.total += purchase.total
-                entry.owed += purchase.balance
-                book[purchase.supplierKey] = entry
-            } else {
-                order.append(purchase.supplierKey)
-                book[purchase.supplierKey] = (purchase.supplierKey, 1, purchase.total, purchase.balance)
+            let key = purchase.supplierKey
+            if book[key] == nil {
+                order.append(key)
+                book[key] = PartyTally(name: key)
             }
+            guard var entry = book[key] else { continue }
+            entry.count += 1
+            entry.total += purchase.total
+            entry.owed += purchase.balance
+            entry.firstBilledAt = Self.earliest(entry.firstBilledAt, purchase.createdAt)
+            // Settled on the delivery is money out, exactly as a payment made
+            // afterwards is — the mirror of what a bill does on the other side.
+            if purchase.total - purchase.balance > Self.cent {
+                entry.lastPaidAt = Self.latest(entry.lastPaidAt, purchase.createdAt)
+            }
+            book[key] = entry
         }
 
         let roster = Dictionary(uniqueKeysWithValues: supplierRecords.map { ($0.key, $0) })
         for record in supplierRecords where book[record.key] == nil {
             order.append(record.key)
-            book[record.key] = (record.name, 0, 0, 0)
+            book[record.key] = PartyTally(name: record.name)
         }
 
         for record in supplierRecords {
@@ -1520,6 +1556,7 @@ final class StockbookStore {
         for payment in supplierPayments {
             if var entry = book[payment.supplierKey] {
                 entry.owed -= payment.amount
+                entry.lastPaidAt = Self.latest(entry.lastPaidAt, payment.paidAt)
                 book[payment.supplierKey] = entry
             }
         }
@@ -1529,7 +1566,7 @@ final class StockbookStore {
         // in silence, and half a transfer is a book that no longer balances.
         for transfer in transfers {
             for key in [transfer.fromKey, transfer.intoKey] where book[key] == nil {
-                book[key] = (name: key, count: 0, total: 0, owed: 0)
+                book[key] = PartyTally(name: key)
                 order.append(key)
             }
         }
@@ -1562,7 +1599,12 @@ final class StockbookStore {
                     phone: record?.phone,
                     place: record?.place,
                     openingBalance: record?.openingBalance ?? 0,
-                    isOnRoster: record != nil
+                    isOnRoster: record != nil,
+                    // Transfers moved a figure between two of the shop's own
+                    // accounts and paid nobody, so they are not in here. See
+                    // `LastPaid`.
+                    lastPaidAt: entry.lastPaidAt,
+                    firstBilledAt: entry.firstBilledAt
                 )
             }
             .sorted { $0.owed != $1.owed ? $0.owed > $1.owed : $0.purchaseCount > $1.purchaseCount }
@@ -2332,6 +2374,47 @@ final class StockbookStore {
                 )
             }
         )
+    }
+
+    // MARK: - Building a party
+
+    /// What one account adds up to while `customers()` or `suppliers()` walks
+    /// the history, before it becomes a `Customer` or a `Supplier`.
+    ///
+    /// A named type rather than the tuple this replaces: six fields where four
+    /// of them are numbers is a shape that positional construction gets wrong
+    /// silently, and two of the six are now dates whose whole job is to be
+    /// compared against each other.
+    private struct PartyTally {
+        let name: String
+        var count = 0
+        var total: Double = 0
+        var owed: Double = 0
+        /// The last time money actually moved. See `LastPaid`.
+        var lastPaidAt: Date?
+        /// The oldest bill or delivery, where the clock starts if none ever has.
+        var firstBilledAt: Date?
+    }
+
+    /// Half a riyal, as the line between "some of this was paid" and floating
+    /// point noise.
+    ///
+    /// `total - balance` is a subtraction of two figures that were themselves
+    /// arrived at by adding prices together, so a bill paid in full can land a
+    /// hair either side of zero. Comparing to zero would have a bill nobody paid
+    /// anything on reset the clock.
+    private static let cent = 0.005
+
+    /// The later of two moments, either of which may be the first one seen.
+    private static func latest(_ current: Date?, _ candidate: Date) -> Date {
+        guard let current else { return candidate }
+        return candidate > current ? candidate : current
+    }
+
+    /// The earlier of two, for the date a history starts rather than ends.
+    private static func earliest(_ current: Date?, _ candidate: Date) -> Date {
+        guard let current else { return candidate }
+        return candidate < current ? candidate : current
     }
 }
 

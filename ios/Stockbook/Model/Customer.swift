@@ -50,6 +50,18 @@ struct Customer: Identifiable, Hashable, Sendable {
     /// correcting.
     let isOnRoster: Bool
 
+    /// When money last came in from them — paid at the counter on a bill, or
+    /// handed over afterwards. Nil where none ever has.
+    ///
+    /// Credit notes and balance transfers are deliberately not in here; see
+    /// `LastPaid`, which is the whole rule.
+    let lastPaidAt: Date?
+
+    /// Their oldest bill, which is where the clock starts for somebody who has
+    /// never paid anything. Nil for a customer who has only ever been an opening
+    /// balance.
+    let firstBilledAt: Date?
+
     var id: String { key }
 
     /// The one place a name becomes an identity. Everything that groups,
@@ -70,6 +82,15 @@ struct Customer: Identifiable, Hashable, Sendable {
     /// — that is what the setup screen exists to create — but the difference
     /// between "no bills yet" and "nothing outstanding" is worth drawing.
     var hasHistory: Bool { billCount > 0 }
+
+    /// Whether money has ever actually come in from them.
+    var hasEverPaid: Bool { lastPaidAt != nil }
+
+    /// Days since money last came in, counting from their first bill where none
+    /// ever has. Nil when there is nothing to count from — see `LastPaid`.
+    func quietDays(now: Date) -> Int? {
+        LastPaid.daysSince(lastPaidAt: lastPaidAt, since: firstBilledAt, now: now)
+    }
 
     /// For a statement, a customer is an account like any other.
     var party: StatementParty {

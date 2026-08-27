@@ -403,7 +403,8 @@ struct OpeningBalanceTests {
     func runningBalanceAgrees() {
         let customer = Customer(
             name: "Ahmed", key: "ahmed", billCount: 0, total: 0, owed: 0,
-            phone: nil, place: nil, openingBalance: 1000, isOnRoster: true
+            phone: nil, place: nil, openingBalance: 1000, isOnRoster: true,
+            lastPaidAt: nil, firstBilledAt: nil
         )
         let bill = Bill(
             number: 1,

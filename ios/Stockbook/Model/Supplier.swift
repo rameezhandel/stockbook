@@ -28,6 +28,14 @@ struct Supplier: Identifiable, Hashable, Sendable {
     let openingBalance: Double
     let isOnRoster: Bool
 
+    /// When the shop last paid *them* — settled on the delivery, or paid
+    /// afterwards. The direction is the only thing that differs from a
+    /// customer's; the rule is the same one, in `LastPaid`.
+    let lastPaidAt: Date?
+
+    /// Their oldest delivery, where the clock starts if nothing has been paid.
+    let firstBilledAt: Date?
+
     var id: String { key }
 
     init(
@@ -39,7 +47,9 @@ struct Supplier: Identifiable, Hashable, Sendable {
         phone: String? = nil,
         place: String? = nil,
         openingBalance: Double = 0,
-        isOnRoster: Bool = false
+        isOnRoster: Bool = false,
+        lastPaidAt: Date? = nil,
+        firstBilledAt: Date? = nil
     ) {
         self.name = name
         self.key = key
@@ -50,6 +60,8 @@ struct Supplier: Identifiable, Hashable, Sendable {
         self.place = place
         self.openingBalance = openingBalance
         self.isOnRoster = isOnRoster
+        self.lastPaidAt = lastPaidAt
+        self.firstBilledAt = firstBilledAt
     }
 
     /// A supplier's name becomes an identity by exactly the rule a customer's
@@ -68,6 +80,14 @@ struct Supplier: Identifiable, Hashable, Sendable {
     }
 
     var hasHistory: Bool { purchaseCount > 0 }
+
+    /// Whether the shop has ever actually paid them anything.
+    var hasEverPaid: Bool { lastPaidAt != nil }
+
+    /// Days since the shop last paid them. The mirror of `Customer.quietDays`.
+    func quietDays(now: Date) -> Int? {
+        LastPaid.daysSince(lastPaidAt: lastPaidAt, since: firstBilledAt, now: now)
+    }
 
     /// For a statement, a supplier is an account like any other.
     var party: StatementParty {
