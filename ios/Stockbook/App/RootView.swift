@@ -279,6 +279,22 @@ private struct AppShell: View {
                 onClose: { router.dayInView = nil }
             )
         }
+        // Every customer's position on one day, from the Reports header. Bound
+        // the same way as the day sheet above and for the same reason: the date
+        // lives in the router, so stepping a day redraws rather than dismissing
+        // and re-presenting the sheet on every arrow.
+        .nocturneSheet(
+            isPresented: Binding(
+                get: { router.ledgerDay != nil },
+                set: { if !$0 { router.ledgerDay = nil } }
+            )
+        ) {
+            DayLedgerSheet(
+                day: router.ledgerDay ?? .now,
+                onDay: { router.ledgerDay = $0 },
+                onClose: { router.ledgerDay = nil }
+            )
+        }
     }
 
     /// Hidden only under Sell's product picker, which carries its own bottom

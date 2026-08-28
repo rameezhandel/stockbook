@@ -192,6 +192,41 @@ struct Strings {
     var salesSide: String { pick("Sales", "ಮಾರಾಟ") }
     var purchasesSide: String { pick("Purchases", "ಖರೀದಿ") }
 
+    // MARK: - Every customer's position on one day
+
+    var dayBalances: String { pick("Day balances", "ದಿನದ ಬಾಕಿ") }
+
+    /// Column headings, kept to one short word each because five of them share
+    /// the width of a phone.
+    ///
+    /// "Old" and "Current" rather than the statement's "Opening" and "Balance
+    /// due": this page is read across a row and those two words have to be told
+    /// apart at a glance, which two words both starting "balance" are not.
+    var ledgerInvoiced: String { pick("Invoice", "ಬಿಲ್") }
+    var ledgerReceived: String { pick("Received", "ಬಂದದ್ದು") }
+    var ledgerOldBalance: String { pick("Old", "ಹಳೆಯ") }
+    var ledgerCurrentBalance: String { pick("Current", "ಈಗಿನ") }
+
+    /// Drawn only on a day that has one.
+    var ledgerCredited: String { pick("Credited", "ಜಮೆ") }
+    var ledgerMoved: String { pick("Moved", "ವರ್ಗಾವಣೆ") }
+
+    /// Said above the roll-call, because a page of a hundred names where three
+    /// matter needs to say which three before the owner starts counting.
+    func ledgerBusyCount(_ n: Int) -> String {
+        pick(
+            n == 1 ? "1 account moved today" : "\(n) accounts moved today",
+            "ಇಂದು \(n) ಖಾತೆ ಬದಲಾಗಿದೆ"
+        )
+    }
+
+    var ledgerNobodyMoved: String { pick("Nothing moved today", "ಇಂದು ಏನೂ ಬದಲಾಗಿಲ್ಲ") }
+    var ledgerNoCustomers: String { pick("No customers yet", "ಇನ್ನೂ ಗ್ರಾಹಕರಿಲ್ಲ") }
+
+    /// The switch between the whole roll-call and only what moved.
+    var ledgerShowAll: String { pick("All", "ಎಲ್ಲಾ") }
+    var ledgerShowMoved: String { pick("Moved", "ಬದಲಾದವು") }
+
     /// On the Items header. Says "delivery" rather than "purchase" because that
     /// is the word for the thing arriving at the door.
     var recordDelivery: String { pick("Inventory", "ದಾಸ್ತಾನು") }

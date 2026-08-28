@@ -6,6 +6,7 @@ import com.stockbook.core.model.BalanceTransfer
 import com.stockbook.core.model.BillLine
 import com.stockbook.core.model.CreditNote
 import com.stockbook.core.model.Currency
+import com.stockbook.core.model.DayLedger
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.CustomerRecord
 import com.stockbook.core.model.Expense
@@ -1819,6 +1820,116 @@ class StockbookStore(private val repository: StockbookRepository) {
 
     /** The supplier the outward banner names. The mirror of [topDebtor]. */
     fun topCreditor(): Supplier? = suppliers().firstOrNull { it.owed > 0 }
+
+    /**
+     * Every customer's position on one day — see [DayLedger] for what it is for.
+     *
+     * **In directory order, by name**, and not by what is owed like every other
+     * list of people in this app. This one is read straight down against a paper
+     * book, so the order has to be the one a name can be found in rather than the
+     * one that puts today's biggest debt at the top.
+     *
+     * Bucketed by key in one pass rather than filtered per customer: three
+     * hundred names against a few thousand bills is a multiplication worth not
+     * doing on a phone while somebody waits.
+     */
+    fun dayLedger(day: Instant, zone: ZoneId = ZoneId.systemDefault()): DayLedger {
+        val range = StatementPeriod.Custom(day, day).range(zone)
+        val transfers = balanceTransfers.filterNot { it.isSupplier }
+
+        class Movement {
+            var invoiced = 0.0
+            var received = 0.0
+            var credited = 0.0
+            var transferredIn = 0.0
+            var transferredOut = 0.0
+
+            /** What the day did to what they owe. The row's own arithmetic. */
+            val net: Double get() = invoiced - received - credited + transferredIn - transferredOut
+        }
+
+        val onTheDay = HashMap<String, Movement>()
+        // What every account had already come to before the day began. The
+        // opening figure is this, and never the closing figure worked backwards
+        // from today — a customer billed since would otherwise read as having
+        // owed that money all along.
+        val before = HashMap<String, Double>()
+
+        fun day(key: String) = onTheDay.getOrPut(key) { Movement() }
+        fun earlier(key: String, amount: Double) {
+            before[key] = (before[key] ?: 0.0) + amount
+        }
+
+        for (bill in bills) {
+            if (bill.who.isBlank()) continue
+            val key = Customer.key(bill.who)
+            when {
+                bill.createdAt in range -> day(key).let {
+                    it.invoiced += bill.total
+                    // What was handed over at the counter is money received on
+                    // the day, exactly as a receipt against an older bill is.
+                    it.received += bill.total - bill.balance
+                }
+                bill.createdAt < range.start -> earlier(key, bill.balance)
+            }
+        }
+        for (payment in payments) {
+            when {
+                payment.receivedAt in range -> day(payment.customerKey).received += payment.amount
+                payment.receivedAt < range.start -> earlier(payment.customerKey, -payment.amount)
+            }
+        }
+        for (note in creditNotes) {
+            when {
+                note.issuedAt in range -> day(note.customerKey).credited += note.total
+                note.issuedAt < range.start -> earlier(note.customerKey, -note.total)
+            }
+        }
+        for (transfer in transfers) {
+            when {
+                transfer.movedAt in range -> {
+                    day(transfer.fromKey).transferredOut += transfer.amount
+                    day(transfer.intoKey).transferredIn += transfer.amount
+                }
+                transfer.movedAt < range.start -> {
+                    earlier(transfer.fromKey, -transfer.amount)
+                    earlier(transfer.intoKey, transfer.amount)
+                }
+            }
+        }
+
+        // Carried over from the paper book, and dated to before any of this: it
+        // belongs in every opening figure, including the first day's.
+        for (record in customerRecords) earlier(record.key, record.openingBalance)
+
+        return DayLedger(
+            day = day,
+            rows = customers(matching = "").map { customer ->
+                val moved = onTheDay[customer.key] ?: Movement()
+                val opening = round(before[customer.key] ?: 0.0)
+                DayLedger.Row(
+                    name = customer.name,
+                    key = customer.key,
+                    invoiced = moved.invoiced,
+                    received = moved.received,
+                    credited = moved.credited,
+                    transferredIn = moved.transferredIn,
+                    transferredOut = moved.transferredOut,
+                    openingBalance = opening,
+                    closingBalance = round(opening + moved.net)
+                )
+            }
+        )
+    }
+
+    /**
+     * Two decimal places, because a balance is money.
+     *
+     * Netting figures that were themselves sums of prices otherwise leaves an
+     * account owing 0.000000001 and a screen saying money is outstanding — the
+     * same reason [customers] rounds what it publishes.
+     */
+    private fun round(amount: Double): Double = Math.round(amount * 100) / 100.0
 
     // --- Suppliers
 

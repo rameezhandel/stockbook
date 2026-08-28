@@ -16,6 +16,7 @@ import SwiftUI
 /// sale happens fifty times a day, a delivery arrives once a week. A tab bar is
 /// weighted by how often a thumb goes there, not by how tidy the model is.
 struct BookScreen: View {
+    @Environment(AppRouter.self) private var router
 
     /// Which side is showing. `@SceneStorage` rather than `@State` so it
     /// survives a trip into a sheet and back — an owner who came here for
@@ -29,7 +30,19 @@ struct BookScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: Loc.bookTitle)
+            // Every customer's position on one day. It belongs on this tab
+            // rather than beside the day's transactions on Home: it is a list of
+            // people, read down, and this is the screen the owner comes to when
+            // the question is about people rather than about today.
+            ScreenHeader(title: Loc.bookTitle) {
+                Button {
+                    router.ledgerDay = .now
+                } label: {
+                    Glyph(Icon.customer, size: 18)
+                }
+                .buttonStyle(.iconOnly)
+                .accessibilityLabel(Loc.dayBalances)
+            }
 
             HStack(spacing: 6) {
                 ChoicePill(title: Loc.salesSide, icon: Icon.bills, selected: side == .sales) {

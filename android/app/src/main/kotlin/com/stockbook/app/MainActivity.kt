@@ -32,6 +32,7 @@ import com.stockbook.app.design.StockbookTheme
 import com.stockbook.app.design.BottomSheet
 import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.book.BookScreen
+import com.stockbook.app.feature.book.DayLedgerSheet
 import com.stockbook.app.feature.book.MoveBalanceSheet
 import com.stockbook.app.feature.book.PurchaseSheet
 import com.stockbook.app.feature.customers.CreditNoteSheet
@@ -515,6 +516,24 @@ private fun Shell(store: StockbookStore) {
                         )
                     },
                     onClose = { router.earningsFor = null }
+                )
+            }
+        }
+
+        // Every customer's position on one day, from the Reports header.
+        BottomSheet(
+            visible = router.ledgerDay != null,
+            onDismiss = { router.ledgerDay = null }
+        ) {
+            router.ledgerDay?.let { day ->
+                DayLedgerSheet(
+                    day = day,
+                    state = state,
+                    store = store,
+                    currency = state.settings.currency,
+                    strings = strings,
+                    onDay = { router.ledgerDay = it },
+                    onClose = { router.ledgerDay = null }
                 )
             }
         }

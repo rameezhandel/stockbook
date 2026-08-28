@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
 import com.stockbook.app.design.ChoicePill
 import com.stockbook.app.design.Icon
+import com.stockbook.app.design.IconButton
+import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.ScreenHeader
 import com.stockbook.app.feature.bills.BillsScreen
@@ -25,6 +27,7 @@ import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
+import java.time.Instant
 
 /**
  * The account book: every direction money moves.
@@ -61,7 +64,22 @@ fun BookScreen(
     var side by rememberSaveable { mutableStateOf(Side.SALES) }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        ScreenHeader(title = strings.bookTitle, bottomPadding = 10.dp)
+        ScreenHeader(
+            title = strings.bookTitle,
+            bottomPadding = 10.dp,
+            // Every customer's position on one day. It belongs on this tab
+            // rather than beside the day's transactions on Home: it is a list of
+            // people, read down, and this is the screen the owner comes to when
+            // the question is about people rather than about today.
+            trailing = {
+                IconButton(
+                    Icon.customer,
+                    onClick = { router.ledgerDay = Instant.now() },
+                    contentDescription = strings.dayBalances,
+                    tint = Nocturne.neutral400
+                )
+            }
+        )
 
         Row(
             modifier = Modifier

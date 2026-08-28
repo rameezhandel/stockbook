@@ -184,6 +184,42 @@ class Strings(val language: AppLanguage) {
     val salesSide: String get() = pick("Sales", "ಮಾರಾಟ")
     val purchasesSide: String get() = pick("Purchases", "ಖರೀದಿ")
 
+    // --- Every customer's position on one day
+
+    val dayBalances: String get() = pick("Day balances", "ದಿನದ ಬಾಕಿ")
+
+    /**
+     * Column headings, kept to one short word each because five of them share the
+     * width of a phone.
+     *
+     * "Old" and "Current" rather than the statement's "Opening" and "Balance due":
+     * this page is read across a row and those two words have to be told apart at
+     * a glance, which two words both starting "balance" are not.
+     */
+    val ledgerInvoiced: String get() = pick("Invoice", "ಬಿಲ್")
+    val ledgerReceived: String get() = pick("Received", "ಬಂದದ್ದು")
+    val ledgerOldBalance: String get() = pick("Old", "ಹಳೆಯ")
+    val ledgerCurrentBalance: String get() = pick("Current", "ಈಗಿನ")
+
+    /** Drawn only on a day that has one. */
+    val ledgerCredited: String get() = pick("Credited", "ಜಮೆ")
+    val ledgerMoved: String get() = pick("Moved", "ವರ್ಗಾವಣೆ")
+
+    /**
+     * Said above the roll-call, because a page of a hundred names where three
+     * matter needs to say which three before the owner starts counting.
+     */
+    fun ledgerBusyCount(n: Int): String =
+        pick(if (n == 1) "1 account moved today" else "$n accounts moved today", "ಇಂದು $n ಖಾತೆ ಬದಲಾಗಿದೆ")
+
+    val ledgerNobodyMoved: String get() = pick("Nothing moved today", "ಇಂದು ಏನೂ ಬದಲಾಗಿಲ್ಲ")
+    val ledgerNoCustomers: String
+        get() = pick("No customers yet", "ಇನ್ನೂ ಗ್ರಾಹಕರಿಲ್ಲ")
+
+    /** The switch between the whole roll-call and only what moved. */
+    val ledgerShowAll: String get() = pick("All", "ಎಲ್ಲಾ")
+    val ledgerShowMoved: String get() = pick("Moved", "ಬದಲಾದವು")
+
     // The other way into the same sheet the Items header opens, so it is called
     // the same thing. Two buttons that do one job under two names is how somebody
     // concludes there are two jobs.

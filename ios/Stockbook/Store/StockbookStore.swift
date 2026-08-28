@@ -1489,6 +1489,113 @@ final class StockbookStore {
     /// The supplier the outward banner names. The mirror of `topDebtor`.
     func topCreditor() -> Supplier? { suppliers().first { $0.owed > 0 } }
 
+    /// Every customer's position on one day — see `DayLedger` for what it is for.
+    ///
+    /// **In directory order, by name**, and not by what is owed like every other
+    /// list of people in this app. This one is read straight down against a paper
+    /// book, so the order has to be the one a name can be found in rather than
+    /// the one that puts today's biggest debt at the top.
+    ///
+    /// Bucketed by key in one pass rather than filtered per customer: three
+    /// hundred names against a few thousand bills is a multiplication worth not
+    /// doing on a phone while somebody waits.
+    func dayLedger(_ day: Date, calendar: Calendar = .current) -> DayLedger {
+        let range = StatementPeriod.custom(from: day, to: day).range(calendar: calendar)
+        let transfers = balanceTransfers.filter { !$0.isSupplier }
+
+        /// What one account did on the day.
+        struct Movement {
+            var invoiced: Double = 0
+            var received: Double = 0
+            var credited: Double = 0
+            var transferredIn: Double = 0
+            var transferredOut: Double = 0
+
+            /// What the day did to what they owe. The row's own arithmetic.
+            var net: Double { invoiced - received - credited + transferredIn - transferredOut }
+        }
+
+        var onTheDay: [String: Movement] = [:]
+        // What every account had already come to before the day began. The
+        // opening figure is this, and never the closing figure worked backwards
+        // from today — a customer billed since would otherwise read as having
+        // owed that money all along.
+        var before: [String: Double] = [:]
+
+        func earlier(_ key: String, _ amount: Double) {
+            before[key, default: 0] += amount
+        }
+
+        for bill in bills where !bill.who.isBlank {
+            let key = Customer.key(for: bill.who)
+            if range.contains(bill.createdAt) {
+                var moved = onTheDay[key] ?? Movement()
+                moved.invoiced += bill.total
+                // What was handed over at the counter is money received on the
+                // day, exactly as a receipt against an older bill is.
+                moved.received += bill.total - bill.balance
+                onTheDay[key] = moved
+            } else if bill.createdAt < range.start {
+                earlier(key, bill.balance)
+            }
+        }
+        for payment in payments {
+            if range.contains(payment.receivedAt) {
+                onTheDay[payment.customerKey, default: Movement()].received += payment.amount
+            } else if payment.receivedAt < range.start {
+                earlier(payment.customerKey, -payment.amount)
+            }
+        }
+        for note in creditNotes {
+            if range.contains(note.issuedAt) {
+                onTheDay[note.customerKey, default: Movement()].credited += note.total
+            } else if note.issuedAt < range.start {
+                earlier(note.customerKey, -note.total)
+            }
+        }
+        for transfer in transfers {
+            if range.contains(transfer.movedAt) {
+                onTheDay[transfer.fromKey, default: Movement()].transferredOut += transfer.amount
+                onTheDay[transfer.intoKey, default: Movement()].transferredIn += transfer.amount
+            } else if transfer.movedAt < range.start {
+                earlier(transfer.fromKey, -transfer.amount)
+                earlier(transfer.intoKey, transfer.amount)
+            }
+        }
+
+        // Carried over from the paper book, and dated to before any of this: it
+        // belongs in every opening figure, including the first day's.
+        for record in customerRecords { earlier(record.key, record.openingBalance) }
+
+        return DayLedger(
+            day: day,
+            rows: customers(matching: "").map { customer in
+                let moved = onTheDay[customer.key] ?? Movement()
+                let opening = Self.rounded(before[customer.key] ?? 0)
+                return DayLedger.Row(
+                    name: customer.name,
+                    key: customer.key,
+                    invoiced: moved.invoiced,
+                    received: moved.received,
+                    credited: moved.credited,
+                    transferredIn: moved.transferredIn,
+                    transferredOut: moved.transferredOut,
+                    openingBalance: opening,
+                    closingBalance: Self.rounded(opening + moved.net)
+                )
+            }
+        )
+    }
+
+    /// Two decimal places, because a balance is money.
+    ///
+    /// Netting figures that were themselves sums of prices otherwise leaves an
+    /// account owing 0.000000001 and a screen saying money is outstanding — the
+    /// same reason `customers()` rounds what it publishes.
+    private static func rounded(_ amount: Double) -> Double {
+        (amount * 100).rounded() / 100
+    }
+
     // MARK: - Restock
 
     /// Sets the shelf count to what was actually counted.
