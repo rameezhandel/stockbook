@@ -202,7 +202,7 @@ struct DayLedgerSheet: View {
             ),
             // Named for the day it covers, not for today: a folder of these is
             // read by their file names.
-            named: Loc.ledgerFileName(Dates.fileDate(day))
+            named: Loc.ledgerFileName(Copy.fileDate(day))
         ) else { return }
         file = StatementFile(url: url)
     }
