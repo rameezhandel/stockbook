@@ -100,11 +100,18 @@ struct DayLedgerSheet: View {
             } else {
                 headings
 
-                ScrollView {
-                    LazyVStack(spacing: 2) {
-                        ForEach(shown) { row in
-                            LedgerRow(row: row, currency: currency)
-                        }
+                // Drawn straight into the stack, never inside a `ScrollView`.
+                //
+                // The sheet already scrolls, and a scroll view nested in one has
+                // no height of its own to be given — it collapses and draws no
+                // rows at all. This page shipped that way once: the heading and
+                // the totals appeared and all hundred customers between them were
+                // silently missing, which is a screen that looks finished and
+                // answers nothing. Every other list sheet in the app uses a bare
+                // `ForEach` for the same reason.
+                VStack(spacing: 2) {
+                    ForEach(shown) { row in
+                        LedgerRow(row: row, currency: currency)
                     }
                 }
 

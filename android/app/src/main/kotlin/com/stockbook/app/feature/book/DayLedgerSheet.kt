@@ -1,6 +1,5 @@
 package com.stockbook.app.feature.book
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,8 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -159,11 +156,18 @@ fun DayLedgerSheet(
 
         HeadingRow(strings)
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.weight(1f, fill = false)
-        ) {
-            items(shown, key = { it.key }) { row -> LedgerRow(row, currency, strings) }
+        // Drawn straight into the column, never a `LazyColumn`.
+        //
+        // The sheet's own content slot is a `verticalScroll` column, so its
+        // height is unbounded — and a lazy list inside one of those measures to
+        // nothing and draws no rows at all. This page shipped that way once: the
+        // heading and the totals appeared and all hundred customers between them
+        // were silently missing, which is a screen that looks finished and
+        // answers nothing. Every other list sheet in the app uses `forEach` for
+        // the same reason.
+        shown.forEach { row ->
+            LedgerRow(row, currency, strings)
+            Spacer(Modifier.height(2.dp))
         }
 
         TotalsRow(ledger, currency)

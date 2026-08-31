@@ -94,6 +94,16 @@ the other.
   getters are plain functions over a `StateFlow` snapshot. Write
   `remember(state) { store.suppliers() }` and thread `state: ShopState` into any
   child that must recompute. Green CI, broken app, otherwise.
+- **A `LazyColumn` inside a sheet needs a bounded height or it draws nothing.**
+  `BottomSheet`'s content slot is a `Column` with `verticalScroll`, so its height
+  is unbounded, and a lazy list given `weight` in an unbounded parent measures to
+  zero and renders **no rows at all**. The day ledger shipped that way: its
+  heading and its totals appeared, and all hundred customers between them were
+  missing. For a whole list, use `forEach` as the other list sheets do; the
+  `heightIn(max = …)` lists in `CreditNoteSheet` and `AddStockSheet` are fine
+  because the cap is what bounds them. The Swift twin has the same trap with a
+  `ScrollView` nested in the sheet's own scroll. Compiles clean, passes CI, and
+  the screen looks finished — only opening it on a phone shows it.
 - `BitmapFactory.decodeStream` **returns null by contract** when
   `inJustDecodeBounds` is set. Reading that null as failure made every photograph
   on Android unreadable.
