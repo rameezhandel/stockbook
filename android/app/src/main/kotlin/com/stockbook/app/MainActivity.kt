@@ -32,6 +32,7 @@ import com.stockbook.app.design.StockbookTheme
 import com.stockbook.app.design.BottomSheet
 import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.book.BookScreen
+import com.stockbook.app.feature.book.DayLedgerPdf
 import com.stockbook.app.feature.book.DayLedgerSheet
 import com.stockbook.app.feature.book.MoveBalanceSheet
 import com.stockbook.app.feature.book.PurchaseSheet
@@ -68,6 +69,7 @@ import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppTab
 import com.stockbook.core.text.Dates
+import com.stockbook.core.text.DayLedgerDocument
 import com.stockbook.core.text.DaySummaryDocument
 import com.stockbook.core.text.EarningsDocument
 import com.stockbook.core.text.SummaryDocument
@@ -533,6 +535,18 @@ private fun Shell(store: StockbookStore) {
                     currency = state.settings.currency,
                     strings = strings,
                     onDay = { router.ledgerDay = it },
+                    onSave = { shown, onlyMoved ->
+                        sharePdf(
+                            context,
+                            DayLedgerPdf.write(
+                                DayLedgerDocument.forDay(shown, state.settings, strings, onlyMoved),
+                                context,
+                                // Named for the day it covers, not for today: a
+                                // folder of these is read by their file names.
+                                strings.ledgerFileName(Dates.fileDate(day))
+                            )
+                        )
+                    },
                     onClose = { router.ledgerDay = null }
                 )
             }

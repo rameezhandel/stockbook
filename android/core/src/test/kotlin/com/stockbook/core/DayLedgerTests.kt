@@ -253,6 +253,54 @@ class DayLedgerTests {
         assertEquals(95.0, sami.closingBalance)
     }
 
+    /**
+     * The bug the filter shipped with.
+     *
+     * The screen narrowed the rows and went on totalling all of them, so the foot
+     * of a column showed a figure the column above it did not add up to. On a
+     * page of money that is the one thing that must never happen: every figure on
+     * it stops being trustworthy, including the ones that were right.
+     */
+    @Test
+    fun `narrowing to what moved narrows the totals with it`() {
+        val (store, lock) = shop()
+        store.addCustomer("Ahmed")
+        store.addCustomer("Fatima", openingBalance = 2000.0)
+        store.saveBill(listOf(DraftLine(lock, 10, 95.0)), "Ahmed", paid = 400.0, createdAt = at(12))
+
+        val whole = store.dayLedger(at(12), zone)
+        val moved = whole.movedOnly()
+
+        assertEquals(2, whole.rows.size)
+        assertEquals(1, moved.rows.size, "only Ahmed moved")
+
+        // Invoiced and received are the same either way — a quiet row contributes
+        // nothing to them. The balances are the ones that must not be.
+        assertEquals(whole.invoiced, moved.invoiced)
+        assertEquals(whole.received, moved.received)
+        assertEquals(2000.0, whole.openingBalance, "Ahmed nil, Fatima carried over")
+        assertEquals(0.0, moved.openingBalance, "Fatima is not on this page and her balance must not be either")
+        assertEquals(2550.0, whole.closingBalance)
+        assertEquals(550.0, moved.closingBalance)
+
+        // And what it still is: the columns of the rows actually shown.
+        assertEquals(moved.rows.sumOf { it.openingBalance }, moved.openingBalance)
+        assertEquals(moved.rows.sumOf { it.closingBalance }, moved.closingBalance)
+        moved.assertEveryRowBalances()
+    }
+
+    @Test
+    fun `narrowing a day where nothing moved leaves an empty page, not a wrong one`() {
+        val (store, lock) = shop()
+        store.addCustomer("Ahmed")
+        store.saveBill(listOf(DraftLine(lock, 2, 95.0)), "Ahmed", paid = 0.0, createdAt = at(10))
+
+        val moved = store.dayLedger(at(12), zone).movedOnly()
+
+        assertTrue(moved.isEmpty)
+        assertEquals(0.0, moved.closingBalance, "no rows, no total")
+    }
+
     @Test
     fun `a day with nothing on it is every customer, unchanged`() {
         val (store, lock) = shop()

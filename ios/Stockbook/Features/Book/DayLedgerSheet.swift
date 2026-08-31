@@ -26,6 +26,10 @@ struct DayLedgerSheet: View {
 
     @State private var onlyMoved = false
 
+    /// The rendered page, waiting for the share sheet. Rendered on the tap rather
+    /// than when the view is built, because the day changes underneath it.
+    @State private var file: StatementFile?
+
     /// Read straight off the store rather than snapshotted into `@State`: it is
     /// `@Observable`, so a payment taken while this is open redraws the row it
     /// settled. Android has to key this on the shop state by hand.
@@ -39,11 +43,19 @@ struct DayLedgerSheet: View {
     }
 
     var body: some View {
-        let ledger = self.ledger
-        let shown = onlyMoved ? ledger.busyRows : ledger.rows
+        // A whole ledger, not a filtered list: every total on it is derived from
+        // `rows`, so narrowing this narrows them too. The page used to show
+        // all-book totals under a filtered column, which is a figure a column
+        // does not add up to — see `DayLedger.movedOnly()`.
+        let shown = onlyMoved ? ledger.movedOnly() : ledger
 
         VStack(alignment: .leading, spacing: 0) {
-            SheetHeader(title: Loc.dayBalances, onClose: onClose)
+            SheetHeader(
+                title: Loc.dayBalances,
+                // Nothing to hand over on a page with no rows on it.
+                onShare: shown.isEmpty ? nil : save,
+                onClose: onClose
+            )
 
             // `‹ 22 August 2026 ›` — the date reads as the thing being stepped
             // through rather than as a caption with two buttons parked beside it.
@@ -93,7 +105,7 @@ struct DayLedgerSheet: View {
             }
             .padding(.bottom, 10)
 
-            if ledger.isEmpty {
+            if shown.isEmpty {
                 Text(Loc.ledgerNoCustomers)
                     .nocturneText(.meta)
                     .padding(.vertical, 14)
@@ -110,15 +122,20 @@ struct DayLedgerSheet: View {
                 // answers nothing. Every other list sheet in the app uses a bare
                 // `ForEach` for the same reason.
                 VStack(spacing: 2) {
-                    ForEach(shown) { row in
+                    ForEach(shown.rows) { row in
                         LedgerRow(row: row, currency: currency)
                     }
                 }
 
-                totals(ledger)
+                totals(shown)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Android gets this free from `remember(day)`; SwiftUI `@State` survives
+        // the day changing, so a filter left on would carry to a day that has
+        // nothing to filter and show an empty page for no visible reason.
+        .onChange(of: day) { onlyMoved = false }
+        .sheet(item: $file) { ShareSheet(url: $0.url) }
     }
 
     /// The column headings, in the order the row below draws them.
@@ -162,6 +179,32 @@ struct DayLedgerSheet: View {
 
     private func step(_ by: Int) -> Date {
         Calendar.current.date(byAdding: .day, value: by, to: day) ?? day
+    }
+
+    /// Renders what is on screen as a page and hands it to the chooser.
+    ///
+    /// The **narrowed** ledger, so the sheet of paper says exactly what the
+    /// screen said. Printing the whole roll-call from a screen showing only what
+    /// moved would hand the owner a page whose totals do not match the ones they
+    /// were just reading.
+    ///
+    /// A failure leaves `file` nil and nothing opens, which is the honest outcome
+    /// the other pages already settled on: there is no half-written page worth
+    /// offering, and the day itself is still on screen.
+    private func save() {
+        let shown = onlyMoved ? ledger.movedOnly() : ledger
+        guard let url = try? DayLedgerPDF.write(
+            DayLedgerDocument.forDay(
+                ledger: shown,
+                settings: store.settings,
+                strings: Loc,
+                onlyMoved: onlyMoved
+            ),
+            // Named for the day it covers, not for today: a folder of these is
+            // read by their file names.
+            named: Loc.ledgerFileName(Dates.fileDate(day))
+        ) else { return }
+        file = StatementFile(url: url)
     }
 }
 

@@ -81,6 +81,7 @@ struct LocalizationTests {
         \.dayBalances, \.ledgerInvoiced, \.ledgerReceived, \.ledgerOldBalance,
         \.ledgerCurrentBalance, \.ledgerCredited, \.ledgerMoved, \.ledgerNobodyMoved,
         \.ledgerNoCustomers, \.ledgerShowAll, \.ledgerShowMoved,
+        \.ledgerTotal, \.ledgerMovedOnlyNote,
         \.whoDoYouBuyFrom, \.suppliersSetupBody, \.noSuppliersYetKicker, \.supplierOpeningNote,
         \.whichProductArrived, \.noDeliveriesYet, \.deliveryDetail,
         \.suppliersTitle, \.allSuppliers, \.addASupplier, \.newSupplier,

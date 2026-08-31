@@ -224,6 +224,22 @@ struct Strings {
     var ledgerNoCustomers: String { pick("No customers yet", "ಇನ್ನೂ ಗ್ರಾಹಕರಿಲ್ಲ") }
 
     /// The switch between the whole roll-call and only what moved.
+    var ledgerTotal: String { pick("Total", "ಒಟ್ಟು") }
+
+    /// Printed at the head of a page that was narrowed before it was printed.
+    ///
+    /// A printed roll-call and a printed selection look identical on paper and
+    /// their totals differ, so the page has to say which it is — otherwise the
+    /// owner files a sheet whose figures do not tie to the shop's own.
+    var ledgerMovedOnlyNote: String {
+        pick(
+            "Only accounts that moved on this day",
+            "ಈ ದಿನ ಬದಲಾದ ಖಾತೆಗಳು ಮಾತ್ರ"
+        )
+    }
+
+    func ledgerFileName(_ date: String) -> String { "day-balances-\(date).pdf" }
+
     var ledgerShowAll: String { pick("All", "ಎಲ್ಲಾ") }
     var ledgerShowMoved: String { pick("Moved", "ಬದಲಾದವು") }
 

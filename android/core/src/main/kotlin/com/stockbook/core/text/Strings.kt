@@ -217,6 +217,23 @@ class Strings(val language: AppLanguage) {
         get() = pick("No customers yet", "ಇನ್ನೂ ಗ್ರಾಹಕರಿಲ್ಲ")
 
     /** The switch between the whole roll-call and only what moved. */
+    val ledgerTotal: String get() = pick("Total", "ಒಟ್ಟು")
+
+    /**
+     * Printed at the head of a page that was narrowed before it was printed.
+     *
+     * A printed roll-call and a printed selection look identical on paper and
+     * their totals differ, so the page has to say which it is — otherwise the
+     * owner files a sheet whose figures do not tie to the shop's own.
+     */
+    val ledgerMovedOnlyNote: String
+        get() = pick(
+            "Only accounts that moved on this day",
+            "ಈ ದಿನ ಬದಲಾದ ಖಾತೆಗಳು ಮಾತ್ರ"
+        )
+
+    fun ledgerFileName(date: String): String = "day-balances-$date.pdf"
+
     val ledgerShowAll: String get() = pick("All", "ಎಲ್ಲಾ")
     val ledgerShowMoved: String get() = pick("Moved", "ಬದಲಾದವು")
 

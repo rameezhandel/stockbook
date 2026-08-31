@@ -60,6 +60,15 @@ fun DayLedgerSheet(
     strings: Strings,
     /** Steps to another day without closing the sheet. */
     onDay: (Instant) -> Unit,
+    /**
+     * Renders what is on screen as a page and hands it to the chooser.
+     *
+     * Takes the narrowed ledger rather than the day, so the sheet of paper says
+     * exactly what the screen said. Printing the whole roll-call from a screen
+     * showing only what moved would hand the owner a page they did not ask for
+     * and whose totals do not match the ones they were just reading.
+     */
+    onSave: (DayLedger, Boolean) -> Unit,
     onClose: () -> Unit
 ) {
     // Keyed on the whole state, never read off the store bare: every getter here
@@ -76,10 +85,19 @@ fun DayLedgerSheet(
         !day.atZone(zone).toLocalDate().isBefore(Instant.now().atZone(zone).toLocalDate())
     }
 
-    val shown = if (onlyMoved) ledger.busyRows else ledger.rows
+    // A whole ledger, not a filtered list: every total below is derived from
+    // `rows`, so narrowing this narrows them too. The page used to show all-book
+    // totals under a filtered column, which is a figure a column does not add up
+    // to — see `DayLedger.movedOnly`.
+    val shown = remember(ledger, onlyMoved) { if (onlyMoved) ledger.movedOnly() else ledger }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        SheetHeader(title = strings.dayBalances, onClose = onClose)
+        SheetHeader(
+            title = strings.dayBalances,
+            onClose = onClose,
+            // Nothing to hand over on a page with no rows on it.
+            onShare = if (shown.isEmpty) null else ({ onSave(shown, onlyMoved) })
+        )
 
         // `‹ 22 August 2026 ›` — the date reads as the thing being stepped
         // through rather than as a caption with two buttons parked beside it.
@@ -144,7 +162,7 @@ fun DayLedgerSheet(
             }
         }
 
-        if (ledger.isEmpty) {
+        if (shown.isEmpty) {
             Text(
                 strings.ledgerNoCustomers,
                 style = NocturneType.meta,
@@ -165,12 +183,12 @@ fun DayLedgerSheet(
         // were silently missing, which is a screen that looks finished and
         // answers nothing. Every other list sheet in the app uses `forEach` for
         // the same reason.
-        shown.forEach { row ->
+        shown.rows.forEach { row ->
             LedgerRow(row, currency, strings)
             Spacer(Modifier.height(2.dp))
         }
 
-        TotalsRow(ledger, currency)
+        TotalsRow(shown, currency)
     }
 }
 

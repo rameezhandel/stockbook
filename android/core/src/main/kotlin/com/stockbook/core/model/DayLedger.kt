@@ -85,5 +85,17 @@ data class DayLedger(val day: Instant, val rows: List<Row>) {
     /** Only the accounts something happened to — the day read as a day. */
     val busyRows: List<Row> get() = rows.filterNot { it.isQuiet }
 
+    /**
+     * The same day narrowed to the accounts that moved.
+     *
+     * A whole [DayLedger] rather than a list, so that **every total on it is the
+     * total of what is being shown**. The screen used to filter the rows and go
+     * on totalling all of them, which put a figure at the foot of a column that
+     * the column did not add up to — the one thing a table of money must never
+     * do. Deriving the totals from `rows` means narrowing them cannot be
+     * forgotten anywhere.
+     */
+    fun movedOnly(): DayLedger = DayLedger(day, busyRows)
+
     val isEmpty: Boolean get() = rows.isEmpty()
 }
