@@ -93,10 +93,17 @@ struct DayLedgerSheet: View {
                 )
                 .nocturneText(.meta)
                 Spacer(minLength: 0)
-                // Offered only when it would change what is on the screen. On a
-                // day where everybody moved, or nobody did, the switch is a
-                // control that does nothing.
-                if !ledger.busyRows.isEmpty, ledger.busyRows.count < ledger.rows.count {
+                // One question only: did anything happen on this day. If it did,
+                // the switch is offered; if it did not, there is nothing to
+                // switch to.
+                //
+                // It used to also hide when *everybody* moved, on the reasoning
+                // that filtering would then show the same list. That made the
+                // control appear and disappear on an arithmetic coincidence —
+                // and a button that comes and goes as the owner steps through
+                // dates reads as a bug, which is worse than a button that shows
+                // the same rows twice.
+                if !ledger.busyRows.isEmpty {
                     Button(onlyMoved ? Loc.ledgerShowAll : Loc.ledgerShowMoved) {
                         onlyMoved.toggle()
                     }
