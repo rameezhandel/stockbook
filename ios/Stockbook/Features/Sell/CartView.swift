@@ -402,9 +402,17 @@ struct CartView: View {
     /// Validation is the button's label, never a toast: it says what is missing
     /// and stays disabled until it isn't.
     private var saveButton: some View {
-        Button(saveTitle, action: onSave)
-            .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
-            .disabled(!cart.canSave || clash != nil)
+        Button(saveTitle) {
+            // The bill is saved with a figure still being typed more often than
+            // not — "Paid now" is the last box on the form and the button sits
+            // right under it. Leaving the keyboard up hides the receipt that
+            // follows behind it, so the owner's next action is to dismiss a
+            // keyboard belonging to a screen that is no longer there.
+            dismissKeyboard()
+            onSave()
+        }
+        .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
+        .disabled(!cart.canSave || clash != nil)
     }
 
     private var saveTitle: String {

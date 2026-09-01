@@ -503,6 +503,14 @@ private fun SaveBar(
     strings: Strings,
     onSave: () -> Unit
 ) {
+    // The bill is saved with a figure still being typed more often than not —
+    // "Paid now" is the last box on the form and the button sits right under it.
+    // Leaving the keyboard up hides the receipt that follows behind it, so the
+    // owner's next action is to dismiss a keyboard belonging to a screen that is
+    // no longer there.
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+
     Column(modifier = Modifier.fillMaxWidth().background(Nocturne.surface)) {
         Box(Modifier.fillMaxWidth().height(Metrics.hairline).background(Nocturne.neutral800))
         Column(
@@ -530,7 +538,14 @@ private fun SaveBar(
                     cart.invoiceNo.isBlank() -> strings.enterBillNumber
                     else -> strings.enterAnAmount
                 },
-                onClick = onSave,
+                onClick = {
+                    // Both, in this order, as everywhere else in the app: hiding
+                    // the keyboard without dropping focus leaves a field that
+                    // still looks active and brings it straight back.
+                    keyboard?.hide()
+                    focusManager.clearFocus()
+                    onSave()
+                },
                 enabled = cart.canSave && clash == null,
                 fullWidth = true,
                 height = 48.dp,
