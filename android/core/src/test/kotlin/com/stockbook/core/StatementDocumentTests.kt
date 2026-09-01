@@ -229,7 +229,7 @@ class StatementDocumentTests {
         // three books are numbered separately.
         assertEquals(
             listOf("Invoice #06011", "Payment #R-1", "Credit Note #00130"),
-            document.activityRows.map { it.details.substringBefore(" · ") }
+            document.activityRows.map { it.reference }
         )
         // The running balance reads down, which is the column's whole job.
         assertEquals(listOf("SAR 1,000", "SAR 700", "SAR 500"), document.activityRows.map { it.balance })
@@ -257,7 +257,7 @@ class StatementDocumentTests {
         val document = document(store)
 
         assertEquals(1, document.activityRows.size)
-        assertTrue(document.activityRows.single().details.startsWith("Invoice #06011 · "))
+        assertEquals("Invoice #06011", document.activityRows.single().reference)
         assertEquals("SAR 190", document.activityRows.single().charge)
     }
 
@@ -272,7 +272,7 @@ class StatementDocumentTests {
         store.recordPayment("ahmed", 100.0)
         store.addCreditNote(customerKey = "ahmed", amount = 50.0)
 
-        val named = document(store).activityRows.map { it.details.substringBefore(" · ") }
+        val named = document(store).activityRows.map { it.reference }
 
         assertTrue(english.paymentLabel in named, named.toString())
         assertTrue(english.creditNoteLabel in named, named.toString())
@@ -295,17 +295,18 @@ class StatementDocumentTests {
         )
         val document = StatementDocument.make(statement, store.settings, english)
 
-        assertEquals("Invoice #06011 · 19/05/2026", document.activityRows.single().details)
+        assertEquals("Invoice #06011", document.activityRows.single().reference)
+        assertEquals("19/05/2026", document.activityRows.single().date)
     }
 
     @Test
-    fun `the column headings are the four the table draws`() {
+    fun `the column headings are the five the table draws`() {
         val store = store().aShop()
         store.addCustomer("Ahmed")
         store.saveBill(customer = "Ahmed", paid = 0.0, amount = 500.0, invoiceNo = "06011")
 
         assertEquals(
-            listOf("Invoice / Receipt", "Invoice amount", "Received amount", "Balance"),
+            listOf("Date", "Invoice / Receipt", "Invoice amount", "Received amount", "Balance"),
             document(store).columnHeadings
         )
     }
@@ -368,7 +369,7 @@ class StatementDocumentTests {
         val document = StatementDocument.make(statement, store.settings, english)
 
         assertEquals(
-            listOf("Bill / Receipt", "Bill amount", "Paid amount", "Balance"),
+            listOf("Date", "Bill / Receipt", "Bill amount", "Paid amount", "Balance"),
             document.columnHeadings
         )
     }

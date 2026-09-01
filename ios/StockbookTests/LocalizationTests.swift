@@ -95,6 +95,7 @@ struct LocalizationTests {
         \.accountStatementFor, \.accountActivity, \.balanceDue,
         \.columnInvoiceReceipt, \.columnBillReceipt, \.columnInvoiceAmount,
         \.columnBillAmount, \.columnReceivedAmount, \.columnPaidAmount, \.columnBalance,
+        \.columnDate, \.statementOfAccount, \.accountLabel, \.statementPeriod,
         \.receivableSummary, \.payableSummary, \.columnCustomer,
         \.totalReceivable, \.totalPayable, \.nothingReceivable, \.nothingPayable,
         \.expenseSummary, \.columnWhatItWentOn,

@@ -246,7 +246,7 @@ struct StatementDocumentTests {
         // checking against their own file nothing about what 06011 *is*, and the
         // three books are numbered separately.
         #expect(
-            document.activityRows.map { String($0.details.split(separator: " · ").first ?? "") }
+            document.activityRows.map(\.reference)
                 == ["Invoice #06011", "Payment #R-1", "Credit Note #00130"]
         )
         // The running balance reads down, which is the column's whole job.
@@ -276,7 +276,7 @@ struct StatementDocumentTests {
         let document = try document(store)
 
         #expect(document.activityRows.count == 1)
-        #expect(document.activityRows.first?.details.hasPrefix("Invoice #06011 · ") == true)
+        #expect(document.activityRows.first?.reference == "Invoice #06011")
         #expect(document.activityRows.first?.charge == "SAR 190")
     }
 
@@ -293,7 +293,7 @@ struct StatementDocumentTests {
         store.addCreditNote(customerKey: "ahmed", amount: 50)
 
         let named = try document(store).activityRows
-            .map { String($0.details.split(separator: " · ").first ?? "") }
+            .map(\.reference)
 
         #expect(named.contains(english.paymentLabel), "\(named)")
         #expect(named.contains(english.creditNoteLabel), "\(named)")
@@ -315,10 +315,11 @@ struct StatementDocumentTests {
         let statement = try #require(store.statement(forCustomer: "ahmed", period: .month(date(2026, 5, 10))))
         let document = StatementDocument.make(statement: statement, settings: store.settings, strings: english)
 
-        #expect(document.activityRows.first?.details == "Invoice #06011 · 19/05/2026")
+        #expect(document.activityRows.first?.reference == "Invoice #06011")
+        #expect(document.activityRows.first?.date == "19/05/2026")
     }
 
-    @Test("The column headings are the four the table draws")
+    @Test("The column headings are the five the table draws")
     func headings() throws {
         let store = makeStore()
         aShop(store)
@@ -326,6 +327,7 @@ struct StatementDocumentTests {
         store.saveBill(customer: "Ahmed", paid: 0, amount: 500, invoiceNo: "06011")
 
         #expect(try document(store).columnHeadings == [
+            "Date",
             "Invoice / Receipt",
             "Invoice amount",
             "Received amount",
@@ -394,7 +396,7 @@ struct StatementDocumentTests {
         )
         let document = StatementDocument.make(statement: statement, settings: store.settings, strings: english)
 
-        #expect(document.columnHeadings == ["Bill / Receipt", "Bill amount", "Paid amount", "Balance"])
+        #expect(document.columnHeadings == ["Date", "Bill / Receipt", "Bill amount", "Paid amount", "Balance"])
     }
 
     @Test("A finished month is titled with its own last day")

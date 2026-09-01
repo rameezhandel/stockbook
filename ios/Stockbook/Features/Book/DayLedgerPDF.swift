@@ -38,7 +38,21 @@ enum DayLedgerPDF {
 
     private static let ink = UIColor(red: 0.078, green: 0.078, blue: 0.110, alpha: 1)
     private static let grey = UIColor(red: 0.420, green: 0.420, blue: 0.463, alpha: 1)
-    private static let ruleColour = UIColor(red: 0.839, green: 0.839, blue: 0.871, alpha: 1)
+    /// Darker and heavier than it looks like it needs: these pages photocopy.
+    private static let ruleColour = UIColor(red: 0.769, green: 0.769, blue: 0.816, alpha: 1)
+
+    /// The band behind every other row, at 10% rather than the 6% it looks like
+    /// it wants.
+    ///
+    /// A mono laser cannot print grey — it halftones into a dot screen, and below
+    /// roughly 8% that screen comes out patchy or not at all, which would stripe
+    /// some pages and not others. Ten per cent survives, and on a hundred-row
+    /// roll-call the banding is what keeps the eye on one line.
+    private static let bandColour = UIColor(red: 0.902, green: 0.902, blue: 0.925, alpha: 1)
+
+    private static func reversed(_ size: CGFloat) -> [NSAttributedString.Key: Any] {
+        [.font: UIFont.boldSystemFont(ofSize: size), .foregroundColor: UIColor.white]
+    }
 
     private static func attributes(
         _ size: CGFloat,
@@ -63,9 +77,11 @@ enum DayLedgerPDF {
             var y = margin
 
             document.shopName.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(titleSize, bold: true))
-            y += titleSize + 10
-            document.title.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, bold: true))
-            drawRight(document.onDate, rightEdge: right, y: y, attributes: attributes(bodySize))
+            drawRight(document.title, rightEdge: right, y: y + 3, attributes: attributes(13))
+            y += titleSize + 12
+            heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
+            y += 14
+            document.onDate.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, bold: true))
             y += bodySize + 6
 
             // Only on a narrowed page, and said before the figures rather than
@@ -86,20 +102,21 @@ enum DayLedgerPDF {
             }
 
             func headings() {
-                let bold = attributes(rowSize, bold: true)
-                document.columnHeadings[0].draw(at: CGPoint(x: margin, y: y), withAttributes: bold)
-                drawRight(document.columnHeadings[1], rightEdge: margin + width * edgeInvoiced, y: y, attributes: bold)
-                drawRight(document.columnHeadings[2], rightEdge: margin + width * edgeReceived, y: y, attributes: bold)
-                drawRight(document.columnHeadings[3], rightEdge: margin + width * edgeOld, y: y, attributes: bold)
-                drawRight(document.columnHeadings[4], rightEdge: margin + width * edgeCurrent, y: y, attributes: bold)
-                y += 15
-                rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-                y += 2
+                let head = attributes(7.5, muted: true)
+                document.columnHeadings[0].uppercased().draw(at: CGPoint(x: margin, y: y), withAttributes: head)
+                drawRight(document.columnHeadings[1].uppercased(), rightEdge: margin + width * edgeInvoiced, y: y, attributes: head)
+                drawRight(document.columnHeadings[2].uppercased(), rightEdge: margin + width * edgeReceived, y: y, attributes: head)
+                drawRight(document.columnHeadings[3].uppercased(), rightEdge: margin + width * edgeOld, y: y, attributes: head)
+                drawRight(document.columnHeadings[4].uppercased(), rightEdge: margin + width * edgeCurrent, y: y, attributes: head)
+                y += 13
+                heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
+                y += 3
             }
             headings()
 
             let body = attributes(rowSize)
             let noteInk = attributes(noteSize, muted: true)
+            var striped = false
             for row in document.rows {
                 let height: CGFloat = row.note == nil ? 15 : 24
                 // A break before a row rather than through one, and the headings
@@ -109,6 +126,14 @@ enum DayLedgerPDF {
                     context.beginPage()
                     y = margin
                     headings()
+                }
+
+                // Every other row banded, which is the whole reason a hundred-line
+                // roll-call can be read across five columns without losing the line.
+                striped.toggle()
+                if striped {
+                    bandColour.setFill()
+                    UIBezierPath(rect: CGRect(x: margin, y: y - 2, width: width, height: height)).fill()
                 }
 
                 draw(row.name, at: CGPoint(x: margin, y: y), maxWidth: width * edgeInvoiced - 50, attributes: body)
@@ -126,13 +151,17 @@ enum DayLedgerPDF {
 
             // The columns added up, and they are the columns above rather than
             // the whole book — see `DayLedger.movedOnly()`.
-            let total = attributes(rowSize, bold: true)
+            // Reversed out of solid black, like the statement's balance due: the
+            // line the whole page adds up to, and the one a reader checks first.
             y += 4
-            document.totalLabel.draw(at: CGPoint(x: margin, y: y), withAttributes: total)
-            drawRight(document.totals[0], rightEdge: margin + width * edgeInvoiced, y: y, attributes: total)
-            drawRight(document.totals[1], rightEdge: margin + width * edgeReceived, y: y, attributes: total)
-            drawRight(document.totals[2], rightEdge: margin + width * edgeOld, y: y, attributes: total)
-            drawRight(document.totals[3], rightEdge: margin + width * edgeCurrent, y: y, attributes: total)
+            ink.setFill()
+            UIBezierPath(rect: CGRect(x: margin, y: y, width: width, height: 20)).fill()
+            let total = reversed(rowSize)
+            document.totalLabel.draw(at: CGPoint(x: margin + 6, y: y + 5), withAttributes: total)
+            drawRight(document.totals[0], rightEdge: margin + width * edgeInvoiced - 2, y: y + 5, attributes: total)
+            drawRight(document.totals[1], rightEdge: margin + width * edgeReceived - 2, y: y + 5, attributes: total)
+            drawRight(document.totals[2], rightEdge: margin + width * edgeOld - 2, y: y + 5, attributes: total)
+            drawRight(document.totals[3], rightEdge: margin + width * edgeCurrent - 2, y: y + 5, attributes: total)
         }
 
         return url
@@ -173,8 +202,18 @@ enum DayLedgerPDF {
         let path = UIBezierPath()
         path.move(to: from)
         path.addLine(to: to)
-        path.lineWidth = 0.6
+        path.lineWidth = 0.9
         ruleColour.setStroke()
+        path.stroke()
+    }
+
+    /// The heavy rule under the letterhead and over the column headings.
+    private static func heavyRule(from: CGPoint, to: CGPoint) {
+        let path = UIBezierPath()
+        path.move(to: from)
+        path.addLine(to: to)
+        path.lineWidth = 1.6
+        ink.setStroke()
         path.stroke()
     }
 }

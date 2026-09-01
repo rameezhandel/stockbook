@@ -40,7 +40,8 @@ object StatementPdf {
      * columns are right-aligned against the edges below, which is how a column of
      * figures is read: by the units lining up.
      */
-    private const val COL_DETAILS = 0f
+    private const val COL_DATE = 0f
+    private const val COL_REFERENCE = 0.16f
     private const val EDGE_CHARGE = 0.62f
     private const val EDGE_SETTLED = 0.81f
     private const val EDGE_BALANCE = 1.0f
@@ -52,10 +53,37 @@ object StatementPdf {
         typeface = Typeface.create(Typeface.SANS_SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
     }
 
+    /**
+     * The hairline, darker and heavier than it looks like it needs to be.
+     *
+     * These pages get photocopied, and a 16%-grey 0.8pt rule is the first thing
+     * a copier loses. At 22% and 0.9pt it survives a generation or two, which is
+     * what a statement handed across a counter has to do.
+     */
     private val rule = Paint().apply {
         isAntiAlias = true
-        color = 0xFFD6D6DE.toInt()
-        strokeWidth = 0.8f
+        color = 0xFFC4C4D0.toInt()
+        strokeWidth = 0.9f
+    }
+
+    /** The heavy rule under the letterhead and over the column headings. */
+    private val heavyRule = Paint().apply {
+        isAntiAlias = true
+        color = 0xFF14141C.toInt()
+        strokeWidth = 1.6f
+    }
+
+    /** Solid black behind the one figure the reader came for. */
+    private val fillInk = Paint().apply {
+        isAntiAlias = true
+        color = 0xFF14141C.toInt()
+    }
+
+    private fun reversed(size: Float) = Paint().apply {
+        isAntiAlias = true
+        textSize = size
+        color = 0xFFFFFFFF.toInt()
+        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
     }
 
     /**
@@ -101,74 +129,59 @@ object StatementPdf {
         val right = PAGE_WIDTH - MARGIN
         val width = right - MARGIN
 
-        // --- Who it is from, and who it is for
+        // --- Letterhead
+        //
+        // Sans throughout, deliberately. A serif here would set the shop's own
+        // name — which the owner types, and which may be in Arabic or Kannada —
+        // in a face whose coverage of those scripts is patchy, and the failure
+        // is tofu boxes in the largest text on the page.
 
         canvas.drawText(document.shopName, MARGIN, y + TITLE_SIZE, paint(TITLE_SIZE, bold = true))
-        var leftY = y + TITLE_SIZE + LINE + 3
-        for (line in document.shopAddressLines) {
-            canvas.drawText(line, MARGIN, leftY, paint(BODY_SIZE))
-            leftY += LINE
-        }
+        canvas.drawTextRight(document.docType, right, y + TITLE_SIZE, paint(13f))
+        y += TITLE_SIZE + 10
+        canvas.drawLine(MARGIN, y, right, y, heavyRule)
+        y += 20
 
-        // The right-hand block is right-aligned against the margin, so a long
-        // shop name on the left cannot push into it.
-        var rightY = y + TITLE_SIZE
-        canvas.drawTextRight(document.addressedToLabel, right, rightY, paint(BODY_SIZE, grey = true))
-        rightY += LINE + 2
-        canvas.drawTextRight(document.partyName, right, rightY, paint(BODY_SIZE, bold = true))
-        rightY += LINE
-        for (line in document.partyLines) {
-            canvas.drawTextRight(line, right, rightY, paint(BODY_SIZE))
-            rightY += LINE
-        }
+        // --- The two boxed facts: whose account, and over what
 
-        y = maxOf(leftY, rightY) + 26
+        val factsTop = y
+        val factsHeight = 46f
+        val middle = MARGIN + width / 2
+        canvas.drawRect(MARGIN, factsTop, right, factsTop + factsHeight, rule.stroke())
+        canvas.drawLine(middle, factsTop, middle, factsTop + factsHeight, rule)
 
-        // --- The summary box
+        canvas.drawText(document.accountLabel.uppercase(), MARGIN + 10, factsTop + 14, paint(7.5f, grey = true))
+        canvas.drawText(document.partyName, MARGIN + 10, factsTop + 28, paint(BODY_SIZE, bold = true))
+        canvas.drawText(document.partyLines.joinToString(" · "), MARGIN + 10, factsTop + 39, paint(8f, grey = true))
 
-        val boxTop = y
-        val rows = document.summaryRows.size + 2 // title row, and the closing row
-        val boxHeight = rows * 22f
-        canvas.drawRect(MARGIN, boxTop, right, boxTop + boxHeight, rule.stroke())
+        canvas.drawText(document.periodLabel.uppercase(), middle + 10, factsTop + 14, paint(7.5f, grey = true))
+        canvas.drawText(document.periodValue, middle + 10, factsTop + 28, paint(BODY_SIZE, bold = true))
+        canvas.drawText(document.summaryTitle, middle + 10, factsTop + 39, paint(8f, grey = true))
 
-        var rowY = boxTop
-        canvas.drawText(document.summaryTitle, MARGIN + 10, rowY + 15, paint(BODY_SIZE, bold = true))
-        rowY += 22
-        canvas.drawLine(MARGIN, rowY, right, rowY, rule)
-
-        for (row in document.summaryRows) {
-            canvas.drawText(row.label, MARGIN + 10, rowY + 15, paint(BODY_SIZE))
-            canvas.drawTextRight(row.value.bracketed(row.deduction), right - 10, rowY + 15, paint(BODY_SIZE))
-            rowY += 22
-            canvas.drawLine(MARGIN, rowY, right, rowY, rule)
-        }
-
-        canvas.drawText(document.closingLabel, MARGIN + 10, rowY + 15, paint(BODY_SIZE, bold = true))
-        canvas.drawTextRight(document.closingValue, right - 10, rowY + 15, paint(BODY_SIZE, bold = true))
-
-        y = boxTop + boxHeight + 30
+        y = factsTop + factsHeight + 26
 
         // --- The activity table
 
-        canvas.drawText(document.activityTitle, MARGIN, y, paint(12f, bold = true))
-        y += 16
+        canvas.drawText(document.activityTitle.uppercase(), MARGIN, y, paint(8f, grey = true))
+        y += 10
 
         fun headings() {
-            val bold = paint(ROW_SIZE, bold = true)
-            canvas.drawText(document.columnHeadings[0], MARGIN + width * COL_DETAILS, y + 14, bold)
-            canvas.drawTextRight(document.columnHeadings[1], MARGIN + width * EDGE_CHARGE, y + 14, bold)
-            canvas.drawTextRight(document.columnHeadings[2], MARGIN + width * EDGE_SETTLED, y + 14, bold)
-            canvas.drawTextRight(document.columnHeadings[3], MARGIN + width * EDGE_BALANCE, y + 14, bold)
-            y += 20
-            canvas.drawLine(MARGIN, y, right, y, rule)
+            val head = paint(7.5f, grey = true)
+            canvas.drawText(document.columnHeadings[0].uppercase(), MARGIN + width * COL_DATE, y + 10, head)
+            canvas.drawText(document.columnHeadings[1].uppercase(), MARGIN + width * COL_REFERENCE, y + 10, head)
+            canvas.drawTextRight(document.columnHeadings[2].uppercase(), MARGIN + width * EDGE_CHARGE, y + 10, head)
+            canvas.drawTextRight(document.columnHeadings[3].uppercase(), MARGIN + width * EDGE_SETTLED, y + 10, head)
+            canvas.drawTextRight(document.columnHeadings[4].uppercase(), MARGIN + width * EDGE_BALANCE, y + 10, head)
+            y += 15
+            canvas.drawLine(MARGIN, y, right, y, heavyRule)
         }
         headings()
 
         for (row in document.activityRows) {
             // A page break before a row rather than through one, and the headings
             // repeat: a second page whose columns are unlabelled is a page nobody
-            // can read on its own.
-            if (y > PAGE_HEIGHT - MARGIN - 60) {
+            // can read on its own. The room kept back is for the totals block.
+            if (y > PAGE_HEIGHT - MARGIN - 130) {
                 pdf.finishPage(page)
                 pageNumber += 1
                 page = pdf.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
@@ -182,18 +195,44 @@ object StatementPdf {
             // is unambiguous, and a zero in the Received column is a payment
             // somebody might go looking for.
             val body = paint(ROW_SIZE)
-            canvas.drawText(row.details, MARGIN + width * COL_DETAILS, y + 15, body)
-            canvas.drawTextRight(row.charge, MARGIN + width * EDGE_CHARGE, y + 15, body)
-            canvas.drawTextRight(row.settled, MARGIN + width * EDGE_SETTLED, y + 15, body)
-            canvas.drawTextRight(row.balance, MARGIN + width * EDGE_BALANCE, y + 15, body)
-            y += 21
+            canvas.drawText(row.date, MARGIN + width * COL_DATE, y + 14, paint(ROW_SIZE, grey = true))
+            canvas.drawText(row.reference, MARGIN + width * COL_REFERENCE, y + 14, body)
+            canvas.drawTextRight(row.charge, MARGIN + width * EDGE_CHARGE, y + 14, body)
+            canvas.drawTextRight(row.settled, MARGIN + width * EDGE_SETTLED, y + 14, body)
+            canvas.drawTextRight(row.balance, MARGIN + width * EDGE_BALANCE, y + 14, body)
+            y += 19
             canvas.drawLine(MARGIN, y, right, y, rule)
         }
 
-        // The figure the document exists to state, repeated where the eye stops.
-        val closing = paint(ROW_SIZE, bold = true)
-        canvas.drawText(document.closingLabel, MARGIN + width * COL_DETAILS, y + 17, closing)
-        canvas.drawTextRight(document.closingValue, MARGIN + width * EDGE_BALANCE, y + 17, closing)
+        // --- The totals, set against the right edge under the money columns
+
+        y += 14
+        val totalsLeft = MARGIN + width * 0.52f
+        val lineHeight = 18f
+        var totalY = y
+        canvas.drawRect(totalsLeft, totalY, right, totalY + document.summaryRows.size * lineHeight, rule.stroke())
+        for (row in document.summaryRows) {
+            canvas.drawText(row.label, totalsLeft + 9, totalY + 12, paint(BODY_SIZE, grey = true))
+            canvas.drawTextRight(row.value.bracketed(row.deduction), right - 9, totalY + 12, paint(BODY_SIZE))
+            totalY += lineHeight
+            if (row !== document.summaryRows.last()) {
+                canvas.drawLine(totalsLeft, totalY, right, totalY, rule)
+            }
+        }
+
+        // Reversed out of solid black. The one figure the reader came for, and
+        // the only place on the page where weight alone was not enough.
+        val dueHeight = 24f
+        canvas.drawRect(totalsLeft, totalY, right, totalY + dueHeight, fillInk)
+        canvas.drawText(document.closingLabel, totalsLeft + 9, totalY + 16, reversed(BODY_SIZE))
+        canvas.drawTextRight(document.closingValue, right - 9, totalY + 16, reversed(BODY_SIZE))
+
+        // --- Footer: the address, and which page this is
+
+        val footY = PAGE_HEIGHT - MARGIN + 4
+        canvas.drawLine(MARGIN, footY - 14, right, footY - 14, rule)
+        canvas.drawText(document.shopAddressLines.joinToString(", "), MARGIN, footY, paint(7.5f, grey = true))
+        canvas.drawTextRight("$pageNumber", right, footY, paint(7.5f, grey = true))
 
         pdf.finishPage(page)
         return pageNumber

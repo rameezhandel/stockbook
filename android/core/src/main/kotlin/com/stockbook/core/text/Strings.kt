@@ -1049,6 +1049,23 @@ class Strings(val language: AppLanguage) {
     fun referenceOn(reference: String, date: String): String = "$reference · $date"
     val columnBalance: String get() = pick("Balance", "ಉಳಿಕೆ")
 
+    /**
+     * The date, in a column of its own rather than folded into the reference.
+     *
+     * A statement is scanned down the left edge for "when", and a reader hunting
+     * a date inside `Invoice #06011 · 19/05/2026` has to read every row in full
+     * to do it. On a ledger book page that is the difference between finding a
+     * week and reading a year.
+     */
+    val columnDate: String get() = pick("Date", "ದಿನಾಂಕ")
+
+    /** Set against the letterhead, so the page says what it is at a glance. */
+    val statementOfAccount: String get() = pick("Statement of Account", "ಖಾತೆಯ ವಿವರ")
+
+    /** The two boxed facts under the letterhead. */
+    val accountLabel: String get() = pick("Account", "ಖಾತೆ")
+    val statementPeriod: String get() = pick("Period", "ಅವಧಿ")
+
     // --- The owner's own list of who owes them
     //
     // Worded so it can never be mistaken for a statement. A statement is handed
@@ -1063,6 +1080,9 @@ class Strings(val language: AppLanguage) {
     val payableSummary: String get() = pick("Payable Amount Summary", "ಕೊಡಬೇಕಾದ ಬಾಕಿ ಸಾರಾಂಶ")
     /** The day the list was made. A balance is true at a moment, not over a span. */
     fun asOfDate(date: String): String = pick("As of $date", "$date ರಂತೆ")
+
+    /** `1 August 2026 — 31 August 2026`, for the boxed period on a statement. */
+    fun dateRange(from: String, to: String): String = "$from \u2014 $to"
     val columnCustomer: String get() = pick("Customer", "ಗ್ರಾಹಕ")
     val totalReceivable: String get() = pick("Total Receivable", "ಒಟ್ಟು ಬರಬೇಕಾದ ಬಾಕಿ")
     val totalPayable: String get() = pick("Total Payable", "ಒಟ್ಟು ಕೊಡಬೇಕಾದ ಬಾಕಿ")

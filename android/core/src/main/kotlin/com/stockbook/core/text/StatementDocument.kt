@@ -25,10 +25,22 @@ data class StatementDocument(
     /** Top left: who is sending it. */
     val shopName: String,
     val shopAddressLines: List<String>,
+    /** Set against the letterhead, so the page says what it is at a glance. */
+    val docType: String,
     /** Top right: who it is for. */
     val addressedToLabel: String,
     val partyName: String,
     val partyLines: List<String>,
+    /**
+     * The two boxed facts under the letterhead: whose account, and over what.
+     *
+     * Boxed rather than run into the address block, because these are the two
+     * things a reader checks before reading anything else — that it is their
+     * account, and that it is the month they were asking about.
+     */
+    val accountLabel: String,
+    val periodLabel: String,
+    val periodValue: String,
     /** The boxed summary, in the order it prints. */
     val summaryTitle: String,
     val summaryRows: List<Row>,
@@ -67,14 +79,22 @@ data class StatementDocument(
      * deductions — the position now says which way the money went, where a
      * bracketed figure needed a convention explained to whoever was reading it.
      *
-     * [details] carries the kind as well as the number — `Invoice #6356`, not
+     * [reference] carries the kind as well as the number — `Invoice #6356`, not
      * `6356` — because a credit note and a payment both land in [settled], and
      * without the word the customer cannot tell which of the two took the
      * money off their account.
+     *
+     * [date] is its own column rather than trailing the reference. A statement
+     * is scanned down its left edge for *when*, and a reader hunting a date
+     * inside `Invoice #6356 · 19/05/2026` has to read every row in full to do
+     * it — which on a ledger book page is the difference between finding a week
+     * and reading a year.
      */
     data class ActivityRow(
-        /** `Invoice #6356 · 19/05/2026` — what it was, and the day it happened. */
-        val details: String,
+        /** `19/05/2026` — the day it happened, on its own. */
+        val date: String,
+        /** `Invoice #6356` — what it was. */
+        val reference: String,
         /** What was charged. Empty on a row that settles. */
         val charge: String,
         /** What came off: a payment, or a credit note. Empty on a charge. */
@@ -136,11 +156,18 @@ data class StatementDocument(
             return StatementDocument(
                 shopName = settings.ownerName,
                 shopAddressLines = settings.shopAddress.lines().map { it.trim() }.filter { it.isNotEmpty() },
+                docType = strings.statementOfAccount,
                 addressedToLabel = strings.accountStatementFor,
                 partyName = statement.party.name,
                 partyLines = listOfNotNull(
                     statement.party.place?.takeIf { it.isNotBlank() },
                     statement.party.phone?.takeIf { it.isNotBlank() }
+                ),
+                accountLabel = strings.accountLabel,
+                periodLabel = strings.statementPeriod,
+                periodValue = strings.dateRange(
+                    strings.longDate(statement.range.start),
+                    strings.longDate(statement.range.asOf(now))
                 ),
                 summaryTitle = strings.accountSummaryTill(strings.longDate(statement.range.asOf(now))),
                 summaryRows = summary,
@@ -150,6 +177,7 @@ data class StatementDocument(
                 // owes was *paid*, and one pair of words for both would be
                 // backwards on one of the two documents.
                 columnHeadings = listOf(
+                    strings.columnDate,
                     if (isSupplier) strings.columnBillReceipt else strings.columnInvoiceReceipt,
                     if (isSupplier) strings.columnBillAmount else strings.columnInvoiceAmount,
                     if (isSupplier) strings.columnPaidAmount else strings.columnReceivedAmount,
@@ -161,7 +189,8 @@ data class StatementDocument(
                     // has both a charge and a receipt, and reading it as one or
                     // the other is what hid every over-the-counter payment.
                     ActivityRow(
-                        details = strings.referenceOn(reference(entry, strings), strings.shortDate(entry.date)),
+                        date = strings.shortDate(entry.date),
+                        reference = reference(entry, strings),
                         charge = if (entry.charge > 0) Money.text(entry.charge, currency) else "",
                         settled = if (entry.settledAtOnce > 0) Money.text(entry.settledAtOnce, currency) else "",
                         balance = Money.text(statement.runningBalances[index], currency)

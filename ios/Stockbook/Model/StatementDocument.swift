@@ -17,10 +17,20 @@ struct StatementDocument: Equatable {
     let shopName: String
     let shopAddressLines: [String]
 
+    /// Set against the letterhead, so the page says what it is at a glance.
+    let docType: String
     /// Top right: who it is for.
     let addressedToLabel: String
     let partyName: String
     let partyLines: [String]
+    /// The two boxed facts under the letterhead: whose account, and over what.
+    ///
+    /// Boxed rather than run into the address block, because these are the two
+    /// things a reader checks before reading anything else — that it is their
+    /// account, and that it is the month they were asking about.
+    let accountLabel: String
+    let periodLabel: String
+    let periodValue: String
 
     /// The boxed summary, in the order it prints.
     let summaryTitle: String
@@ -63,20 +73,28 @@ struct StatementDocument: Equatable {
     /// deductions — the position now says which way the money went, where a
     /// bracketed figure needed a convention explained to whoever was reading it.
     ///
-    /// `details` carries the kind as well as the number — `Invoice #6356`, not
+    /// `reference` carries the kind as well as the number — `Invoice #6356`, not
     /// `6356` — because a credit note and a payment both land in `settled`, and
     /// without the word the customer cannot tell which of the two took the money
     /// off their account.
     struct ActivityRow: Equatable, Identifiable {
-        /// `Invoice #6356 · 19/05/2026` — what it was, and the day it happened.
-        let details: String
+        /// `19/05/2026` — the day it happened, on its own.
+        ///
+        /// Its own column rather than trailing the reference. A statement is
+        /// scanned down its left edge for *when*, and a reader hunting a date
+        /// inside `Invoice #6356 · 19/05/2026` has to read every row in full to
+        /// do it — which on a ledger book page is the difference between finding
+        /// a week and reading a year.
+        let date: String
+        /// `Invoice #6356` — what it was.
+        let reference: String
         /// What was charged. Empty on a row that settles.
         let charge: String
         /// What came off: a payment, or a credit note. Empty on a charge.
         let settled: String
         let balance: String
 
-        var id: String { "\(details)-\(charge)-\(settled)-\(balance)" }
+        var id: String { "\(date)-\(reference)-\(charge)-\(settled)-\(balance)" }
     }
 
 
@@ -143,11 +161,18 @@ struct StatementDocument: Equatable {
                 .split(separator: "\n", omittingEmptySubsequences: false)
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty },
+            docType: strings.statementOfAccount,
             addressedToLabel: strings.accountStatementFor,
             partyName: statement.party.name,
             partyLines: [statement.party.place, statement.party.phone]
                 .compactMap { $0 }
                 .filter { !$0.isBlank },
+            accountLabel: strings.accountLabel,
+            periodLabel: strings.statementPeriod,
+            periodValue: strings.dateRange(
+                from: strings.longDate(statement.range.start),
+                to: strings.longDate(statement.range.asOf(now))
+            ),
             summaryTitle: strings.accountSummaryTill(strings.longDate(statement.range.asOf(now))),
             summaryRows: summary,
             activityTitle: strings.accountActivity,
@@ -156,6 +181,7 @@ struct StatementDocument: Equatable {
             // *paid*, and one pair of words for both would be backwards on one of
             // the two documents.
             columnHeadings: [
+                strings.columnDate,
                 isSupplier ? strings.columnBillReceipt : strings.columnInvoiceReceipt,
                 isSupplier ? strings.columnBillAmount : strings.columnInvoiceAmount,
                 isSupplier ? strings.columnPaidAmount : strings.columnReceivedAmount,
@@ -167,7 +193,8 @@ struct StatementDocument: Equatable {
                 // charge and a receipt, and reading it as one or the other is what
                 // hid every over-the-counter payment.
                 ActivityRow(
-                    details: strings.referenceOn(reference(entry, strings), date: strings.shortDate(entry.date)),
+                    date: strings.shortDate(entry.date),
+                    reference: reference(entry, strings),
                     charge: entry.charge > 0 ? Money.text(entry.charge, in: money) : "",
                     settled: entry.settledAtOnce > 0 ? Money.text(entry.settledAtOnce, in: money) : "",
                     balance: Money.text(statement.runningBalances[index], in: money)

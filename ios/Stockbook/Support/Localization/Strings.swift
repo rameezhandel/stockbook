@@ -1056,6 +1056,21 @@ struct Strings {
     func referenceOn(_ reference: String, date: String) -> String { "\(reference) · \(date)" }
     var columnBalance: String { pick("Balance", "ಉಳಿಕೆ") }
 
+    /// The date, in a column of its own rather than folded into the reference.
+    ///
+    /// A statement is scanned down the left edge for "when", and a reader hunting
+    /// a date inside `Invoice #06011 · 19/05/2026` has to read every row in full
+    /// to do it. On a ledger book page that is the difference between finding a
+    /// week and reading a year.
+    var columnDate: String { pick("Date", "ದಿನಾಂಕ") }
+
+    /// Set against the letterhead, so the page says what it is at a glance.
+    var statementOfAccount: String { pick("Statement of Account", "ಖಾತೆಯ ವಿವರ") }
+
+    /// The two boxed facts under the letterhead.
+    var accountLabel: String { pick("Account", "ಖಾತೆ") }
+    var statementPeriod: String { pick("Period", "ಅವಧಿ") }
+
     // MARK: The owner's own list of who owes them
     //
     // Worded so it can never be mistaken for a statement. A statement is handed
@@ -1068,6 +1083,9 @@ struct Strings {
     var payableSummary: String { pick("Payable Amount Summary", "ಕೊಡಬೇಕಾದ ಬಾಕಿ ಸಾರಾಂಶ") }
     /// The day the list was made. A balance is true at a moment, not over a span.
     func asOfDate(_ date: String) -> String { pick("As of \(date)", "\(date) ರಂತೆ") }
+
+    /// `1 August 2026 — 31 August 2026`, for the boxed period on a statement.
+    func dateRange(from: String, to: String) -> String { "\(from) \u{2014} \(to)" }
     var columnCustomer: String { pick("Customer", "ಗ್ರಾಹಕ") }
     var totalReceivable: String { pick("Total Receivable", "ಒಟ್ಟು ಬರಬೇಕಾದ ಬಾಕಿ") }
     var totalPayable: String { pick("Total Payable", "ಒಟ್ಟು ಕೊಡಬೇಕಾದ ಬಾಕಿ") }

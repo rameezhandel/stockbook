@@ -53,10 +53,44 @@ object DayLedgerPdf {
         typeface = Typeface.create(Typeface.SANS_SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
     }
 
+    /** Darker and heavier than it looks like it needs: these pages photocopy. */
     private val rule = Paint().apply {
         isAntiAlias = true
-        color = 0xFFD6D6DE.toInt()
-        strokeWidth = 0.6f
+        color = 0xFFC4C4D0.toInt()
+        strokeWidth = 0.9f
+    }
+
+    /** The heavy rule under the letterhead and over the column headings. */
+    private val heavyRule = Paint().apply {
+        isAntiAlias = true
+        color = 0xFF14141C.toInt()
+        strokeWidth = 1.6f
+    }
+
+    /**
+     * The band behind every other row, at 10% rather than the 6% it looks like
+     * it wants.
+     *
+     * A mono laser cannot print grey — it halftones into a dot screen, and below
+     * roughly 8% that screen comes out patchy or not at all, which would stripe
+     * some pages and not others. Ten per cent survives, and on a hundred-row
+     * roll-call the banding is what keeps the eye on one line.
+     */
+    private val band = Paint().apply {
+        isAntiAlias = true
+        color = 0xFFE6E6EC.toInt()
+    }
+
+    private val fillInk = Paint().apply {
+        isAntiAlias = true
+        color = 0xFF14141C.toInt()
+    }
+
+    private fun reversed(size: Float) = Paint().apply {
+        isAntiAlias = true
+        textSize = size
+        color = 0xFFFFFFFF.toInt()
+        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
     }
 
     /**
@@ -76,9 +110,11 @@ object DayLedgerPdf {
         var y = MARGIN
 
         canvas.drawText(document.shopName, MARGIN, y + TITLE_SIZE, paint(TITLE_SIZE, bold = true))
+        canvas.drawTextRight(document.title, right, y + TITLE_SIZE, paint(13f))
         y += TITLE_SIZE + 10
-        canvas.drawText(document.title, MARGIN, y + BODY_SIZE, paint(BODY_SIZE, bold = true))
-        canvas.drawTextRight(document.onDate, right, y + BODY_SIZE, paint(BODY_SIZE))
+        canvas.drawLine(MARGIN, y, right, y, heavyRule)
+        y += 16
+        canvas.drawText(document.onDate, MARGIN, y + BODY_SIZE, paint(BODY_SIZE, bold = true))
         y += BODY_SIZE + 6
 
         // Only on a narrowed page, and said before the figures rather than after:
@@ -97,19 +133,20 @@ object DayLedgerPdf {
         }
 
         fun headings() {
-            val bold = paint(ROW_SIZE, bold = true)
-            canvas.drawText(document.columnHeadings[0], MARGIN, y + 12, bold)
-            canvas.drawTextRight(document.columnHeadings[1], MARGIN + width * EDGE_INVOICED, y + 12, bold)
-            canvas.drawTextRight(document.columnHeadings[2], MARGIN + width * EDGE_RECEIVED, y + 12, bold)
-            canvas.drawTextRight(document.columnHeadings[3], MARGIN + width * EDGE_OLD, y + 12, bold)
-            canvas.drawTextRight(document.columnHeadings[4], MARGIN + width * EDGE_CURRENT, y + 12, bold)
-            y += 17
-            canvas.drawLine(MARGIN, y, right, y, rule)
+            val head = paint(7.5f, grey = true)
+            canvas.drawText(document.columnHeadings[0].uppercase(), MARGIN, y + 10, head)
+            canvas.drawTextRight(document.columnHeadings[1].uppercase(), MARGIN + width * EDGE_INVOICED, y + 10, head)
+            canvas.drawTextRight(document.columnHeadings[2].uppercase(), MARGIN + width * EDGE_RECEIVED, y + 10, head)
+            canvas.drawTextRight(document.columnHeadings[3].uppercase(), MARGIN + width * EDGE_OLD, y + 10, head)
+            canvas.drawTextRight(document.columnHeadings[4].uppercase(), MARGIN + width * EDGE_CURRENT, y + 10, head)
+            y += 14
+            canvas.drawLine(MARGIN, y, right, y, heavyRule)
         }
         headings()
 
         val body = paint(ROW_SIZE)
         val noteInk = paint(NOTE_SIZE, grey = true)
+        var striped = false
         for (row in document.rows) {
             val height = if (row.note == null) 15f else 24f
             // A break before a row rather than through one, and the headings
@@ -124,6 +161,11 @@ object DayLedgerPdf {
                 headings()
             }
 
+            // Every other row banded, which is the whole reason a hundred-line
+            // roll-call can be read across five columns without losing the line.
+            striped = !striped
+            if (striped) canvas.drawRect(MARGIN, y, right, y + height, band)
+
             canvas.drawText(row.name, MARGIN, y + 11, body)
             canvas.drawTextRight(row.invoiced, MARGIN + width * EDGE_INVOICED, y + 11, body)
             canvas.drawTextRight(row.received, MARGIN + width * EDGE_RECEIVED, y + 11, body)
@@ -136,13 +178,17 @@ object DayLedgerPdf {
 
         // The columns added up, and they are the columns above rather than the
         // whole book — see `DayLedger.movedOnly`.
-        val total = paint(ROW_SIZE, bold = true)
+        // Reversed out of solid black, like the statement's balance due: the
+        // line the whole page adds up to, and the one a reader checks first.
         y += 4
-        canvas.drawText(document.totalLabel, MARGIN, y + 12, total)
-        canvas.drawTextRight(document.totals[0], MARGIN + width * EDGE_INVOICED, y + 12, total)
-        canvas.drawTextRight(document.totals[1], MARGIN + width * EDGE_RECEIVED, y + 12, total)
-        canvas.drawTextRight(document.totals[2], MARGIN + width * EDGE_OLD, y + 12, total)
-        canvas.drawTextRight(document.totals[3], MARGIN + width * EDGE_CURRENT, y + 12, total)
+        val totalHeight = 20f
+        canvas.drawRect(MARGIN, y, right, y + totalHeight, fillInk)
+        val total = reversed(ROW_SIZE)
+        canvas.drawText(document.totalLabel, MARGIN + 6, y + 14, total)
+        canvas.drawTextRight(document.totals[0], MARGIN + width * EDGE_INVOICED - 2, y + 14, total)
+        canvas.drawTextRight(document.totals[1], MARGIN + width * EDGE_RECEIVED - 2, y + 14, total)
+        canvas.drawTextRight(document.totals[2], MARGIN + width * EDGE_OLD - 2, y + 14, total)
+        canvas.drawTextRight(document.totals[3], MARGIN + width * EDGE_CURRENT - 2, y + 14, total)
 
         pdf.finishPage(page)
         return pdf.into(into, fileName)

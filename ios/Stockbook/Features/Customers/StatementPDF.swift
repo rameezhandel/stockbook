@@ -25,18 +25,24 @@ enum StatementPDF {
 
     /// Where each column sits, as fractions of the writable width.
     ///
-    /// The details column is left-aligned and wide, because it now carries what a
-    /// row is *and* when it happened — two columns' worth in one. The three money
-    /// columns are right-aligned against the edges below, which is how a column
-    /// of figures is read: by the units lining up.
-    private static let colDetails: CGFloat = 0
+    /// The date and the reference are left-aligned; the three money columns are
+    /// right-aligned against the edges below, which is how a column of figures is
+    /// read: by the units lining up.
+    private static let colDate: CGFloat = 0
+    private static let colReference: CGFloat = 0.16
     private static let edgeCharge: CGFloat = 0.62
     private static let edgeSettled: CGFloat = 0.81
     private static let edgeBalance: CGFloat = 1.0
 
     private static let ink = UIColor(red: 0.078, green: 0.078, blue: 0.110, alpha: 1)
     private static let grey = UIColor(red: 0.420, green: 0.420, blue: 0.463, alpha: 1)
-    private static let ruleColour = UIColor(red: 0.839, green: 0.839, blue: 0.871, alpha: 1)
+    /// The hairline, darker than it looks like it needs to be: these pages get
+    /// photocopied, and a 16%-grey rule is the first thing a copier loses.
+    private static let ruleColour = UIColor(red: 0.769, green: 0.769, blue: 0.816, alpha: 1)
+
+    private static func reversed(_ size: CGFloat) -> [NSAttributedString.Key: Any] {
+        [.font: UIFont.boldSystemFont(ofSize: size), .foregroundColor: UIColor.white]
+    }
 
     private static func attributes(_ size: CGFloat, bold: Bool = false, muted: Bool = false) -> [NSAttributedString.Key: Any] {
         [
@@ -76,108 +82,125 @@ enum StatementPDF {
 
     /// Draws one statement, starting a fresh page for it.
     private static func draw(_ document: StatementDocument, in context: UIGraphicsPDFRendererContext) {
-        do {
-            context.beginPage()
+        context.beginPage()
 
-            let right = pageSize.width - margin
-            let width = right - margin
-            var y = margin
+        let right = pageSize.width - margin
+        let width = right - margin
+        var y = margin
 
-            // MARK: Who it is from, and who it is for
+        // MARK: Letterhead
+        //
+        // Sans throughout, deliberately. A serif here would set the shop's own
+        // name — which the owner types, and which may be in Arabic or Kannada —
+        // in a face whose coverage of those scripts is patchy, and the failure is
+        // tofu boxes in the largest text on the page.
 
-            document.shopName.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(titleSize, bold: true))
-            var leftY = y + titleSize + line - 4
-            for addressLine in document.shopAddressLines {
-                addressLine.draw(at: CGPoint(x: margin, y: leftY), withAttributes: attributes(bodySize))
-                leftY += line
-            }
+        document.shopName.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(titleSize, bold: true))
+        drawRight(document.docType, rightEdge: right, y: y + 3, attributes: attributes(13))
+        y += titleSize + 12
+        heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
+        y += 18
 
-            // The right-hand block is right-aligned against the margin, so a long
-            // shop name on the left cannot push into it.
-            var rightY = y
-            drawRight(document.addressedToLabel, rightEdge: right, y: rightY, attributes: attributes(bodySize, muted: true))
-            rightY += line + 2
-            drawRight(document.partyName, rightEdge: right, y: rightY, attributes: attributes(bodySize, bold: true))
-            rightY += line
-            for partyLine in document.partyLines {
-                drawRight(partyLine, rightEdge: right, y: rightY, attributes: attributes(bodySize))
-                rightY += line
-            }
+        // MARK: The two boxed facts — whose account, and over what
 
-            y = max(leftY, rightY) + 26
+        let factsTop = y
+        let factsHeight: CGFloat = 46
+        let middle = margin + width / 2
+        stroke(CGRect(x: margin, y: factsTop, width: width, height: factsHeight))
+        rule(from: CGPoint(x: middle, y: factsTop), to: CGPoint(x: middle, y: factsTop + factsHeight))
 
-            // MARK: The summary box
+        document.accountLabel.uppercased().draw(at: CGPoint(x: margin + 10, y: factsTop + 5), withAttributes: attributes(7.5, muted: true))
+        document.partyName.draw(at: CGPoint(x: margin + 10, y: factsTop + 17), withAttributes: attributes(bodySize, bold: true))
+        document.partyLines.joined(separator: " · ").draw(at: CGPoint(x: margin + 10, y: factsTop + 30), withAttributes: attributes(8, muted: true))
 
-            let boxTop = y
-            let boxHeight = CGFloat(document.summaryRows.count + 2) * 22
-            stroke(CGRect(x: margin, y: boxTop, width: width, height: boxHeight))
+        document.periodLabel.uppercased().draw(at: CGPoint(x: middle + 10, y: factsTop + 5), withAttributes: attributes(7.5, muted: true))
+        document.periodValue.draw(at: CGPoint(x: middle + 10, y: factsTop + 17), withAttributes: attributes(bodySize, bold: true))
+        document.summaryTitle.draw(at: CGPoint(x: middle + 10, y: factsTop + 30), withAttributes: attributes(8, muted: true))
 
-            var rowY = boxTop
-            document.summaryTitle.draw(at: CGPoint(x: margin + 10, y: rowY + 6), withAttributes: attributes(bodySize, bold: true))
-            rowY += 22
-            rule(from: CGPoint(x: margin, y: rowY), to: CGPoint(x: right, y: rowY))
+        y = factsTop + factsHeight + 24
 
-            for row in document.summaryRows {
-                row.label.draw(at: CGPoint(x: margin + 10, y: rowY + 6), withAttributes: attributes(bodySize))
-                drawRight(row.value.bracketed(row.deduction), rightEdge: right - 10, y: rowY + 6, attributes: attributes(bodySize))
-                rowY += 22
-                rule(from: CGPoint(x: margin, y: rowY), to: CGPoint(x: right, y: rowY))
-            }
+        // MARK: The activity table
 
-            document.closingLabel.draw(at: CGPoint(x: margin + 10, y: rowY + 6), withAttributes: attributes(bodySize, bold: true))
-            drawRight(document.closingValue, rightEdge: right - 10, y: rowY + 6, attributes: attributes(bodySize, bold: true))
+        document.activityTitle.uppercased().draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(8, muted: true))
+        y += 14
 
-            y = boxTop + boxHeight + 30
-
-            // MARK: The activity table
-
-            document.activityTitle.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(12, bold: true))
-            y += 20
-
-            func drawHeadings() {
-                let heads = document.columnHeadings
-                let bold = attributes(rowSize, bold: true)
-                heads[0].draw(at: CGPoint(x: margin + width * colDetails, y: y), withAttributes: bold)
-                drawRight(heads[1], rightEdge: margin + width * edgeCharge, y: y, attributes: bold)
-                drawRight(heads[2], rightEdge: margin + width * edgeSettled, y: y, attributes: bold)
-                drawRight(heads[3], rightEdge: margin + width * edgeBalance, y: y, attributes: bold)
-                y += 16
-                rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-                y += 5
-            }
-            drawHeadings()
-
-            for row in document.activityRows {
-                // A page break before a row rather than through one, and the
-                // headings repeat: a second page whose columns are unlabelled is
-                // a page nobody can read on its own.
-                if y > pageSize.height - margin - 60 {
-                    context.beginPage()
-                    y = margin
-                    drawHeadings()
-                }
-
-                // Exactly one of the two money columns carries anything, so the
-                // empty one draws nothing at all rather than a dash or a zero:
-                // an empty cell is unambiguous, and a zero in the Received column
-                // is a payment somebody might go looking for.
-                let body = attributes(rowSize)
-                row.details.draw(at: CGPoint(x: margin + width * colDetails, y: y), withAttributes: body)
-                drawRight(row.charge, rightEdge: margin + width * edgeCharge, y: y, attributes: body)
-                drawRight(row.settled, rightEdge: margin + width * edgeSettled, y: y, attributes: body)
-                drawRight(row.balance, rightEdge: margin + width * edgeBalance, y: y, attributes: body)
-                y += 16
-                rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-                y += 5
-            }
-
-            // The figure the document exists to state, repeated where the eye
-            // stops.
+        func headings() {
+            let head = attributes(7.5, muted: true)
+            document.columnHeadings[0].uppercased().draw(at: CGPoint(x: margin + width * colDate, y: y), withAttributes: head)
+            document.columnHeadings[1].uppercased().draw(at: CGPoint(x: margin + width * colReference, y: y), withAttributes: head)
+            drawRight(document.columnHeadings[2].uppercased(), rightEdge: margin + width * edgeCharge, y: y, attributes: head)
+            drawRight(document.columnHeadings[3].uppercased(), rightEdge: margin + width * edgeSettled, y: y, attributes: head)
+            drawRight(document.columnHeadings[4].uppercased(), rightEdge: margin + width * edgeBalance, y: y, attributes: head)
+            y += 13
+            heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
             y += 4
-            let bold = attributes(rowSize, bold: true)
-            document.closingLabel.draw(at: CGPoint(x: margin + width * colDetails, y: y), withAttributes: bold)
-            drawRight(document.closingValue, rightEdge: margin + width * edgeBalance, y: y, attributes: bold)
         }
+        headings()
+
+        for row in document.activityRows {
+            // A break before a row rather than through one, and the headings
+            // repeat so a second page stands on its own. The room kept back is
+            // for the totals block.
+            if y > pageSize.height - margin - 130 {
+                context.beginPage()
+                y = margin
+                headings()
+            }
+
+            // Exactly one of the two money columns carries anything, so the empty
+            // one draws nothing at all rather than a dash or a zero: an empty cell
+            // is unambiguous, and a zero in the Received column is a payment
+            // somebody might go looking for.
+            let body = attributes(rowSize)
+            row.date.draw(at: CGPoint(x: margin + width * colDate, y: y), withAttributes: attributes(rowSize, muted: true))
+            row.reference.draw(at: CGPoint(x: margin + width * colReference, y: y), withAttributes: body)
+            drawRight(row.charge, rightEdge: margin + width * edgeCharge, y: y, attributes: body)
+            drawRight(row.settled, rightEdge: margin + width * edgeSettled, y: y, attributes: body)
+            drawRight(row.balance, rightEdge: margin + width * edgeBalance, y: y, attributes: body)
+            y += 17
+            rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
+            y += 2
+        }
+
+        // MARK: The totals, set against the right edge under the money columns
+
+        y += 12
+        let totalsLeft = margin + width * 0.52
+        let lineHeight: CGFloat = 18
+        var totalY = y
+        stroke(CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: CGFloat(document.summaryRows.count) * lineHeight))
+        for (index, row) in document.summaryRows.enumerated() {
+            row.label.draw(at: CGPoint(x: totalsLeft + 9, y: totalY + 4), withAttributes: attributes(bodySize, muted: true))
+            drawRight(row.value.bracketed(row.deduction), rightEdge: right - 9, y: totalY + 4, attributes: attributes(bodySize))
+            totalY += lineHeight
+            if index < document.summaryRows.count - 1 {
+                rule(from: CGPoint(x: totalsLeft, y: totalY), to: CGPoint(x: right, y: totalY))
+            }
+        }
+
+        // Reversed out of solid black. The one figure the reader came for, and
+        // the only place on the page where weight alone was not enough.
+        let dueHeight: CGFloat = 24
+        ink.setFill()
+        UIBezierPath(rect: CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: dueHeight)).fill()
+        document.closingLabel.draw(at: CGPoint(x: totalsLeft + 9, y: totalY + 7), withAttributes: reversed(bodySize))
+        drawRight(document.closingValue, rightEdge: right - 9, y: totalY + 7, attributes: reversed(bodySize))
+
+        // MARK: Footer — the address, and the shop it came from
+
+        let footY = pageSize.height - margin - 10
+        rule(from: CGPoint(x: margin, y: footY - 6), to: CGPoint(x: right, y: footY - 6))
+        document.shopAddressLines.joined(separator: ", ").draw(at: CGPoint(x: margin, y: footY), withAttributes: attributes(7.5, muted: true))
+    }
+
+    /// The heavy rule under the letterhead and over the column headings.
+    private static func heavyRule(from: CGPoint, to: CGPoint) {
+        let path = UIBezierPath()
+        path.move(to: from)
+        path.addLine(to: to)
+        path.lineWidth = 1.6
+        ink.setStroke()
+        path.stroke()
     }
 
     // MARK: Drawing helpers
@@ -191,14 +214,14 @@ enum StatementPDF {
         let path = UIBezierPath()
         path.move(to: from)
         path.addLine(to: to)
-        path.lineWidth = 0.8
+        path.lineWidth = 0.9
         ruleColour.setStroke()
         path.stroke()
     }
 
     private static func stroke(_ rect: CGRect) {
         let path = UIBezierPath(rect: rect)
-        path.lineWidth = 0.8
+        path.lineWidth = 0.9
         ruleColour.setStroke()
         path.stroke()
     }

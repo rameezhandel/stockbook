@@ -195,7 +195,7 @@ class DiscountTests {
         // received column beside it is empty.
         assertEquals(Money.text(225.0, Currency.SAR), row.charge)
         assertEquals("", row.settled)
-        assertTrue(!row.details.contains("%"), row.details)
+        assertTrue(!row.reference.contains("%"), row.reference)
         assertEquals(Money.text(225.0, Currency.SAR), document.closingValue)
     }
 
