@@ -1683,6 +1683,76 @@ class StockbookStore(private val repository: StockbookRepository) {
      * decides which lists. That is what keeps the figures testable without a
      * store, a repository or a screen.
      */
+    /**
+     * Every customer's whole history, one statement each, in directory order.
+     *
+     * The book the owner prints once and files. **All time**: the range runs from
+     * the earliest thing on record to now, so nothing is left out and the closing
+     * figures are what each account stands at today.
+     *
+     * **Every customer, including the ones with nothing.** A name with no bills
+     * and no balance still gets its statement, for the reason the day ledger
+     * gives: a book read against a paper one has to have the same names in it,
+     * and a reader cannot tell an account that was left out from one that had a
+     * quiet year.
+     *
+     * Built in **one pass**, unlike calling [statementForCustomer] in a loop.
+     * That function asks the store for the customer and again for the transfer
+     * names, and each of those walks every bill in the shop — so a hundred
+     * customers would mean two hundred walks of the whole history to produce one
+     * document. Here the history is bucketed by key once and each statement is
+     * made from its own slice.
+     */
+    fun ledgerBook(zone: ZoneId = ZoneId.systemDefault()): List<Statement> {
+        val everyone = customers(matching = "")
+        if (everyone.isEmpty()) return emptyList()
+
+        val period = StatementPeriod.Custom(earliestRecord(), Timestamps.now())
+        val names = everyone.associate { it.key to it.name }
+        val billsByKey = bills.filterNot { it.who.isBlank() }.groupBy { Customer.key(it.who) }
+        val paymentsByKey = payments.groupBy { it.customerKey }
+        val notesByKey = creditNotes.groupBy { it.customerKey }
+        val transfers = balanceTransfers.filterNot { it.isSupplier }
+
+        return everyone.map { customer ->
+            val theirs = transfers.filter { it.fromKey == customer.key || it.intoKey == customer.key }
+            Statement.make(
+                customer = customer,
+                bills = billsByKey[customer.key].orEmpty(),
+                payments = paymentsByKey[customer.key].orEmpty(),
+                creditNotes = notesByKey[customer.key].orEmpty(),
+                transfers = theirs.map { transfer ->
+                    val outgoing = transfer.fromKey == customer.key
+                    val other = if (outgoing) transfer.intoKey else transfer.fromKey
+                    Statement.Entry.ForTransfer(
+                        transfer = transfer,
+                        outgoing = outgoing,
+                        otherName = names[other] ?: other
+                    )
+                },
+                period = period,
+                zone = zone
+            )
+        }
+    }
+
+    /**
+     * The oldest moment the shop has a record of, or now on an empty book.
+     *
+     * An opening balance carries no date of its own — it came over from the paper
+     * book — so it cannot be in here. It does not need to be: a statement counts
+     * everything before the range into its opening figure, and a range that
+     * starts at the first bill already has the carried-over balance behind it.
+     */
+    private fun earliestRecord(): Instant {
+        val moments = bills.map { it.createdAt } +
+            payments.map { it.receivedAt } +
+            creditNotes.map { it.issuedAt } +
+            purchases.map { it.createdAt } +
+            balanceTransfers.map { it.movedAt }
+        return moments.minOrNull() ?: Timestamps.now()
+    }
+
     fun statementForCustomer(key: String, period: StatementPeriod): Statement? {
         val customer = customer(key) ?: return null
         return Statement.make(

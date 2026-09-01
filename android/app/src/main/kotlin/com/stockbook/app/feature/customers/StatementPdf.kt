@@ -66,9 +66,34 @@ object StatementPdf {
      * permission and is never going to. Sharing hands out a `content://` URI to
      * it rather than a path.
      */
-    fun write(document: StatementDocument, into: Context, fileName: String): File {
+    fun write(document: StatementDocument, into: Context, fileName: String): File =
+        write(listOf(document), into, fileName)
+
+    /**
+     * Several statements into one file, **each starting on a fresh page**.
+     *
+     * This is the ledger book: every customer's own sheet, one after another, so
+     * a page can be pulled out and filed on its own. Written as a loop over the
+     * single-statement drawing rather than as a second layout — a book whose
+     * pages did not match the statement the customer was handed would be two
+     * documents claiming to be one, and the first correction to either would
+     * separate them for good.
+     */
+    fun write(documents: List<StatementDocument>, into: Context, fileName: String): File {
         val pdf = PdfDocument()
-        var pageNumber = 1
+        var pageNumber = 0
+        for (document in documents) {
+            pageNumber = draw(document, pdf, pageNumber)
+        }
+        val file = File(into.cacheDir, fileName)
+        file.outputStream().use { pdf.writeTo(it) }
+        pdf.close()
+        return file
+    }
+
+    /** Draws one statement from a fresh page, and returns the last page it used. */
+    private fun draw(document: StatementDocument, pdf: PdfDocument, from: Int): Int {
+        var pageNumber = from + 1
         var page = pdf.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
         var canvas = page.canvas
         var y = MARGIN
@@ -171,11 +196,7 @@ object StatementPdf {
         canvas.drawTextRight(document.closingValue, MARGIN + width * EDGE_BALANCE, y + 17, closing)
 
         pdf.finishPage(page)
-
-        val file = File(into.cacheDir, fileName)
-        file.outputStream().use { pdf.writeTo(it) }
-        pdf.close()
-        return file
+        return pageNumber
     }
 
     /**

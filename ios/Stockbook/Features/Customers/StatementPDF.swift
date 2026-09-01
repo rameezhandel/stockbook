@@ -50,10 +50,33 @@ enum StatementPDF {
     /// Written into the app's own temporary directory, which is where a file goes
     /// when the only thing that will read it is the share sheet.
     static func write(_ document: StatementDocument, fileName: String) throws -> URL {
+        try write([document], fileName: fileName)
+    }
+
+    /// Several statements into one file, **each starting on a fresh page**.
+    ///
+    /// This is the ledger book: every customer's own sheet, one after another, so
+    /// a page can be pulled out and filed on its own. Written as a loop over the
+    /// single-statement drawing rather than as a second layout — a book whose
+    /// pages did not match the statement the customer was handed would be two
+    /// documents claiming to be one, and the first correction to either would
+    /// separate them for good.
+    static func write(_ documents: [StatementDocument], fileName: String) throws -> URL {
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(origin: .zero, size: pageSize))
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
 
         try renderer.writePDF(to: url) { context in
+            for document in documents {
+                draw(document, in: context)
+            }
+        }
+
+        return url
+    }
+
+    /// Draws one statement, starting a fresh page for it.
+    private static func draw(_ document: StatementDocument, in context: UIGraphicsPDFRendererContext) {
+        do {
             context.beginPage()
 
             let right = pageSize.width - margin
@@ -155,8 +178,6 @@ enum StatementPDF {
             document.closingLabel.draw(at: CGPoint(x: margin + width * colDetails, y: y), withAttributes: bold)
             drawRight(document.closingValue, rightEdge: margin + width * edgeBalance, y: y, attributes: bold)
         }
-
-        return url
     }
 
     // MARK: Drawing helpers

@@ -189,6 +189,19 @@ class Strings(val language: AppLanguage) {
     val dayBalances: String get() = pick("Day balances", "ದಿನದ ಬಾಕಿ")
 
     /**
+     * Every customer's whole history, one sheet each, printed and filed.
+     *
+     * Called a book rather than a report because that is the thing it replaces:
+     * the bound ledger with a page per account.
+     */
+    val ledgerBook: String get() = pick("Ledger book", "ಲೆಕ್ಕ ಪುಸ್ತಕ")
+
+    /** Said while a hundred pages are drawn, so a long tap does not read as a dead button. */
+    val ledgerBookBuilding: String get() = pick("Building the book\u2026", "ಪುಸ್ತಕ ಸಿದ್ಧವಾಗುತ್ತಿದೆ\u2026")
+
+    fun ledgerBookFileName(date: String): String = "ledger-book-$date.pdf"
+
+    /**
      * Column headings, kept to one short word each because five of them share the
      * width of a phone.
      *

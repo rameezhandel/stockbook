@@ -17,6 +17,10 @@ import SwiftUI
 /// weighted by how often a thumb goes there, not by how tidy the model is.
 struct BookScreen: View {
     @Environment(AppRouter.self) private var router
+    @Environment(StockbookStore.self) private var store
+
+    /// The rendered book, waiting for the share sheet.
+    @State private var file: StatementFile?
 
     /// Which side is showing. `@SceneStorage` rather than `@State` so it
     /// survives a trip into a sheet and back — an owner who came here for
@@ -35,13 +39,26 @@ struct BookScreen: View {
             // people, read down, and this is the screen the owner comes to when
             // the question is about people rather than about today.
             ScreenHeader(title: Loc.bookTitle) {
-                Button {
-                    router.ledgerDay = .now
-                } label: {
-                    Glyph(Icon.customer, size: 18)
+                HStack(spacing: 0) {
+                    // Every customer's whole history, printed once and filed.
+                    // Beside the day page rather than buried in Settings: they
+                    // are the two things this screen can hand to a printer, and
+                    // one of them being somewhere else is how the other is never
+                    // found.
+                    Button(action: saveLedgerBook) {
+                        Glyph(Icon.bills, size: 18)
+                    }
+                    .buttonStyle(.iconOnly)
+                    .accessibilityLabel(Loc.ledgerBook)
+
+                    Button {
+                        router.ledgerDay = .now
+                    } label: {
+                        Glyph(Icon.customer, size: 18)
+                    }
+                    .buttonStyle(.iconOnly)
+                    .accessibilityLabel(Loc.dayBalances)
                 }
-                .buttonStyle(.iconOnly)
-                .accessibilityLabel(Loc.dayBalances)
             }
 
             HStack(spacing: 6) {
@@ -71,10 +88,32 @@ struct BookScreen: View {
                 ExpensesPane()
             }
         }
+        .sheet(item: $file) { ShareSheet(url: $0.url) }
     }
 
     private func choose(_ next: Side) {
         withAnimation(Metrics.quick) { stored = next.rawValue }
+    }
+
+    /// Every customer's whole history as one document, a page each.
+    ///
+    /// Drawn through the same routine that draws a single statement, so a sheet
+    /// pulled out of this book is exactly the statement that customer would have
+    /// been handed.
+    ///
+    /// A failure leaves `file` nil and nothing opens, which is the honest outcome
+    /// the other pages already settled on.
+    private func saveLedgerBook() {
+        let pages = store.ledgerBook().map {
+            StatementDocument.make(statement: $0, settings: store.settings, strings: Loc)
+        }
+        guard !pages.isEmpty,
+              let url = try? StatementPDF.write(
+                  pages,
+                  fileName: Loc.ledgerBookFileName(Copy.fileDate(.now))
+              )
+        else { return }
+        file = StatementFile(url: url)
     }
 
     /// Which chip is on.

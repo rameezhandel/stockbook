@@ -72,6 +72,7 @@ import com.stockbook.core.text.Dates
 import com.stockbook.core.text.DayLedgerDocument
 import com.stockbook.core.text.DaySummaryDocument
 import com.stockbook.core.text.EarningsDocument
+import com.stockbook.core.text.StatementDocument
 import com.stockbook.core.text.SummaryDocument
 import com.stockbook.core.text.Strings
 import java.io.File
@@ -211,6 +212,22 @@ private fun Shell(store: StockbookStore) {
                                     ),
                                     context,
                                     strings.expenseFileName(Dates.fileDate(Timestamps.now()))
+                                )
+                            )
+                        },
+                        onSaveLedgerBook = {
+                            // One document, a page per customer, drawn through
+                            // the same routine that draws a single statement —
+                            // so a sheet pulled out of this book is exactly the
+                            // statement that customer would have been handed.
+                            sharePdf(
+                                context,
+                                StatementPdf.write(
+                                    store.ledgerBook().map {
+                                        StatementDocument.make(it, state.settings, strings)
+                                    },
+                                    context,
+                                    strings.ledgerBookFileName(Dates.fileDate(Timestamps.now()))
                                 )
                             )
                         }

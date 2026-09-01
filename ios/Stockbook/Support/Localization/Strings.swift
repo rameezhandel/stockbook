@@ -196,6 +196,20 @@ struct Strings {
 
     var dayBalances: String { pick("Day balances", "ದಿನದ ಬಾಕಿ") }
 
+    /// Every customer's whole history, one sheet each, printed and filed.
+    ///
+    /// Called a book rather than a report because that is the thing it replaces:
+    /// the bound ledger with a page per account.
+    var ledgerBook: String { pick("Ledger book", "ಲೆಕ್ಕ ಪುಸ್ತಕ") }
+
+    /// Said while a hundred pages are drawn, so a long tap does not read as a
+    /// dead button.
+    var ledgerBookBuilding: String {
+        pick("Building the book\u{2026}", "ಪುಸ್ತಕ ಸಿದ್ಧವಾಗುತ್ತಿದೆ\u{2026}")
+    }
+
+    func ledgerBookFileName(_ date: String) -> String { "ledger-book-\(date).pdf" }
+
     /// Column headings, kept to one short word each because five of them share
     /// the width of a phone.
     ///

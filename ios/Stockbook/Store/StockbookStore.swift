@@ -1359,6 +1359,73 @@ final class StockbookStore {
     /// The arithmetic is in `Statement.make`, which takes plain arrays — this only
     /// decides which arrays. That is what keeps the figures testable without a
     /// store, a repository or a screen.
+    /// Every customer's whole history, one statement each, in directory order.
+    ///
+    /// The book the owner prints once and files. **All time**: the range runs
+    /// from the earliest thing on record to now, so nothing is left out and the
+    /// closing figures are what each account stands at today.
+    ///
+    /// **Every customer, including the ones with nothing.** A name with no bills
+    /// and no balance still gets its statement, for the reason the day ledger
+    /// gives: a book read against a paper one has to have the same names in it,
+    /// and a reader cannot tell an account that was left out from one that had a
+    /// quiet year.
+    ///
+    /// Built in **one pass**, unlike calling `statement(forCustomer:period:)` in
+    /// a loop. That function asks the store for the customer and again for the
+    /// transfer names, and each of those walks every bill in the shop — so a
+    /// hundred customers would mean two hundred walks of the whole history to
+    /// produce one document. Here the history is bucketed by key once and each
+    /// statement is made from its own slice.
+    func ledgerBook(calendar: Calendar = .current) -> [Statement] {
+        let everyone = customers(matching: "")
+        guard !everyone.isEmpty else { return [] }
+
+        let period = StatementPeriod.custom(from: earliestRecord(), to: .now)
+        let names = Dictionary(everyone.map { ($0.key, $0.name) }, uniquingKeysWith: { first, _ in first })
+        let billsByKey = Dictionary(grouping: bills.filter { !$0.who.isBlank }) { Customer.key(for: $0.who) }
+        let paymentsByKey = Dictionary(grouping: payments, by: \.customerKey)
+        let notesByKey = Dictionary(grouping: creditNotes, by: \.customerKey)
+        let transfers = balanceTransfers.filter { !$0.isSupplier }
+
+        return everyone.map { customer in
+            let theirs = transfers.filter { $0.fromKey == customer.key || $0.intoKey == customer.key }
+            return Statement.make(
+                customer: customer,
+                bills: billsByKey[customer.key] ?? [],
+                payments: paymentsByKey[customer.key] ?? [],
+                creditNotes: notesByKey[customer.key] ?? [],
+                transfers: theirs.map { transfer in
+                    let outgoing = transfer.fromKey == customer.key
+                    let other = outgoing ? transfer.intoKey : transfer.fromKey
+                    return Statement.Entry.transfer(
+                        transfer,
+                        outgoing: outgoing,
+                        otherName: names[other] ?? other
+                    )
+                },
+                period: period,
+                calendar: calendar
+            )
+        }
+    }
+
+    /// The oldest moment the shop has a record of, or now on an empty book.
+    ///
+    /// An opening balance carries no date of its own — it came over from the
+    /// paper book — so it cannot be in here. It does not need to be: a statement
+    /// counts everything before the range into its opening figure, and a range
+    /// that starts at the first bill already has the carried-over balance behind
+    /// it.
+    private func earliestRecord() -> Date {
+        let moments = bills.map(\.createdAt)
+            + payments.map(\.receivedAt)
+            + creditNotes.map(\.issuedAt)
+            + purchases.map(\.createdAt)
+            + balanceTransfers.map(\.movedAt)
+        return moments.min() ?? .now
+    }
+
     func statement(forCustomer key: String, period: StatementPeriod) -> Statement? {
         guard let customer = customer(key: key) else { return nil }
         return Statement.make(
