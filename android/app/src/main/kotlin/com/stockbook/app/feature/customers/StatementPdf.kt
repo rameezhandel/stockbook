@@ -204,22 +204,30 @@ object StatementPdf {
             y += 20
         }
 
-        // --- The two boxed facts: whose account, and over what
+        // --- Whose account, and over what
 
         val factsTop = y
         val factsHeight = 46f
         val middle = MARGIN + width / 2
-        canvas.drawRect(MARGIN, factsTop, right, factsTop + factsHeight, rule.stroke())
-        canvas.drawLine(middle, factsTop, middle, factsTop + factsHeight, rule)
 
+        // Boxed only in the monochrome treatment, where a hairline is the only
+        // thing available to group two facts. The colour page has an accent
+        // label doing that job already, and a box round it as well is one device
+        // too many — the reason this page reads busier than it should have.
+        if (!colour) {
+            canvas.drawRect(MARGIN, factsTop, right, factsTop + factsHeight, rule.stroke())
+            canvas.drawLine(middle, factsTop, middle, factsTop + factsHeight, rule)
+        }
+
+        val inset = if (colour) 0f else 10f
         val factLabel = if (colour) accentText(7.5f, bold = true) else paint(7.5f, grey = true)
-        canvas.drawText(document.accountLabel.uppercase(), MARGIN + 10, factsTop + 14, factLabel)
-        canvas.drawText(document.partyName, MARGIN + 10, factsTop + 28, paint(BODY_SIZE, bold = true))
-        canvas.drawText(document.partyLines.joinToString(" · "), MARGIN + 10, factsTop + 39, paint(8f, grey = true))
+        canvas.drawText(document.accountLabel.uppercase(), MARGIN + inset, factsTop + 12, factLabel)
+        canvas.drawText(document.partyName, MARGIN + inset, factsTop + 27, paint(11f, bold = true))
+        canvas.drawText(document.partyLines.joinToString(" · "), MARGIN + inset, factsTop + 39, paint(8f, grey = true))
 
-        canvas.drawText(document.periodLabel.uppercase(), middle + 10, factsTop + 14, factLabel)
-        canvas.drawText(document.periodValue, middle + 10, factsTop + 28, paint(BODY_SIZE, bold = true))
-        canvas.drawText(document.summaryTitle, middle + 10, factsTop + 39, paint(8f, grey = true))
+        canvas.drawText(document.periodLabel.uppercase(), middle + inset, factsTop + 12, factLabel)
+        canvas.drawText(document.periodValue, middle + inset, factsTop + 27, paint(11f, bold = true))
+        canvas.drawText(document.summaryTitle, middle + inset, factsTop + 39, paint(8f, grey = true))
 
         y = factsTop + factsHeight + 26
 
@@ -276,26 +284,39 @@ object StatementPdf {
         y += 14
         val totalsLeft = MARGIN + width * 0.52f
         val lineHeight = 18f
+        val dueHeight = 30f
         var totalY = y
-        canvas.drawRect(totalsLeft, totalY, right, totalY + document.summaryRows.size * lineHeight, rule.stroke())
+
+        // **One card, not a box and then a card.** The summary lines and the
+        // figure they add up to are one thought, and drawing a hairline
+        // rectangle round the lines and a tinted panel under them made two — the
+        // shape that had this page reading as a different design from the one it
+        // was meant to be.
+        if (colour) {
+            val cardHeight = document.summaryRows.size * lineHeight + dueHeight
+            canvas.drawRect(totalsLeft, totalY, right, totalY + cardHeight, accentSoft)
+            canvas.drawRect(totalsLeft, totalY, totalsLeft + 3.5f, totalY + cardHeight, accent)
+        } else {
+            canvas.drawRect(totalsLeft, totalY, right, totalY + document.summaryRows.size * lineHeight, rule.stroke())
+        }
+
+        val labelInset = if (colour) 12f else 9f
         for (row in document.summaryRows) {
-            canvas.drawText(row.label, totalsLeft + 9, totalY + 12, paint(BODY_SIZE, grey = true))
+            canvas.drawText(row.label, totalsLeft + labelInset, totalY + 12, paint(BODY_SIZE, grey = true))
             canvas.drawTextRight(row.value.bracketed(row.deduction), right - 9, totalY + 12, paint(BODY_SIZE))
             totalY += lineHeight
-            if (row !== document.summaryRows.last()) {
+            if (!colour && row !== document.summaryRows.last()) {
                 canvas.drawLine(totalsLeft, totalY, right, totalY, rule)
             }
         }
 
-        // The one figure the reader came for, in the accent and on a tint, with
-        // a solid bar down its left edge so it still reads as the end of the
-        // column when the page is photocopied and the tint goes.
-        val dueHeight = 28f
+        // The one figure the reader came for. On the colour page it closes the
+        // card it already sits in, over a hairline; on the mono page it is
+        // reversed out of solid black, which is the only weight left there.
         if (colour) {
-            canvas.drawRect(totalsLeft, totalY, right, totalY + dueHeight, accentSoft)
-            canvas.drawRect(totalsLeft, totalY, totalsLeft + 3.5f, totalY + dueHeight, accent)
-            canvas.drawText(document.closingLabel.uppercase(), totalsLeft + 12, totalY + 18, accentText(7.5f, bold = true))
-            canvas.drawTextRight(document.closingValue, right - 9, totalY + 19, accentText(13f, bold = true))
+            canvas.drawLine(totalsLeft + labelInset, totalY, right - 9, totalY, rule)
+            canvas.drawText(document.closingLabel.uppercase(), totalsLeft + labelInset, totalY + 18, accentText(7.5f, bold = true))
+            canvas.drawTextRight(document.closingValue, right - 9, totalY + 21, accentText(15f, bold = true))
         } else {
             canvas.drawRect(totalsLeft, totalY, right, totalY + dueHeight, fillInk)
             canvas.drawText(document.closingLabel.uppercase(), totalsLeft + 12, totalY + 18, reversed(7.5f))

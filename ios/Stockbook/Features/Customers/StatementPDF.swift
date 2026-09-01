@@ -167,17 +167,25 @@ enum StatementPDF {
         let factsTop = y
         let factsHeight: CGFloat = 46
         let middle = margin + width / 2
-        stroke(CGRect(x: margin, y: factsTop, width: width, height: factsHeight))
-        rule(from: CGPoint(x: middle, y: factsTop), to: CGPoint(x: middle, y: factsTop + factsHeight))
 
+        // Boxed only in the monochrome treatment, where a hairline is the only
+        // thing available to group two facts. The colour page has an accent label
+        // doing that job already, and a box round it as well is one device too
+        // many — the reason this page read busier than it should have.
+        if !colour {
+            stroke(CGRect(x: margin, y: factsTop, width: width, height: factsHeight))
+            rule(from: CGPoint(x: middle, y: factsTop), to: CGPoint(x: middle, y: factsTop + factsHeight))
+        }
+
+        let inset: CGFloat = colour ? 0 : 10
         let factLabel = colour ? accentText(7.5, bold: true) : attributes(7.5, muted: true)
-        document.accountLabel.uppercased().draw(at: CGPoint(x: margin + 10, y: factsTop + 5), withAttributes: factLabel)
-        document.partyName.draw(at: CGPoint(x: margin + 10, y: factsTop + 17), withAttributes: attributes(bodySize, bold: true))
-        document.partyLines.joined(separator: " · ").draw(at: CGPoint(x: margin + 10, y: factsTop + 30), withAttributes: attributes(8, muted: true))
+        document.accountLabel.uppercased().draw(at: CGPoint(x: margin + inset, y: factsTop + 4), withAttributes: factLabel)
+        document.partyName.draw(at: CGPoint(x: margin + inset, y: factsTop + 16), withAttributes: attributes(11, bold: true))
+        document.partyLines.joined(separator: " · ").draw(at: CGPoint(x: margin + inset, y: factsTop + 31), withAttributes: attributes(8, muted: true))
 
-        document.periodLabel.uppercased().draw(at: CGPoint(x: middle + 10, y: factsTop + 5), withAttributes: factLabel)
-        document.periodValue.draw(at: CGPoint(x: middle + 10, y: factsTop + 17), withAttributes: attributes(bodySize, bold: true))
-        document.summaryTitle.draw(at: CGPoint(x: middle + 10, y: factsTop + 30), withAttributes: attributes(8, muted: true))
+        document.periodLabel.uppercased().draw(at: CGPoint(x: middle + inset, y: factsTop + 4), withAttributes: factLabel)
+        document.periodValue.draw(at: CGPoint(x: middle + inset, y: factsTop + 16), withAttributes: attributes(11, bold: true))
+        document.summaryTitle.draw(at: CGPoint(x: middle + inset, y: factsTop + 31), withAttributes: attributes(8, muted: true))
 
         y = factsTop + factsHeight + 24
 
@@ -232,26 +240,39 @@ enum StatementPDF {
         y += 12
         let totalsLeft = margin + width * 0.52
         let lineHeight: CGFloat = 18
+        let dueHeight: CGFloat = 30
         var totalY = y
-        stroke(CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: CGFloat(document.summaryRows.count) * lineHeight))
+
+        // **One card, not a box and then a card.** The summary lines and the
+        // figure they add up to are one thought, and drawing a hairline rectangle
+        // round the lines and a tinted panel under them made two — the shape that
+        // had this page reading as a different design from the one it was meant
+        // to be.
+        if colour {
+            let cardHeight = CGFloat(document.summaryRows.count) * lineHeight + dueHeight
+            fill(CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: cardHeight), accentSoft)
+            fill(CGRect(x: totalsLeft, y: totalY, width: 3.5, height: cardHeight), accent)
+        } else {
+            stroke(CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: CGFloat(document.summaryRows.count) * lineHeight))
+        }
+
+        let labelInset: CGFloat = colour ? 12 : 9
         for (index, row) in document.summaryRows.enumerated() {
-            row.label.draw(at: CGPoint(x: totalsLeft + 9, y: totalY + 4), withAttributes: attributes(bodySize, muted: true))
+            row.label.draw(at: CGPoint(x: totalsLeft + labelInset, y: totalY + 4), withAttributes: attributes(bodySize, muted: true))
             drawRight(row.value.bracketed(row.deduction), rightEdge: right - 9, y: totalY + 4, attributes: attributes(bodySize))
             totalY += lineHeight
-            if index < document.summaryRows.count - 1 {
+            if !colour, index < document.summaryRows.count - 1 {
                 rule(from: CGPoint(x: totalsLeft, y: totalY), to: CGPoint(x: right, y: totalY))
             }
         }
 
-        // The one figure the reader came for, in the accent and on a tint, with a
-        // solid bar down its left edge so it still reads as the end of the column
-        // when the page is photocopied and the tint goes.
-        let dueHeight: CGFloat = 28
+        // The one figure the reader came for. On the colour page it closes the
+        // card it already sits in, over a hairline; on the mono page it is
+        // reversed out of solid black, which is the only weight left there.
         if colour {
-            fill(CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: dueHeight), accentSoft)
-            fill(CGRect(x: totalsLeft, y: totalY, width: 3.5, height: dueHeight), accent)
-            document.closingLabel.uppercased().draw(at: CGPoint(x: totalsLeft + 12, y: totalY + 6), withAttributes: accentText(7.5, bold: true))
-            drawRight(document.closingValue, rightEdge: right - 9, y: totalY + 7, attributes: accentText(13, bold: true))
+            rule(from: CGPoint(x: totalsLeft + labelInset, y: totalY), to: CGPoint(x: right - 9, y: totalY))
+            document.closingLabel.uppercased().draw(at: CGPoint(x: totalsLeft + labelInset, y: totalY + 7), withAttributes: accentText(7.5, bold: true))
+            drawRight(document.closingValue, rightEdge: right - 9, y: totalY + 7, attributes: accentText(15, bold: true))
         } else {
             fill(CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: dueHeight), ink)
             document.closingLabel.uppercased().draw(at: CGPoint(x: totalsLeft + 12, y: totalY + 6), withAttributes: reversed(7.5))
