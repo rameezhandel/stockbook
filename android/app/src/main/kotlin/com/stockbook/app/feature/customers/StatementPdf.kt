@@ -66,17 +66,29 @@ object StatementPdf {
         strokeWidth = 0.9f
     }
 
-    /** The heavy rule under the letterhead and over the column headings. */
-    private val heavyRule = Paint().apply {
+    /**
+     * The app's own violet, carried onto the paper.
+     *
+     * Somebody who has seen the phone recognises the page. It also costs colour:
+     * on a mono printer the band becomes a heavy grey slab and the tinted card
+     * goes pale but survives, which is the trade this treatment makes.
+     */
+    private val accent = Paint().apply {
         isAntiAlias = true
-        color = 0xFF14141C.toInt()
-        strokeWidth = 1.6f
+        color = 0xFF5C4FC4.toInt()
     }
 
-    /** Solid black behind the one figure the reader came for. */
-    private val fillInk = Paint().apply {
+    /** The same violet at a tenth, for the heading row and the totals card. */
+    private val accentSoft = Paint().apply {
         isAntiAlias = true
-        color = 0xFF14141C.toInt()
+        color = 0xFFEDEAFB.toInt()
+    }
+
+    private fun accentText(size: Float, bold: Boolean = false) = Paint().apply {
+        isAntiAlias = true
+        textSize = size
+        color = 0xFF5C4FC4.toInt()
+        typeface = Typeface.create(Typeface.SANS_SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
     }
 
     private fun reversed(size: Float) = Paint().apply {
@@ -129,18 +141,27 @@ object StatementPdf {
         val right = PAGE_WIDTH - MARGIN
         val width = right - MARGIN
 
-        // --- Letterhead
+        // --- The band
+        //
+        // Full bleed to the paper's edge, not inset to the margin: an inset
+        // colour block reads as a box somebody drew, where a band that runs off
+        // both sides reads as the head of the page.
         //
         // Sans throughout, deliberately. A serif here would set the shop's own
         // name — which the owner types, and which may be in Arabic or Kannada —
         // in a face whose coverage of those scripts is patchy, and the failure
         // is tofu boxes in the largest text on the page.
 
-        canvas.drawText(document.shopName, MARGIN, y + TITLE_SIZE, paint(TITLE_SIZE, bold = true))
-        canvas.drawTextRight(document.docType, right, y + TITLE_SIZE, paint(13f))
-        y += TITLE_SIZE + 10
-        canvas.drawLine(MARGIN, y, right, y, heavyRule)
-        y += 20
+        val bandHeight = 74f
+        canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), bandHeight, accent)
+        canvas.drawText(document.shopName, MARGIN, 30f, reversed(TITLE_SIZE))
+        for ((index, line) in document.shopAddressLines.withIndex()) {
+            canvas.drawText(line, MARGIN, 44f + index * 10f, reversed(7.5f).apply { alpha = 200 })
+        }
+        canvas.drawTextRight(document.docType.uppercase(), right, 26f, reversed(8f).apply { alpha = 210 })
+        canvas.drawTextRight(document.periodValue, right, 40f, reversed(11f))
+
+        y = bandHeight + 24
 
         // --- The two boxed facts: whose account, and over what
 
@@ -150,11 +171,11 @@ object StatementPdf {
         canvas.drawRect(MARGIN, factsTop, right, factsTop + factsHeight, rule.stroke())
         canvas.drawLine(middle, factsTop, middle, factsTop + factsHeight, rule)
 
-        canvas.drawText(document.accountLabel.uppercase(), MARGIN + 10, factsTop + 14, paint(7.5f, grey = true))
+        canvas.drawText(document.accountLabel.uppercase(), MARGIN + 10, factsTop + 14, accentText(7.5f, bold = true))
         canvas.drawText(document.partyName, MARGIN + 10, factsTop + 28, paint(BODY_SIZE, bold = true))
         canvas.drawText(document.partyLines.joinToString(" · "), MARGIN + 10, factsTop + 39, paint(8f, grey = true))
 
-        canvas.drawText(document.periodLabel.uppercase(), middle + 10, factsTop + 14, paint(7.5f, grey = true))
+        canvas.drawText(document.periodLabel.uppercase(), middle + 10, factsTop + 14, accentText(7.5f, bold = true))
         canvas.drawText(document.periodValue, middle + 10, factsTop + 28, paint(BODY_SIZE, bold = true))
         canvas.drawText(document.summaryTitle, middle + 10, factsTop + 39, paint(8f, grey = true))
 
@@ -166,14 +187,17 @@ object StatementPdf {
         y += 10
 
         fun headings() {
+            // Set on a tinted row rather than over a rule: the band at the top
+            // has already said this page uses colour, and a second heavy black
+            // rule would be a different page's idea.
+            canvas.drawRect(MARGIN, y - 2, right, y + 13, accentSoft)
             val head = paint(7.5f, grey = true)
             canvas.drawText(document.columnHeadings[0].uppercase(), MARGIN + width * COL_DATE, y + 10, head)
             canvas.drawText(document.columnHeadings[1].uppercase(), MARGIN + width * COL_REFERENCE, y + 10, head)
             canvas.drawTextRight(document.columnHeadings[2].uppercase(), MARGIN + width * EDGE_CHARGE, y + 10, head)
             canvas.drawTextRight(document.columnHeadings[3].uppercase(), MARGIN + width * EDGE_SETTLED, y + 10, head)
             canvas.drawTextRight(document.columnHeadings[4].uppercase(), MARGIN + width * EDGE_BALANCE, y + 10, head)
-            y += 15
-            canvas.drawLine(MARGIN, y, right, y, heavyRule)
+            y += 17
         }
         headings()
 
@@ -220,18 +244,20 @@ object StatementPdf {
             }
         }
 
-        // Reversed out of solid black. The one figure the reader came for, and
-        // the only place on the page where weight alone was not enough.
-        val dueHeight = 24f
-        canvas.drawRect(totalsLeft, totalY, right, totalY + dueHeight, fillInk)
-        canvas.drawText(document.closingLabel, totalsLeft + 9, totalY + 16, reversed(BODY_SIZE))
-        canvas.drawTextRight(document.closingValue, right - 9, totalY + 16, reversed(BODY_SIZE))
+        // The one figure the reader came for, in the accent and on a tint, with
+        // a solid bar down its left edge so it still reads as the end of the
+        // column when the page is photocopied and the tint goes.
+        val dueHeight = 28f
+        canvas.drawRect(totalsLeft, totalY, right, totalY + dueHeight, accentSoft)
+        canvas.drawRect(totalsLeft, totalY, totalsLeft + 3.5f, totalY + dueHeight, accent)
+        canvas.drawText(document.closingLabel.uppercase(), totalsLeft + 12, totalY + 18, accentText(7.5f, bold = true))
+        canvas.drawTextRight(document.closingValue, right - 9, totalY + 19, accentText(13f, bold = true))
 
         // --- Footer: the address, and which page this is
 
         val footY = PAGE_HEIGHT - MARGIN + 4
         canvas.drawLine(MARGIN, footY - 14, right, footY - 14, rule)
-        canvas.drawText(document.shopAddressLines.joinToString(", "), MARGIN, footY, paint(7.5f, grey = true))
+        canvas.drawText(document.partyName, MARGIN, footY, paint(7.5f, grey = true))
         canvas.drawTextRight("$pageNumber", right, footY, paint(7.5f, grey = true))
 
         pdf.finishPage(page)

@@ -50,8 +50,18 @@ enum DayLedgerPDF {
     /// roll-call the banding is what keeps the eye on one line.
     private static let bandColour = UIColor(red: 0.902, green: 0.902, blue: 0.925, alpha: 1)
 
-    private static func reversed(_ size: CGFloat) -> [NSAttributedString.Key: Any] {
-        [.font: UIFont.boldSystemFont(ofSize: size), .foregroundColor: UIColor.white]
+    /// The app's own violet, as on the statement.
+    private static let accent = UIColor(red: 0.361, green: 0.310, blue: 0.769, alpha: 1)
+    /// The same violet at a tenth, behind the column headings.
+    private static let accentSoft = UIColor(red: 0.929, green: 0.918, blue: 0.984, alpha: 1)
+
+    private static func reversed(_ size: CGFloat, alpha: CGFloat = 1) -> [NSAttributedString.Key: Any] {
+        [.font: UIFont.boldSystemFont(ofSize: size), .foregroundColor: UIColor.white.withAlphaComponent(alpha)]
+    }
+
+    private static func fill(_ rect: CGRect, _ colour: UIColor) {
+        colour.setFill()
+        UIBezierPath(rect: rect).fill()
     }
 
     private static func attributes(
@@ -76,13 +86,14 @@ enum DayLedgerPDF {
             let width = right - margin
             var y = margin
 
-            document.shopName.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(titleSize, bold: true))
-            drawRight(document.title, rightEdge: right, y: y + 3, attributes: attributes(13))
-            y += titleSize + 12
-            heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-            y += 14
-            document.onDate.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, bold: true))
-            y += bodySize + 6
+            // The same band the statement carries, full bleed, so a folder of
+            // these reads as one shop's paperwork.
+            let bandHeight: CGFloat = 58
+            fill(CGRect(x: 0, y: 0, width: pageSize.width, height: bandHeight), accent)
+            document.shopName.draw(at: CGPoint(x: margin, y: 16), withAttributes: reversed(titleSize))
+            drawRight(document.title.uppercased(), rightEdge: right, y: 16, attributes: reversed(8, alpha: 0.82))
+            drawRight(document.onDate, rightEdge: right, y: 30, attributes: reversed(11))
+            y = bandHeight + 18
 
             // Only on a narrowed page, and said before the figures rather than
             // after: somebody reading the totals has to already know what they
@@ -102,15 +113,14 @@ enum DayLedgerPDF {
             }
 
             func headings() {
+                fill(CGRect(x: margin, y: y - 3, width: width, height: 15), accentSoft)
                 let head = attributes(7.5, muted: true)
                 document.columnHeadings[0].uppercased().draw(at: CGPoint(x: margin, y: y), withAttributes: head)
                 drawRight(document.columnHeadings[1].uppercased(), rightEdge: margin + width * edgeInvoiced, y: y, attributes: head)
                 drawRight(document.columnHeadings[2].uppercased(), rightEdge: margin + width * edgeReceived, y: y, attributes: head)
                 drawRight(document.columnHeadings[3].uppercased(), rightEdge: margin + width * edgeOld, y: y, attributes: head)
                 drawRight(document.columnHeadings[4].uppercased(), rightEdge: margin + width * edgeCurrent, y: y, attributes: head)
-                y += 13
-                heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-                y += 3
+                y += 17
             }
             headings()
 
@@ -154,8 +164,7 @@ enum DayLedgerPDF {
             // Reversed out of solid black, like the statement's balance due: the
             // line the whole page adds up to, and the one a reader checks first.
             y += 4
-            ink.setFill()
-            UIBezierPath(rect: CGRect(x: margin, y: y, width: width, height: 20)).fill()
+            fill(CGRect(x: margin, y: y, width: width, height: 22), accent)
             let total = reversed(rowSize)
             document.totalLabel.draw(at: CGPoint(x: margin + 6, y: y + 5), withAttributes: total)
             drawRight(document.totals[0], rightEdge: margin + width * edgeInvoiced - 2, y: y + 5, attributes: total)
@@ -207,13 +216,4 @@ enum DayLedgerPDF {
         path.stroke()
     }
 
-    /// The heavy rule under the letterhead and over the column headings.
-    private static func heavyRule(from: CGPoint, to: CGPoint) {
-        let path = UIBezierPath()
-        path.move(to: from)
-        path.addLine(to: to)
-        path.lineWidth = 1.6
-        ink.setStroke()
-        path.stroke()
-    }
 }

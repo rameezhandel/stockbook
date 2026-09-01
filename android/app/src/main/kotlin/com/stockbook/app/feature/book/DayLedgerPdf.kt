@@ -60,13 +60,6 @@ object DayLedgerPdf {
         strokeWidth = 0.9f
     }
 
-    /** The heavy rule under the letterhead and over the column headings. */
-    private val heavyRule = Paint().apply {
-        isAntiAlias = true
-        color = 0xFF14141C.toInt()
-        strokeWidth = 1.6f
-    }
-
     /**
      * The band behind every other row, at 10% rather than the 6% it looks like
      * it wants.
@@ -81,9 +74,23 @@ object DayLedgerPdf {
         color = 0xFFE6E6EC.toInt()
     }
 
-    private val fillInk = Paint().apply {
+    /** The app's own violet, as on the statement. */
+    private val accent = Paint().apply {
         isAntiAlias = true
-        color = 0xFF14141C.toInt()
+        color = 0xFF5C4FC4.toInt()
+    }
+
+    /** The same violet at a tenth, behind the column headings. */
+    private val accentSoft = Paint().apply {
+        isAntiAlias = true
+        color = 0xFFEDEAFB.toInt()
+    }
+
+    private fun accentText(size: Float, bold: Boolean = false) = Paint().apply {
+        isAntiAlias = true
+        textSize = size
+        color = 0xFF5C4FC4.toInt()
+        typeface = Typeface.create(Typeface.SANS_SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
     }
 
     private fun reversed(size: Float) = Paint().apply {
@@ -109,13 +116,14 @@ object DayLedgerPdf {
         val width = right - MARGIN
         var y = MARGIN
 
-        canvas.drawText(document.shopName, MARGIN, y + TITLE_SIZE, paint(TITLE_SIZE, bold = true))
-        canvas.drawTextRight(document.title, right, y + TITLE_SIZE, paint(13f))
-        y += TITLE_SIZE + 10
-        canvas.drawLine(MARGIN, y, right, y, heavyRule)
-        y += 16
-        canvas.drawText(document.onDate, MARGIN, y + BODY_SIZE, paint(BODY_SIZE, bold = true))
-        y += BODY_SIZE + 6
+        // The same band the statement carries, full bleed, so a folder of these
+        // reads as one shop's paperwork.
+        val bandHeight = 58f
+        canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), bandHeight, accent)
+        canvas.drawText(document.shopName, MARGIN, 28f, reversed(TITLE_SIZE))
+        canvas.drawTextRight(document.title.uppercase(), right, 24f, reversed(8f).apply { alpha = 210 })
+        canvas.drawTextRight(document.onDate, right, 40f, reversed(11f))
+        y = bandHeight + 18
 
         // Only on a narrowed page, and said before the figures rather than after:
         // somebody reading the totals has to already know what they are the total
@@ -133,14 +141,14 @@ object DayLedgerPdf {
         }
 
         fun headings() {
+            canvas.drawRect(MARGIN, y - 2, right, y + 13, accentSoft)
             val head = paint(7.5f, grey = true)
             canvas.drawText(document.columnHeadings[0].uppercase(), MARGIN, y + 10, head)
             canvas.drawTextRight(document.columnHeadings[1].uppercase(), MARGIN + width * EDGE_INVOICED, y + 10, head)
             canvas.drawTextRight(document.columnHeadings[2].uppercase(), MARGIN + width * EDGE_RECEIVED, y + 10, head)
             canvas.drawTextRight(document.columnHeadings[3].uppercase(), MARGIN + width * EDGE_OLD, y + 10, head)
             canvas.drawTextRight(document.columnHeadings[4].uppercase(), MARGIN + width * EDGE_CURRENT, y + 10, head)
-            y += 14
-            canvas.drawLine(MARGIN, y, right, y, heavyRule)
+            y += 17
         }
         headings()
 
@@ -181,8 +189,8 @@ object DayLedgerPdf {
         // Reversed out of solid black, like the statement's balance due: the
         // line the whole page adds up to, and the one a reader checks first.
         y += 4
-        val totalHeight = 20f
-        canvas.drawRect(MARGIN, y, right, y + totalHeight, fillInk)
+        val totalHeight = 22f
+        canvas.drawRect(MARGIN, y, right, y + totalHeight, accent)
         val total = reversed(ROW_SIZE)
         canvas.drawText(document.totalLabel, MARGIN + 6, y + 14, total)
         canvas.drawTextRight(document.totals[0], MARGIN + width * EDGE_INVOICED - 2, y + 14, total)

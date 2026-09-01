@@ -40,8 +40,30 @@ enum StatementPDF {
     /// photocopied, and a 16%-grey rule is the first thing a copier loses.
     private static let ruleColour = UIColor(red: 0.769, green: 0.769, blue: 0.816, alpha: 1)
 
-    private static func reversed(_ size: CGFloat) -> [NSAttributedString.Key: Any] {
-        [.font: UIFont.boldSystemFont(ofSize: size), .foregroundColor: UIColor.white]
+    /// The app's own violet, carried onto the paper.
+    ///
+    /// Somebody who has seen the phone recognises the page. It also costs
+    /// colour: on a mono printer the band becomes a heavy grey slab and the
+    /// tinted card goes pale but survives, which is the trade this treatment
+    /// makes.
+    private static let accent = UIColor(red: 0.361, green: 0.310, blue: 0.769, alpha: 1)
+    /// The same violet at a tenth, for the heading row and the totals card.
+    private static let accentSoft = UIColor(red: 0.929, green: 0.918, blue: 0.984, alpha: 1)
+
+    private static func reversed(_ size: CGFloat, alpha: CGFloat = 1) -> [NSAttributedString.Key: Any] {
+        [.font: UIFont.boldSystemFont(ofSize: size), .foregroundColor: UIColor.white.withAlphaComponent(alpha)]
+    }
+
+    private static func accentText(_ size: CGFloat, bold: Bool = false) -> [NSAttributedString.Key: Any] {
+        [
+            .font: bold ? UIFont.boldSystemFont(ofSize: size) : UIFont.systemFont(ofSize: size),
+            .foregroundColor: accent
+        ]
+    }
+
+    private static func fill(_ rect: CGRect, _ colour: UIColor) {
+        colour.setFill()
+        UIBezierPath(rect: rect).fill()
     }
 
     private static func attributes(_ size: CGFloat, bold: Bool = false, muted: Bool = false) -> [NSAttributedString.Key: Any] {
@@ -88,18 +110,30 @@ enum StatementPDF {
         let width = right - margin
         var y = margin
 
-        // MARK: Letterhead
+        // MARK: The band
+        //
+        // Full bleed to the paper's edge, not inset to the margin: an inset
+        // colour block reads as a box somebody drew, where a band that runs off
+        // both sides reads as the head of the page.
         //
         // Sans throughout, deliberately. A serif here would set the shop's own
         // name — which the owner types, and which may be in Arabic or Kannada —
         // in a face whose coverage of those scripts is patchy, and the failure is
         // tofu boxes in the largest text on the page.
 
-        document.shopName.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(titleSize, bold: true))
-        drawRight(document.docType, rightEdge: right, y: y + 3, attributes: attributes(13))
-        y += titleSize + 12
-        heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-        y += 18
+        let bandHeight: CGFloat = 74
+        fill(CGRect(x: 0, y: 0, width: pageSize.width, height: bandHeight), accent)
+        document.shopName.draw(at: CGPoint(x: margin, y: 18), withAttributes: reversed(titleSize))
+        for (index, addressLine) in document.shopAddressLines.enumerated() {
+            addressLine.draw(
+                at: CGPoint(x: margin, y: 38 + CGFloat(index) * 10),
+                withAttributes: reversed(7.5, alpha: 0.8)
+            )
+        }
+        drawRight(document.docType.uppercased(), rightEdge: right, y: 18, attributes: reversed(8, alpha: 0.82))
+        drawRight(document.periodValue, rightEdge: right, y: 30, attributes: reversed(11))
+
+        y = bandHeight + 24
 
         // MARK: The two boxed facts — whose account, and over what
 
@@ -109,11 +143,11 @@ enum StatementPDF {
         stroke(CGRect(x: margin, y: factsTop, width: width, height: factsHeight))
         rule(from: CGPoint(x: middle, y: factsTop), to: CGPoint(x: middle, y: factsTop + factsHeight))
 
-        document.accountLabel.uppercased().draw(at: CGPoint(x: margin + 10, y: factsTop + 5), withAttributes: attributes(7.5, muted: true))
+        document.accountLabel.uppercased().draw(at: CGPoint(x: margin + 10, y: factsTop + 5), withAttributes: accentText(7.5, bold: true))
         document.partyName.draw(at: CGPoint(x: margin + 10, y: factsTop + 17), withAttributes: attributes(bodySize, bold: true))
         document.partyLines.joined(separator: " · ").draw(at: CGPoint(x: margin + 10, y: factsTop + 30), withAttributes: attributes(8, muted: true))
 
-        document.periodLabel.uppercased().draw(at: CGPoint(x: middle + 10, y: factsTop + 5), withAttributes: attributes(7.5, muted: true))
+        document.periodLabel.uppercased().draw(at: CGPoint(x: middle + 10, y: factsTop + 5), withAttributes: accentText(7.5, bold: true))
         document.periodValue.draw(at: CGPoint(x: middle + 10, y: factsTop + 17), withAttributes: attributes(bodySize, bold: true))
         document.summaryTitle.draw(at: CGPoint(x: middle + 10, y: factsTop + 30), withAttributes: attributes(8, muted: true))
 
@@ -125,15 +159,17 @@ enum StatementPDF {
         y += 14
 
         func headings() {
+            // Set on a tinted row rather than over a rule: the band at the top
+            // has already said this page uses colour, and a second heavy black
+            // rule would be a different page's idea.
+            fill(CGRect(x: margin, y: y - 3, width: width, height: 15), accentSoft)
             let head = attributes(7.5, muted: true)
             document.columnHeadings[0].uppercased().draw(at: CGPoint(x: margin + width * colDate, y: y), withAttributes: head)
             document.columnHeadings[1].uppercased().draw(at: CGPoint(x: margin + width * colReference, y: y), withAttributes: head)
             drawRight(document.columnHeadings[2].uppercased(), rightEdge: margin + width * edgeCharge, y: y, attributes: head)
             drawRight(document.columnHeadings[3].uppercased(), rightEdge: margin + width * edgeSettled, y: y, attributes: head)
             drawRight(document.columnHeadings[4].uppercased(), rightEdge: margin + width * edgeBalance, y: y, attributes: head)
-            y += 13
-            heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-            y += 4
+            y += 17
         }
         headings()
 
@@ -178,29 +214,20 @@ enum StatementPDF {
             }
         }
 
-        // Reversed out of solid black. The one figure the reader came for, and
-        // the only place on the page where weight alone was not enough.
-        let dueHeight: CGFloat = 24
-        ink.setFill()
-        UIBezierPath(rect: CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: dueHeight)).fill()
-        document.closingLabel.draw(at: CGPoint(x: totalsLeft + 9, y: totalY + 7), withAttributes: reversed(bodySize))
-        drawRight(document.closingValue, rightEdge: right - 9, y: totalY + 7, attributes: reversed(bodySize))
+        // The one figure the reader came for, in the accent and on a tint, with a
+        // solid bar down its left edge so it still reads as the end of the column
+        // when the page is photocopied and the tint goes.
+        let dueHeight: CGFloat = 28
+        fill(CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: dueHeight), accentSoft)
+        fill(CGRect(x: totalsLeft, y: totalY, width: 3.5, height: dueHeight), accent)
+        document.closingLabel.uppercased().draw(at: CGPoint(x: totalsLeft + 12, y: totalY + 6), withAttributes: accentText(7.5, bold: true))
+        drawRight(document.closingValue, rightEdge: right - 9, y: totalY + 7, attributes: accentText(13, bold: true))
 
         // MARK: Footer — the address, and the shop it came from
 
         let footY = pageSize.height - margin - 10
         rule(from: CGPoint(x: margin, y: footY - 6), to: CGPoint(x: right, y: footY - 6))
-        document.shopAddressLines.joined(separator: ", ").draw(at: CGPoint(x: margin, y: footY), withAttributes: attributes(7.5, muted: true))
-    }
-
-    /// The heavy rule under the letterhead and over the column headings.
-    private static func heavyRule(from: CGPoint, to: CGPoint) {
-        let path = UIBezierPath()
-        path.move(to: from)
-        path.addLine(to: to)
-        path.lineWidth = 1.6
-        ink.setStroke()
-        path.stroke()
+        document.partyName.draw(at: CGPoint(x: margin, y: footY), withAttributes: attributes(7.5, muted: true))
     }
 
     // MARK: Drawing helpers
