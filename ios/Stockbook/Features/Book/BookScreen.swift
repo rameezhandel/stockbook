@@ -98,8 +98,9 @@ struct BookScreen: View {
     /// Every customer's whole history as one document, a page each.
     ///
     /// Drawn through the same routine that draws a single statement, so a sheet
-    /// pulled out of this book is exactly the statement that customer would have
-    /// been handed.
+    /// pulled out of this book is the same page that customer would have been
+    /// handed — the same geometry and the same figures, in one ink rather than
+    /// two.
     ///
     /// A failure leaves `file` nil and nothing opens, which is the honest outcome
     /// the other pages already settled on.
@@ -110,7 +111,11 @@ struct BookScreen: View {
         guard !pages.isEmpty,
               let url = try? StatementPDF.write(
                   pages,
-                  fileName: Loc.ledgerBookFileName(Copy.fileDate(.now))
+                  fileName: Loc.ledgerBookFileName(Copy.fileDate(.now)),
+                  // A hundred pages printed at once. The band is worth its toner
+                  // on the one sheet a customer is handed; it is not worth it a
+                  // hundred times into a folder.
+                  colour: false
               )
         else { return }
         file = StatementFile(url: url)

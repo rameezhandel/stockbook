@@ -218,8 +218,9 @@ private fun Shell(store: StockbookStore) {
                         onSaveLedgerBook = {
                             // One document, a page per customer, drawn through
                             // the same routine that draws a single statement —
-                            // so a sheet pulled out of this book is exactly the
-                            // statement that customer would have been handed.
+                            // so a sheet pulled out of this book is the same page
+                            // that customer would have been handed, the same
+                            // geometry and the same figures, in one ink not two.
                             sharePdf(
                                 context,
                                 StatementPdf.write(
@@ -227,7 +228,12 @@ private fun Shell(store: StockbookStore) {
                                         StatementDocument.make(it, state.settings, strings)
                                     },
                                     context,
-                                    strings.ledgerBookFileName(Dates.fileDate(Timestamps.now()))
+                                    strings.ledgerBookFileName(Dates.fileDate(Timestamps.now())),
+                                    // A hundred pages printed at once. The band
+                                    // is worth its toner on the one sheet a
+                                    // customer is handed; it is not worth it a
+                                    // hundred times into a folder.
+                                    colour = false
                                 )
                             )
                         }
