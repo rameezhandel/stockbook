@@ -30,6 +30,7 @@ import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.StockbookTabBar
 import com.stockbook.app.design.StockbookTheme
 import com.stockbook.app.design.BottomSheet
+import com.stockbook.app.feature.bills.BillPdf
 import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.book.BookScreen
 import com.stockbook.app.feature.book.MoveBalanceSheet
@@ -63,11 +64,14 @@ import com.stockbook.app.feature.today.SummaryPdf
 import com.stockbook.app.feature.today.WhoOwesYouSheet
 import com.stockbook.app.feature.today.WhoYouOweSheet
 import com.stockbook.core.model.AppTheme
+import com.stockbook.core.model.Bill
+import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Timestamps
 import com.stockbook.app.photos.PhotoStore
 import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppTab
+import com.stockbook.core.text.BillDocument
 import com.stockbook.core.text.Dates
 import com.stockbook.core.text.DaySummaryDocument
 import com.stockbook.core.text.EarningsDocument
@@ -388,7 +392,7 @@ private fun Shell(store: StockbookStore) {
                 bill = bill,
                 state = state,
                 strings = strings,
-                onShare = { text -> shareText(context, text) },
+                onSharePdf = { shareBillPdf(context, bill, state, store, strings) },
                 onSeeBills = {
                     router.receipt = null
                     router.tab = AppTab.BOOK
@@ -688,7 +692,7 @@ private fun Shell(store: StockbookStore) {
                     state = state,
                     store = store,
                     strings = strings,
-                    onShare = { text -> shareText(context, text) },
+                    onSharePdf = { live -> shareBillPdf(context, live, state, store, strings) },
                     onSharePhoto = { id -> sharePhoto(context, PhotoStore(context).file(id)) },
                     onEdit = { existing ->
                         // Filled here rather than inside the router, which is the
@@ -736,6 +740,44 @@ private fun Shell(store: StockbookStore) {
             )
         }
     }
+}
+
+/**
+ * Renders one bill and hands the file out.
+ *
+ * Both ways a bill is shared go through here — the confirmation straight after
+ * saving, and the sheet a bill is opened on later — so the copy a customer is
+ * given at the counter and the copy they ask for a week afterwards are the same
+ * document.
+ *
+ * The customer is looked up rather than taken from the bill: `Bill.who` is the
+ * name typed at the counter and is all a bill carries, while the place and phone
+ * that go under it live on the roster.
+ */
+private fun shareBillPdf(
+    context: android.content.Context,
+    bill: Bill,
+    state: com.stockbook.core.model.ShopState,
+    store: StockbookStore,
+    strings: Strings
+) {
+    val document = BillDocument.make(
+        bill,
+        state.settings,
+        strings,
+        customer = store.customer(Customer.key(bill.who))
+    )
+    sharePdf(
+        context,
+        BillPdf.write(
+            document,
+            context,
+            strings.billFileName(
+                document.reference.replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').lowercase(),
+                Dates.fileDate(bill.createdAt)
+            )
+        )
+    )
 }
 
 /**

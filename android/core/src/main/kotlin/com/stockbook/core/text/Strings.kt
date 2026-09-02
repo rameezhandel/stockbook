@@ -742,6 +742,20 @@ class Strings(val language: AppLanguage) {
 
     val billDate: String get() = pick("Date", "ದಿನಾಂಕ")
 
+    /**
+     * Set against the letterhead on the printed bill.
+     *
+     * The word the customer's own file will call it, not the app's. Inside the
+     * app a bill is a bill; on paper handed across a counter it is an invoice,
+     * whichever number ended up on it.
+     */
+    val billDocType: String get() = pick("Invoice", "ಬಿಲ್")
+
+    /** Above the customer's name on that page — the mirror of `receivedFrom`. */
+    val billedToLabel: String get() = pick("Billed to:", "ಬಿಲ್ ಇವರಿಗೆ:")
+
+    fun billFileName(name: String, date: String): String = "bill-$name-$date.pdf"
+
     // Two numbers the same is two records the shop cannot tell apart later, so
     // the clash is named — whose it is and when — rather than merely reported.
     fun invoiceNoAlreadyUsed(who: String, date: String): String =

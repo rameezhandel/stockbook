@@ -14,6 +14,9 @@ struct ReceiptOverlay: View {
     /// a flourish, and the overshoot is what makes it read as confirmation.
     @State private var checkScale: CGFloat = 0.4
 
+    /// The rendered bill, waiting for the share sheet.
+    @State private var file: StatementFile?
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -25,6 +28,7 @@ struct ReceiptOverlay: View {
         .padding(.bottom, max(bottomInset, 24))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Nocturne.bg.ignoresSafeArea())
+        .sheet(item: $file) { ShareSheet(url: $0.url) }
         .onAppear {
             withAnimation(.spring(response: 0.34, dampingFraction: 0.52)) {
                 checkScale = 1
@@ -63,13 +67,10 @@ struct ReceiptOverlay: View {
         VStack(spacing: 8) {
             // Send it now or never: the moment the customer is still at the
             // counter is the moment they want the bill on their phone.
-            ShareLink(item: BillText.plainText(
-                bill,
-                shopName: store.settings.ownerName,
-                currency: store.settings.currency,
-                strings: Loc
-            )) {
-                Label(Loc.share, systemImage: Icon.share)
+            Button {
+                file = BillFile.make(bill, in: store)
+            } label: {
+                Label(Loc.sharePdf, systemImage: Icon.share)
             }
             .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
 

@@ -33,7 +33,6 @@ import com.stockbook.core.model.Bill
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
-import com.stockbook.core.text.BillText
 import com.stockbook.core.text.Strings
 
 /**
@@ -53,7 +52,8 @@ fun BillSheet(
     state: ShopState,
     store: StockbookStore,
     strings: Strings,
-    onShare: (String) -> Unit,
+    /** Renders this bill and hands the file out. Re-read, so a correction goes with it. */
+    onSharePdf: (Bill) -> Unit,
     /** Sends one photograph out through the share sheet, as a file rather than text. */
     onSharePhoto: (String) -> Unit,
     /** Hands the bill to the form it was written on. The shell fills the cart. */
@@ -162,15 +162,13 @@ fun BillSheet(
         }
 
         // The bill as something to send: the customer asking for "the invoice"
-        // wants it on their phone, and plain text is what reaches them there.
+        // wants the document, not a description of it. The same page the
+        // confirmation hands out, so a copy asked for a week later is the copy
+        // they were given at the counter.
         Spacer(Modifier.height(14.dp))
         SecondaryButton(
-            strings.share,
-            onClick = {
-                onShare(
-                    BillText.plainText(live, state.settings.ownerName, state.settings.currency, strings)
-                )
-            },
+            strings.sharePdf,
+            onClick = { onSharePdf(live) },
             fullWidth = true,
             height = 44.dp,
             fontSize = 13.5,

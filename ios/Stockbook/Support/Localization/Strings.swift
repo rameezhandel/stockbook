@@ -721,6 +721,18 @@ struct Strings {
 
     var billDate: String { pick("Date", "ದಿನಾಂಕ") }
 
+    /// Set against the letterhead on the printed bill.
+    ///
+    /// The word the customer's own file will call it, not the app's. Inside the
+    /// app a bill is a bill; on paper handed across a counter it is an invoice,
+    /// whichever number ended up on it.
+    var billDocType: String { pick("Invoice", "ಬಿಲ್") }
+
+    /// Above the customer's name on that page — the mirror of `receivedFrom`.
+    var billedToLabel: String { pick("Billed to:", "ಬಿಲ್ ಇವರಿಗೆ:") }
+
+    func billFileName(_ name: String, _ date: String) -> String { "bill-\(name)-\(date).pdf" }
+
     /// The date a sale is *entered* is not always the date it happened. Said out
     /// loud on the cart, because a shop catching up at closing time would
     /// otherwise stamp the whole day at once and never notice.

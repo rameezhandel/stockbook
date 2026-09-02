@@ -41,7 +41,6 @@ import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.feature.bills.BillTemplate
 import com.stockbook.core.model.Bill
 import com.stockbook.core.model.ShopState
-import com.stockbook.core.text.BillText
 import com.stockbook.core.text.Strings
 
 /**
@@ -53,7 +52,7 @@ fun ReceiptOverlay(
     bill: Bill,
     state: ShopState,
     strings: Strings,
-    onShare: (String) -> Unit,
+    onSharePdf: () -> Unit,
     onSeeBills: () -> Unit,
     onNextCustomer: () -> Unit
 ) {
@@ -110,12 +109,8 @@ fun ReceiptOverlay(
         // is the moment they want the bill on their phone.
         Spacer(Modifier.height(14.dp))
         SecondaryButton(
-            strings.share,
-            onClick = {
-                onShare(
-                    BillText.plainText(bill, state.settings.ownerName, state.settings.currency, strings)
-                )
-            },
+            strings.sharePdf,
+            onClick = onSharePdf,
             fullWidth = true,
             height = 44.dp,
             fontSize = 13.5,

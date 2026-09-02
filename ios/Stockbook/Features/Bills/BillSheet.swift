@@ -27,6 +27,8 @@ struct BillSheet: View {
     @State private var picked: PhotosPickerItem?
     @State private var takingPhoto = false
     @State private var trouble: String?
+    /// The rendered bill, waiting for the share sheet.
+    @State private var file: StatementFile?
 
     private let photos = PhotoStore()
 
@@ -108,10 +110,13 @@ struct BillSheet: View {
             }
 
             // The bill as something to send: the customer asking for "the
-            // invoice" wants it on their phone, and plain text is what reaches
-            // them there.
-            ShareLink(item: plainText(live)) {
-                Label(Loc.share, systemImage: Icon.share)
+            // invoice" wants the document, not a description of it. The same
+            // page the confirmation hands out, so a copy asked for a week later
+            // is the copy they were given at the counter.
+            Button {
+                file = BillFile.make(live, in: store)
+            } label: {
+                Label(Loc.sharePdf, systemImage: Icon.share)
             }
             .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
 
@@ -145,6 +150,7 @@ struct BillSheet: View {
                 Text(Loc.removeBillNote).nocturneText(.meta)
             }
         }
+        .sheet(item: $file) { ShareSheet(url: $0.url) }
         .fullScreenCover(isPresented: $takingPhoto) {
             CameraSheet { data in
                 takingPhoto = false
@@ -204,14 +210,5 @@ struct BillSheet: View {
         }
         store.attachPhoto(billNumber: live.number, photoID: id)
         trouble = nil
-    }
-
-    private func plainText(_ bill: Bill) -> String {
-        BillText.plainText(
-            bill,
-            shopName: store.settings.ownerName,
-            currency: store.settings.currency,
-            strings: Loc
-        )
     }
 }
