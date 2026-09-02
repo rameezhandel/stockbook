@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import com.stockbook.core.text.StatementDocument
+import com.stockbook.core.text.SummaryDocument
 import java.io.File
 
 /**
@@ -156,6 +157,125 @@ object StatementPdf {
         file.outputStream().use { pdf.writeTo(it) }
         pdf.close()
         return file
+    }
+
+    /**
+     * The ledger book: a contents page, then every customer's own sheet.
+     *
+     * The index is drawn from [SummaryDocument.forLedgerBook], which is built
+     * from the very statements passed here — so a line in the contents and the
+     * page it points at cannot state different balances. Both are drawn in the
+     * monochrome treatment, because the whole book is filed rather than handed
+     * over.
+     */
+    fun writeLedgerBook(
+        index: SummaryDocument,
+        pages: List<StatementDocument>,
+        into: Context,
+        fileName: String
+    ): File {
+        val pdf = PdfDocument()
+        var pageNumber = drawIndex(index, pdf, 0)
+        for (page in pages) {
+            pageNumber = draw(page, pdf, pageNumber, colour = false)
+        }
+        val file = File(into.cacheDir, fileName)
+        file.outputStream().use { pdf.writeTo(it) }
+        pdf.close()
+        return file
+    }
+
+    /**
+     * The contents page: two columns, however many sheets it takes.
+     *
+     * Its own routine rather than [SummaryPdf], which writes a file of its own
+     * and draws the colour treatment — this one has to append into a book
+     * already being built, and in one ink. The wording is still shared: every
+     * string here came from [SummaryDocument].
+     *
+     * Returns the last page it used, so the statements know where to carry on.
+     */
+    private fun drawIndex(document: SummaryDocument, pdf: PdfDocument, from: Int): Int {
+        var pageNumber = from + 1
+        var page = pdf.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
+        var canvas = page.canvas
+        val right = PAGE_WIDTH - MARGIN
+        val width = right - MARGIN
+        var y = MARGIN
+
+        // Named at the foot of every sheet, because an index that runs to three
+        // pages is three loose sheets the moment the staple comes out.
+        fun footer() {
+            val footY = PAGE_HEIGHT - MARGIN + 4
+            canvas.drawLine(MARGIN, footY - 14, right, footY - 14, rule)
+            canvas.drawText(document.title, MARGIN, footY, paint(7.5f, grey = true))
+            canvas.drawTextRight("$pageNumber", right, footY, paint(7.5f, grey = true))
+        }
+
+        canvas.drawText(document.shopName, MARGIN, y + TITLE_SIZE, paint(TITLE_SIZE, bold = true))
+        canvas.drawTextRight(document.title, right, y + TITLE_SIZE, paint(13f))
+        y += TITLE_SIZE + 6
+        // A balance is true at a moment, so the moment is on the page. Without
+        // it, last month's printout reads as this morning's.
+        canvas.drawText(document.asOf, MARGIN, y + 8, paint(7.5f, grey = true))
+        y += 14
+        canvas.drawLine(MARGIN, y, right, y, heavyRule)
+        y += 20
+
+        if (document.isEmpty) {
+            canvas.drawText(document.emptyLine, MARGIN, y + BODY_SIZE, paint(BODY_SIZE, grey = true))
+            footer()
+            pdf.finishPage(page)
+            return pageNumber
+        }
+
+        fun headings() {
+            val head = paint(7.5f, grey = true)
+            canvas.drawText(document.columnHeadings[0].uppercase(), MARGIN, y + 8, head)
+            canvas.drawTextRight(document.columnHeadings[1].uppercase(), right, y + 8, head)
+            y += 12
+            canvas.drawLine(MARGIN, y, right, y, heavyRule)
+            y += 6
+        }
+        headings()
+
+        val body = paint(ROW_SIZE)
+        for (row in document.rows) {
+            // A break before a row rather than through one, and the headings
+            // repeat: a second sheet whose columns are unlabelled is a sheet
+            // nobody can read on its own. The room kept back is for the total,
+            // which must not be orphaned onto a page of its own.
+            if (y + 17 > PAGE_HEIGHT - MARGIN - 60) {
+                footer()
+                pdf.finishPage(page)
+                pageNumber += 1
+                page = pdf.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
+                canvas = page.canvas
+                y = MARGIN
+                headings()
+            }
+
+            // Cut short rather than drawn over the figure. A long name running
+            // under the balance is how a page becomes unreadable at exactly the
+            // line somebody is looking for.
+            canvas.drawText(body.ellipsised(row.name, width * 0.7f), MARGIN, y + 11, body)
+            canvas.drawTextRight(row.amount, right, y + 11, body)
+            y += 17
+            canvas.drawLine(MARGIN, y, right, y, rule)
+        }
+
+        // Reversed out of solid black, like the statement's balance due in this
+        // treatment: the line the whole page adds up to, and the one a reader
+        // checks first.
+        y += 10
+        val totalHeight = 30f
+        canvas.drawRect(MARGIN, y, right, y + totalHeight, fillInk)
+        canvas.drawText(document.totalLabel.uppercase(), MARGIN + 12, y + 19, reversed(9f))
+        canvas.drawTextRight(document.totalValue, right - 12, y + 20, reversed(13f))
+
+        footer()
+        pdf.finishPage(page)
+        return pageNumber
     }
 
     /** Draws one statement from a fresh page, and returns the last page it used. */
@@ -342,6 +462,14 @@ object StatementPdf {
     private fun String.bracketed(deduction: Boolean): String = if (deduction) "($this)" else this
 
     private fun Paint.stroke(): Paint = Paint(this).apply { style = Paint.Style.STROKE }
+
+    /** `Muhammad Al Q…` — a name cut to the room it has, rather than over the figure. */
+    private fun Paint.ellipsised(text: String, maxWidth: Float): String {
+        if (measureText(text) <= maxWidth) return text
+        var cut = text
+        while (cut.isNotEmpty() && measureText("$cut…") > maxWidth) cut = cut.dropLast(1)
+        return "$cut…"
+    }
 
     private fun Canvas.drawTextRight(text: String, rightEdge: Float, y: Float, paint: Paint) {
         drawText(text, rightEdge - paint.measureText(text), y, paint)

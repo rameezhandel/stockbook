@@ -101,6 +101,45 @@ struct SummaryDocument: Equatable {
         )
     }
 
+    /// The ledger book's contents page: every customer and where they stand.
+    ///
+    /// Built from **the very statements that become the pages behind it**, not
+    /// from a second walk of the roster. A contents page naming a figure the page
+    /// it points at disagrees with is worse than no contents page, and taking
+    /// both from one list is the only way that cannot happen. The order comes
+    /// with them, so the index reads in the order the book is filed.
+    ///
+    /// **Everybody, including the settled and the ones in credit** — unlike
+    /// `forReceivable`, which is a chasing list and drops them. This one is an
+    /// index: a customer who has a page in the book and no line in the contents
+    /// is a customer the reader concludes is missing.
+    static func forLedgerBook(
+        statements: [Statement],
+        settings: Settings,
+        strings: Strings,
+        currency: Currency? = nil,
+        now: Date = .now
+    ) -> SummaryDocument {
+        let money = currency ?? settings.currency
+        return SummaryDocument(
+            shopName: settings.ownerName,
+            title: strings.customerBalances,
+            asOf: strings.asOfDate(strings.longDate(now)),
+            columnHeadings: [strings.columnCustomer, strings.balance],
+            rows: statements.map {
+                Row(name: $0.party.name, amount: Money.text($0.closingBalance, in: money))
+            },
+            totalLabel: strings.ledgerTotal,
+            // The arithmetic sum of the column above, credits and all — **not**
+            // the shop's receivable, which counts only what is owed. A figure at
+            // the foot of a column that is not what the column adds up to is a
+            // figure the first reader to check it stops trusting, and this one is
+            // printed under a hundred lines somebody may well add up.
+            totalValue: Money.text(statements.reduce(0) { $0 + $1.closingBalance }, in: money),
+            emptyLine: strings.ledgerNoCustomers
+        )
+    }
+
     /// Where the shop's own money went, from `StockbookStore.spendingIn`.
     ///
     /// The one page here that covers a **stretch of days** rather than a moment:

@@ -224,19 +224,23 @@ private fun Shell(store: StockbookStore) {
                             // so a sheet pulled out of this book is the same page
                             // that customer would have been handed, the same
                             // geometry and the same figures, in one ink not two.
+                            // A hundred pages printed at once: the band is worth
+                            // its toner on the one sheet a customer is handed, and
+                            // not a hundred times into a folder, so the whole book
+                            // takes the monochrome treatment.
+                            //
+                            // The contents page is built from the same list the
+                            // pages are, which is what stops a line in the index
+                            // and the sheet it points at ever stating different
+                            // balances.
+                            val book = store.ledgerBook()
                             sharePdf(
                                 context,
-                                StatementPdf.write(
-                                    store.ledgerBook().map {
-                                        StatementDocument.make(it, state.settings, strings)
-                                    },
+                                StatementPdf.writeLedgerBook(
+                                    SummaryDocument.forLedgerBook(book, state.settings, strings),
+                                    book.map { StatementDocument.make(it, state.settings, strings) },
                                     context,
-                                    strings.ledgerBookFileName(Dates.fileDate(Timestamps.now())),
-                                    // A hundred pages printed at once. The band
-                                    // is worth its toner on the one sheet a
-                                    // customer is handed; it is not worth it a
-                                    // hundred times into a folder.
-                                    colour = false
+                                    strings.ledgerBookFileName(Dates.fileDate(Timestamps.now()))
                                 )
                             )
                         }

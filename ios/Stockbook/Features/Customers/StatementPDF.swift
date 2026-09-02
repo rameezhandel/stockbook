@@ -119,6 +119,127 @@ enum StatementPDF {
         return url
     }
 
+    /// The ledger book: a contents page, then every customer's own sheet.
+    ///
+    /// The index is drawn from `SummaryDocument.forLedgerBook`, which is built
+    /// from the very statements passed here — so a line in the contents and the
+    /// page it points at cannot state different balances. Both are drawn in the
+    /// monochrome treatment, because the whole book is filed rather than handed
+    /// over.
+    static func writeLedgerBook(
+        index: SummaryDocument,
+        pages: [StatementDocument],
+        fileName: String
+    ) throws -> URL {
+        let renderer = UIGraphicsPDFRenderer(bounds: CGRect(origin: .zero, size: pageSize))
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+
+        try renderer.writePDF(to: url) { context in
+            // The index numbers its own sheets; the statements behind it are
+            // footed with the customer's name, exactly as a sheet handed over on
+            // its own would be. `draw` opens its own page, so the first customer
+            // starts on a fresh one.
+            _ = drawIndex(index, in: context, from: 0)
+            for page in pages {
+                draw(page, in: context, colour: false)
+            }
+        }
+
+        return url
+    }
+
+    /// The contents page: two columns, however many sheets it takes.
+    ///
+    /// Its own routine rather than `SummaryPDF`, which writes a file of its own
+    /// and draws the colour treatment — this one has to append into a book
+    /// already being built, and in one ink. The wording is still shared: every
+    /// string here came from `SummaryDocument`.
+    ///
+    /// Returns the last page it used, so the statements know where to carry on.
+    private static func drawIndex(
+        _ document: SummaryDocument,
+        in context: UIGraphicsPDFRendererContext,
+        from: Int
+    ) -> Int {
+        var pageNumber = from + 1
+        context.beginPage()
+
+        let right = pageSize.width - margin
+        let width = right - margin
+        var y = margin
+
+        // Named at the foot of every sheet, because an index that runs to three
+        // pages is three loose sheets the moment the staple comes out.
+        func footer() {
+            let footY = pageSize.height - margin - 10
+            rule(from: CGPoint(x: margin, y: footY - 6), to: CGPoint(x: right, y: footY - 6))
+            document.title.draw(at: CGPoint(x: margin, y: footY), withAttributes: attributes(7.5, muted: true))
+            drawRight("\(pageNumber)", rightEdge: right, y: footY, attributes: attributes(7.5, muted: true))
+        }
+
+        document.shopName.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(titleSize, bold: true))
+        drawRight(document.title, rightEdge: right, y: y + 3, attributes: attributes(13))
+        y += titleSize + 6
+        // A balance is true at a moment, so the moment is on the page. Without
+        // it, last month's printout reads as this morning's.
+        document.asOf.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(7.5, muted: true))
+        y += 14
+        heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
+        y += 18
+
+        if document.isEmpty {
+            document.emptyLine.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, muted: true))
+            footer()
+            return pageNumber
+        }
+
+        func headings() {
+            let head = attributes(7.5, muted: true)
+            document.columnHeadings[0].uppercased().draw(at: CGPoint(x: margin, y: y), withAttributes: head)
+            drawRight(document.columnHeadings[1].uppercased(), rightEdge: right, y: y, attributes: head)
+            y += 12
+            heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
+            y += 6
+        }
+        headings()
+
+        let body = attributes(rowSize)
+        for row in document.rows {
+            // A break before a row rather than through one, and the headings
+            // repeat: a second sheet whose columns are unlabelled is a sheet
+            // nobody can read on its own. The room kept back is for the total,
+            // which must not be orphaned onto a page of its own.
+            if y + 17 > pageSize.height - margin - 60 {
+                footer()
+                context.beginPage()
+                pageNumber += 1
+                y = margin
+                headings()
+            }
+
+            // Cut short rather than drawn over the figure. A long name running
+            // under the balance is how a page becomes unreadable at exactly the
+            // line somebody is looking for.
+            draw(row.name, at: CGPoint(x: margin, y: y + 3), maxWidth: width * 0.7, attributes: body)
+            drawRight(row.amount, rightEdge: right, y: y + 3, attributes: body)
+            y += 17
+            rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
+        }
+
+        // Reversed out of solid black, like the statement's balance due in this
+        // treatment: the line the whole page adds up to, and the one a reader
+        // checks first.
+        y += 10
+        let totalHeight: CGFloat = 30
+        fill(CGRect(x: margin, y: y, width: width, height: totalHeight), ink)
+        document.totalLabel.uppercased()
+            .draw(at: CGPoint(x: margin + 12, y: y + 8), withAttributes: reversed(9))
+        drawRight(document.totalValue, rightEdge: right - 12, y: y + 7, attributes: reversed(13))
+
+        footer()
+        return pageNumber
+    }
+
     /// Draws one statement, starting a fresh page for it.
     private static func draw(_ document: StatementDocument, in context: UIGraphicsPDFRendererContext, colour: Bool) {
         context.beginPage()
@@ -300,6 +421,21 @@ enum StatementPDF {
         path.lineWidth = 0.9
         ruleColour.setStroke()
         path.stroke()
+    }
+
+    /// `Muhammad Al Q…` — a name cut to the room it has, rather than over the
+    /// figure beside it.
+    private static func draw(
+        _ text: String,
+        at point: CGPoint,
+        maxWidth: CGFloat,
+        attributes: [NSAttributedString.Key: Any]
+    ) {
+        var cut = text
+        while !cut.isEmpty, (cut as NSString).size(withAttributes: attributes).width > maxWidth {
+            cut = String(cut.dropLast())
+        }
+        (cut == text ? text : cut + "…").draw(at: point, withAttributes: attributes)
     }
 
     private static func stroke(_ rect: CGRect) {

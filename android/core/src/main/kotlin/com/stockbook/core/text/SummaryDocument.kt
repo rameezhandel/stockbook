@@ -3,6 +3,7 @@ package com.stockbook.core.text
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Settings
+import com.stockbook.core.model.Statement
 import com.stockbook.core.model.StatementRange
 import com.stockbook.core.model.Supplier
 import com.stockbook.core.model.Timestamps
@@ -109,6 +110,45 @@ data class SummaryDocument(
             emptyLine = strings.nothingPayable,
             currency = currency,
             now = now
+        )
+
+        /**
+         * The ledger book's contents page: every customer and where they stand.
+         *
+         * Built from **the very statements that become the pages behind it**,
+         * not from a second walk of the roster. A contents page naming a figure
+         * the page it points at disagrees with is worse than no contents page,
+         * and taking both from one list is the only way that cannot happen. The
+         * order comes with them, so the index reads in the order the book is
+         * filed.
+         *
+         * **Everybody, including the settled and the ones in credit** — unlike
+         * [forReceivable], which is a chasing list and drops them. This one is
+         * an index: a customer who has a page in the book and no line in the
+         * contents is a customer the reader concludes is missing.
+         */
+        fun forLedgerBook(
+            statements: List<Statement>,
+            settings: Settings,
+            strings: Strings,
+            currency: Currency = settings.currency,
+            now: Instant = Timestamps.now()
+        ): SummaryDocument = SummaryDocument(
+            shopName = settings.ownerName,
+            title = strings.customerBalances,
+            asOf = strings.asOfDate(strings.longDate(now)),
+            columnHeadings = listOf(strings.columnCustomer, strings.balance),
+            rows = statements.map {
+                Row(it.party.name, Money.text(it.closingBalance, currency))
+            },
+            totalLabel = strings.ledgerTotal,
+            // The arithmetic sum of the column above, credits and all — **not**
+            // the shop's receivable, which counts only what is owed. A figure at
+            // the foot of a column that is not what the column adds up to is a
+            // figure the first reader to check it stops trusting, and this one
+            // is printed under a hundred lines somebody may well add up.
+            totalValue = Money.text(statements.sumOf { it.closingBalance }, currency),
+            emptyLine = strings.ledgerNoCustomers
         )
 
         /**

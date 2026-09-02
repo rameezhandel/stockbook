@@ -1128,6 +1128,13 @@ struct Strings {
     /// `1 August 2026 — 31 August 2026`, for the boxed period on a statement.
     func dateRange(from: String, to: String) -> String { "\(from) \u{2014} \(to)" }
     var columnCustomer: String { pick("Customer", "ಗ್ರಾಹಕ") }
+
+    /// The ledger book's contents page.
+    ///
+    /// Not "Receivable": that word means what is owed, and this page lists
+    /// everybody with a page in the book — the settled and those in credit
+    /// included.
+    var customerBalances: String { pick("Customer Balances", "ಗ್ರಾಹಕರ ಬಾಕಿ") }
     var totalReceivable: String { pick("Total Receivable", "ಒಟ್ಟು ಬರಬೇಕಾದ ಬಾಕಿ") }
     var totalPayable: String { pick("Total Payable", "ಒಟ್ಟು ಕೊಡಬೇಕಾದ ಬಾಕಿ") }
     var nothingReceivable: String { pick("Nothing receivable.", "ಬರಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.") }

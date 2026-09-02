@@ -1129,6 +1129,15 @@ class Strings(val language: AppLanguage) {
     /** `1 August 2026 — 31 August 2026`, for the boxed period on a statement. */
     fun dateRange(from: String, to: String): String = "$from \u2014 $to"
     val columnCustomer: String get() = pick("Customer", "ಗ್ರಾಹಕ")
+
+    /**
+     * The ledger book's contents page.
+     *
+     * Not "Receivable": that word means what is owed, and this page lists
+     * everybody with a page in the book — the settled and those in credit
+     * included.
+     */
+    val customerBalances: String get() = pick("Customer Balances", "ಗ್ರಾಹಕರ ಬಾಕಿ")
     val totalReceivable: String get() = pick("Total Receivable", "ಒಟ್ಟು ಬರಬೇಕಾದ ಬಾಕಿ")
     val totalPayable: String get() = pick("Total Payable", "ಒಟ್ಟು ಕೊಡಬೇಕಾದ ಬಾಕಿ")
     val nothingReceivable: String get() = pick("Nothing receivable.", "ಬರಬೇಕಾದ ಬಾಕಿ ಇಲ್ಲ.")

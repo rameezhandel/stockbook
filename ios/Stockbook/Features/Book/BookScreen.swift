@@ -105,17 +105,26 @@ struct BookScreen: View {
     /// A failure leaves `file` nil and nothing opens, which is the honest outcome
     /// the other pages already settled on.
     private func saveLedgerBook() {
-        let pages = store.ledgerBook().map {
+        // A hundred pages printed at once: the band is worth its toner on the one
+        // sheet a customer is handed, and not a hundred times into a folder, so
+        // the whole book takes the monochrome treatment.
+        //
+        // The contents page is built from the same list the pages are, which is
+        // what stops a line in the index and the sheet it points at ever stating
+        // different balances.
+        let book = store.ledgerBook()
+        let pages = book.map {
             StatementDocument.make(statement: $0, settings: store.settings, strings: Loc)
         }
         guard !pages.isEmpty,
-              let url = try? StatementPDF.write(
-                  pages,
-                  fileName: Loc.ledgerBookFileName(Copy.fileDate(.now)),
-                  // A hundred pages printed at once. The band is worth its toner
-                  // on the one sheet a customer is handed; it is not worth it a
-                  // hundred times into a folder.
-                  colour: false
+              let url = try? StatementPDF.writeLedgerBook(
+                  index: SummaryDocument.forLedgerBook(
+                      statements: book,
+                      settings: store.settings,
+                      strings: Loc
+                  ),
+                  pages: pages,
+                  fileName: Loc.ledgerBookFileName(Copy.fileDate(.now))
               )
         else { return }
         file = StatementFile(url: url)
