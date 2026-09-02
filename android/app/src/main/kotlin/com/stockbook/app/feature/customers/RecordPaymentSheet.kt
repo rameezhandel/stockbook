@@ -35,6 +35,7 @@ import com.stockbook.app.design.SheetHeader
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Payment
+import com.stockbook.core.model.PaymentReceipt
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.Supplier
 import com.stockbook.core.model.SupplierPayment
@@ -71,6 +72,14 @@ fun RecordPaymentSheet(
     strings: Strings,
     /** The payment being corrected, or null to take a new one. */
     editing: Payment? = null,
+    /**
+     * Hands back the slip for the payment, and whether it was **just taken**.
+     *
+     * That flag cannot be worked out from the router afterwards: both ways in
+     * close this sheet on their way out, so by the time the receipt is on screen
+     * the two look identical. Only the caller knows which it was.
+     */
+    onReceipt: (PaymentReceipt, justSaved: Boolean) -> Unit,
     onClose: () -> Unit
 ) {
     PaymentSheet(
@@ -90,8 +99,19 @@ fun RecordPaymentSheet(
         // amount would be told 008455 is taken — by itself.
         clashDate = { store.paymentWithNo(it, exceptId = editing?.id)?.receivedAt },
         onSave = { amount, at, note, no ->
-            if (editing != null) store.updatePayment(editing.id, amount, at, note, no)
-            else store.recordPayment(customer.key, amount, at, note, no)
+            val saved =
+                if (editing != null) store.updatePayment(editing.id, amount, at, note, no)
+                else store.recordPayment(customer.key, amount, at, note, no)
+            // Read back through the store rather than built from what was typed:
+            // the balance on the slip has to be the balance the statement will
+            // show, and only the store knows what that is.
+            saved?.id?.let { store.receiptForPayment(it) }?.let { onReceipt(it, true) }
+        },
+        onViewReceipt = editing?.let { payment ->
+            {
+                val slip = store.receiptForPayment(payment.id)
+                if (slip != null) onReceipt(slip, false)
+            }
         },
         onDelete = editing?.let { { store.deletePayment(it.id) } },
         onClose = onClose
@@ -113,6 +133,7 @@ fun PaySupplierSheet(
     currency: Currency,
     strings: Strings,
     editing: SupplierPayment? = null,
+    onReceipt: (PaymentReceipt, justSaved: Boolean) -> Unit,
     onClose: () -> Unit
 ) {
     PaymentSheet(
@@ -130,8 +151,16 @@ fun PaySupplierSheet(
         existingDate = editing?.paidAt,
         clashDate = { store.supplierPaymentWithNo(it, exceptId = editing?.id)?.paidAt },
         onSave = { amount, at, note, no ->
-            if (editing != null) store.updateSupplierPayment(editing.id, amount, at, note, no)
-            else store.recordSupplierPayment(supplier.key, amount, at, note, no)
+            val saved =
+                if (editing != null) store.updateSupplierPayment(editing.id, amount, at, note, no)
+                else store.recordSupplierPayment(supplier.key, amount, at, note, no)
+            saved?.id?.let { store.receiptForSupplierPayment(it) }?.let { onReceipt(it, true) }
+        },
+        onViewReceipt = editing?.let { payment ->
+            {
+                val slip = store.receiptForSupplierPayment(payment.id)
+                if (slip != null) onReceipt(slip, false)
+            }
         },
         onDelete = editing?.let { { store.deleteSupplierPayment(it.id) } },
         onClose = onClose
@@ -155,6 +184,15 @@ private fun PaymentSheet(
     existingDate: Instant?,
     clashDate: (String) -> Instant?,
     onSave: (amount: Double, at: Instant, note: String, paymentNo: String) -> Unit,
+    /**
+     * Opens the slip for a payment that already exists.
+     *
+     * Present only when correcting, for the same reason [onDelete] is: a payment
+     * being taken has no receipt until it is saved, and the save opens one
+     * anyway. This is the way back to it — a customer who has lost their copy is
+     * the whole reason to print a second.
+     */
+    onViewReceipt: (() -> Unit)?,
     /** Present only when correcting: a payment being taken has nothing to remove. */
     onDelete: (() -> Unit)?,
     onClose: () -> Unit
@@ -319,6 +357,18 @@ private fun PaymentSheet(
             height = 48.dp,
             fontSize = 15.0
         )
+
+        onViewReceipt?.let { view ->
+            Spacer(Modifier.height(6.dp))
+            GhostButton(
+                strings.viewReceipt,
+                onClick = {
+                    view()
+                    onClose()
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         // Removal lives inside the correction, exactly as the credit note's does.
         // Two taps, because it takes a figure out of somebody's account.

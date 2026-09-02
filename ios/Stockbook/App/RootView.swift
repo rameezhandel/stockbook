@@ -147,6 +147,14 @@ private struct AppShell: View {
                     .zIndex(3)
             }
 
+            // Above the statements, not below: it is reached from the payment
+            // sheet, which can itself be opened from a statement.
+            if let slip = router.paymentReceipt {
+                PaymentReceiptOverlay(receipt: slip)
+                    .transition(.opacity)
+                    .zIndex(5)
+            }
+
             // One person, full screen, over whichever half of the book they were
             // opened from. Below the statement, which is reached *from* here and
             // has to sit on top of it.
@@ -175,6 +183,7 @@ private struct AppShell: View {
         .animation(Metrics.quick, value: router.showingSettings)
         .animation(Metrics.quick, value: router.showingBackup)
         .animation(Metrics.quick, value: router.receipt?.number)
+        .animation(Metrics.quick, value: router.paymentReceipt)
         .animation(Metrics.quick, value: router.partyFor)
         .animation(Metrics.quick, value: router.statementFor)
         .animation(Metrics.quick, value: router.supplierStatementFor)
@@ -204,7 +213,11 @@ private struct AppShell: View {
             CustomerEditorSheet(existing: target.customer) { router.customerEditor = nil }
         }
         .nocturneSheet(item: $router.paymentFor) { customer in
-            RecordPaymentSheet(customer: customer, editing: router.editingPayment) {
+            RecordPaymentSheet(
+                customer: customer,
+                editing: router.editingPayment,
+                onReceipt: { slip, justSaved in router.showReceipt(slip, justSaved: justSaved) }
+            ) {
                 router.paymentFor = nil
                 router.editingPayment = nil
             }
@@ -222,7 +235,11 @@ private struct AppShell: View {
             SupplierEditorSheet(existing: target.supplier) { router.supplierEditor = nil }
         }
         .nocturneSheet(item: $router.supplierPaymentFor) { supplier in
-            PaySupplierSheet(supplier: supplier, editing: router.editingSupplierPayment) {
+            PaySupplierSheet(
+                supplier: supplier,
+                editing: router.editingSupplierPayment,
+                onReceipt: { slip, justSaved in router.showReceipt(slip, justSaved: justSaved) }
+            ) {
                 router.supplierPaymentFor = nil
                 router.editingSupplierPayment = nil
             }

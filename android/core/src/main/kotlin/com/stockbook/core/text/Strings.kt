@@ -580,6 +580,51 @@ class Strings(val language: AppLanguage) {
             "ಒಂದು ಬಿಲ್‌ಗೆ ಅಲ್ಲ, ಗ್ರಾಹಕರ ಖಾತೆಗೆ ದಾಖಲಾಗುತ್ತದೆ — ಕೌಂಟರಿನಲ್ಲಿ ಹಣ ಬರುವುದು ಹಾಗೆಯೇ."
         )
 
+    // --- The receipt for a payment
+    //
+    // The half-page the shop tears off and hands over. Worded from the customer's
+    // end, not the owner's: they are holding it, and everything on it is about
+    // money they just parted with.
+
+    val paymentSaved: String get() = pick("Payment saved", "ಪಾವತಿ ಉಳಿಸಲಾಗಿದೆ")
+
+    /**
+     * The way back to a receipt for a payment already in the book.
+     *
+     * On the correction sheet rather than a screen of its own, because that is
+     * where somebody already goes when a customer asks about a payment — and a
+     * customer who has lost their slip is the whole reason to print a second one.
+     */
+    val viewReceipt: String get() = pick("View receipt", "ರಸೀದಿ ನೋಡಿ")
+
+    /**
+     * Set against the letterhead: what the piece of paper is.
+     *
+     * A shop paying its own supplier receives nothing, so that page is a voucher
+     * — the word the supplier's own book would use for it. One word for both
+     * would be read from the wrong end on one of the two.
+     */
+    val paymentReceipt: String get() = pick("Payment Receipt", "ಪಾವತಿ ರಸೀದಿ")
+    val paymentVoucher: String get() = pick("Payment Voucher", "ಪಾವತಿ ವೋಚರ್")
+
+    val receivedFrom: String get() = pick("Received from:", "ಸ್ವೀಕರಿಸಿದ್ದು — ಇವರಿಂದ:")
+    val paidTo: String get() = pick("Paid to:", "ಪಾವತಿಸಿದ್ದು — ಇವರಿಗೆ:")
+    val amountPaid: String get() = pick("Amount paid", "ಪಾವತಿಸಿದ ಮೊತ್ತ")
+
+    /**
+     * The three lines under the figure, and always all three.
+     *
+     * "Previous balance" rather than the statement's "Opening balance": there is
+     * no period here to open, and the reader's question is what they owed a
+     * minute ago.
+     */
+    val accountAfterThisReceipt: String
+        get() = pick("The account after this receipt", "ಈ ರಸೀದಿಯ ನಂತರ ಖಾತೆ")
+    val previousBalance: String get() = pick("Previous balance", "ಹಿಂದಿನ ಬಾಕಿ")
+    val balanceNow: String get() = pick("Balance now", "ಈಗಿನ ಬಾಕಿ")
+
+    fun receiptFileName(name: String, date: String): String = "receipt-$name-$date.pdf"
+
     // --- Credit notes
 
     val creditNoteLabel: String get() = pick("Credit note", "ಕ್ರೆಡಿಟ್ ನೋಟ್")

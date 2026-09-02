@@ -12,6 +12,7 @@ import com.stockbook.core.model.CustomerRecord
 import com.stockbook.core.model.Expense
 import com.stockbook.core.model.InvoiceNo
 import com.stockbook.core.model.Payment
+import com.stockbook.core.model.PaymentReceipt
 import com.stockbook.core.model.Product
 import com.stockbook.core.model.SupplierRecord
 import com.stockbook.core.model.SupplierPayment
@@ -1765,6 +1766,69 @@ class StockbookStore(private val repository: StockbookRepository) {
         )
     }
 
+    /**
+     * One payment as its own document: the account it landed on, and where that
+     * account stood the moment after it.
+     *
+     * Read out of that account's own statement rather than summed again here.
+     * The balance a receipt states and the balance the statement states are the
+     * same claim about the same money, and two calculations of it would
+     * eventually disagree — on the day somebody is holding both pieces of paper.
+     *
+     * Null when the payment is not there, which is what a receipt asked for after
+     * its payment was deleted has to be.
+     */
+    fun receiptForPayment(id: String): PaymentReceipt? {
+        val payment = payments.firstOrNull { it.id == id } ?: return null
+        val statement = statementForCustomer(
+            payment.customerKey,
+            wholeHistoryAround(payment.receivedAt)
+        ) ?: return null
+        return receipt(statement, "payment-$id", payment.paymentNo, payment.amount, payment.receivedAt, payment.note)
+    }
+
+    /**
+     * The whole book, stretched to make sure one moment is inside it.
+     *
+     * [earliestRecord] does not look at supplier payments, and neither end of it
+     * knows about a payment somebody dated next week. Either would put the
+     * payment outside the range and leave it out of the statement it is being
+     * looked up in — so the range is widened to hold it rather than trusted to.
+     */
+    private fun wholeHistoryAround(moment: Instant): StatementPeriod {
+        val now = Timestamps.now()
+        return StatementPeriod.Custom(minOf(earliestRecord(), moment), maxOf(now, moment))
+    }
+
+    /**
+     * The common half of both receipts: find the payment's own row in the
+     * statement and take the balance printed beside it.
+     */
+    private fun receipt(
+        statement: Statement,
+        entryId: String,
+        paymentNo: String?,
+        amount: Double,
+        at: Instant,
+        note: String?
+    ): PaymentReceipt? {
+        val index = statement.entries.indexOfFirst { it.id == entryId }
+        if (index < 0) return null
+        val after = statement.runningBalances[index]
+        return PaymentReceipt(
+            party = statement.party,
+            paymentNo = paymentNo,
+            amount = amount,
+            at = at,
+            note = note,
+            // A payment settles and does nothing else, so what the account stood
+            // at before it is this figure plus the payment. Derived rather than
+            // read from the row above: there may not be a row above.
+            balanceBefore = after + amount,
+            balanceAfter = after
+        )
+    }
+
 
     // --- Moving a balance between two accounts
 
@@ -2550,6 +2614,19 @@ class StockbookStore(private val repository: StockbookRepository) {
             transfers = transferEntriesFor(key, isSupplier = true),
             period = period
         )
+    }
+
+    /**
+     * The money-out twin of [receiptForPayment]: a voucher for what the shop paid
+     * out, taken from the supplier's own statement for the same reason.
+     */
+    fun receiptForSupplierPayment(id: String): PaymentReceipt? {
+        val payment = supplierPayments.firstOrNull { it.id == id } ?: return null
+        val statement = statementForSupplier(
+            payment.supplierKey,
+            wholeHistoryAround(payment.paidAt)
+        ) ?: return null
+        return receipt(statement, "supplier-payment-$id", payment.paymentNo, payment.amount, payment.paidAt, payment.note)
     }
 
     /**

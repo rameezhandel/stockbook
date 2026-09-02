@@ -63,6 +63,30 @@ final class AppRouter {
     /// shows what will still be owed once the correction is saved.
     var editingPayment: Payment?
 
+    /// The slip for one payment, shown full-screen over everything.
+    ///
+    /// The derived receipt rather than the payment's id, and it holds for both
+    /// directions: what is on the page is a snapshot of a moment — the balance
+    /// *after that payment* — and re-deriving it while it is open would leave
+    /// the customer looking at a figure that changed under them.
+    ///
+    /// Reached two ways, which is why it is not folded into either: from saving
+    /// a payment, and from the correction sheet on one already in the book.
+    var paymentReceipt: PaymentReceipt?
+
+    /// Whether the receipt on screen is confirming a payment just taken, rather
+    /// than one being looked up.
+    ///
+    /// Its own flag because it cannot be inferred: both ways in close the
+    /// payment sheet behind them, so the router looks the same either way by the
+    /// time the page is up.
+    var paymentReceiptIsNew = false
+
+    func showReceipt(_ receipt: PaymentReceipt, justSaved: Bool) {
+        paymentReceiptIsNew = justSaved
+        paymentReceipt = receipt
+    }
+
     /// The credit-note sheet. Carries the customer it is against, and — when one
     /// is being corrected rather than written — the note itself.
     var creditNoteFor: CreditNoteTarget?
@@ -253,6 +277,7 @@ final class AppRouter {
         customerEditor = nil
         paymentFor = nil
         editingPayment = nil
+        paymentReceipt = nil
         creditNoteFor = nil
         statementFor = nil
         supplierEditor = nil

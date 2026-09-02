@@ -38,6 +38,8 @@ import com.stockbook.app.feature.book.MoveBalanceSheet
 import com.stockbook.app.feature.book.PurchaseSheet
 import com.stockbook.app.feature.customers.CreditNoteSheet
 import com.stockbook.app.feature.customers.CustomerEditorSheet
+import com.stockbook.app.feature.customers.PaymentReceiptOverlay
+import com.stockbook.app.feature.customers.PaymentReceiptPdf
 import com.stockbook.app.feature.customers.RecordPaymentSheet
 import com.stockbook.app.feature.customers.PaySupplierSheet
 import com.stockbook.app.feature.customers.SupplierEditorSheet
@@ -72,6 +74,7 @@ import com.stockbook.core.text.Dates
 import com.stockbook.core.text.DayLedgerDocument
 import com.stockbook.core.text.DaySummaryDocument
 import com.stockbook.core.text.EarningsDocument
+import com.stockbook.core.text.PaymentReceiptDocument
 import com.stockbook.core.text.StatementDocument
 import com.stockbook.core.text.SummaryDocument
 import com.stockbook.core.text.Strings
@@ -647,6 +650,7 @@ private fun Shell(store: StockbookStore) {
                     currency = state.settings.currency,
                     strings = strings,
                     editing = router.editingPayment,
+                    onReceipt = { slip, justSaved -> router.showReceipt(slip, justSaved) },
                     onClose = { router.paymentFor = null; router.editingPayment = null }
                 )
             }
@@ -697,6 +701,7 @@ private fun Shell(store: StockbookStore) {
                     currency = state.settings.currency,
                     strings = strings,
                     editing = router.editingSupplierPayment,
+                    onReceipt = { slip, justSaved -> router.showReceipt(slip, justSaved) },
                     onClose = { router.supplierPaymentFor = null; router.editingSupplierPayment = null }
                 )
             }
@@ -726,6 +731,38 @@ private fun Shell(store: StockbookStore) {
                     onClose = { router.billDetail = null }
                 )
             }
+        }
+
+        router.paymentReceipt?.let { receipt ->
+            // Nothing is lost by leaving: the payment is written, and this page
+            // only states it. The same reasoning the bill's receipt settled on.
+            BackHandler { router.paymentReceipt = null }
+            val document = PaymentReceiptDocument.make(
+                receipt,
+                state.settings,
+                strings
+            )
+            PaymentReceiptOverlay(
+                document = document,
+                // Only a payment just taken gets the tick. The same page reached
+                // from a correction is a document being looked up.
+                justSaved = router.paymentReceiptIsNew,
+                strings = strings,
+                onSharePdf = {
+                    sharePdf(
+                        context,
+                        PaymentReceiptPdf.write(
+                            document,
+                            context,
+                            strings.receiptFileName(
+                                document.partyName.replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').lowercase(),
+                                Dates.fileDate(receipt.at)
+                            )
+                        )
+                    )
+                },
+                onClose = { router.paymentReceipt = null }
+            )
         }
     }
 }

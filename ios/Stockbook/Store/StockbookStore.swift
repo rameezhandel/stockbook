@@ -1438,6 +1438,69 @@ final class StockbookStore {
         )
     }
 
+    /// One payment as its own document: the account it landed on, and where that
+    /// account stood the moment after it.
+    ///
+    /// Read out of that account's own statement rather than summed again here.
+    /// The balance a receipt states and the balance the statement states are the
+    /// same claim about the same money, and two calculations of it would
+    /// eventually disagree — on the day somebody is holding both pieces of paper.
+    ///
+    /// Nil when the payment is not there, which is what a receipt asked for after
+    /// its payment was deleted has to be.
+    func receipt(forPayment id: UUID) -> PaymentReceipt? {
+        guard let payment = payments.first(where: { $0.id == id }),
+              let statement = statement(
+                  forCustomer: payment.customerKey,
+                  period: wholeHistory(around: payment.receivedAt)
+              )
+        else { return nil }
+        return Self.receipt(
+            statement: statement,
+            entryId: "payment-\(id.uuidString)",
+            paymentNo: payment.paymentNo,
+            amount: payment.amount,
+            at: payment.receivedAt,
+            note: payment.note
+        )
+    }
+
+    /// The whole book, stretched to make sure one moment is inside it.
+    ///
+    /// `earliestRecord()` does not look at supplier payments, and neither end of
+    /// it knows about a payment somebody dated next week. Either would put the
+    /// payment outside the range and leave it out of the statement it is being
+    /// looked up in — so the range is widened to hold it rather than trusted to.
+    private func wholeHistory(around moment: Date) -> StatementPeriod {
+        .custom(from: min(earliestRecord(), moment), to: max(.now, moment))
+    }
+
+    /// The common half of both receipts: find the payment's own row in the
+    /// statement and take the balance printed beside it.
+    private static func receipt(
+        statement: Statement,
+        entryId: String,
+        paymentNo: String?,
+        amount: Double,
+        at: Date,
+        note: String?
+    ) -> PaymentReceipt? {
+        guard let index = statement.entries.firstIndex(where: { $0.id == entryId }) else { return nil }
+        let after = statement.runningBalances[index]
+        return PaymentReceipt(
+            party: statement.party,
+            paymentNo: paymentNo,
+            amount: amount,
+            at: at,
+            note: note,
+            // A payment settles and does nothing else, so what the account stood
+            // at before it is this figure plus the payment. Derived rather than
+            // read from the row above: there may not be a row above.
+            balanceBefore: after + amount,
+            balanceAfter: after
+        )
+    }
+
 
     // MARK: - Moving a balance between two accounts
 
@@ -2216,6 +2279,25 @@ final class StockbookStore {
             payments: supplierPayments(for: key),
             transfers: transferEntries(for: key, isSupplier: true),
             period: period
+        )
+    }
+
+    /// The money-out twin of `receipt(forPayment:)`: a voucher for what the shop
+    /// paid out, taken from the supplier's own statement for the same reason.
+    func receipt(forSupplierPayment id: UUID) -> PaymentReceipt? {
+        guard let payment = supplierPayments.first(where: { $0.id == id }),
+              let statement = statementForSupplier(
+                  key: payment.supplierKey,
+                  period: wholeHistory(around: payment.paidAt)
+              )
+        else { return nil }
+        return Self.receipt(
+            statement: statement,
+            entryId: "supplier-payment-\(id.uuidString)",
+            paymentNo: payment.paymentNo,
+            amount: payment.amount,
+            at: payment.paidAt,
+            note: payment.note
         )
     }
 

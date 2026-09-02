@@ -12,6 +12,12 @@ struct RecordPaymentSheet: View {
     let customer: Customer
     /// The payment being corrected, or nil to take a new one.
     var editing: Payment?
+    /// Hands back the slip for the payment, and whether it was **just taken**.
+    ///
+    /// That flag cannot be worked out from the router afterwards: both ways in
+    /// close this sheet on their way out, so by the time the receipt is on
+    /// screen the two look identical. Only the caller knows which it was.
+    let onReceipt: (PaymentReceipt, Bool) -> Void
     let onClose: () -> Void
 
     var body: some View {
@@ -28,16 +34,30 @@ struct RecordPaymentSheet: View {
             // its amount would be told 008455 is taken — by itself.
             clashDate: { store.paymentWithNo($0, exceptId: editing?.id)?.receivedAt },
             onSave: { amount, at, note, no in
+                let saved: Payment?
                 if let editing {
-                    store.updatePayment(id: editing.id, amount: amount, receivedAt: at, note: note, paymentNo: no)
+                    saved = store.updatePayment(
+                        id: editing.id, amount: amount, receivedAt: at, note: note, paymentNo: no
+                    )
                 } else {
-                    store.recordPayment(
+                    saved = store.recordPayment(
                         customerKey: customer.key,
                         amount: amount,
                         receivedAt: at,
                         note: note,
                         paymentNo: no
                     )
+                }
+                // Read back through the store rather than built from what was
+                // typed: the balance on the slip has to be the balance the
+                // statement will show, and only the store knows what that is.
+                if let saved, let slip = store.receipt(forPayment: saved.id) {
+                    onReceipt(slip, true)
+                }
+            },
+            onViewReceipt: editing.map { payment in
+                {
+                    if let slip = store.receipt(forPayment: payment.id) { onReceipt(slip, false) }
                 }
             },
             onDelete: editing.map { payment in { store.deletePayment(id: payment.id) } },
@@ -56,6 +76,7 @@ struct PaySupplierSheet: View {
 
     let supplier: Supplier
     var editing: SupplierPayment?
+    let onReceipt: (PaymentReceipt, Bool) -> Void
     let onClose: () -> Void
 
     var body: some View {
@@ -70,16 +91,27 @@ struct PaySupplierSheet: View {
             },
             clashDate: { store.supplierPaymentWithNo($0, exceptId: editing?.id)?.paidAt },
             onSave: { amount, at, note, no in
+                let saved: SupplierPayment?
                 if let editing {
-                    store.updateSupplierPayment(id: editing.id, amount: amount, paidAt: at, note: note, paymentNo: no)
+                    saved = store.updateSupplierPayment(
+                        id: editing.id, amount: amount, paidAt: at, note: note, paymentNo: no
+                    )
                 } else {
-                    store.recordSupplierPayment(
+                    saved = store.recordSupplierPayment(
                         supplierKey: supplier.key,
                         amount: amount,
                         paidAt: at,
                         note: note,
                         paymentNo: no
                     )
+                }
+                if let saved, let slip = store.receipt(forSupplierPayment: saved.id) {
+                    onReceipt(slip, true)
+                }
+            },
+            onViewReceipt: editing.map { payment in
+                {
+                    if let slip = store.receipt(forSupplierPayment: payment.id) { onReceipt(slip, false) }
                 }
             },
             onDelete: editing.map { payment in { store.deleteSupplierPayment(id: payment.id) } },
@@ -108,6 +140,13 @@ private struct PaymentSheet: View {
     /// When the receipt book already holds this number, the day it was used.
     let clashDate: (String) -> Date?
     let onSave: (Double, Date, String, String) -> Void
+    /// Opens the slip for a payment that already exists.
+    ///
+    /// Present only when correcting, for the same reason `onDelete` is: a
+    /// payment being taken has no receipt until it is saved, and the save opens
+    /// one anyway. This is the way back to it — a customer who has lost their
+    /// copy is the whole reason to print a second.
+    let onViewReceipt: (() -> Void)?
     /// Present only when correcting: a payment being taken has nothing to remove.
     let onDelete: (() -> Void)?
     let onClose: () -> Void
@@ -189,6 +228,16 @@ private struct PaymentSheet: View {
             Button(saveTitle) { save() }
                 .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 48, fontSize: 15))
                 .disabled(!canSave)
+
+            if let onViewReceipt {
+                Button(Loc.viewReceipt) {
+                    onViewReceipt()
+                    onClose()
+                }
+                .buttonStyle(GhostButtonStyle(fontSize: 12.5))
+                .frame(maxWidth: .infinity)
+                .padding(.top, 6)
+            }
 
             // Removal lives inside the correction, exactly as the credit note's
             // does. Two taps, because it takes a figure out of somebody's account.

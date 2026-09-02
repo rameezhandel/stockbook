@@ -1,0 +1,31 @@
+import Foundation
+
+/// One payment as a thing on its own: who handed the money over, how much, and
+/// where their account stood the moment after it.
+///
+/// **Not stored.** A payment is stored; this is derived from it and from the
+/// whole history behind it, exactly as a `Statement` is. Nothing here goes in
+/// the backup file.
+///
+/// `balanceAfter` is lifted straight out of that account's statement — it is the
+/// figure printed beside this payment in the balance column, not a second sum of
+/// the same events. A receipt and a statement disagreeing about what somebody
+/// owes is the one failure this document cannot survive, and the only way to be
+/// sure they cannot is for there to be one calculation.
+///
+/// `balanceBefore` is that figure plus the payment, which is what it was: a
+/// payment settles and settles nothing else.
+struct PaymentReceipt: Equatable {
+    /// Whose account, and which way it runs — the receipt is worded from this.
+    let party: StatementParty
+    /// The number the shop wrote on the slip, or nil on a record from before
+    /// receipt numbers were typed. The document says so rather than leaving a
+    /// gap.
+    let paymentNo: String?
+    let amount: Double
+    /// Received on, for a customer; paid on, for a supplier.
+    let at: Date
+    let note: String?
+    let balanceBefore: Double
+    let balanceAfter: Double
+}

@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import com.stockbook.core.model.Bill
 import com.stockbook.core.model.CreditNote
 import com.stockbook.core.model.Payment
+import com.stockbook.core.model.PaymentReceipt
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Expense
 import com.stockbook.core.model.Product
@@ -171,6 +172,34 @@ class AppRouter {
      * shows what will still be owed once the correction is saved.
      */
     var editingPayment by mutableStateOf<Payment?>(null)
+
+    /**
+     * The slip for one payment, shown full-screen over everything.
+     *
+     * The derived receipt rather than the payment's id, and it holds for both
+     * directions: what is on the page is a snapshot of a moment — the balance
+     * *after that payment* — and re-deriving it while it is open would leave the
+     * customer looking at a figure that changed under them.
+     *
+     * Reached two ways, which is why it is not folded into either: from saving a
+     * payment, and from the correction sheet on one already in the book.
+     */
+    var paymentReceipt by mutableStateOf<PaymentReceipt?>(null)
+
+    /**
+     * Whether the receipt on screen is confirming a payment just taken, rather
+     * than one being looked up.
+     *
+     * Its own flag because it cannot be inferred: both ways in close the payment
+     * sheet behind them, so the router looks the same either way by the time the
+     * page is up.
+     */
+    var paymentReceiptIsNew by mutableStateOf(false)
+
+    fun showReceipt(receipt: PaymentReceipt, justSaved: Boolean) {
+        paymentReceiptIsNew = justSaved
+        paymentReceipt = receipt
+    }
 
     /**
      * A customer's statement, full screen. Held as a **key** rather than a
@@ -378,6 +407,7 @@ class AppRouter {
         creatingCustomer = false
         paymentFor = null
         editingPayment = null
+        paymentReceipt = null
         creditNoteFor = null
         editingCreditNote = null
         statementFor = null

@@ -557,6 +557,47 @@ struct Strings {
         )
     }
 
+    // MARK: - The receipt for a payment
+    //
+    // The half-page the shop tears off and hands over. Worded from the
+    // customer's end, not the owner's: they are holding it, and everything on it
+    // is about money they just parted with.
+
+    var paymentSaved: String { pick("Payment saved", "ಪಾವತಿ ಉಳಿಸಲಾಗಿದೆ") }
+
+    /// The way back to a receipt for a payment already in the book.
+    ///
+    /// On the correction sheet rather than a screen of its own, because that is
+    /// where somebody already goes when a customer asks about a payment — and a
+    /// customer who has lost their slip is the whole reason to print a second
+    /// one.
+    var viewReceipt: String { pick("View receipt", "ರಸೀದಿ ನೋಡಿ") }
+
+    /// Set against the letterhead: what the piece of paper is.
+    ///
+    /// A shop paying its own supplier receives nothing, so that page is a
+    /// voucher — the word the supplier's own book would use for it. One word for
+    /// both would be read from the wrong end on one of the two.
+    var paymentReceipt: String { pick("Payment Receipt", "ಪಾವತಿ ರಸೀದಿ") }
+    var paymentVoucher: String { pick("Payment Voucher", "ಪಾವತಿ ವೋಚರ್") }
+
+    var receivedFrom: String { pick("Received from:", "ಸ್ವೀಕರಿಸಿದ್ದು — ಇವರಿಂದ:") }
+    var paidTo: String { pick("Paid to:", "ಪಾವತಿಸಿದ್ದು — ಇವರಿಗೆ:") }
+    var amountPaid: String { pick("Amount paid", "ಪಾವತಿಸಿದ ಮೊತ್ತ") }
+
+    /// The three lines under the figure, and always all three.
+    ///
+    /// "Previous balance" rather than the statement's "Opening balance": there
+    /// is no period here to open, and the reader's question is what they owed a
+    /// minute ago.
+    var accountAfterThisReceipt: String {
+        pick("The account after this receipt", "ಈ ರಸೀದಿಯ ನಂತರ ಖಾತೆ")
+    }
+    var previousBalance: String { pick("Previous balance", "ಹಿಂದಿನ ಬಾಕಿ") }
+    var balanceNow: String { pick("Balance now", "ಈಗಿನ ಬಾಕಿ") }
+
+    func receiptFileName(_ name: String, _ date: String) -> String { "receipt-\(name)-\(date).pdf" }
+
     // MARK: - Credit notes
 
     var creditNoteLabel: String { pick("Credit note", "ಕ್ರೆಡಿಟ್ ನೋಟ್") }
