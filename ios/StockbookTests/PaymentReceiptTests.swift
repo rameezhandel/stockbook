@@ -21,7 +21,13 @@ struct PaymentReceiptTests {
     }
 
     private let strings = Strings(language: .english)
-    private let settings = Settings(ownerName: "Al Salam Hardware")
+    /// `Settings` declares `init()`, which suppresses the memberwise one — so
+    /// the shop is named after it is made, as the repository tests do.
+    private var settings: Settings {
+        var settings = Settings()
+        settings.ownerName = "Al Salam Hardware"
+        return settings
+    }
 
     private func shop() -> (StockbookStore, Product) {
         let store = StockbookStore(repository: InMemoryRepository())
