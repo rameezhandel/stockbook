@@ -34,6 +34,7 @@ import com.stockbook.app.feature.bills.BillPdf
 import com.stockbook.app.feature.bills.BillSheet
 import com.stockbook.app.feature.book.BookScreen
 import com.stockbook.app.feature.book.MoveBalanceSheet
+import com.stockbook.app.feature.book.PeopleScreen
 import com.stockbook.app.feature.book.PurchaseSheet
 import com.stockbook.app.feature.customers.CreditNoteSheet
 import com.stockbook.app.feature.customers.CustomerEditorSheet
@@ -198,6 +199,13 @@ private fun Shell(store: StockbookStore) {
                         router = router,
                         cart = cart,
                         strings = strings
+                    )
+                    AppTab.PEOPLE -> PeopleScreen(
+                        state = state,
+                        store = store,
+                        router = router,
+                        strings = strings,
+                        modifier = Modifier.weight(1f)
                     )
                     AppTab.BOOK -> BookScreen(
                         state = state,

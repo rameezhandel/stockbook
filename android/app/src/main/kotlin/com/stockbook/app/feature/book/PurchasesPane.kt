@@ -34,7 +34,6 @@ import com.stockbook.app.design.NocturneType
 import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Purchase
 import com.stockbook.core.model.ShopState
-import com.stockbook.core.model.Supplier
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.model.Timestamps
@@ -44,9 +43,10 @@ import java.time.Instant
 /**
  * What arrived, and from whom.
  *
- * The sales half's mirror: the supplier panel on top — pick one and see what is
- * owed to them — and every delivery underneath, newest first. A wrong delivery is
- * opened first and then corrected or taken out, exactly as a wrong bill is.
+ * The sales half's mirror: every delivery over a span, newest first. The supplier
+ * panel that used to sit on top of it now lives on the People tab, for the reason
+ * `BillsScreen` gives. A wrong delivery is opened first and then corrected or
+ * taken out, exactly as a wrong bill is.
  */
 @Composable
 fun PurchasesPane(
@@ -79,26 +79,8 @@ fun PurchasesPane(
         )
     ) {
         item {
-            // `suppliers()` is a plain function over a StateFlow's current value,
-            // so read bare in a composable it subscribes to nothing. Keying the
-            // read on `state` is what makes this recompose when a delivery is
-            // recorded or a payment made.
-            val suppliers = remember(state) { store.suppliers().map { it.row() } }
-            PartyList(
-                title = strings.suppliersTitle,
-                rows = suppliers,
-                search = { query -> store.suppliers(matching = query).map { it.row() } },
-                addTitle = strings.addASupplier,
-                emptyMessage = strings.noSuppliersYet,
-                currency = currency,
-                strings = strings,
-                onAdd = { router.openNewSupplier() },
-                onOpen = { key -> router.openSupplierScreen(key) },
-                modifier = Modifier.padding(bottom = 20.dp)
-            )
-        }
-
-        item {
+            // The suppliers used to sit above this list. They have a tab of their
+            // own now — see `PeopleScreen`.
             Kicker(strings.purchasesSide, modifier = Modifier.padding(bottom = 8.dp))
             PeriodPicker(
                 choice = choice,
@@ -219,11 +201,3 @@ internal fun DeliveryRow(
         }
     }
 }
-
-/** `Supplier` as the directory draws it. */
-private fun Supplier.row() = PartyRow(
-    key = key,
-    name = name,
-    contact = listOfNotNull(phone, place).takeIf { it.isNotEmpty() }?.joinToString(" · "),
-    owed = owed
-)

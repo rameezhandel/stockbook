@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -46,6 +47,8 @@ object Icon {
     val sellActive: ImageVector = Icons.Filled.Add
     val bills: ImageVector = Icons.Outlined.Receipt            // phosphor: receipt
     val billsActive: ImageVector = Icons.Filled.Receipt
+    val people: ImageVector = Icons.Outlined.Person            // phosphor: user
+    val peopleActive: ImageVector = Icons.Filled.Person
     val back: ImageVector = Icons.AutoMirrored.Filled.ArrowBack
 
     // Actions

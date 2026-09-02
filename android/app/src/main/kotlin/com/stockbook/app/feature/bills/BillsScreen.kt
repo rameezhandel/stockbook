@@ -15,8 +15,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
-import com.stockbook.app.feature.book.PartyList
-import com.stockbook.app.feature.book.PartyRow
 import com.stockbook.app.design.EmptyStateBox
 import com.stockbook.app.design.Kicker
 import com.stockbook.app.design.Icon
@@ -24,7 +22,6 @@ import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.PeriodChoice
 import com.stockbook.app.design.PeriodPicker
 import com.stockbook.app.design.ScreenHeader
-import com.stockbook.core.model.Customer
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.store.StockbookStore
@@ -32,17 +29,16 @@ import com.stockbook.core.text.Strings
 import java.time.Instant
 
 /**
- * The sales half of the book: who the shop sells to, then every bill it has
- * written, newest first.
+ * The sales half of the book: every bill the shop has written over a span,
+ * newest first.
  *
- * The customers came first deliberately. This screen used to open on the bills
- * with a customer *filter* above them, which made a person something you narrowed
- * a list by rather than something you could go and look at. What is owed is the
- * question this half of the book exists to answer, and the people are where the
- * answer lives — so they are what it opens on, and the bills are the ledger
- * underneath.
+ * **The customers used to sit on top of this.** They have a tab of their own now
+ * — see `PeopleScreen`. Finding a person and browsing records are two tasks with
+ * two verbs, and stacking them made a scroll you had to go past to reach either.
+ * The chip row above this pane was switching both halves at once, which is why
+ * expenses, having no people, never fitted the pattern.
  *
- * Nothing on either list corrects anything. A bill entered wrong is opened first,
+ * Nothing on this list corrects anything. A bill entered wrong is opened first,
  * and edited or removed from inside the document — which is the only place the
  * owner can see what they are about to change.
  */
@@ -93,22 +89,10 @@ fun BillsScreen(
             )
         ) {
             item {
-                // `customers()` is a plain function over a StateFlow snapshot, so
-                // the read has to be keyed on `state` or the list will not move
-                // when a bill is written or a payment taken.
-                val customers = remember(state) { store.customers().map { it.row() } }
-                PartyList(
-                    title = strings.customersTitle,
-                    rows = customers,
-                    search = { query -> store.customers(matching = query).map { it.row() } },
-                    addTitle = strings.addACustomer,
-                    emptyMessage = strings.noCustomersYet,
-                    currency = currency,
-                    strings = strings,
-                    onAdd = { router.openNewCustomer() },
-                    onOpen = { key -> router.openCustomerScreen(key) },
-                    modifier = Modifier.padding(bottom = 20.dp)
-                )
+                // The customers used to sit above this list. They have a tab of
+                // their own now — finding a person and browsing records are two
+                // tasks, and stacking them made one scroll you had to go past to
+                // reach either.
                 Kicker(strings.billsTitle, modifier = Modifier.padding(bottom = 8.dp))
                 PeriodPicker(
                     choice = choice,
@@ -158,11 +142,3 @@ fun BillsScreen(
         }
     }
 }
-
-/** `Customer` as the directory draws it. */
-private fun Customer.row() = PartyRow(
-    key = key,
-    name = name,
-    contact = listOfNotNull(phone, place).takeIf { it.isNotEmpty() }?.joinToString(" · "),
-    owed = owed
-)

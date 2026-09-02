@@ -18,6 +18,8 @@ enum Icon {
     static let sellActive = "plus.circle.fill"
     static let bills = "doc.text"                     // phosphor: receipt
     static let billsActive = "doc.text.fill"
+    static let people = "person"                      // phosphor: user
+    static let peopleActive = "person.fill"
     static let back = "arrow.left"                    // phosphor: arrow-left
 
     // Actions

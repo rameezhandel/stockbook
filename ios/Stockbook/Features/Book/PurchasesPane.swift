@@ -2,9 +2,10 @@ import SwiftUI
 
 /// What arrived, and from whom.
 ///
-/// The sales half's mirror, down to the shape: the people first, then the
-/// documents. A wrong delivery is opened and corrected, exactly as a wrong bill
-/// is.
+/// The sales half's mirror: every delivery over a span, newest first. The
+/// supplier panel that used to sit on top of it now lives on the People tab, for
+/// the reason `BillsScreen` gives. A wrong delivery is opened and corrected,
+/// exactly as a wrong bill is.
 struct PurchasesPane: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
@@ -23,17 +24,8 @@ struct PurchasesPane: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: Metrics.rowGap) {
-                PartyList(
-                    title: Loc.suppliersTitle,
-                    rows: store.suppliers().map(\.directoryRow),
-                    search: { store.suppliers(matching: $0).map(\.directoryRow) },
-                    addTitle: Loc.addASupplier,
-                    emptyMessage: Loc.noSuppliersYet,
-                    onAdd: { router.openNewSupplier() },
-                    onOpen: { router.openSupplierScreen($0) }
-                )
-                .padding(.bottom, 20)
-
+                // The suppliers used to sit above this list. They have a tab
+                // of their own now — see `PeopleScreen`.
                 HStack {
                     Kicker(Loc.purchasesSide)
                     Spacer(minLength: 0)

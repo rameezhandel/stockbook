@@ -76,6 +76,7 @@ class Strings(val language: AppLanguage) {
         AppTab.TODAY -> pick("Home", "ಮುಖಪುಟ")
         AppTab.ITEMS -> pick("Items", "ಸಾಮಾನು")
         AppTab.SELL -> pick("Sales", "ಮಾರಾಟಗಳು")
+        AppTab.PEOPLE -> pick("People", "ಜನರು")
         AppTab.BOOK -> pick("Reports", "ವರದಿಗಳು")
     }
 

@@ -108,6 +108,7 @@ private struct AppShell: View {
                     case .today: TodayScreen()
                     case .items: ItemsScreen()
                     case .sell: SellScreen()
+                    case .people: PeopleScreen()
                     case .book: BookScreen()
                     }
                 }

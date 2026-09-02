@@ -79,6 +79,7 @@ struct Strings {
         case .today: pick("Home", "ಮುಖಪುಟ")
         case .items: pick("Items", "ಸಾಮಾನು")
         case .sell: pick("Sales", "ಮಾರಾಟಗಳು")
+        case .people: pick("People", "ಜನರು")
         case .book: pick("Reports", "ವರದಿಗಳು")
         }
     }
