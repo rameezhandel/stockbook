@@ -184,9 +184,7 @@ class Strings(val language: AppLanguage) {
     val salesSide: String get() = pick("Sales", "ಮಾರಾಟ")
     val purchasesSide: String get() = pick("Purchases", "ಖರೀದಿ")
 
-    // --- Every customer's position on one day
-
-    val dayBalances: String get() = pick("Day balances", "ದಿನದ ಬಾಕಿ")
+    // --- The ledger book: every customer's history, printed and filed
 
     /**
      * Every customer's whole history, one sheet each, printed and filed.
@@ -196,59 +194,14 @@ class Strings(val language: AppLanguage) {
      */
     val ledgerBook: String get() = pick("Ledger book", "ಲೆಕ್ಕ ಪುಸ್ತಕ")
 
-    /** Said while a hundred pages are drawn, so a long tap does not read as a dead button. */
-    val ledgerBookBuilding: String get() = pick("Building the book\u2026", "ಪುಸ್ತಕ ಸಿದ್ಧವಾಗುತ್ತಿದೆ\u2026")
-
     fun ledgerBookFileName(date: String): String = "ledger-book-$date.pdf"
 
-    /**
-     * Column headings, kept to one short word each because five of them share the
-     * width of a phone.
-     *
-     * "Old" and "Current" rather than the statement's "Opening" and "Balance due":
-     * this page is read across a row and those two words have to be told apart at
-     * a glance, which two words both starting "balance" are not.
-     */
-    val ledgerInvoiced: String get() = pick("Invoice", "ಬಿಲ್")
-    val ledgerReceived: String get() = pick("Received", "ಬಂದದ್ದು")
-    val ledgerOldBalance: String get() = pick("Old", "ಹಳೆಯ")
-    val ledgerCurrentBalance: String get() = pick("Current", "ಈಗಿನ")
-
-    /** Drawn only on a day that has one. */
-    val ledgerCredited: String get() = pick("Credited", "ಜಮೆ")
-    val ledgerMoved: String get() = pick("Moved", "ವರ್ಗಾವಣೆ")
-
-    /**
-     * Said above the roll-call, because a page of a hundred names where three
-     * matter needs to say which three before the owner starts counting.
-     */
-    fun ledgerBusyCount(n: Int): String =
-        pick(if (n == 1) "1 account moved today" else "$n accounts moved today", "ಇಂದು $n ಖಾತೆ ಬದಲಾಗಿದೆ")
-
-    val ledgerNobodyMoved: String get() = pick("Nothing moved today", "ಇಂದು ಏನೂ ಬದಲಾಗಿಲ್ಲ")
-    val ledgerNoCustomers: String
-        get() = pick("No customers yet", "ಇನ್ನೂ ಗ್ರಾಹಕರಿಲ್ಲ")
-
-    /** The switch between the whole roll-call and only what moved. */
+    /** The foot of the book's contents page — see `SummaryDocument.forLedgerBook`. */
     val ledgerTotal: String get() = pick("Total", "ಒಟ್ಟು")
 
-    /**
-     * Printed at the head of a page that was narrowed before it was printed.
-     *
-     * A printed roll-call and a printed selection look identical on paper and
-     * their totals differ, so the page has to say which it is — otherwise the
-     * owner files a sheet whose figures do not tie to the shop's own.
-     */
-    val ledgerMovedOnlyNote: String
-        get() = pick(
-            "Only accounts that moved on this day",
-            "ಈ ದಿನ ಬದಲಾದ ಖಾತೆಗಳು ಮಾತ್ರ"
-        )
-
-    fun ledgerFileName(date: String): String = "day-balances-$date.pdf"
-
-    val ledgerShowAll: String get() = pick("All", "ಎಲ್ಲಾ")
-    val ledgerShowMoved: String get() = pick("Moved", "ಬದಲಾದವು")
+    /** Printed instead of the contents where the shop has nobody on its books yet. */
+    val ledgerNoCustomers: String
+        get() = pick("No customers yet", "ಇನ್ನೂ ಗ್ರಾಹಕರಿಲ್ಲ")
 
     // The other way into the same sheet the Items header opens, so it is called
     // the same thing. Two buttons that do one job under two names is how somebody

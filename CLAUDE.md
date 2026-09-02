@@ -97,9 +97,10 @@ the other.
 - **A `LazyColumn` inside a sheet needs a bounded height or it draws nothing.**
   `BottomSheet`'s content slot is a `Column` with `verticalScroll`, so its height
   is unbounded, and a lazy list given `weight` in an unbounded parent measures to
-  zero and renders **no rows at all**. The day ledger shipped that way: its
-  heading and its totals appeared, and all hundred customers between them were
-  missing. For a whole list, use `forEach` as the other list sheets do; the
+  zero and renders **no rows at all**. The day-balances sheet shipped that way —
+  its heading and its totals appeared and all hundred customers between them were
+  missing — and although that screen has since been removed, the trap has not.
+  For a whole list, use `forEach` as the other list sheets do; the
   `heightIn(max = …)` lists in `CreditNoteSheet` and `AddStockSheet` are fine
   because the cap is what bounds them. The Swift twin has the same trap with a
   `ScrollView` nested in the sheet's own scroll. Compiles clean, passes CI, and

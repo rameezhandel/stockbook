@@ -171,6 +171,26 @@ Play will grant production access at all.
 
   Delete merged branches from the GitHub UI instead. Nothing depends on them.
 
+- **Day balances — built and then removed.** A screen and a PDF listing every
+  customer's position on one chosen day: `Name | Invoice | Received | Old
+  balance | Current balance`, with a Moved/All filter and a column of totals.
+
+  It went because two later changes ate it from both ends. The **day summary**
+  gained a closing balance under every row, which covers the people who moved on
+  a past day; the **ledger book** gained a contents page listing every customer
+  and their balance, which covers the roll-call. Between them the only question
+  left was a quiet customer's balance on a past day — and a quiet customer's past
+  balance *is* their present balance, because nothing moved it.
+
+  That left three answers in the app to "who owes me right now" — the receivable
+  sheet, this, and the ledger book index — and this was the most expensive of the
+  three: twelve files across both platforms and eleven strings in two languages.
+
+  Worth noting what was *not* the reason. The full roll-call was asked for
+  deliberately, and it was right: a page read against a paper book has to have
+  the same names in it. It simply turned out to belong on paper rather than on a
+  day-stepping screen. `SummaryDocument.forLedgerBook` is where it lives now.
+
 - **Bundled fonts — decided against.** Every type style names Inter and neither
   app bundles it, so both fall back to the system face: San Francisco on iOS,
   Roboto on Android. Spacing therefore sits slightly off the prototype

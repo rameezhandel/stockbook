@@ -192,9 +192,7 @@ struct Strings {
     var salesSide: String { pick("Sales", "ಮಾರಾಟ") }
     var purchasesSide: String { pick("Purchases", "ಖರೀದಿ") }
 
-    // MARK: - Every customer's position on one day
-
-    var dayBalances: String { pick("Day balances", "ದಿನದ ಬಾಕಿ") }
+    // MARK: - The ledger book: every customer's history, printed and filed
 
     /// Every customer's whole history, one sheet each, printed and filed.
     ///
@@ -202,60 +200,13 @@ struct Strings {
     /// the bound ledger with a page per account.
     var ledgerBook: String { pick("Ledger book", "ಲೆಕ್ಕ ಪುಸ್ತಕ") }
 
-    /// Said while a hundred pages are drawn, so a long tap does not read as a
-    /// dead button.
-    var ledgerBookBuilding: String {
-        pick("Building the book\u{2026}", "ಪುಸ್ತಕ ಸಿದ್ಧವಾಗುತ್ತಿದೆ\u{2026}")
-    }
-
     func ledgerBookFileName(_ date: String) -> String { "ledger-book-\(date).pdf" }
 
-    /// Column headings, kept to one short word each because five of them share
-    /// the width of a phone.
-    ///
-    /// "Old" and "Current" rather than the statement's "Opening" and "Balance
-    /// due": this page is read across a row and those two words have to be told
-    /// apart at a glance, which two words both starting "balance" are not.
-    var ledgerInvoiced: String { pick("Invoice", "ಬಿಲ್") }
-    var ledgerReceived: String { pick("Received", "ಬಂದದ್ದು") }
-    var ledgerOldBalance: String { pick("Old", "ಹಳೆಯ") }
-    var ledgerCurrentBalance: String { pick("Current", "ಈಗಿನ") }
-
-    /// Drawn only on a day that has one.
-    var ledgerCredited: String { pick("Credited", "ಜಮೆ") }
-    var ledgerMoved: String { pick("Moved", "ವರ್ಗಾವಣೆ") }
-
-    /// Said above the roll-call, because a page of a hundred names where three
-    /// matter needs to say which three before the owner starts counting.
-    func ledgerBusyCount(_ n: Int) -> String {
-        pick(
-            n == 1 ? "1 account moved today" : "\(n) accounts moved today",
-            "ಇಂದು \(n) ಖಾತೆ ಬದಲಾಗಿದೆ"
-        )
-    }
-
-    var ledgerNobodyMoved: String { pick("Nothing moved today", "ಇಂದು ಏನೂ ಬದಲಾಗಿಲ್ಲ") }
-    var ledgerNoCustomers: String { pick("No customers yet", "ಇನ್ನೂ ಗ್ರಾಹಕರಿಲ್ಲ") }
-
-    /// The switch between the whole roll-call and only what moved.
+    /// The foot of the book's contents page — see `SummaryDocument.forLedgerBook`.
     var ledgerTotal: String { pick("Total", "ಒಟ್ಟು") }
 
-    /// Printed at the head of a page that was narrowed before it was printed.
-    ///
-    /// A printed roll-call and a printed selection look identical on paper and
-    /// their totals differ, so the page has to say which it is — otherwise the
-    /// owner files a sheet whose figures do not tie to the shop's own.
-    var ledgerMovedOnlyNote: String {
-        pick(
-            "Only accounts that moved on this day",
-            "ಈ ದಿನ ಬದಲಾದ ಖಾತೆಗಳು ಮಾತ್ರ"
-        )
-    }
-
-    func ledgerFileName(_ date: String) -> String { "day-balances-\(date).pdf" }
-
-    var ledgerShowAll: String { pick("All", "ಎಲ್ಲಾ") }
-    var ledgerShowMoved: String { pick("Moved", "ಬದಲಾದವು") }
+    /// Printed instead of the contents where the shop has nobody on its books yet.
+    var ledgerNoCustomers: String { pick("No customers yet", "ಇನ್ನೂ ಗ್ರಾಹಕರಿಲ್ಲ") }
 
     /// On the Items header. Says "delivery" rather than "purchase" because that
     /// is the word for the thing arriving at the door.

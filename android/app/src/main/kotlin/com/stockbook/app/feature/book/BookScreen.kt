@@ -13,7 +13,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
@@ -28,7 +27,6 @@ import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
-import java.time.Instant
 
 /**
  * The account book: every direction money moves.
@@ -80,25 +78,16 @@ fun BookScreen(
             // people, read down, and this is the screen the owner comes to when
             // the question is about people rather than about today.
             trailing = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Every customer's whole history, printed once and filed.
-                    // Beside the day page rather than buried in Settings: they
-                    // are the two things this screen can hand to a printer, and
-                    // one of them being somewhere else is how the other is never
-                    // found.
-                    IconButton(
-                        Icon.bills,
-                        onClick = onSaveLedgerBook,
-                        contentDescription = strings.ledgerBook,
-                        tint = Nocturne.neutral400
-                    )
-                    IconButton(
-                        Icon.customer,
-                        onClick = { router.ledgerDay = Instant.now() },
-                        contentDescription = strings.dayBalances,
-                        tint = Nocturne.neutral400
-                    )
-                }
+                // Every customer's whole history, printed once and filed. The
+                // one thing this screen hands to a printer, so it lives here
+                // rather than in Settings, which is where features go to be
+                // forgotten.
+                IconButton(
+                    Icon.bills,
+                    onClick = onSaveLedgerBook,
+                    contentDescription = strings.ledgerBook,
+                    tint = Nocturne.neutral400
+                )
             }
         )
 

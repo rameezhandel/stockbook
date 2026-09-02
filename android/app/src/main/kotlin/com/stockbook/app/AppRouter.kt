@@ -112,16 +112,6 @@ class AppRouter {
      */
     var dayInView by mutableStateOf<java.time.Instant?>(null)
 
-    /**
-     * The day the balance roll-call is showing, opened from the Reports header.
-     *
-     * Its own state rather than sharing [dayInView], though both hold a date and
-     * both step: one is the day's transactions and the other is every customer's
-     * position, and a sheet that opened on whichever day the *other* had been
-     * left on would be a very quiet way to read the wrong day's figures.
-     */
-    var ledgerDay by mutableStateOf<java.time.Instant?>(null)
-
     /** The receipt, shown full-screen after a bill is saved. */
     var receipt by mutableStateOf<Bill?>(null)
 

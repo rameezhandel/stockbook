@@ -159,14 +159,6 @@ final class AppRouter {
     /// the date at the top of Home.
     var dayInView: Date?
 
-    /// The day the balance roll-call is showing, opened from the Reports header.
-    ///
-    /// Its own state rather than sharing `dayInView`, though both hold a date and
-    /// both step: one is the day's transactions and the other is every customer's
-    /// position, and a sheet that opened on whichever day the *other* had been
-    /// left on would be a very quiet way to read the wrong day's figures.
-    var ledgerDay: Date?
-
     /// A supplier's statement, full screen — a key for the same reason
     /// `statementFor` is one, and a separate field so the screen knows which side
     /// of the book it is drawing without being told twice.

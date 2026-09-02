@@ -16,7 +16,6 @@ import SwiftUI
 /// sale happens fifty times a day, a delivery arrives once a week. A tab bar is
 /// weighted by how often a thumb goes there, not by how tidy the model is.
 struct BookScreen: View {
-    @Environment(AppRouter.self) private var router
     @Environment(StockbookStore.self) private var store
 
     /// The rendered book, waiting for the share sheet.
@@ -39,26 +38,14 @@ struct BookScreen: View {
             // people, read down, and this is the screen the owner comes to when
             // the question is about people rather than about today.
             ScreenHeader(title: Loc.bookTitle) {
-                HStack(spacing: 0) {
-                    // Every customer's whole history, printed once and filed.
-                    // Beside the day page rather than buried in Settings: they
-                    // are the two things this screen can hand to a printer, and
-                    // one of them being somewhere else is how the other is never
-                    // found.
-                    Button(action: saveLedgerBook) {
-                        Glyph(Icon.bills, size: 18)
-                    }
-                    .buttonStyle(.iconOnly)
-                    .accessibilityLabel(Loc.ledgerBook)
-
-                    Button {
-                        router.ledgerDay = .now
-                    } label: {
-                        Glyph(Icon.customer, size: 18)
-                    }
-                    .buttonStyle(.iconOnly)
-                    .accessibilityLabel(Loc.dayBalances)
+                // Every customer's whole history, printed once and filed. The one
+                // thing this screen hands to a printer, so it lives here rather
+                // than in Settings, which is where features go to be forgotten.
+                Button(action: saveLedgerBook) {
+                    Glyph(Icon.bills, size: 18)
                 }
+                .buttonStyle(.iconOnly)
+                .accessibilityLabel(Loc.ledgerBook)
             }
 
             HStack(spacing: 6) {
