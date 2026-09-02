@@ -60,7 +60,7 @@ fun PeopleScreen(
      * party's screen and back — somebody who came here for suppliers should not
      * be handed customers again on the way out.
      */
-    var side by rememberSaveable { mutableStateOf(Side.CUSTOMERS) }
+    var side by rememberSaveable { mutableStateOf(PeopleSide.CUSTOMERS) }
 
     Column(
         modifier = modifier
@@ -79,16 +79,16 @@ fun PeopleScreen(
             ChoicePill(
                 title = strings.customersTitle,
                 icon = Icon.customer,
-                selected = side == Side.CUSTOMERS,
-                onClick = { side = Side.CUSTOMERS },
+                selected = side == PeopleSide.CUSTOMERS,
+                onClick = { side = PeopleSide.CUSTOMERS },
                 modifier = Modifier.weight(1f)
             )
             Spacer(Modifier.width(6.dp))
             ChoicePill(
                 title = strings.suppliersTitle,
                 icon = Icon.items,
-                selected = side == Side.SUPPLIERS,
-                onClick = { side = Side.SUPPLIERS },
+                selected = side == PeopleSide.SUPPLIERS,
+                onClick = { side = PeopleSide.SUPPLIERS },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -100,7 +100,7 @@ fun PeopleScreen(
         // No `else` on purpose: a third kind of person has to break this and be
         // placed deliberately.
         when (side) {
-            Side.CUSTOMERS -> {
+            PeopleSide.CUSTOMERS -> {
                 val rows = remember(state) { store.customers().map { it.row() } }
                 PartyList(
                     title = strings.customersTitle,
@@ -115,7 +115,7 @@ fun PeopleScreen(
                     modifier = Modifier.padding(horizontal = Metrics.screenPadding)
                 )
             }
-            Side.SUPPLIERS -> {
+            PeopleSide.SUPPLIERS -> {
                 val rows = remember(state) { store.suppliers().map { it.row() } }
                 PartyList(
                     title = strings.suppliersTitle,
@@ -134,8 +134,15 @@ fun PeopleScreen(
     }
 }
 
-/** Which side of the counter is showing. */
-private enum class Side { CUSTOMERS, SUPPLIERS }
+/**
+ * Which side of the counter is showing.
+ *
+ * Not `Side`, which `BookScreen` already has in this package. A top-level
+ * `private` in Kotlin hides the declaration from other *files* but still puts
+ * the name in the package, so two of them collide — and the error it gives is
+ * "Redeclaration" pointing at the innocent file.
+ */
+private enum class PeopleSide { CUSTOMERS, SUPPLIERS }
 
 /** `Customer` as the directory draws it. */
 private fun Customer.row() = PartyRow(

@@ -120,6 +120,13 @@ the other.
   not just the line in the error.**
 - `kotlinx.serialization` fills a missing key from the property's default. Swift
   does not. The Swift twin of a field you add may need hand-written decoding.
+- **A top-level `private` still occupies the package's namespace.** It hides the
+  declaration from other *files*, not from the package, so two files under
+  `feature/book` cannot both declare `private enum class Side` — and the error is
+  `Redeclaration` pointing at whichever file the compiler reached first, which is
+  usually the innocent one. `PeopleScreen`'s side enum is `PeopleSide` for exactly
+  this reason. The Swift twin has no such trap: nest the enum in the view and it
+  is scoped to it.
 
 **Both**
 
