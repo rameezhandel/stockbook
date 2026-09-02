@@ -72,52 +72,45 @@ struct BookScreen: View {
                 .accessibilityLabel(Loc.ledgerBook)
             }
 
-            // Fixed above the scroll, not inside it. This row is the switch, and
-            // a switch that scrolls out of reach makes the owner flick back up to
-            // change what they are looking at.
-            // No icons on this row. Four pills across a phone leaves each about
-            // 77pt, and "Purchases" with a glyph beside it needs more than that —
-            // the label is what the owner is reading anyway.
-            HStack(spacing: 6) {
-                ForEach(Side.allCases) { candidate in
-                    ChoicePill(title: label(for: candidate), selected: side == candidate) {
-                        choose(candidate)
-                    }
-                }
-            }
+            NocturneField(
+                placeholder: Loc.searchRecords,
+                text: $query,
+                height: 40,
+                fontSize: 13.5
+            )
             .padding(.horizontal, Metrics.screenPadding)
             .padding(.bottom, 10)
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: Metrics.rowGap) {
-                    // Span first, then the figure it adds up to, then the rows
-                    // behind the figure. The picker used to sit below the total on
-                    // the expenses side and above it on the other two, which meant
-                    // the same page read in two directions depending on a chip.
-                    PeriodPicker(
-                        choice: Binding(get: { choice }, set: { storedPeriod = $0.rawValue }),
-                        from: $from,
-                        to: $to
-                    )
-                    .padding(.bottom, 12 - Metrics.rowGap)
-
-                    totalCard
-                        .padding(.bottom, 20 - Metrics.rowGap)
-
-                    HStack {
-                        Kicker(listTitle)
-                        Spacer(minLength: 6)
-                        // Expenses are the one record with no other way in. A bill
-                        // starts on the Sell tab and a purchase from the shelf, but
-                        // nothing else in the app writes down the owner's own
-                        // spending, so the list carries its own pen.
-                        if side == .expenses {
-                            Button(Loc.addAnExpense) { router.openNewExpense() }
-                                .buttonStyle(GhostButtonStyle(fontSize: 12))
+            // Fixed above the scroll, not inside it. This row is the switch, and
+            // a switch that scrolls out of reach makes the owner flick back up to
+            // change what they are looking at.
+            //
+            // No icons on it. Four pills across a phone leaves each about 77pt,
+            // and "Purchases" with a glyph beside it needs more than that — the
+            // label is what the owner is reading anyway.
+            //
+            // The whole row goes while a search is running, and so does everything
+            // else the span controls. Leaving them on screen would have the owner
+            // reading "Sales · This month" over a list of results that is neither.
+            if !searching {
+                HStack(spacing: 6) {
+                    ForEach(Side.allCases) { candidate in
+                        ChoicePill(title: label(for: candidate), selected: side == candidate) {
+                            choose(candidate)
                         }
                     }
+                }
+                .padding(.horizontal, Metrics.screenPadding)
+                .padding(.bottom, 10)
+            }
 
-                    rows
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: Metrics.rowGap) {
+                    if searching {
+                        results
+                    } else {
+                        book
+                    }
                 }
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.bottom, 18)
@@ -131,6 +124,98 @@ struct BookScreen: View {
             .id(side)
         }
         .sheet(item: $file) { ShareSheet(url: $0.url) }
+    }
+
+    // MARK: The book
+
+    @ViewBuilder private var book: some View {
+        // Span first, then the figure it adds up to, then the rows behind the
+        // figure. The picker used to sit below the total on the expenses side and
+        // above it on the other two, which meant the same page read in two
+        // directions depending on a chip.
+        PeriodPicker(
+            choice: Binding(get: { choice }, set: { storedPeriod = $0.rawValue }),
+            from: $from,
+            to: $to
+        )
+        .padding(.bottom, 12 - Metrics.rowGap)
+
+        totalCard
+            .padding(.bottom, 20 - Metrics.rowGap)
+
+        HStack {
+            Kicker(listTitle)
+            Spacer(minLength: 6)
+            // Expenses are the one record with no other way in. A bill starts on
+            // the Sell tab and a purchase from the shelf, but nothing else in the
+            // app writes down the owner's own spending, so the list carries its
+            // own pen.
+            if side == .expenses {
+                Button(Loc.addAnExpense) { router.openNewExpense() }
+                    .buttonStyle(GhostButtonStyle(fontSize: 12))
+            }
+        }
+
+        rows
+    }
+
+    // MARK: The results
+
+    @ViewBuilder private var results: some View {
+        let hits = self.hits
+        if hits.isEmpty {
+            EmptyStateBox(icon: Icon.bills, message: Loc.nothingMatches)
+        }
+        ForEach(hits) { hit in
+            Button {
+                open(hit)
+            } label: {
+                SearchRow(hit: hit)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Opens whatever a result is.
+    ///
+    /// The one place in the app that turns a `SearchHit` back into a record.
+    /// Routing is the app's business rather than the store's, so the handle comes
+    /// across as an id and is looked up here — a bill by its number, which is what
+    /// a bill's identity is, and everything else by its own.
+    ///
+    /// Nothing opens when the record has gone, which is the honest outcome the
+    /// receipt lookup already settled on. A `switch` with no `default`, so a
+    /// seventh kind of record has to be given a way in rather than silently doing
+    /// nothing when tapped.
+    private func open(_ hit: SearchHit) {
+        switch hit.kind {
+        case .bill:
+            if let bill = store.bills.first(where: { String($0.number) == hit.id }) {
+                router.openBill(bill)
+            }
+        case .payment:
+            if let id = UUID(uuidString: hit.id), let receipt = store.receipt(forPayment: id) {
+                router.showReceipt(receipt, justSaved: false)
+            }
+        case .supplierPayment:
+            if let id = UUID(uuidString: hit.id), let receipt = store.receipt(forSupplierPayment: id) {
+                router.showReceipt(receipt, justSaved: false)
+            }
+        case .creditNote:
+            if let id = UUID(uuidString: hit.id),
+               let note = store.creditNotes.first(where: { $0.id == id }) {
+                router.editingCreditNote = note
+            }
+        case .purchase:
+            if let id = UUID(uuidString: hit.id),
+               let purchase = store.purchases.first(where: { $0.id == id }) {
+                router.purchaseDetail = purchase
+            }
+        case .expense:
+            if let expense = store.expenses.first(where: { $0.id == hit.id }) {
+                router.openExpense(expense)
+            }
+        }
     }
 
     private func choose(_ next: Side) {

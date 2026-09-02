@@ -31,6 +31,7 @@ import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Icon
 import com.stockbook.app.design.IconButton
 import com.stockbook.app.design.Kicker
+import com.stockbook.app.design.NocturneField
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
@@ -44,6 +45,8 @@ import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
+import com.stockbook.core.store.DayEntryKind
+import com.stockbook.core.store.SearchHit
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
 import java.time.Instant
@@ -155,6 +158,18 @@ fun BookScreen(
         if (side == Side.PAYMENTS) store.paidOutIn(period) else 0.0
     }
 
+    // **What was typed, and whether anything was.** Not saved across a trip into
+    // a document: the owner who searched a receipt, opened it and came back has
+    // finished with that search, and being handed the results again is one more
+    // thing to clear.
+    var query by remember { mutableStateOf("") }
+    val searching = query.isNotBlank()
+
+    // Read only while something is typed, and deliberately **without the span**:
+    // the lists above answer "what happened in August", and this answers "where
+    // is this piece of paper" — a question a month only gets in the way of.
+    val hits = remember(state, query) { if (searching) store.search(query) else emptyList() }
+
     val listState = rememberLazyListState()
     // Back to the top when the kind of record changes. Without it, switching from
     // forty bills to five expenses lands the owner at the bottom of a list they
@@ -180,10 +195,22 @@ fun BookScreen(
             }
         )
 
-        // Fixed above the scroll, not inside it. This row is the switch, and a
-        // switch that scrolls out of reach makes the owner flick back up to
-        // change what they are looking at.
-        Row(
+        NocturneField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = strings.searchRecords,
+            height = 40.dp,
+            fontSize = 13.5,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Metrics.screenPadding)
+                .padding(bottom = 10.dp)
+        )
+
+        // The chips go while a search is running, and so does everything else the
+        // span controls. Leaving them on screen would have the owner reading
+        // "Sales · This month" over a list of results that is neither.
+        if (!searching) Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = Metrics.screenPadding)
@@ -221,6 +248,30 @@ fun BookScreen(
                 bottom = 18.dp
             )
         ) {
+            if (searching) {
+                if (hits.isEmpty()) {
+                    item {
+                        EmptyStateBox(icon = Icon.bills, message = strings.nothingMatches)
+                    }
+                }
+
+                // Keyed on the kind as well as the id: a bill's id here is its
+                // number, which is a small integer and could collide with nothing
+                // else — but only because nothing else is keyed the same way, and
+                // that is not a thing to leave to luck in a mixed list.
+                items(hits, key = { "${it.kind}-${it.id}" }) { hit ->
+                    SearchRow(
+                        hit = hit,
+                        currency = currency,
+                        strings = strings,
+                        onClick = { open(hit, store, router) },
+                        modifier = Modifier.padding(bottom = Metrics.rowGap)
+                    )
+                }
+
+                return@LazyColumn
+            }
+
             item {
                 // Span first, then the figure it adds up to, then the rows behind
                 // the figure. The picker used to sit below the total on the
@@ -416,6 +467,40 @@ fun BookScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * Opens whatever a result is.
+ *
+ * The one place in the app that turns a [SearchHit] back into a record. Routing
+ * is the app's business rather than the store's, so the handle comes across as an
+ * id and is looked up here — a bill by its number, which is what a bill's
+ * identity is, and everything else by its own.
+ *
+ * Nothing opens when the record has gone, which is the honest outcome the receipt
+ * lookup already settled on. A `when` with no `else`, so a seventh kind of record
+ * has to be given a way in rather than silently doing nothing when tapped.
+ */
+private fun open(hit: SearchHit, store: StockbookStore, router: AppRouter) {
+    when (hit.kind) {
+        DayEntryKind.BILL ->
+            store.bills.firstOrNull { it.number.toString() == hit.id }?.let { router.openBill(it) }
+
+        DayEntryKind.PAYMENT ->
+            store.receiptForPayment(hit.id)?.let { router.showReceipt(it, justSaved = false) }
+
+        DayEntryKind.SUPPLIER_PAYMENT ->
+            store.receiptForSupplierPayment(hit.id)?.let { router.showReceipt(it, justSaved = false) }
+
+        DayEntryKind.CREDIT_NOTE ->
+            store.creditNotes.firstOrNull { it.id == hit.id }?.let { router.editingCreditNote = it }
+
+        DayEntryKind.PURCHASE ->
+            store.purchases.firstOrNull { it.id == hit.id }?.let { router.purchaseDetail = it }
+
+        DayEntryKind.EXPENSE ->
+            store.expenses.firstOrNull { it.id == hit.id }?.let { router.openExpense(it) }
     }
 }
 

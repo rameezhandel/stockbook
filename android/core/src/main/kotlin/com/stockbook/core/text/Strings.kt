@@ -196,6 +196,27 @@ class Strings(val language: AppLanguage) {
      */
     val paymentsSide: String get() = pick("Payments", "ಪಾವತಿಗಳು")
 
+    // --- Search: the way in that no list gives
+
+    /**
+     * What the box will take, rather than the word "Search".
+     *
+     * The four lists in the book each answer "what happened in August". This
+     * answers "where is this piece of paper", and an owner has no reason to guess
+     * that a receipt number typed here will find anything — so the placeholder
+     * says so.
+     */
+    val searchRecords: String
+        get() = pick("Invoice, receipt, name or amount", "ಬಿಲ್, ರಸೀದಿ, ಹೆಸರು ಅಥವಾ ಮೊತ್ತ")
+
+    val nothingMatches: String get() = pick("Nothing matches that", "ಅದಕ್ಕೆ ಏನೂ ಹೊಂದುವುದಿಲ್ಲ")
+
+    // What a result says it is. Singular, because a row is one record — the
+    // plurals in this file head lists and read wrong on a single line.
+    val billLabel: String get() = pick("Bill", "ಬಿಲ್")
+    val voucherLabel: String get() = pick("Voucher", "ವೋಚರ್")
+    val expenseLabel: String get() = pick("Expense", "ಖರ್ಚು")
+
     // The second figure on the payments card. What came in is the headline —
     // it is the question the owner opened the chip to ask — and what went out
     // sits under it rather than being netted into it, because a single number

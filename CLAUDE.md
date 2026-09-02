@@ -187,6 +187,15 @@ the other.
   whether to ask `receiptForPayment` or `receiptForSupplierPayment` for the slip.
   Its ties break on the id so the order does not depend on a sort's stability,
   which Kotlin has and Swift does not.
+- **Search takes no period, and that is the feature.** `search(query)` walks all
+  six kinds across all time. Every list in the book narrows to a span; an owner
+  looking a receipt up does not know its month, so a search that respected the
+  chips would fail at exactly the moment it was needed. It matches numbers the
+  way `InvoiceNo` does, hoists an exact number above an amount that happens to
+  equal it, and caps at 40 — a single letter would otherwise draw a row per
+  record. `SearchHit.id` is the record's own id, except a bill's, which is its
+  `number` as a string; `BookScreen.open` is the only place that turns one back
+  into a record.
 - **A credit note is not a payment.** Both reduce what somebody owes; only one is
   money. `paymentsIn` and `receivedIn` leave credits out, and a list that swept
   them in would say the shop took money it never saw.

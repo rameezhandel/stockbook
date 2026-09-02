@@ -217,6 +217,29 @@ data class Earnings(
 enum class DayEntryKind { BILL, PAYMENT, CREDIT_NOTE, PURCHASE, SUPPLIER_PAYMENT, EXPENSE }
 
 /**
+ * One record the search turned up, whichever of the six kinds it came from.
+ *
+ * Flat on purpose: the point of a search result is that the owner does not have
+ * to know which list a thing lives on before they can find it. [kind] is what
+ * the row labels itself with and what the screen switches on to open the right
+ * document.
+ *
+ * [id] is the underlying record's own id — except for a bill, whose identity is
+ * its `number`, so that is what travels here as a string. Nothing reads this
+ * back into storage; it is a handle for one tap.
+ */
+data class SearchHit(
+    val kind: DayEntryKind,
+    val id: String,
+    /** The party the record is filed under, or what an expense was for. */
+    val who: String,
+    /** The number the owner typed, where the record carries one. */
+    val reference: String?,
+    val amount: Double,
+    val at: Instant
+)
+
+/**
  * One slip on the payments list, whichever way the money went.
  *
  * A flat view over two records that stay two records. [Payment] and
@@ -1644,6 +1667,147 @@ class StockbookStore(private val repository: StockbookRepository) {
         return (received + paid).sortedWith(
             compareByDescending<PaymentEntry> { it.at }.thenBy { it.id }
         )
+    }
+
+    /**
+     * Every record matching what was typed, best guess first — the way in that
+     * no list gives.
+     *
+     * **Across all six kinds and across all time.** The lists in the book each
+     * answer "what happened in August"; this answers "where is this piece of
+     * paper", which is a different question and one a span only gets in the way
+     * of. An owner holding receipt 008455 does not know which month it was
+     * written in — that is why they are looking it up.
+     *
+     * A record matches on its **number**, on the **name** it is filed under, or
+     * on its **amount** when the query is one. Numbers are compared the way
+     * [InvoiceNo] compares them, so a receipt typed `008455` is found by `8455`
+     * as well. Amounts match to the halfpenny rather than exactly, because the
+     * owner types `250` for a figure the file holds as `250.0000001`.
+     *
+     * **An exact number match comes first**, then the newest. Typing a whole
+     * receipt number and finding it third, under two bills that happen to be for
+     * that many riyals, is the search failing at the one job it was added for.
+     * Ties after that break on the id, so the order does not depend on a sort's
+     * stability — the same reason [paymentBook] does.
+     */
+    fun search(query: String, limit: Int = 40): List<SearchHit> {
+        val needle = InvoiceNo.key(query)
+        if (needle.isEmpty()) return emptyList()
+        // `250` is an amount; `008455` parses as one too, and matching it costs
+        // nothing — the exact-number hoist puts the receipt above whatever the
+        // shop happens to have sold for 8,455.
+        val asAmount = needle.toDoubleOrNull()
+
+        fun matches(reference: String?, who: String, amount: Double): Boolean =
+            InvoiceNo.key(reference).contains(needle) ||
+                who.lowercase().contains(needle) ||
+                (asAmount != null && kotlin.math.abs(amount - asAmount) < 0.005)
+
+        val hits = mutableListOf<SearchHit>()
+
+        for (bill in bills) {
+            // Both numbers a bill answers to: the one the owner typed on the
+            // invoice, and the app's own counter, which is what the row says when
+            // nothing was typed. Searching for what is printed on the paper has
+            // to find it either way.
+            val typed = InvoiceNo.key(bill.invoiceNo)
+            val counter = bill.number.toString()
+            val hit = typed.contains(needle) ||
+                counter.contains(needle) ||
+                bill.who.lowercase().contains(needle) ||
+                (asAmount != null && kotlin.math.abs(bill.total - asAmount) < 0.005)
+            if (hit) {
+                hits += SearchHit(
+                    kind = DayEntryKind.BILL,
+                    id = counter,
+                    who = bill.who,
+                    reference = bill.invoiceNo?.takeIf { it.isNotBlank() },
+                    amount = bill.total,
+                    at = bill.createdAt
+                )
+            }
+        }
+
+        for (payment in payments) {
+            val who = customer(payment.customerKey)?.name ?: payment.customerKey
+            if (matches(payment.paymentNo, who, payment.amount)) {
+                hits += SearchHit(
+                    kind = DayEntryKind.PAYMENT,
+                    id = payment.id,
+                    who = who,
+                    reference = payment.paymentNo?.takeIf { it.isNotBlank() },
+                    amount = payment.amount,
+                    at = payment.receivedAt
+                )
+            }
+        }
+
+        for (note in creditNotes) {
+            val who = customer(note.customerKey)?.name ?: note.customerKey
+            if (matches(note.noteNo, who, note.total)) {
+                hits += SearchHit(
+                    kind = DayEntryKind.CREDIT_NOTE,
+                    id = note.id,
+                    who = who,
+                    reference = note.noteNo?.takeIf { it.isNotBlank() },
+                    amount = note.total,
+                    at = note.issuedAt
+                )
+            }
+        }
+
+        for (purchase in purchases) {
+            val who = supplier(purchase.supplierKey)?.name ?: purchase.supplierKey
+            if (matches(purchase.invoiceNo, who, purchase.total)) {
+                hits += SearchHit(
+                    kind = DayEntryKind.PURCHASE,
+                    id = purchase.id,
+                    who = who,
+                    reference = purchase.invoiceNo?.takeIf { it.isNotBlank() },
+                    amount = purchase.total,
+                    at = purchase.createdAt
+                )
+            }
+        }
+
+        for (payment in supplierPayments) {
+            val who = supplier(payment.supplierKey)?.name ?: payment.supplierKey
+            if (matches(payment.paymentNo, who, payment.amount)) {
+                hits += SearchHit(
+                    kind = DayEntryKind.SUPPLIER_PAYMENT,
+                    id = payment.id,
+                    who = who,
+                    reference = payment.paymentNo?.takeIf { it.isNotBlank() },
+                    amount = payment.amount,
+                    at = payment.paidAt
+                )
+            }
+        }
+
+        for (expense in expenses) {
+            // An expense is filed under what it was for rather than under
+            // anybody, and it carries no number — so the note is the only thing
+            // there is to match a word against.
+            if (matches(null, expense.note, expense.amount)) {
+                hits += SearchHit(
+                    kind = DayEntryKind.EXPENSE,
+                    id = expense.id,
+                    who = expense.note,
+                    reference = null,
+                    amount = expense.amount,
+                    at = expense.spentAt
+                )
+            }
+        }
+
+        return hits
+            .sortedWith(
+                compareByDescending<SearchHit> { InvoiceNo.key(it.reference) == needle || it.id.lowercase() == needle }
+                    .thenByDescending { it.at }
+                    .thenBy { it.id }
+            )
+            .take(limit)
     }
 
     /** How many bills the shop wrote in [period]. */

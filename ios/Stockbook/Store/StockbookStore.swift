@@ -1272,6 +1272,149 @@ final class StockbookStore {
         }
     }
 
+    /// Every record matching what was typed, best guess first — the way in that
+    /// no list gives.
+    ///
+    /// **Across all six kinds and across all time.** The lists in the book each
+    /// answer "what happened in August"; this answers "where is this piece of
+    /// paper", which is a different question and one a span only gets in the way
+    /// of. An owner holding receipt 008455 does not know which month it was
+    /// written in — that is why they are looking it up.
+    ///
+    /// A record matches on its **number**, on the **name** it is filed under, or
+    /// on its **amount** when the query is one. Numbers are compared the way
+    /// `InvoiceNo` compares them, so a receipt typed `008455` is found by `8455`
+    /// as well. Amounts match to the halfpenny rather than exactly, because the
+    /// owner types `250` for a figure the file holds as `250.0000001`.
+    ///
+    /// **An exact number match comes first**, then the newest. Typing a whole
+    /// receipt number and finding it third, under two bills that happen to be
+    /// for that many riyals, is the search failing at the one job it was added
+    /// for. Ties after that break on the id, so the order does not depend on a
+    /// sort's stability — the same reason `paymentBook` does.
+    func search(_ query: String, limit: Int = 40) -> [SearchHit] {
+        let needle = InvoiceNo.key(query)
+        if needle.isEmpty { return [] }
+        // `250` is an amount; `008455` parses as one too, and matching it costs
+        // nothing — the exact-number hoist puts the receipt above whatever the
+        // shop happens to have sold for 8,455.
+        let asAmount = Double(needle)
+
+        func matches(_ reference: String?, _ who: String, _ amount: Double) -> Bool {
+            InvoiceNo.key(reference).contains(needle)
+                || who.lowercased().contains(needle)
+                || (asAmount.map { abs(amount - $0) < 0.005 } ?? false)
+        }
+
+        var hits: [SearchHit] = []
+
+        for bill in bills {
+            // Both numbers a bill answers to: the one the owner typed on the
+            // invoice, and the app's own counter, which is what the row says when
+            // nothing was typed. Searching for what is printed on the paper has
+            // to find it either way.
+            let counter = String(bill.number)
+            let hit = InvoiceNo.key(bill.invoiceNo).contains(needle)
+                || counter.contains(needle)
+                || bill.who.lowercased().contains(needle)
+                || (asAmount.map { abs(bill.total - $0) < 0.005 } ?? false)
+            if hit {
+                hits.append(SearchHit(
+                    kind: .bill,
+                    id: counter,
+                    who: bill.who,
+                    reference: bill.invoiceNo.flatMap { $0.isBlank ? nil : $0 },
+                    amount: bill.total,
+                    at: bill.createdAt
+                ))
+            }
+        }
+
+        for payment in payments {
+            let who = customer(key: payment.customerKey)?.name ?? payment.customerKey
+            if matches(payment.paymentNo, who, payment.amount) {
+                hits.append(SearchHit(
+                    kind: .payment,
+                    id: payment.id.uuidString,
+                    who: who,
+                    reference: payment.paymentNo.flatMap { $0.isBlank ? nil : $0 },
+                    amount: payment.amount,
+                    at: payment.receivedAt
+                ))
+            }
+        }
+
+        for note in creditNotes {
+            let who = customer(key: note.customerKey)?.name ?? note.customerKey
+            if matches(note.noteNo, who, note.total) {
+                hits.append(SearchHit(
+                    kind: .creditNote,
+                    id: note.id.uuidString,
+                    who: who,
+                    reference: note.noteNo.flatMap { $0.isBlank ? nil : $0 },
+                    amount: note.total,
+                    at: note.issuedAt
+                ))
+            }
+        }
+
+        for purchase in purchases {
+            let who = supplier(key: purchase.supplierKey)?.name ?? purchase.supplierKey
+            if matches(purchase.invoiceNo, who, purchase.total) {
+                hits.append(SearchHit(
+                    kind: .purchase,
+                    id: purchase.id.uuidString,
+                    who: who,
+                    reference: purchase.invoiceNo.flatMap { $0.isBlank ? nil : $0 },
+                    amount: purchase.total,
+                    at: purchase.createdAt
+                ))
+            }
+        }
+
+        for payment in supplierPayments {
+            let who = supplier(key: payment.supplierKey)?.name ?? payment.supplierKey
+            if matches(payment.paymentNo, who, payment.amount) {
+                hits.append(SearchHit(
+                    kind: .supplierPayment,
+                    id: payment.id.uuidString,
+                    who: who,
+                    reference: payment.paymentNo.flatMap { $0.isBlank ? nil : $0 },
+                    amount: payment.amount,
+                    at: payment.paidAt
+                ))
+            }
+        }
+
+        for expense in expenses {
+            // An expense is filed under what it was for rather than under
+            // anybody, and it carries no number — so the note is the only thing
+            // there is to match a word against.
+            if matches(nil, expense.note, expense.amount) {
+                hits.append(SearchHit(
+                    kind: .expense,
+                    id: expense.id,
+                    who: expense.note,
+                    reference: nil,
+                    amount: expense.amount,
+                    at: expense.spentAt
+                ))
+            }
+        }
+
+        func exact(_ hit: SearchHit) -> Bool {
+            InvoiceNo.key(hit.reference) == needle || hit.id.lowercased() == needle
+        }
+
+        return hits.sorted { left, right in
+            if exact(left) != exact(right) { return exact(left) }
+            if left.at != right.at { return left.at > right.at }
+            return left.id < right.id
+        }
+        .prefix(limit)
+        .map { $0 }
+    }
+
     /// How many bills the shop wrote in `period`.
     func billCountIn(_ period: StatementPeriod) -> Int {
         let range = period.range()
@@ -2877,6 +3020,29 @@ struct Earnings: Equatable {
     /// No longer true merely because a credit note exists: they are taken off
     /// the figures now rather than listed beside them.
     var hasGap: Bool { billsWithoutCost > 0 || creditNotesBeforeCosts > 0 }
+}
+
+/// One record the search turned up, whichever of the six kinds it came from.
+///
+/// Flat on purpose: the point of a search result is that the owner does not have
+/// to know which list a thing lives on before they can find it. `kind` is what
+/// the row labels itself with and what the screen switches on to open the right
+/// document.
+///
+/// `id` is the underlying record's own id **as a string**, which is what lets
+/// this be the same shape on both platforms: a bill's identity is its `number`,
+/// an expense's is already a string, and the rest are `UUID`s printed out. The
+/// screen turns it back into a `UUID` at the one place it opens something.
+/// Nothing reads it back into storage; it is a handle for one tap.
+struct SearchHit: Identifiable, Equatable {
+    let kind: DayEntryKind
+    let id: String
+    /// The party the record is filed under, or what an expense was for.
+    let who: String
+    /// The number the owner typed, where the record carries one.
+    let reference: String?
+    let amount: Double
+    let at: Date
 }
 
 /// One slip on the payments list, whichever way the money went.

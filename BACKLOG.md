@@ -59,6 +59,20 @@ Play will grant production access at all.
 
 ## Settled, so nobody reopens them
 
+- **Search across the records — done.** The question none of the four lists in
+  the book can answer. Each of them narrows to a span, and somebody holding
+  receipt 008455 does not know which month it was written in — that is the reason
+  they are looking it up. One box at the top of the book, and **deliberately no
+  period**: a search that respected the chips would fail at exactly the moment it
+  was needed.
+
+  Matches on the **number**, the **name** a record is filed under, or the
+  **amount** when the query is one, across all six kinds. Numbers compare the way
+  `InvoiceNo` compares them, so `008455` is found by `8455`. An exact number wins
+  over an amount that happens to equal it — a shop that sold something for 8,455
+  riyals must still be handed receipt 008455 first. Capped at 40, or a single
+  letter builds a row per record in the book.
+
 - **The payments list — done.** It was the one record with no screen at all: a
   receipt could only be reached through the customer it belonged to, which is no
   help to an owner holding receipt 008455 and trying to remember who paid it.
