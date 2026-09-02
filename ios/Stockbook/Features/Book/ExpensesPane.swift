@@ -19,7 +19,11 @@ struct ExpensesPane: View {
     /// app is almost always this month.
     @State private var span: Span = .thisMonth
 
-    private var expenses: [Expense] { store.expenses }
+    /// The list narrows with the card above it. It used to show every expense the
+    /// shop had ever written under a total covering one month, so the figure and
+    /// the rows it was supposedly the sum of were two different spans — the kind
+    /// of page an owner adds up by hand once and stops trusting.
+    private var expenses: [Expense] { store.expensesIn(span.period) }
 
     /// The rendered page, waiting for the share sheet.
     @State private var file: StatementFile?
@@ -41,13 +45,20 @@ struct ExpensesPane: View {
                         .buttonStyle(GhostButtonStyle(fontSize: 12))
                 }
 
+                // Two different nothings. A shop that has never written an
+                // expense wants the button; one that spent nothing in August
+                // wants to be told so.
                 if expenses.isEmpty {
-                    EmptyStateBox(
-                        icon: Icon.expenses,
-                        message: Loc.noExpensesYet,
-                        actionTitle: Loc.addAnExpense,
-                        action: { router.openNewExpense() }
-                    )
+                    if store.expenses.isEmpty {
+                        EmptyStateBox(
+                            icon: Icon.expenses,
+                            message: Loc.noExpensesYet,
+                            actionTitle: Loc.addAnExpense,
+                            action: { router.openNewExpense() }
+                        )
+                    } else {
+                        EmptyStateBox(icon: Icon.expenses, message: Loc.nothingInThisPeriod)
+                    }
                 }
 
                 ForEach(expenses) { expense in

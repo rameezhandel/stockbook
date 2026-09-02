@@ -77,11 +77,49 @@ class BillsInPeriodTests {
         assertEquals(listOf("Fatima", "Ahmed"), picked.map { it.who }, "both end days are inside")
     }
 
+    /**
+     * The other two halves of the book, over the same span and by the same rule.
+     *
+     * Their own tests rather than trust by resemblance: three lists that must
+     * agree about which days belong to a month is exactly the kind of agreement
+     * that decays when one of them is corrected.
+     */
+    @Test
+    fun `deliveries and spending narrow the same way`() {
+        val store = store()
+        store.addSupplier("Gulf Traders")
+        store.recordPurchase(emptyList(), "gulf traders", amount = 500.0, createdAt = on(7, 30))
+        store.recordPurchase(emptyList(), "gulf traders", amount = 800.0, createdAt = on(8, 12))
+        store.addExpense(40.0, "Petrol", spentAt = on(7, 30))
+        store.addExpense(90.0, "Tea", spentAt = on(8, 12))
+
+        val august = StatementPeriod.Month(on(8, 15))
+
+        assertEquals(listOf(800.0), store.purchasesIn(august, zone).map { it.total })
+        assertEquals(listOf("Tea"), store.expensesIn(august, zone).map { it.note })
+    }
+
+    /** Each list ties to the shop-wide figure for the same span. */
+    @Test
+    fun `the lists tie to the totals the shop already publishes`() {
+        val store = store()
+        store.addSupplier("Gulf Traders")
+        store.recordPurchase(emptyList(), "gulf traders", amount = 800.0, createdAt = on(8, 12))
+        store.addExpense(90.0, "Tea", spentAt = on(8, 12))
+
+        val august = StatementPeriod.Month(on(8, 15))
+
+        assertEquals(store.boughtIn(august), store.purchasesIn(august).sumOf { it.total })
+        assertEquals(store.spentIn(august), store.expensesIn(august).sumOf { it.amount })
+    }
+
     @Test
     fun `a span with nothing in it is empty rather than everything`() {
         val store = store()
         store.saveBill(customer = "Ahmed", paid = null, amount = 100.0, createdAt = on(8, 10))
 
         assertTrue(store.billsIn(StatementPeriod.Month(on(5, 4)), zone).isEmpty())
+        assertTrue(store.purchasesIn(StatementPeriod.Month(on(5, 4)), zone).isEmpty())
+        assertTrue(store.expensesIn(StatementPeriod.Month(on(5, 4)), zone).isEmpty())
     }
 }

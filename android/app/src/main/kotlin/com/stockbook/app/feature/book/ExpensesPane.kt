@@ -78,6 +78,12 @@ fun ExpensesPane(
     // while the list below it grew.
     val spent = remember(state, span) { store.spentIn(span.period()) }
 
+    // The list narrows with the card above it. It used to show every expense the
+    // shop had ever written under a total covering one month, so the figure and
+    // the rows it was supposedly the sum of were two different spans — the kind
+    // of page an owner adds up by hand once and stops trusting.
+    val shown = remember(state, span) { store.expensesIn(span.period()) }
+
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
@@ -109,18 +115,24 @@ fun ExpensesPane(
             Spacer(Modifier.height(8.dp))
         }
 
-        if (state.expenses.isEmpty()) {
+        // Two different nothings. A shop that has never written an expense wants
+        // the button; one that spent nothing in August wants to be told so.
+        if (shown.isEmpty()) {
             item {
-                EmptyStateBox(
-                    icon = Icon.expenses,
-                    message = strings.noExpensesYet,
-                    actionTitle = strings.addAnExpense,
-                    onAction = { router.openNewExpense() }
-                )
+                if (state.expenses.isEmpty()) {
+                    EmptyStateBox(
+                        icon = Icon.expenses,
+                        message = strings.noExpensesYet,
+                        actionTitle = strings.addAnExpense,
+                        onAction = { router.openNewExpense() }
+                    )
+                } else {
+                    EmptyStateBox(icon = Icon.expenses, message = strings.nothingInThisPeriod)
+                }
             }
         }
 
-        items(state.expenses, key = { it.id }) { expense ->
+        items(shown, key = { it.id }) { expense ->
             ExpenseRow(
                 expense = expense,
                 currency = currency,

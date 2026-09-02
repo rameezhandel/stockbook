@@ -12,13 +12,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
 import com.stockbook.app.design.EmptyStateBox
+import com.stockbook.app.design.PeriodChoice
+import com.stockbook.app.design.PeriodPicker
 import com.stockbook.app.design.card
 import com.stockbook.app.design.Icon
 import com.stockbook.app.design.Kicker
@@ -31,7 +37,9 @@ import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.Supplier
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
+import com.stockbook.core.model.Timestamps
 import com.stockbook.core.text.Strings
+import java.time.Instant
 
 /**
  * What arrived, and from whom.
@@ -49,6 +57,18 @@ fun PurchasesPane(
     modifier: Modifier = Modifier
 ) {
     val currency = state.settings.currency
+
+    // The same span control the sales list carries, defaulting the same way and
+    // for the same reason: a year of deliveries is a list you scroll past.
+    var choice by rememberSaveable { mutableStateOf(PeriodChoice.THIS_MONTH) }
+    var fromMillis by rememberSaveable { mutableStateOf(Timestamps.now().toEpochMilli()) }
+    var toMillis by rememberSaveable { mutableStateOf(Timestamps.now().toEpochMilli()) }
+    val from = Instant.ofEpochMilli(fromMillis)
+    val to = Instant.ofEpochMilli(toMillis)
+
+    val purchases = remember(state, choice, fromMillis, toMillis) {
+        store.purchasesIn(choice.period(from, to))
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -80,20 +100,37 @@ fun PurchasesPane(
 
         item {
             Kicker(strings.purchasesSide, modifier = Modifier.padding(bottom = 8.dp))
+            PeriodPicker(
+                choice = choice,
+                from = from,
+                to = to,
+                strings = strings,
+                onChoose = { choice = it },
+                onFrom = { fromMillis = it.toEpochMilli() },
+                onTo = { toMillis = it.toEpochMilli() },
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
         }
 
-        if (state.purchases.isEmpty()) {
+        // Two different nothings. A shop that has taken no delivery ever wants
+        // the button; one that took none in August wants to be told so, because
+        // the deliveries it is looking for are on another chip.
+        if (purchases.isEmpty()) {
             item {
-                EmptyStateBox(
-                    icon = Icon.addStock,
-                    message = strings.noDeliveriesYet,
-                    actionTitle = strings.recordDelivery,
-                    onAction = { router.recordingDelivery = true }
-                )
+                if (state.purchases.isEmpty()) {
+                    EmptyStateBox(
+                        icon = Icon.addStock,
+                        message = strings.noDeliveriesYet,
+                        actionTitle = strings.recordDelivery,
+                        onAction = { router.recordingDelivery = true }
+                    )
+                } else {
+                    EmptyStateBox(icon = Icon.addStock, message = strings.nothingInThisPeriod)
+                }
             }
         }
 
-        items(state.purchases, key = { it.id }) { purchase ->
+        items(purchases, key = { it.id }) { purchase ->
             DeliveryRow(
                 purchase = purchase,
                 supplierName = remember(state, purchase.supplierKey) {

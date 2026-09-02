@@ -9,7 +9,16 @@ struct PurchasesPane: View {
     @Environment(StockbookStore.self) private var store
     @Environment(AppRouter.self) private var router
 
-    private var purchases: [Purchase] { store.purchases }
+    /// The same span control the sales list carries, defaulting the same way and
+    /// for the same reason: a year of deliveries is a list you scroll past.
+    @SceneStorage("purchases.period") private var stored = PeriodChoice.thisMonth.rawValue
+
+    @State private var from = Calendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now
+    @State private var to = Date.now
+
+    private var choice: PeriodChoice { PeriodChoice(rawValue: stored) ?? .thisMonth }
+
+    private var purchases: [Purchase] { store.purchasesIn(choice.period(from: from, to: to)) }
 
     var body: some View {
         ScrollView {
@@ -30,13 +39,27 @@ struct PurchasesPane: View {
                     Spacer(minLength: 0)
                 }
 
+                PeriodPicker(
+                    choice: Binding(get: { choice }, set: { stored = $0.rawValue }),
+                    from: $from,
+                    to: $to
+                )
+                .padding(.bottom, 10 - Metrics.rowGap)
+
+                // Two different nothings. A shop that has taken no delivery ever
+                // wants the button; one that took none in August wants to be told
+                // so, because the deliveries it is looking for are on another chip.
                 if purchases.isEmpty {
-                    EmptyStateBox(
-                        icon: Icon.addStock,
-                        message: Loc.noDeliveriesYet,
-                        actionTitle: Loc.recordDelivery,
-                        action: { router.recordDelivery() }
-                    )
+                    if store.purchases.isEmpty {
+                        EmptyStateBox(
+                            icon: Icon.addStock,
+                            message: Loc.noDeliveriesYet,
+                            actionTitle: Loc.recordDelivery,
+                            action: { router.recordDelivery() }
+                        )
+                    } else {
+                        EmptyStateBox(icon: Icon.addStock, message: Loc.nothingInThisPeriod)
+                    }
                 }
 
                 ForEach(purchases) { purchase in

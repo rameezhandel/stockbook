@@ -1501,6 +1501,27 @@ class StockbookStore(private val repository: StockbookRepository) {
         return bills.filter { it.createdAt in range }
     }
 
+    /**
+     * The deliveries over [period], newest first — the purchases half's twin of
+     * [billsIn], through the same span for the same reason.
+     */
+    fun purchasesIn(period: StatementPeriod, zone: ZoneId = ZoneId.systemDefault()): List<Purchase> {
+        val range = period.range(zone)
+        return purchases.filter { it.createdAt in range }
+    }
+
+    /**
+     * The owner's own spending over [period], newest first.
+     *
+     * The records themselves, not [spendingIn]'s folded totals: that page answers
+     * what the money went *on*, and this list answers what was spent and when —
+     * which is the one an owner scrolls to find the receipt they are holding.
+     */
+    fun expensesIn(period: StatementPeriod, zone: ZoneId = ZoneId.systemDefault()): List<Expense> {
+        val range = period.range(zone)
+        return expenses.filter { it.spentAt in range }
+    }
+
     /** How many bills the shop wrote in [period]. */
     fun billCountIn(period: StatementPeriod): Int {
         val range = period.range()

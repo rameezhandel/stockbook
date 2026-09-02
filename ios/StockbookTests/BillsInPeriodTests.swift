@@ -77,11 +77,47 @@ struct BillsInPeriodTests {
         #expect(picked.map(\.who) == ["Fatima", "Ahmed"], "both end days are inside")
     }
 
+    /// The other two halves of the book, over the same span and by the same rule.
+    ///
+    /// Their own tests rather than trust by resemblance: three lists that must
+    /// agree about which days belong to a month is exactly the kind of agreement
+    /// that decays when one of them is corrected.
+    @Test("Deliveries and spending narrow the same way")
+    func theOtherTwoHalves() {
+        let store = makeStore()
+        _ = store.addSupplier(name: "Gulf Traders")
+        _ = store.recordPurchase(lines: [], supplierKey: "gulf traders", amount: 500, createdAt: on(7, 30))
+        _ = store.recordPurchase(lines: [], supplierKey: "gulf traders", amount: 800, createdAt: on(8, 12))
+        _ = store.addExpense(amount: 40, note: "Petrol", spentAt: on(7, 30))
+        _ = store.addExpense(amount: 90, note: "Tea", spentAt: on(8, 12))
+
+        let august = StatementPeriod.month(on(8, 15))
+
+        #expect(store.purchasesIn(august, calendar: riyadh).map(\.total) == [800])
+        #expect(store.expensesIn(august, calendar: riyadh).map(\.note) == ["Tea"])
+    }
+
+    /// Each list ties to the shop-wide figure for the same span.
+    @Test("The lists tie to the totals the shop already publishes")
+    func tiesToTheTotals() {
+        let store = makeStore()
+        _ = store.addSupplier(name: "Gulf Traders")
+        _ = store.recordPurchase(lines: [], supplierKey: "gulf traders", amount: 800, createdAt: on(8, 12))
+        _ = store.addExpense(amount: 90, note: "Tea", spentAt: on(8, 12))
+
+        let august = StatementPeriod.month(on(8, 15))
+
+        #expect(store.boughtIn(august) == store.purchasesIn(august).reduce(0) { $0 + $1.total })
+        #expect(store.spentIn(august) == store.expensesIn(august).reduce(0) { $0 + $1.amount })
+    }
+
     @Test("A span with nothing in it is empty rather than everything")
     func emptySpan() {
         let store = makeStore()
         store.saveBill(customer: "Ahmed", paid: nil, amount: 100, createdAt: on(8, 10))
 
         #expect(store.billsIn(.month(on(5, 4)), calendar: riyadh).isEmpty)
+        #expect(store.purchasesIn(.month(on(5, 4)), calendar: riyadh).isEmpty)
+        #expect(store.expensesIn(.month(on(5, 4)), calendar: riyadh).isEmpty)
     }
 }

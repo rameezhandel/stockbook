@@ -1165,6 +1165,24 @@ final class StockbookStore {
         return bills.filter { range.contains($0.createdAt) }
     }
 
+    /// The deliveries over `period`, newest first — the purchases half's twin of
+    /// `billsIn`, through the same span for the same reason.
+    func purchasesIn(_ period: StatementPeriod, calendar: Calendar = .current) -> [Purchase] {
+        let range = period.range(calendar: calendar)
+        return purchases.filter { range.contains($0.createdAt) }
+    }
+
+    /// The owner's own spending over `period`, newest first.
+    ///
+    /// The records themselves, not `spendingIn`'s folded totals: that page
+    /// answers what the money went *on*, and this list answers what was spent and
+    /// when — which is the one an owner scrolls to find the receipt they are
+    /// holding.
+    func expensesIn(_ period: StatementPeriod, calendar: Calendar = .current) -> [Expense] {
+        let range = period.range(calendar: calendar)
+        return expenses.filter { range.contains($0.spentAt) }
+    }
+
     /// How many bills the shop wrote in `period`.
     func billCountIn(_ period: StatementPeriod) -> Int {
         let range = period.range()
