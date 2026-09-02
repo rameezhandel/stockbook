@@ -2,8 +2,6 @@ package com.stockbook.app.feature.customers
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,22 +13,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -41,6 +32,8 @@ import com.stockbook.app.design.Icon
 import com.stockbook.app.design.Kicker
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
+import com.stockbook.app.design.PeriodChoice
+import com.stockbook.app.design.PeriodPicker
 import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.ScreenHeader
 import com.stockbook.app.design.PrimaryButton
@@ -59,7 +52,6 @@ import com.stockbook.core.text.StatementDocument
 import com.stockbook.core.text.Strings
 import java.time.Instant
 import java.time.ZoneId
-import java.time.ZoneOffset
 
 /**
  * One customer's account over a period, as a document.
@@ -106,7 +98,7 @@ fun StatementScreen(
      * is derived from this instead, which also means "this month" is still this
      * month if the app is left open past midnight on the 1st.
      */
-    var choice by remember { mutableStateOf(Choice.THIS_MONTH) }
+    var choice by remember { mutableStateOf(PeriodChoice.THIS_MONTH) }
     var from by remember {
         mutableStateOf(
             Timestamps.now().atZone(ZoneId.systemDefault()).toLocalDate()
@@ -115,12 +107,7 @@ fun StatementScreen(
     }
     var to by remember { mutableStateOf(Timestamps.now()) }
 
-    val period = when (choice) {
-        Choice.THIS_MONTH -> StatementPeriod.thisMonth()
-        Choice.LAST_MONTH -> StatementPeriod.lastMonth()
-        Choice.THIS_YEAR -> StatementPeriod.thisYear()
-        Choice.DATES -> StatementPeriod.Custom(from, to)
-    }
+    val period = choice.period(from, to)
 
     val statement = if (isSupplier) {
         store.statementForSupplier(partyKey, period)
@@ -146,18 +133,15 @@ fun StatementScreen(
                 .navigationBarsPadding()
                 .padding(bottom = 24.dp)
         ) {
-            PeriodChips(choice = choice, strings = strings, onChoose = { choice = it })
-
-            if (choice == Choice.DATES) {
-                Spacer(Modifier.height(10.dp))
-                DateRangeCard(
-                    from = from,
-                    to = to,
-                    strings = strings,
-                    onFrom = { from = it },
-                    onTo = { to = it }
-                )
-            }
+            PeriodPicker(
+                choice = choice,
+                from = from,
+                to = to,
+                strings = strings,
+                onChoose = { choice = it },
+                onFrom = { from = it },
+                onTo = { to = it }
+            )
 
             if (statement != null) {
                 Spacer(Modifier.height(10.dp))
@@ -194,99 +178,6 @@ fun StatementScreen(
                 }
             }
         }
-    }
-}
-
-private enum class Choice { THIS_MONTH, LAST_MONTH, THIS_YEAR, DATES }
-
-@Composable
-private fun PeriodChips(choice: Choice, strings: Strings, onChoose: (Choice) -> Unit) {
-    // Three taps that answer almost every question, and a fourth for the
-    // month-end that does not start on the 1st.
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Chip(strings.thisMonth, choice == Choice.THIS_MONTH, Modifier.weight(1f)) { onChoose(Choice.THIS_MONTH) }
-        Chip(strings.lastMonth, choice == Choice.LAST_MONTH, Modifier.weight(1f)) { onChoose(Choice.LAST_MONTH) }
-        Chip(strings.thisYear, choice == Choice.THIS_YEAR, Modifier.weight(1f)) { onChoose(Choice.THIS_YEAR) }
-        Chip(strings.chooseDates, choice == Choice.DATES, Modifier.weight(1f)) { onChoose(Choice.DATES) }
-    }
-}
-
-@Composable
-private fun Chip(title: String, isOn: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .height(32.dp)
-            .clip(RoundedCornerShape(7.dp))
-            .background(if (isOn) Nocturne.accent else Color.Transparent)
-            .hairline(Nocturne.accent, 7.dp)
-            .clickable(onClick = onClick)
-    ) {
-        Text(
-            title,
-            style = NocturneType.inter(11.5),
-            color = if (isOn) Nocturne.bg else Nocturne.accent,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 6.dp)
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DateRangeCard(
-    from: Instant,
-    to: Instant,
-    strings: Strings,
-    onFrom: (Instant) -> Unit,
-    onTo: (Instant) -> Unit
-) {
-    /** Which of the two boxes opened the picker, or none. */
-    var editing by remember { mutableStateOf<String?>(null) }
-
-    Column(modifier = Modifier.fillMaxWidth().card().hairline(radius = Metrics.cardRadius).padding(12.dp)) {
-        DateRow(strings.fromDate, from, strings) { editing = "from" }
-        Spacer(Modifier.height(8.dp))
-        DateRow(strings.toDate, to, strings) { editing = "to" }
-    }
-
-    val which = editing
-    if (which != null) {
-        val current = if (which == "from") from else to
-        val picker = rememberDatePickerState(initialSelectedDateMillis = current.toEpochMilli())
-        DatePickerDialog(
-            onDismissRequest = { editing = null },
-            confirmButton = {
-                GhostButton(strings.done, onClick = {
-                    picker.selectedDateMillis?.let { millis ->
-                        // Midnight UTC out of the picker, re-anchored to midday in
-                        // the phone's own zone so the day cannot slip an offset.
-                        val picked = Instant.ofEpochMilli(millis)
-                            .atZone(ZoneOffset.UTC)
-                            .toLocalDate()
-                            .atTime(12, 0)
-                            .atZone(ZoneId.systemDefault())
-                            .toInstant()
-                        if (which == "from") onFrom(picked) else onTo(picked)
-                    }
-                    editing = null
-                })
-            }
-        ) {
-            DatePicker(state = picker)
-        }
-    }
-}
-
-@Composable
-private fun DateRow(label: String, value: Instant, strings: Strings, onTap: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onTap)
-    ) {
-        Text(label, style = NocturneType.inter(13.0), color = Nocturne.neutral500, modifier = Modifier.weight(1f))
-        Text(strings.longDate(value), style = NocturneType.inter(13.0), color = Nocturne.accent)
     }
 }
 

@@ -1483,6 +1483,24 @@ class StockbookStore(private val repository: StockbookRepository) {
         return purchases.filter { it.createdAt in range }.sumOf { it.total }
     }
 
+    /**
+     * The bills themselves over [period], newest first — what the sales half of
+     * the book lists.
+     *
+     * Through [StatementPeriod] like every other span in this app, so the list a
+     * customer's statement is checked against and the list the owner scrolls
+     * cover exactly the same days. A second notion of "this month" for a screen
+     * is how two pages of one book start disagreeing about which bills belong to
+     * it.
+     *
+     * The order is `bills`' own, which is newest first, because the reason to
+     * open this list is nearly always to find something written recently.
+     */
+    fun billsIn(period: StatementPeriod, zone: ZoneId = ZoneId.systemDefault()): List<Bill> {
+        val range = period.range(zone)
+        return bills.filter { it.createdAt in range }
+    }
+
     /** How many bills the shop wrote in [period]. */
     fun billCountIn(period: StatementPeriod): Int {
         val range = period.range()

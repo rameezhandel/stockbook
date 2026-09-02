@@ -38,29 +38,12 @@ struct StatementScreen: View {
 
     /// Which chip is on.
     ///
-    /// Held as the *choice* rather than as a `StatementPeriod`, because a period
-    /// carries a date: `.month(.now)` built for the chip would never equal the
-    /// `.month(.now)` built a moment earlier and stored, so no chip would ever
-    /// look selected. The period is derived from this instead, which also means
-    /// "this month" is still this month if the app is left open past midnight on
-    /// the 1st.
-    private enum Choice: Equatable {
-        case thisMonth, lastMonth, thisYear, dates
-    }
-
-    @State private var choice: Choice = .thisMonth
+    @State private var choice: PeriodChoice = .thisMonth
 
     @State private var from = Calendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now
     @State private var to = Date.now
 
-    private var period: StatementPeriod {
-        switch choice {
-        case .thisMonth: .thisMonth()
-        case .lastMonth: .lastMonth()
-        case .thisYear: .thisYear()
-        case .dates: .custom(from: from, to: to)
-        }
-    }
+    private var period: StatementPeriod { choice.period(from: from, to: to) }
 
     private var statement: Statement? {
         isSupplier
@@ -77,11 +60,7 @@ struct StatementScreen: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    periodChips.padding(.bottom, 10)
-
-                    if choice == .dates {
-                        dateRangeCard.padding(.bottom, 10)
-                    }
+                    PeriodPicker(choice: $choice, from: $from, to: $to).padding(.bottom, 10)
 
                     if let statement {
                         contactLine(statement.party)
@@ -103,53 +82,6 @@ struct StatementScreen: View {
             ShareSheet(url: file.url)
                 .presentationDetents([.medium, .large])
         }
-    }
-
-    // MARK: Period
-
-    private var periodChips: some View {
-        // Three taps that answer almost every question, and a fourth for the
-        // month-end that does not start on the 1st.
-        FlowLayout(spacing: 6) {
-            chip(Loc.thisMonth, isOn: choice == .thisMonth) { choice = .thisMonth }
-            chip(Loc.lastMonth, isOn: choice == .lastMonth) { choice = .lastMonth }
-            chip(Loc.thisYear, isOn: choice == .thisYear) { choice = .thisYear }
-            chip(Loc.chooseDates, isOn: choice == .dates) { choice = .dates }
-        }
-    }
-
-    private func chip(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(NocturneType.inter(12))
-                .foregroundStyle(isOn ? Nocturne.bg : Nocturne.accent)
-                .padding(.horizontal, 11)
-                .padding(.vertical, 5)
-                .frame(minHeight: 32)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(isOn ? Nocturne.accent : Color.clear)
-                )
-                .hairline(Nocturne.accent, radius: 7)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var dateRangeCard: some View {
-        VStack(spacing: 10) {
-            DatePicker(Loc.fromDate, selection: $from, displayedComponents: .date)
-            DatePicker(Loc.toDate, selection: $to, displayedComponents: .date)
-        }
-        .datePickerStyle(.compact)
-        .font(NocturneType.inter(13))
-        .tint(Nocturne.accent)
-        .padding(12)
-        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-        .hairline(radius: Metrics.cardRadius)
-        // No `onChange` needed: `period` is derived, so moving either picker
-        // rebuilds the statement on the next pass. Whichever way round they were
-        // dragged, `StatementPeriod` sorts out.
     }
 
     // MARK: The document

@@ -1149,6 +1149,22 @@ final class StockbookStore {
         return purchases.filter { range.contains($0.createdAt) }.reduce(0) { $0 + $1.total }
     }
 
+    /// The bills themselves over `period`, newest first — what the sales half of
+    /// the book lists.
+    ///
+    /// Through `StatementPeriod` like every other span in this app, so the list a
+    /// customer's statement is checked against and the list the owner scrolls
+    /// cover exactly the same days. A second notion of "this month" for a screen
+    /// is how two pages of one book start disagreeing about which bills belong to
+    /// it.
+    ///
+    /// The order is `bills`' own, which is newest first, because the reason to
+    /// open this list is nearly always to find something written recently.
+    func billsIn(_ period: StatementPeriod, calendar: Calendar = .current) -> [Bill] {
+        let range = period.range(calendar: calendar)
+        return bills.filter { range.contains($0.createdAt) }
+    }
+
     /// How many bills the shop wrote in `period`.
     func billCountIn(_ period: StatementPeriod) -> Int {
         let range = period.range()
