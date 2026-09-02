@@ -1183,6 +1183,95 @@ final class StockbookStore {
         return expenses.filter { range.contains($0.spentAt) }
     }
 
+    /// The receipts the shop wrote over `period`, newest first.
+    ///
+    /// The one list this app had no screen for. Every other record could be
+    /// found by scrolling something — bills, purchases, expenses — but a payment
+    /// could only be reached through the customer it belonged to, which is no
+    /// help at all to an owner holding receipt 008455 and trying to remember who
+    /// paid it.
+    ///
+    /// Payments only, not credit notes. Both reduce what somebody owes, and they
+    /// are not the same event: one is money that came in and one is goods that
+    /// went back. A list headed "Payments" that quietly included credits would
+    /// add up to more than the shop took.
+    func paymentsIn(_ period: StatementPeriod, calendar: Calendar = .current) -> [Payment] {
+        let range = period.range(calendar: calendar)
+        return payments.filter { range.contains($0.receivedAt) }
+    }
+
+    /// The vouchers the shop wrote over the same span — money the other way.
+    ///
+    /// A separate list rather than one with a direction on it, because
+    /// `SupplierPayment` is a separate type for the reason its own file gives:
+    /// money in and money out are not the same thing. The screen that shows both
+    /// merges them; the store does not pretend they were ever one series.
+    func supplierPaymentsIn(
+        _ period: StatementPeriod,
+        calendar: Calendar = .current
+    ) -> [SupplierPayment] {
+        let range = period.range(calendar: calendar)
+        return supplierPayments.filter { range.contains($0.paidAt) }
+    }
+
+    /// What customers actually handed over inside `period`.
+    ///
+    /// Not what they were billed — that is `soldIn`, and the gap between the two
+    /// is the month's lending. Credit notes are left out for the reason
+    /// `paymentsIn` leaves them out: a credit is goods coming back, not money
+    /// arriving, and a shop counting its takings wants the money.
+    func receivedIn(_ period: StatementPeriod) -> Double {
+        let range = period.range()
+        return payments.filter { range.contains($0.receivedAt) }.reduce(0) { $0 + $1.amount }
+    }
+
+    /// What the shop handed to its suppliers over the same span.
+    func paidOutIn(_ period: StatementPeriod) -> Double {
+        let range = period.range()
+        return supplierPayments.filter { range.contains($0.paidAt) }.reduce(0) { $0 + $1.amount }
+    }
+
+    /// Both directions over `period` as one list, newest first — what the
+    /// payments side of the book shows.
+    ///
+    /// Merged here rather than on each screen. Two platforms sorting the same
+    /// two lists into one is two chances to disagree about what "newest" means,
+    /// and the disagreement would only show on a day that carried both a receipt
+    /// and a voucher — which is most days.
+    ///
+    /// **Ties break on the id, not on the order the two lists happened to be
+    /// concatenated in.** A receipt and a voucher written in the same second are
+    /// not rare: the owner settles with a supplier and takes a customer's money
+    /// at the same counter, and both slips are typed with the same date. Swift's
+    /// `sorted(by:)` is not stable, so a tie left to the sort would shuffle
+    /// between reads. Which of the two comes first hardly matters; that it is the
+    /// same both times is the whole point.
+    func paymentBook(_ period: StatementPeriod, calendar: Calendar = .current) -> [PaymentEntry] {
+        let received = paymentsIn(period, calendar: calendar).map { payment in
+            PaymentEntry(
+                id: payment.id,
+                who: customer(key: payment.customerKey)?.name ?? payment.customerKey,
+                amount: payment.amount,
+                at: payment.receivedAt,
+                reference: payment.paymentNo.flatMap { $0.isBlank ? nil : $0 },
+                incoming: true
+            )
+        }
+        let paid = supplierPaymentsIn(period, calendar: calendar).map { payment in
+            PaymentEntry(
+                id: payment.id,
+                who: supplier(key: payment.supplierKey)?.name ?? payment.supplierKey,
+                amount: payment.amount,
+                at: payment.paidAt,
+                reference: payment.paymentNo.flatMap { $0.isBlank ? nil : $0 },
+                incoming: false
+            )
+        }
+        return (received + paid).sorted {
+            $0.at == $1.at ? $0.id.uuidString < $1.id.uuidString : $0.at > $1.at
+        }
+    }
+
     /// How many bills the shop wrote in `period`.
     func billCountIn(_ period: StatementPeriod) -> Int {
         let range = period.range()
@@ -2788,6 +2877,31 @@ struct Earnings: Equatable {
     /// No longer true merely because a credit note exists: they are taken off
     /// the figures now rather than listed beside them.
     var hasGap: Bool { billsWithoutCost > 0 || creditNotesBeforeCosts > 0 }
+}
+
+/// One slip on the payments list, whichever way the money went.
+///
+/// A flat view over two records that stay two records. `Payment` and
+/// `SupplierPayment` are separate types on purpose — their own file says why —
+/// and this does not merge them, it *describes* them for a list that has to show
+/// both. Nothing is stored in this shape and nothing reads it back.
+///
+/// `id` is the underlying record's own id, and `incoming` says which store to
+/// ask for it: `receiptForPayment` or `receiptForSupplierPayment`. That pair is
+/// the whole reason the flag is here rather than inferred from a sign.
+struct PaymentEntry: Identifiable, Equatable {
+    /// The underlying record's own id — a `UUID` here where Kotlin carries the
+    /// string it prints to, which is the same difference `Payment.id` already has.
+    let id: UUID
+    /// The person's name as the roster spells it, falling back to the key.
+    let who: String
+    /// Always positive. Direction lives on `incoming`, never on the figure.
+    let amount: Double
+    let at: Date
+    /// The number the owner typed on the slip. Absent rather than blank.
+    let reference: String?
+    /// True for money the shop took, false for money it handed over.
+    let incoming: Bool
 }
 
 /// What kind of thing happened, and — through `direction` — which way the money

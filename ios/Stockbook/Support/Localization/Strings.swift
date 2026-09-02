@@ -196,6 +196,28 @@ struct Strings {
     var salesSide: String { pick("Sales", "ಮಾರಾಟ") }
     var purchasesSide: String { pick("Purchases", "ಖರೀದಿ") }
 
+    /// The slips, both directions, on one chip.
+    ///
+    /// Plural where `paymentLabel` is singular: that one names a single record
+    /// on a statement, and this one heads a list of them.
+    var paymentsSide: String { pick("Payments", "ಪಾವತಿಗಳು") }
+
+    // The second figure on the payments card. What came in is the headline —
+    // it is the question the owner opened the chip to ask — and what went out
+    // sits under it rather than being netted into it, because a single number
+    // standing for both is one the owner cannot check against anything they are
+    // holding.
+    func alsoPaidOut(_ amount: String) -> String {
+        pick("\(amount) paid to suppliers", "\(amount) ಸರಬರಾಜುದಾರರಿಗೆ ಪಾವತಿ")
+    }
+
+    var noPaymentsEver: String {
+        pick(
+            "Nothing received or paid yet. Every receipt you write shows up here.",
+            "ಇನ್ನೂ ಏನೂ ಸ್ವೀಕರಿಸಿಲ್ಲ ಅಥವಾ ಪಾವತಿಸಿಲ್ಲ. ನೀವು ಬರೆಯುವ ಪ್ರತಿ ರಸೀದಿ ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ."
+        )
+    }
+
     // MARK: - The ledger book: every customer's history, printed and filed
 
     /// Every customer's whole history, one sheet each, printed and filed.

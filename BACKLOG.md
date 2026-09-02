@@ -59,6 +59,23 @@ Play will grant production access at all.
 
 ## Settled, so nobody reopens them
 
+- **The payments list — done.** It was the one record with no screen at all: a
+  receipt could only be reached through the customer it belonged to, which is no
+  help to an owner holding receipt 008455 and trying to remember who paid it.
+  Now it is the fourth chip in the book, over the same span as the other three,
+  and a row taps through to the receipt the app already draws.
+
+  **Both directions on one chip**, because four chips is already the width of a
+  phone and a fifth would not fit. The card is headed by what came in, with what
+  went out on the line beneath rather than netted into it — one number standing
+  for both is a figure the owner cannot check against anything they are holding.
+  The rows say "Received" or "Paid" in words: both amounts are positive, and
+  `SAR -900` beside a supplier's name would read as a refund, which this app has
+  no notion of.
+
+  **The chips lost their icons** in the process. Four across a 360dp phone leaves
+  about 77dp each, and "Purchases" with a glyph beside it needs more.
+
 - **The app says "purchase", never "delivery" — done.** The business is a van,
   not a shop with a back door: the owner drives to the wholesaler and buys, and
   nothing is delivered to them. Every visible word changed in one pass, English

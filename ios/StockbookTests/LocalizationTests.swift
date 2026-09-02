@@ -82,7 +82,7 @@ struct LocalizationTests {
         \.changeTheInvoiceNo, \.enterBillNumber,
         \.amountField, \.addItems, \.removeItems, \.supplierBillTitle,
         \.setCount, \.setCountNote, \.takePayment, \.makePayment,
-        \.bookTitle, \.salesSide, \.purchasesSide, \.recordDelivery,
+        \.bookTitle, \.salesSide, \.purchasesSide, \.paymentsSide, \.noPaymentsEver, \.recordDelivery,
         \.ledgerBook, \.ledgerTotal, \.ledgerNoCustomers,
         \.whoDoYouBuyFrom, \.suppliersSetupBody, \.noSuppliersYetKicker, \.supplierOpeningNote,
         \.whichProductArrived, \.noPurchasesRecorded, \.deliveryDetail,

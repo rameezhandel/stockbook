@@ -62,12 +62,15 @@ import java.time.Instant
  * Now the span is asked once, above everything, and every record type answers
  * over it. Changing what you are looking at no longer changes when.
  *
- * The three chips pick the **kind of record**: what was sold, what arrived, and
- * what the owner spent. The first two are mirror images in the domain — one
- * `Statement.make` serves both — and expenses is the odd one, tied to nobody and
- * touching neither side's arithmetic. It sits here anyway, because it is money
- * leaving and it is written down for the same reason, and the alternative was a
- * tab of its own for something recorded once a day.
+ * The chips pick the **kind of record**: what was sold, what arrived, what
+ * actually changed hands, and what the owner spent. Sales and Purchases are
+ * mirror images in the domain — one `Statement.make` serves both. Payments is
+ * the one list this app had no screen for at all: a receipt could only be
+ * reached through the customer it belonged to, which is no help to an owner
+ * holding receipt 008455 and trying to remember who paid it. Expenses is the odd
+ * one, tied to nobody and touching neither side's arithmetic; it sits here
+ * anyway, because it is money leaving and it is written down for the same
+ * reason.
  *
  * Chips rather than tabs, because the shop does not use these symmetrically: a
  * sale happens fifty times a day, a load of stock arrives once a week.
@@ -98,7 +101,7 @@ fun BookScreen(
      */
     var side by rememberSaveable { mutableStateOf(Side.SALES) }
 
-    // **The span, asked once for all three.** This month by default: the book is
+    // **The span, asked once for all four.** This month by default: the book is
     // a year of rows before long, and the reason to open it is almost always
     // something written recently — so it opens on the span that answers that, and
     // the other three chips are there for the question it does not.
@@ -120,9 +123,9 @@ fun BookScreen(
     // StateFlow snapshot, so a bill written while this is on screen moves the
     // list only if the read is keyed on what changed.
     //
-    // Only the side on screen is read. Three lists and three totals computed on
-    // every recomposition would be two thirds of a walk over the whole book for
-    // figures nobody is looking at.
+    // Only the side on screen is read. Four lists and four totals computed on
+    // every recomposition would be three quarters of a walk over the whole book
+    // for figures nobody is looking at.
     val bills = remember(state, side, period) {
         if (side == Side.SALES) store.billsIn(period) else emptyList()
     }
@@ -132,12 +135,24 @@ fun BookScreen(
     val expenses = remember(state, side, period) {
         if (side == Side.EXPENSES) store.expensesIn(period) else emptyList()
     }
+    // Both directions, merged and ordered in the store rather than here — see
+    // `paymentBook`, which also settles what happens to two slips written in the
+    // same second.
+    val slips = remember(state, side, period) {
+        if (side == Side.PAYMENTS) store.paymentBook(period) else emptyList()
+    }
     val total = remember(state, side, period) {
         when (side) {
             Side.SALES -> store.soldIn(period)
             Side.PURCHASES -> store.boughtIn(period)
+            Side.PAYMENTS -> store.receivedIn(period)
             Side.EXPENSES -> store.spentIn(period)
         }
+    }
+    // The payments card's second figure. Read only on that chip, for the reason
+    // the lists are.
+    val paidOut = remember(state, side, period) {
+        if (side == Side.PAYMENTS) store.paidOutIn(period) else 0.0
     }
 
     val listState = rememberLazyListState()
@@ -174,29 +189,23 @@ fun BookScreen(
                 .padding(horizontal = Metrics.screenPadding)
                 .padding(bottom = 10.dp)
         ) {
-            ChoicePill(
-                title = strings.salesSide,
-                icon = Icon.bills,
-                selected = side == Side.SALES,
-                onClick = { side = Side.SALES },
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(6.dp))
-            ChoicePill(
-                title = strings.purchasesSide,
-                icon = Icon.items,
-                selected = side == Side.PURCHASES,
-                onClick = { side = Side.PURCHASES },
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(6.dp))
-            ChoicePill(
-                title = strings.expensesTitle,
-                icon = Icon.expenses,
-                selected = side == Side.EXPENSES,
-                onClick = { side = Side.EXPENSES },
-                modifier = Modifier.weight(1f)
-            )
+            // No icons on this row. Four pills across a phone leaves each about
+            // 77dp, and "Purchases" with a glyph beside it needs more than that —
+            // the label is what the owner is reading anyway.
+            for (candidate in Side.entries) {
+                ChoicePill(
+                    title = when (candidate) {
+                        Side.SALES -> strings.salesSide
+                        Side.PURCHASES -> strings.purchasesSide
+                        Side.PAYMENTS -> strings.paymentsSide
+                        Side.EXPENSES -> strings.expensesTitle
+                    },
+                    selected = side == candidate,
+                    onClick = { side = candidate },
+                    modifier = Modifier.weight(1f)
+                )
+                if (candidate != Side.entries.last()) Spacer(Modifier.width(6.dp))
+            }
         }
 
         // Weighted, not wrapped. A `Column` measures an unweighted child against
@@ -232,17 +241,27 @@ fun BookScreen(
                     label = when (side) {
                         Side.SALES -> strings.soldInPeriod
                         Side.PURCHASES -> strings.boughtInPeriod
+                        Side.PAYMENTS -> strings.receivedInPeriod
                         Side.EXPENSES -> strings.expenseInPeriod
                     },
                     value = Money.text(total, currency),
-                    // Only the spending needs saying out loud: a shopkeeper
-                    // writing down their petrol deserves to know at a glance that
-                    // it will not turn up on a customer's statement. The other two
-                    // figures are the shop's own trade and surprise nobody.
-                    note = if (side == Side.EXPENSES) strings.expensesArePrivate else null,
+                    // Two of the four have something to say under the figure.
+                    //
+                    // Spending needs saying out loud: a shopkeeper writing down
+                    // their petrol deserves to know at a glance that it will not
+                    // turn up on a customer's statement. Payments carry the other
+                    // direction, because what came in is the headline and what
+                    // went out is the fact beside it — netting the two into one
+                    // number would give the owner a figure they cannot check
+                    // against anything they are holding.
+                    note = when (side) {
+                        Side.EXPENSES -> strings.expensesArePrivate
+                        Side.PAYMENTS -> strings.alsoPaidOut(Money.text(paidOut, currency))
+                        else -> null
+                    },
                     // The span the total covers is the span the page covers, so
                     // the button that makes it lives in the total's own corner.
-                    // Spending is the only one of the three with a page to make;
+                    // Spending is the only one of the four with a page to make;
                     // a sales summary is a document this app does not have yet.
                     onShare = if (side == Side.EXPENSES && total > 0) ({ onSaveExpenses(period) }) else null,
                     shareLabel = strings.sharePdf
@@ -254,6 +273,7 @@ fun BookScreen(
                         when (side) {
                             Side.SALES -> strings.billsTitle
                             Side.PURCHASES -> strings.purchasesSide
+                            Side.PAYMENTS -> strings.paymentsSide
                             Side.EXPENSES -> strings.expensesTitle
                         },
                         modifier = Modifier.weight(1f)
@@ -309,6 +329,20 @@ fun BookScreen(
                         }
                     }
 
+                    // No button on this one. A payment is taken against somebody's
+                    // account, so it starts from the person — there is nothing
+                    // sensible for a button here to open without asking who first.
+                    Side.PAYMENTS -> if (slips.isEmpty()) {
+                        EmptyStateBox(
+                            icon = Icon.owed,
+                            message = if (state.payments.isEmpty() && state.supplierPayments.isEmpty()) {
+                                strings.noPaymentsEver
+                            } else {
+                                strings.nothingInThisPeriod
+                            }
+                        )
+                    }
+
                     Side.EXPENSES -> if (expenses.isEmpty()) {
                         if (state.expenses.isEmpty()) {
                             EmptyStateBox(
@@ -351,6 +385,26 @@ fun BookScreen(
                     )
                 }
 
+                Side.PAYMENTS -> items(slips, key = { it.id }) { slip ->
+                    PaymentRow(
+                        entry = slip,
+                        currency = currency,
+                        strings = strings,
+                        // The receipt the slip was written on, which the app
+                        // already draws — the same page the owner was shown the
+                        // moment they took the money. Null when the record has
+                        // gone, and then nothing opens, which is the honest
+                        // outcome the receipt lookup already settled on.
+                        onClick = {
+                            val receipt =
+                                if (slip.incoming) store.receiptForPayment(slip.id)
+                                else store.receiptForSupplierPayment(slip.id)
+                            receipt?.let { router.showReceipt(it, justSaved = false) }
+                        },
+                        modifier = Modifier.padding(bottom = Metrics.rowGap)
+                    )
+                }
+
                 Side.EXPENSES -> items(expenses, key = { it.id }) { expense ->
                     ExpenseRow(
                         expense = expense,
@@ -368,7 +422,7 @@ fun BookScreen(
 /**
  * What the span came to, whatever is being counted.
  *
- * One card for all three sides rather than one the expenses pane kept to itself.
+ * One card for all four sides rather than one the expenses pane kept to itself.
  * Its chips went with it: the span is chosen above this now, so the figure and
  * the rows under it can no longer be showing two different months — which is
  * exactly what they were doing before the expenses list learned to narrow.
@@ -427,4 +481,4 @@ private fun TotalCard(
  * `private` in Kotlin hides the declaration from other *files* but still puts the
  * name in the package, so two of them collide.
  */
-private enum class Side { SALES, PURCHASES, EXPENSES }
+private enum class Side { SALES, PURCHASES, PAYMENTS, EXPENSES }

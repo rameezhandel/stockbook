@@ -217,6 +217,31 @@ data class Earnings(
 enum class DayEntryKind { BILL, PAYMENT, CREDIT_NOTE, PURCHASE, SUPPLIER_PAYMENT, EXPENSE }
 
 /**
+ * One slip on the payments list, whichever way the money went.
+ *
+ * A flat view over two records that stay two records. [Payment] and
+ * [SupplierPayment] are separate types on purpose — their own file says why —
+ * and this does not merge them, it *describes* them for a list that has to show
+ * both. Nothing is stored in this shape and nothing reads it back.
+ *
+ * [id] is the underlying record's own id, and [incoming] says which store to
+ * ask for it: `receiptForPayment` or `receiptForSupplierPayment`. That pair is
+ * the whole reason the flag is here rather than inferred from a sign.
+ */
+data class PaymentEntry(
+    val id: String,
+    /** The person's name as the roster spells it, falling back to the key. */
+    val who: String,
+    /** Always positive. Direction lives on [incoming], never on the figure. */
+    val amount: Double,
+    val at: Instant,
+    /** The number the owner typed on the slip. Absent rather than blank. */
+    val reference: String?,
+    /** True for money the shop took, false for money it handed over. */
+    val incoming: Boolean
+)
+
+/**
  * Which way each kind points: into the cash box, out of it, or neither.
  *
  * A `when` without an `else` on purpose. Add a seventh kind and this stops
@@ -1520,6 +1545,105 @@ class StockbookStore(private val repository: StockbookRepository) {
     fun expensesIn(period: StatementPeriod, zone: ZoneId = ZoneId.systemDefault()): List<Expense> {
         val range = period.range(zone)
         return expenses.filter { it.spentAt in range }
+    }
+
+    /**
+     * The receipts the shop wrote over [period], newest first.
+     *
+     * The one list this app had no screen for. Every other record could be found
+     * by scrolling something — bills, purchases, expenses — but a payment could
+     * only be reached through the customer it belonged to, which is no help at
+     * all to an owner holding receipt 008455 and trying to remember who paid it.
+     *
+     * Payments only, not credit notes. Both reduce what somebody owes, and they
+     * are not the same event: one is money that came in and one is goods that
+     * went back. A list headed "Payments" that quietly included credits would
+     * add up to more than the shop took.
+     */
+    fun paymentsIn(period: StatementPeriod, zone: ZoneId = ZoneId.systemDefault()): List<Payment> {
+        val range = period.range(zone)
+        return payments.filter { it.receivedAt in range }
+    }
+
+    /**
+     * The vouchers the shop wrote over the same span — money the other way.
+     *
+     * A separate list rather than one with a direction on it, because
+     * [SupplierPayment] is a separate type for the reason its own file gives:
+     * money in and money out are not the same thing. The screen that shows both
+     * merges them; the store does not pretend they were ever one series.
+     */
+    fun supplierPaymentsIn(
+        period: StatementPeriod,
+        zone: ZoneId = ZoneId.systemDefault()
+    ): List<SupplierPayment> {
+        val range = period.range(zone)
+        return supplierPayments.filter { it.paidAt in range }
+    }
+
+    /**
+     * What customers actually handed over inside [period].
+     *
+     * Not what they were billed — that is [soldIn], and the gap between the two
+     * is the month's lending. Credit notes are left out for the reason
+     * [paymentsIn] leaves them out: a credit is goods coming back, not money
+     * arriving, and a shop counting its takings wants the money.
+     */
+    fun receivedIn(period: StatementPeriod): Double {
+        val range = period.range()
+        return payments.filter { it.receivedAt in range }.sumOf { it.amount }
+    }
+
+    /** What the shop handed to its suppliers over the same span. */
+    fun paidOutIn(period: StatementPeriod): Double {
+        val range = period.range()
+        return supplierPayments.filter { it.paidAt in range }.sumOf { it.amount }
+    }
+
+    /**
+     * Both directions over [period] as one list, newest first — what the
+     * payments side of the book shows.
+     *
+     * Merged here rather than on each screen. Two platforms sorting the same two
+     * lists into one is two chances to disagree about what "newest" means, and
+     * the disagreement would only show on a day that carried both a receipt and
+     * a voucher — which is most days.
+     *
+     * **Ties break on the id, not on the order the two lists happened to be
+     * concatenated in.** A receipt and a voucher written in the same second are
+     * not rare: the owner settles with a supplier and takes a customer's money
+     * at the same counter, and both slips are typed with the same date. Kotlin's
+     * sort is stable and Swift's is not, so a tie left to the sort would hold
+     * still here and shuffle there. Which of the two comes first hardly matters;
+     * that it is the same both times is the whole point.
+     */
+    fun paymentBook(
+        period: StatementPeriod,
+        zone: ZoneId = ZoneId.systemDefault()
+    ): List<PaymentEntry> {
+        val received = paymentsIn(period, zone).map {
+            PaymentEntry(
+                id = it.id,
+                who = customer(it.customerKey)?.name ?: it.customerKey,
+                amount = it.amount,
+                at = it.receivedAt,
+                reference = it.paymentNo?.takeIf { no -> no.isNotBlank() },
+                incoming = true
+            )
+        }
+        val paid = supplierPaymentsIn(period, zone).map {
+            PaymentEntry(
+                id = it.id,
+                who = supplier(it.supplierKey)?.name ?: it.supplierKey,
+                amount = it.amount,
+                at = it.paidAt,
+                reference = it.paymentNo?.takeIf { no -> no.isNotBlank() },
+                incoming = false
+            )
+        }
+        return (received + paid).sortedWith(
+            compareByDescending<PaymentEntry> { it.at }.thenBy { it.id }
+        )
     }
 
     /** How many bills the shop wrote in [period]. */

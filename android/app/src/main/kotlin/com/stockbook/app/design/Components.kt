@@ -494,13 +494,18 @@ fun FadedRule(modifier: Modifier = Modifier, inset: Dp = 24.dp) {
  *
  * Started life as `PaymentPill` inside the cart, and moved here the second time a
  * screen needed it rather than the third.
+ *
+ * **The icon is optional, and four across a phone is why.** At 13sp with a glyph
+ * and its gap, "Purchases" needs about 80dp and a quarter of a 360dp screen is
+ * 77 — so the fourth chip on the book's row would have arrived with its label cut
+ * in half. Two or three chips keep their icons.
  */
 @Composable
 fun ChoicePill(
     title: String,
-    icon: ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
+    icon: ImageVector? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -511,12 +516,16 @@ fun ChoicePill(
             .hairline(if (selected) Nocturne.accent else Nocturne.neutral800, Metrics.controlRadius)
             .clickable(onClick = onClick)
     ) {
-        Glyph(icon, size = 14.dp, tint = if (selected) Nocturne.accent else Nocturne.neutral500)
-        Spacer(Modifier.width(6.dp))
+        if (icon != null) {
+            Glyph(icon, size = 14.dp, tint = if (selected) Nocturne.accent else Nocturne.neutral500)
+            Spacer(Modifier.width(6.dp))
+        }
         Text(
             title,
             style = NocturneType.inter(13.0, FontWeight.Medium),
-            color = if (selected) Nocturne.accent else Nocturne.neutral500
+            color = if (selected) Nocturne.accent else Nocturne.neutral500,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

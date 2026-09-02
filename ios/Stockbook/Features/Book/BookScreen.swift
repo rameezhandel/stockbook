@@ -13,12 +13,15 @@ import SwiftUI
 /// Now the span is asked once, above everything, and every record type answers
 /// over it. Changing what you are looking at no longer changes when.
 ///
-/// The three chips pick the **kind of record**: what was sold, what arrived, and
-/// what the owner spent. The first two are mirror images in the domain — one
-/// `Statement.make` serves both — and expenses is the odd one, tied to nobody
-/// and touching neither side's arithmetic. It sits here anyway, because it is
-/// money leaving and it is written down for the same reason, and the alternative
-/// was a tab of its own for something recorded once a day.
+/// The chips pick the **kind of record**: what was sold, what arrived, what
+/// actually changed hands, and what the owner spent. Sales and Purchases are
+/// mirror images in the domain — one `Statement.make` serves both. Payments is
+/// the one list this app had no screen for at all: a receipt could only be
+/// reached through the customer it belonged to, which is no help to an owner
+/// holding receipt 008455 and trying to remember who paid it. Expenses is the
+/// odd one, tied to nobody and touching neither side's arithmetic; it sits here
+/// anyway, because it is money leaving and it is written down for the same
+/// reason.
 ///
 /// Chips rather than tabs, because the shop does not use these symmetrically: a
 /// sale happens fifty times a day, a load of stock arrives once a week.
@@ -40,7 +43,7 @@ struct BookScreen: View {
     /// types `AppStorage` does.
     @SceneStorage("book.side") private var storedSide = Side.sales.rawValue
 
-    /// **The span, asked once for all three.** This month by default: the book is
+    /// **The span, asked once for all four.** This month by default: the book is
     /// a year of rows before long, and the reason to open it is almost always
     /// something written recently.
     ///
@@ -72,15 +75,14 @@ struct BookScreen: View {
             // Fixed above the scroll, not inside it. This row is the switch, and
             // a switch that scrolls out of reach makes the owner flick back up to
             // change what they are looking at.
+            // No icons on this row. Four pills across a phone leaves each about
+            // 77pt, and "Purchases" with a glyph beside it needs more than that —
+            // the label is what the owner is reading anyway.
             HStack(spacing: 6) {
-                ChoicePill(title: Loc.salesSide, icon: Icon.bills, selected: side == .sales) {
-                    choose(.sales)
-                }
-                ChoicePill(title: Loc.purchasesSide, icon: Icon.items, selected: side == .purchases) {
-                    choose(.purchases)
-                }
-                ChoicePill(title: Loc.expensesTitle, icon: Icon.expenses, selected: side == .expenses) {
-                    choose(.expenses)
+                ForEach(Side.allCases) { candidate in
+                    ChoicePill(title: label(for: candidate), selected: side == candidate) {
+                        choose(candidate)
+                    }
                 }
             }
             .padding(.horizontal, Metrics.screenPadding)
@@ -139,7 +141,7 @@ struct BookScreen: View {
 
     /// What the span came to, whatever is being counted.
     ///
-    /// One card for all three sides rather than one the expenses pane kept to
+    /// One card for all four sides rather than one the expenses pane kept to
     /// itself. Its chips went with it: the span is chosen above this now, so the
     /// figure and the rows under it can no longer be showing two different months
     /// — which is exactly what they were doing before the expenses list learned
@@ -159,12 +161,8 @@ struct BookScreen: View {
                 .lineLimit(1)
                 .rollingNumber(total)
                 .padding(.top, 3)
-            // Only the spending needs saying out loud: a shopkeeper writing down
-            // their petrol deserves to know at a glance that it will not turn up
-            // on a customer's statement. The other two figures are the shop's own
-            // trade and surprise nobody.
-            if side == .expenses {
-                Text(Loc.expensesArePrivate)
+            if let totalNote {
+                Text(totalNote)
                     .nocturneText(.meta)
                     .padding(.top, 2)
             }
@@ -175,7 +173,7 @@ struct BookScreen: View {
         .hairline(radius: Metrics.cardRadius)
         // The span the total covers is the span the page covers, so the button
         // that makes it lives in the total's own corner. Spending is the only one
-        // of the three with a page to make; a sales summary is a document this app
+        // of the four with a page to make; a sales summary is a document this app
         // does not have yet.
         //
         // An overlay rather than a row above the figure, because a tap target on
@@ -196,6 +194,7 @@ struct BookScreen: View {
         switch side {
         case .sales: store.soldIn(period)
         case .purchases: store.boughtIn(period)
+        case .payments: store.receivedIn(period)
         case .expenses: store.spentIn(period)
         }
     }
@@ -204,7 +203,24 @@ struct BookScreen: View {
         switch side {
         case .sales: Loc.soldInPeriod
         case .purchases: Loc.boughtInPeriod
+        case .payments: Loc.receivedInPeriod
         case .expenses: Loc.expenseInPeriod
+        }
+    }
+
+    /// A word under the figure, on the two sides that owe one.
+    ///
+    /// Spending needs saying out loud: a shopkeeper writing down their petrol
+    /// deserves to know at a glance that it will not turn up on a customer's
+    /// statement. Payments carry the other direction, because what came in is the
+    /// headline and what went out is the fact beside it — netting the two into
+    /// one number would give the owner a figure they cannot check against
+    /// anything they are holding.
+    private var totalNote: String? {
+        switch side {
+        case .expenses: Loc.expensesArePrivate
+        case .payments: Loc.alsoPaidOut(Money.text(store.paidOutIn(period), in: currency))
+        case .sales, .purchases: nil
         }
     }
 
@@ -212,6 +228,16 @@ struct BookScreen: View {
         switch side {
         case .sales: Loc.billsTitle
         case .purchases: Loc.purchasesSide
+        case .payments: Loc.paymentsSide
+        case .expenses: Loc.expensesTitle
+        }
+    }
+
+    private func label(for candidate: Side) -> String {
+        switch candidate {
+        case .sales: Loc.salesSide
+        case .purchases: Loc.purchasesSide
+        case .payments: Loc.paymentsSide
         case .expenses: Loc.expensesTitle
         }
     }
@@ -280,6 +306,28 @@ struct BookScreen: View {
                 .buttonStyle(.plain)
             }
 
+        case .payments:
+            let slips = store.paymentBook(period)
+            // No button on this one. A payment is taken against somebody's
+            // account, so it starts from the person — there is nothing sensible
+            // for a button here to open without asking who first.
+            if slips.isEmpty {
+                EmptyStateBox(
+                    icon: Icon.owed,
+                    message: store.payments.isEmpty && store.supplierPayments.isEmpty
+                        ? Loc.noPaymentsEver
+                        : Loc.nothingInThisPeriod
+                )
+            }
+            ForEach(slips) { slip in
+                Button {
+                    open(slip)
+                } label: {
+                    PaymentRow(entry: slip)
+                }
+                .buttonStyle(.plain)
+            }
+
         case .expenses:
             let expenses = store.expensesIn(period)
             if expenses.isEmpty {
@@ -303,6 +351,18 @@ struct BookScreen: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    /// The receipt the slip was written on, which the app already draws — the
+    /// same page the owner was shown the moment they took the money.
+    ///
+    /// Nothing opens when the record has gone, which is the honest outcome the
+    /// receipt lookup already settled on.
+    private func open(_ slip: PaymentEntry) {
+        let receipt = slip.incoming
+            ? store.receipt(forPayment: slip.id)
+            : store.receipt(forSupplierPayment: slip.id)
+        if let receipt { router.showReceipt(receipt, justSaved: false) }
     }
 
     // MARK: The documents
@@ -363,7 +423,9 @@ struct BookScreen: View {
     }
 
     /// Which kind of record is showing.
-    private enum Side: String {
-        case sales, purchases, expenses
+    private enum Side: String, CaseIterable, Identifiable {
+        case sales, purchases, payments, expenses
+
+        var id: Self { self }
     }
 }

@@ -188,6 +188,28 @@ class Strings(val language: AppLanguage) {
     val salesSide: String get() = pick("Sales", "ಮಾರಾಟ")
     val purchasesSide: String get() = pick("Purchases", "ಖರೀದಿ")
 
+    /**
+     * The slips, both directions, on one chip.
+     *
+     * Plural where [paymentLabel] is singular: that one names a single record on
+     * a statement, and this one heads a list of them.
+     */
+    val paymentsSide: String get() = pick("Payments", "ಪಾವತಿಗಳು")
+
+    // The second figure on the payments card. What came in is the headline —
+    // it is the question the owner opened the chip to ask — and what went out
+    // sits under it rather than being netted into it, because a single number
+    // standing for both is one the owner cannot check against anything they are
+    // holding.
+    fun alsoPaidOut(amount: String): String =
+            pick("$amount paid to suppliers", "$amount ಸರಬರಾಜುದಾರರಿಗೆ ಪಾವತಿ")
+
+    val noPaymentsEver: String
+        get() = pick(
+            "Nothing received or paid yet. Every receipt you write shows up here.",
+            "ಇನ್ನೂ ಏನೂ ಸ್ವೀಕರಿಸಿಲ್ಲ ಅಥವಾ ಪಾವತಿಸಿಲ್ಲ. ನೀವು ಬರೆಯುವ ಪ್ರತಿ ರಸೀದಿ ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ."
+        )
+
     // --- The ledger book: every customer's history, printed and filed
 
     /**

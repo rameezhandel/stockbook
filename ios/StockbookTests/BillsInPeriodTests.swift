@@ -77,12 +77,12 @@ struct BillsInPeriodTests {
         #expect(picked.map(\.who) == ["Fatima", "Ahmed"], "both end days are inside")
     }
 
-    /// The other two halves of the book, over the same span and by the same rule.
+    /// The other halves of the book, over the same span and by the same rule.
     ///
-    /// Their own tests rather than trust by resemblance: three lists that must
+    /// Their own tests rather than trust by resemblance: several lists that must
     /// agree about which days belong to a month is exactly the kind of agreement
     /// that decays when one of them is corrected.
-    @Test("Deliveries and spending narrow the same way")
+    @Test("Purchases and spending narrow the same way")
     func theOtherTwoHalves() {
         let store = makeStore()
         _ = store.addSupplier(name: "Gulf Traders")
@@ -119,5 +119,121 @@ struct BillsInPeriodTests {
         #expect(store.billsIn(.month(on(5, 4)), calendar: riyadh).isEmpty)
         #expect(store.purchasesIn(.month(on(5, 4)), calendar: riyadh).isEmpty)
         #expect(store.expensesIn(.month(on(5, 4)), calendar: riyadh).isEmpty)
+        #expect(store.paymentsIn(.month(on(5, 4)), calendar: riyadh).isEmpty)
+        #expect(store.supplierPaymentsIn(.month(on(5, 4)), calendar: riyadh).isEmpty)
+    }
+
+    /// Money in, over the same span and by the same rule as everything else.
+    @Test("Only the receipts inside the span, newest first")
+    func receiptsInsideTheSpan() {
+        let store = makeStore()
+        _ = store.addCustomer(name: "Ahmed")
+        _ = store.addCustomer(name: "Fatima")
+        _ = store.recordPayment(customerKey: "ahmed", amount: 100, receivedAt: on(7, 28))
+        _ = store.recordPayment(customerKey: "fatima", amount: 200, receivedAt: on(8, 3))
+        _ = store.recordPayment(customerKey: "ahmed", amount: 300, receivedAt: on(8, 19))
+        _ = store.recordPayment(customerKey: "fatima", amount: 400, receivedAt: on(9, 2))
+
+        let august = store.paymentsIn(.month(on(8, 15)), calendar: riyadh)
+
+        #expect(august.map(\.amount) == [300, 200], "inside the month, newest first")
+    }
+
+    /// And money out, which is a separate series and stays one.
+    @Test("Vouchers narrow the same way and stay apart from receipts")
+    func vouchersStayApart() {
+        let store = makeStore()
+        _ = store.addCustomer(name: "Ahmed")
+        _ = store.addSupplier(name: "Gulf Traders")
+        _ = store.recordPayment(customerKey: "ahmed", amount: 100, receivedAt: on(8, 12))
+        _ = store.recordSupplierPayment(supplierKey: "gulf traders", amount: 700, paidAt: on(7, 30))
+        _ = store.recordSupplierPayment(supplierKey: "gulf traders", amount: 900, paidAt: on(8, 12))
+
+        let august = StatementPeriod.month(on(8, 15))
+
+        #expect(store.supplierPaymentsIn(august, calendar: riyadh).map(\.amount) == [900])
+        #expect(store.paymentsIn(august, calendar: riyadh).map(\.amount) == [100])
+    }
+
+    /// The two figures the payments list is headed by.
+    ///
+    /// Deliberately not netted against each other anywhere: what came in and what
+    /// went out are two facts, and one number standing for both is a figure the
+    /// owner cannot check against anything they are holding.
+    @Test("The receipts and vouchers tie to their own totals")
+    func paymentTotalsTie() {
+        let store = makeStore()
+        _ = store.addCustomer(name: "Ahmed")
+        _ = store.addSupplier(name: "Gulf Traders")
+        _ = store.recordPayment(customerKey: "ahmed", amount: 250, receivedAt: on(8, 4))
+        _ = store.recordPayment(customerKey: "ahmed", amount: 150, receivedAt: on(8, 20))
+        _ = store.recordSupplierPayment(supplierKey: "gulf traders", amount: 900, paidAt: on(8, 12))
+
+        let august = StatementPeriod.month(on(8, 15))
+
+        #expect(store.receivedIn(august) == 400)
+        #expect(store.paidOutIn(august) == 900)
+        #expect(store.receivedIn(august) == store.paymentsIn(august).reduce(0) { $0 + $1.amount })
+        #expect(store.paidOutIn(august) == store.supplierPaymentsIn(august).reduce(0) { $0 + $1.amount })
+    }
+
+    /// A credit note is not a payment.
+    ///
+    /// Both reduce what a customer owes, which is exactly why this is worth
+    /// pinning: a list headed "Payments" that swept credits in would state that
+    /// the shop took money it never saw.
+    @Test("A credit note is not money received")
+    func creditsAreNotPayments() {
+        let store = makeStore()
+        _ = store.addCustomer(name: "Ahmed")
+        store.saveBill(customer: "Ahmed", paid: nil, amount: 500, createdAt: on(8, 2))
+        _ = store.recordPayment(customerKey: "ahmed", amount: 200, receivedAt: on(8, 10))
+        _ = store.addCreditNote(customerKey: "ahmed", amount: 120, issuedAt: on(8, 11))
+
+        let august = StatementPeriod.month(on(8, 15))
+
+        #expect(store.paymentsIn(august, calendar: riyadh).map(\.amount) == [200])
+        #expect(store.receivedIn(august) == 200)
+    }
+
+    /// The two directions as one list, newest first, each line saying which way
+    /// it went and who it was with.
+    @Test("The payment book carries both directions, newest first")
+    func paymentBookMerges() {
+        let store = makeStore()
+        _ = store.addCustomer(name: "Ahmed")
+        _ = store.addSupplier(name: "Gulf Traders")
+        _ = store.recordPayment(customerKey: "ahmed", amount: 300, receivedAt: on(8, 4), paymentNo: "008455")
+        _ = store.recordSupplierPayment(supplierKey: "gulf traders", amount: 900, paidAt: on(8, 12))
+        _ = store.recordPayment(customerKey: "ahmed", amount: 150, receivedAt: on(8, 20))
+
+        let book = store.paymentBook(.month(on(8, 15)), calendar: riyadh)
+
+        #expect(book.map(\.amount) == [150, 900, 300], "newest first")
+        #expect(book.map(\.incoming) == [true, false, true])
+        #expect(book.map(\.who) == ["Ahmed", "Gulf Traders", "Ahmed"], "named, not keyed")
+        #expect(book.map(\.reference) == [nil, nil, "008455"])
+    }
+
+    /// Two slips written in the same second land in the same order on both
+    /// platforms.
+    ///
+    /// Not a contrived case: the owner settles with a supplier and takes a
+    /// customer's money at one counter, and both are typed with the same date.
+    /// Swift's `sorted(by:)` is not stable, so a tie left to the sort would
+    /// shuffle between reads.
+    @Test("Slips written in the same second break the tie on the id")
+    func paymentBookTieBreak() {
+        let store = makeStore()
+        _ = store.addCustomer(name: "Ahmed")
+        _ = store.addSupplier(name: "Gulf Traders")
+        let moment = on(8, 12)
+        _ = store.recordPayment(customerKey: "ahmed", amount: 300, receivedAt: moment)
+        _ = store.recordSupplierPayment(supplierKey: "gulf traders", amount: 900, paidAt: moment)
+
+        let book = store.paymentBook(.month(on(8, 15)), calendar: riyadh)
+
+        let ids = book.map(\.id.uuidString)
+        #expect(ids == ids.sorted(), "the tie is the id, ascending")
     }
 }

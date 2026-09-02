@@ -10,17 +10,25 @@ import SwiftUI
 ///
 /// Started life as `PaymentPill` inside the cart, and moved here the second time
 /// a screen needed it rather than the third.
+///
+/// **The icon is optional, and four across a phone is why.** At 13pt with a
+/// glyph and its gap, "Purchases" needs about 80pt and a quarter of a 360pt
+/// screen is 77 — so the fourth chip on the book's row would have arrived with
+/// its label cut in half. Two or three chips keep their icons.
 struct ChoicePill: View {
     let title: String
-    let icon: String
+    var icon: String?
     let selected: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Glyph(icon, size: 14)
-                Text(title).font(NocturneType.inter(13, .medium))
+                if let icon { Glyph(icon, size: 14) }
+                Text(title)
+                    .font(NocturneType.inter(13, .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
             .foregroundStyle(selected ? Nocturne.accent : Nocturne.neutral500)
             .frame(maxWidth: .infinity)

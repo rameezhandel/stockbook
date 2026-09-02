@@ -446,16 +446,16 @@ private fun PaymentBlock(
     Column(modifier = modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth()) {
             ChoicePill(
-                strings.paidInFull,
-                Icon.confirm,
+                title = strings.paidInFull,
+                icon = Icon.confirm,
                 selected = cart.payMode == PayMode.FULL,
                 onClick = { cart.payMode = PayMode.FULL },
                 modifier = Modifier.weight(1f)
             )
             Spacer(Modifier.width(6.dp))
             ChoicePill(
-                strings.partPayment,
-                Icon.edit,
+                title = strings.partPayment,
+                icon = Icon.edit,
                 selected = cart.payMode == PayMode.PART,
                 onClick = { cart.payMode = PayMode.PART },
                 modifier = Modifier.weight(1f)

@@ -179,6 +179,17 @@ the other.
 - **Every number is typed by the owner, never suggested** — invoice, purchase,
   credit note and receipt numbers, each checked against its own series. Receipt
   1024 and invoice 1024 are different slips.
+- **Money in and money out are two types and stay two types.** `Payment` carries
+  a `customerKey`, `SupplierPayment` a `supplierKey`, and neither becomes the
+  other with a sign on it — the file format's first rule is never to repurpose a
+  key. `paymentBook(period)` flattens both into `PaymentEntry` **for a list to
+  draw**, nothing more: it is derived, never stored, and `incoming` is what says
+  whether to ask `receiptForPayment` or `receiptForSupplierPayment` for the slip.
+  Its ties break on the id so the order does not depend on a sort's stability,
+  which Kotlin has and Swift does not.
+- **A credit note is not a payment.** Both reduce what somebody owes; only one is
+  money. `paymentsIn` and `receivedIn` leave credits out, and a list that swept
+  them in would say the shop took money it never saw.
 - **The owner's spending is joined to nothing.** An `Expense` has no customer,
   no supplier and no bill; it does not move Sold, Receivable or Payable, it does
   not touch the shelf, and it cannot reach a statement — that is a document the
