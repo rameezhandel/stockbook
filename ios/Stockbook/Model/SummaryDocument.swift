@@ -44,15 +44,22 @@ struct SummaryDocument: Equatable {
     /// page.
     var footnote: String?
 
-    /// One line: what it is, and what it comes to.
+    /// One line of the table.
     ///
-    /// `detail` is the small grey aside between the two — `12 times` on a
-    /// spending line, absent on a debtor, who is behind by one figure and not by
-    /// a count of anything.
+    /// `name` and `amount` are the two every page has: a customer and what they
+    /// owe, or a bill and what it came to. The middle two are what a **register**
+    /// needs and a balance list does not — the number on the paper and the day it
+    /// was written — and they are absent on the pages that state a position
+    /// rather than list records.
+    ///
+    /// `reference` is absent twice over: on the balance pages, which have no
+    /// paper behind a row, and on an expense, which is a receipt from somebody
+    /// else's shop and carries no number of the owner's.
     struct Row: Equatable {
         let name: String
         let amount: String
-        var detail: String?
+        var reference: String?
+        var date: String?
     }
 
     /// Whether there is a table to draw at all.
@@ -149,61 +156,63 @@ struct SummaryDocument: Equatable {
         )
     }
 
-    /// What the shop sold over a stretch of days, by customer.
+    /// Every bill written over a stretch of days: who it was for, its number,
+    /// the day, and what it came to.
     ///
-    /// Grouped rather than one row per bill, for the reason `salesByCustomerIn`
-    /// groups: a month is three hundred bills, and a page nobody reads through is
-    /// a page that may as well not print. The bills themselves are on the screen
-    /// this was made from.
+    /// **A register, not a summary.** One line per bill rather than one per
+    /// customer, because a page gets printed to be checked — against the paper
+    /// book, against a customer's own copy, line by line — and a grouped page
+    /// cannot be checked against anything. Who bought the most is a question the
+    /// screen already answers.
     ///
-    /// - Parameter lines: biggest first, which the store already returns.
+    /// - Parameter lines: newest first, which the store already returns.
     static func forSales(
-        lines: [TallyLine],
+        lines: [RecordLine],
         range: StatementRange,
         settings: Settings,
         strings: Strings,
         currency: Currency? = nil
     ) -> SummaryDocument {
-        overSpan(
+        register(
             lines: lines,
             range: range,
             settings: settings,
             strings: strings,
             title: strings.salesSummary,
             nameHeading: strings.columnCustomer,
+            referenceHeading: strings.columnInvoiceReceipt,
             amountHeading: strings.soldInPeriod,
             totalLabel: strings.totalSoldLabel,
             emptyLine: strings.nothingSoldThen,
-            detail: { strings.billsCounted($0) },
             currency: currency ?? settings.currency
         )
     }
 
-    /// The mirror: what arrived over the same span, by supplier.
+    /// The mirror: every purchase over the same span, and who it came from.
     static func forPurchases(
-        lines: [TallyLine],
+        lines: [RecordLine],
         range: StatementRange,
         settings: Settings,
         strings: Strings,
         currency: Currency? = nil
     ) -> SummaryDocument {
-        overSpan(
+        register(
             lines: lines,
             range: range,
             settings: settings,
             strings: strings,
             title: strings.purchaseSummary,
             nameHeading: strings.supplier,
+            referenceHeading: strings.columnInvoiceReceipt,
             amountHeading: strings.boughtInPeriod,
             totalLabel: strings.totalBoughtLabel,
             emptyLine: strings.nothingBoughtThen,
-            detail: { strings.purchasesCounted($0) },
             currency: currency ?? settings.currency
         )
     }
 
-    /// What customers handed over, by customer — and, under the total, what the
-    /// shop paid its suppliers over the same days.
+    /// Every receipt over the span — and, under the total, what the shop paid its
+    /// suppliers over the same days.
     ///
     /// **Money in is the column; money out is a footnote.** Both directions in
     /// one column would leave a total that is neither the sum of the rows nor a
@@ -216,7 +225,7 @@ struct SummaryDocument: Equatable {
     ///   the page entirely when nothing did, rather than printed as "0 paid to
     ///   suppliers", which is a line that makes the reader stop and check.
     static func forPayments(
-        lines: [TallyLine],
+        lines: [RecordLine],
         paidOut: Double,
         range: StatementRange,
         settings: Settings,
@@ -224,67 +233,69 @@ struct SummaryDocument: Equatable {
         currency: Currency? = nil
     ) -> SummaryDocument {
         let money = currency ?? settings.currency
-        return overSpan(
+        return register(
             lines: lines,
             range: range,
             settings: settings,
             strings: strings,
             title: strings.paymentsSummary,
             nameHeading: strings.columnCustomer,
+            referenceHeading: strings.columnInvoiceReceipt,
             amountHeading: strings.receivedInPeriod,
             totalLabel: strings.totalReceivedLabel,
             emptyLine: strings.nothingReceivedThen,
-            detail: { strings.receiptsCounted($0) },
             currency: money,
             footnote: paidOut > 0 ? strings.alsoPaidOut(Money.text(paidOut, in: money)) : nil
         )
     }
 
-    /// Where the shop's own money went, from `StockbookStore.spendingIn`.
+    /// Every expense over the span: what it was for, the day, and the figure.
     ///
-    /// - Parameter lines: biggest first, which `spendingIn` already returns.
+    /// Three columns rather than four. An expense is a receipt from somebody
+    /// else's shop and carries no number of the owner's, and a column of dashes
+    /// is a column that earns nothing.
     static func forSpending(
-        lines: [TallyLine],
+        lines: [RecordLine],
         range: StatementRange,
         settings: Settings,
         strings: Strings,
         currency: Currency? = nil
     ) -> SummaryDocument {
-        overSpan(
+        register(
             lines: lines,
             range: range,
             settings: settings,
             strings: strings,
             title: strings.expenseSummary,
             nameHeading: strings.columnWhatItWentOn,
+            referenceHeading: nil,
             amountHeading: strings.expenseInPeriod,
             totalLabel: strings.totalSpentLabel,
             emptyLine: strings.nothingSpentThen,
-            // How often, beside what it came to. "Petrol, 12 times, 780" is a
-            // different fact from "petrol 780", and it is the one that tells the
-            // owner whether to look at the price or the habit.
-            detail: { strings.timesSpent($0) },
             currency: currency ?? settings.currency
         )
     }
 
-    /// The four pages that cover a **stretch of days** rather than a moment.
+    /// The four pages that **list records over a stretch of days**.
     ///
-    /// Money owed is a balance and true right now; money sold, bought, received
-    /// or spent only means anything over a period, and the header says which.
-    /// Everything else about them differs only in wording, so they differ only in
-    /// wording here.
-    private static func overSpan(
-        lines: [TallyLine],
+    /// Money owed is a balance and true right now; what was sold, bought,
+    /// received or spent only means anything over a period, and the header says
+    /// which. Everything else about them differs in wording and in whether there
+    /// is a number to print, so that is all they differ in here.
+    ///
+    /// - Parameter referenceHeading: nil where the records carry no number — see
+    ///   `forSpending`.
+    private static func register(
+        lines: [RecordLine],
         range: StatementRange,
         settings: Settings,
         strings: Strings,
         title: String,
         nameHeading: String,
+        referenceHeading: String?,
         amountHeading: String,
         totalLabel: String,
         emptyLine: String,
-        detail: (Int) -> String,
         currency: Currency,
         footnote: String? = nil
     ) -> SummaryDocument {
@@ -298,14 +309,22 @@ struct SummaryDocument: Equatable {
                 // which nobody reads as August.
                 to: strings.longDate(range.end.addingTimeInterval(-1))
             ),
-            columnHeadings: [nameHeading, amountHeading],
+            columnHeadings: [nameHeading, referenceHeading, strings.columnDate, amountHeading]
+                .compactMap { $0 },
             rows: lines.map {
-                Row(name: $0.what, amount: Money.text($0.total, in: currency), detail: detail($0.times))
+                Row(
+                    name: $0.who,
+                    amount: Money.text($0.amount, in: currency),
+                    reference: referenceHeading == nil ? nil : $0.reference,
+                    // The short form, not the long one. Forty rows of "22 August
+                    // 2026" is a column three times wider than the fact in it.
+                    date: strings.pickedDate($0.at)
+                )
             },
             totalLabel: totalLabel,
             // Summed from the same figures the rows print, so the foot of the page
             // can never disagree with the page.
-            totalValue: Money.text(lines.reduce(0) { $0 + $1.total }, in: currency),
+            totalValue: Money.text(lines.reduce(0) { $0 + $1.amount }, in: currency),
             emptyLine: emptyLine,
             footnote: footnote
         )

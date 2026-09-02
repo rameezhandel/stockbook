@@ -59,6 +59,33 @@ Play will grant production access at all.
 
 ## Settled, so nobody reopens them
 
+- **A page from every card — done.** Expenses was the only one of the four with
+  a share button; sales, purchases and payments have one now, over whatever span
+  the card is showing, and every foot ties to the figure above the list.
+
+  Each is a **register**: one line per record, with the name it is filed under,
+  the number on the paper, the day, and the figure. It was built grouped first —
+  sales by customer, "12 bills, 4,300" — and that was wrong. A printed page is
+  checked against something, the paper book or a customer's own copy, and a
+  folded row cannot be checked against anything.
+
+  **The expense page changed with them**, from grouped-by-category to a register.
+  `spendingIn` still folds a month into "petrol 780, rent 2,000" and is still
+  tested; nothing prints it today, and it is one call away if that page is ever
+  wanted back.
+
+  The payments page prints **money in as its column and money out as a
+  footnote**. Both directions in one column would leave a total that is neither
+  the sum of the rows nor a figure the owner can check, and signing the rows to
+  make it add up would print `SAR -900` beside a supplier's name — which reads as
+  a refund, and this app has no notion of one.
+
+- **The selected chip is filled, not outlined — done.** An accent hairline on a
+  dark surface is most of a hairline's worth of difference, and on a row of four
+  it stopped reading as a selection. `ChoicePill` fills the one in force the way
+  `PeriodPicker`'s span chips do, everywhere it is used — two highlight styles
+  for one idea was the real inconsistency.
+
 - **Search across the records — done.** The question none of the four lists in
   the book can answer. Each of them narrows to a span, and somebody holding
   receipt 008455 does not know which month it was written in — that is the reason

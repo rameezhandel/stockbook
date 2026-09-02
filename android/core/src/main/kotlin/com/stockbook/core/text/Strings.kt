@@ -1194,14 +1194,6 @@ class Strings(val language: AppLanguage) {
     val nothingReceivedThen: String
         get() = pick("Nothing received in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಏನೂ ಸ್ವೀಕರಿಸಿಲ್ಲ.")
 
-    // The aside beside a name on those pages, the way `timesSpent` is beside a
-    // thing on the expense page. Singular where one reads better than "1 bills".
-    fun billsCounted(n: Int): String = pick(if (n == 1) "1 bill" else "$n bills", "$n ಬಿಲ್")
-    fun purchasesCounted(n: Int): String =
-            pick(if (n == 1) "1 purchase" else "$n purchases", "$n ಖರೀದಿ")
-    fun receiptsCounted(n: Int): String =
-            pick(if (n == 1) "1 receipt" else "$n receipts", "$n ರಸೀದಿ")
-
     fun salesFileName(date: String): String = "sales-$date.pdf"
     fun purchasesFileName(date: String): String = "purchases-$date.pdf"
     fun paymentsFileName(date: String): String = "payments-$date.pdf"

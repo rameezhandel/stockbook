@@ -8,7 +8,7 @@ import com.stockbook.core.model.StatementRange
 import com.stockbook.core.model.Supplier
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
-import com.stockbook.core.store.TallyLine
+import com.stockbook.core.store.RecordLine
 import java.time.Instant
 
 /**
@@ -57,13 +57,24 @@ data class SummaryDocument(
     val footnote: String? = null
 ) {
     /**
-     * One line: what it is, and what it comes to.
+     * One line of the table.
      *
-     * [detail] is the small grey aside between the two — `12 times` on a
-     * spending line, absent on a debtor, who is behind by one figure and not by
-     * a count of anything.
+     * [name] and [amount] are the two every page has: a customer and what they
+     * owe, or a bill and what it came to. The middle two are what a **register**
+     * needs and a balance list does not — the number on the paper and the day it
+     * was written — and they are absent on the pages that state a position rather
+     * than list records.
+     *
+     * [reference] is absent twice over: on the balance pages, which have no
+     * paper behind a row, and on an expense, which is a receipt from somebody
+     * else's shop and carries no number of the owner's.
      */
-    data class Row(val name: String, val amount: String, val detail: String? = null)
+    data class Row(
+        val name: String,
+        val amount: String,
+        val reference: String? = null,
+        val date: String? = null
+    )
 
     /** Whether there is a table to draw at all. */
     val isEmpty: Boolean get() = rows.isEmpty()
@@ -162,59 +173,61 @@ data class SummaryDocument(
         )
 
         /**
-         * What the shop sold over a stretch of days, by customer.
+         * Every bill written over a stretch of days: who it was for, its number,
+         * the day, and what it came to.
          *
-         * Grouped rather than one row per bill, for the reason
-         * `salesByCustomerIn` groups: a month is three hundred bills, and a page
-         * nobody reads through is a page that may as well not print. The bills
-         * themselves are on the screen this was made from.
+         * **A register, not a summary.** One line per bill rather than one per
+         * customer, because a page gets printed to be checked — against the paper
+         * book, against a customer's own copy, line by line — and a grouped page
+         * cannot be checked against anything. Who bought the most is a question
+         * the screen already answers.
          *
-         * @param lines biggest first, which the store already returns.
+         * @param lines newest first, which the store already returns.
          */
         fun forSales(
-            lines: List<TallyLine>,
+            lines: List<RecordLine>,
             range: StatementRange,
             settings: Settings,
             strings: Strings,
             currency: Currency = settings.currency
-        ): SummaryDocument = overSpan(
+        ): SummaryDocument = register(
             lines = lines,
             range = range,
             settings = settings,
             strings = strings,
             title = strings.salesSummary,
             nameHeading = strings.columnCustomer,
+            referenceHeading = strings.columnInvoiceReceipt,
             amountHeading = strings.soldInPeriod,
             totalLabel = strings.totalSoldLabel,
             emptyLine = strings.nothingSoldThen,
-            detail = { strings.billsCounted(it) },
             currency = currency
         )
 
-        /** The mirror: what arrived over the same span, by supplier. */
+        /** The mirror: every purchase over the same span, and who it came from. */
         fun forPurchases(
-            lines: List<TallyLine>,
+            lines: List<RecordLine>,
             range: StatementRange,
             settings: Settings,
             strings: Strings,
             currency: Currency = settings.currency
-        ): SummaryDocument = overSpan(
+        ): SummaryDocument = register(
             lines = lines,
             range = range,
             settings = settings,
             strings = strings,
             title = strings.purchaseSummary,
             nameHeading = strings.supplier,
+            referenceHeading = strings.columnInvoiceReceipt,
             amountHeading = strings.boughtInPeriod,
             totalLabel = strings.totalBoughtLabel,
             emptyLine = strings.nothingBoughtThen,
-            detail = { strings.purchasesCounted(it) },
             currency = currency
         )
 
         /**
-         * What customers handed over, by customer — and, under the total, what
-         * the shop paid its suppliers over the same days.
+         * Every receipt over the span — and, under the total, what the shop paid
+         * its suppliers over the same days.
          *
          * **Money in is the column; money out is a footnote.** Both directions in
          * one column would leave a total that is neither the sum of the rows nor
@@ -228,78 +241,74 @@ data class SummaryDocument(
          *   suppliers", which is a line that makes the reader stop and check.
          */
         fun forPayments(
-            lines: List<TallyLine>,
+            lines: List<RecordLine>,
             paidOut: Double,
             range: StatementRange,
             settings: Settings,
             strings: Strings,
             currency: Currency = settings.currency
-        ): SummaryDocument = overSpan(
+        ): SummaryDocument = register(
             lines = lines,
             range = range,
             settings = settings,
             strings = strings,
             title = strings.paymentsSummary,
             nameHeading = strings.columnCustomer,
+            referenceHeading = strings.columnInvoiceReceipt,
             amountHeading = strings.receivedInPeriod,
             totalLabel = strings.totalReceivedLabel,
             emptyLine = strings.nothingReceivedThen,
-            detail = { strings.receiptsCounted(it) },
             currency = currency,
             footnote = if (paidOut > 0) strings.alsoPaidOut(Money.text(paidOut, currency)) else null
         )
 
         /**
-         * Where the shop's own money went, from `StockbookStore.spendingIn`.
+         * Every expense over the span: what it was for, the day, and the figure.
          *
-         * The one page here that covers a **stretch of days** rather than a
-         * moment: money owed is a balance and true right now, but money spent
-         * only means anything over a period, and the header says which.
-         *
-         * @param lines biggest first, which `spendingIn` already returns.
+         * Three columns rather than four. An expense is a receipt from somebody
+         * else's shop and carries no number of the owner's, and a column of
+         * dashes is a column that earns nothing.
          */
         fun forSpending(
-            lines: List<TallyLine>,
+            lines: List<RecordLine>,
             range: StatementRange,
             settings: Settings,
             strings: Strings,
             currency: Currency = settings.currency
-        ): SummaryDocument = overSpan(
+        ): SummaryDocument = register(
             lines = lines,
             range = range,
             settings = settings,
             strings = strings,
             title = strings.expenseSummary,
             nameHeading = strings.columnWhatItWentOn,
+            referenceHeading = null,
             amountHeading = strings.expenseInPeriod,
             totalLabel = strings.totalSpentLabel,
             emptyLine = strings.nothingSpentThen,
-            // How often, beside what it came to. "Petrol, 12 times, 780" is a
-            // different fact from "petrol 780", and it is the one that tells the
-            // owner whether to look at the price or the habit.
-            detail = { strings.timesSpent(it) },
             currency = currency
         )
 
         /**
-         * The four pages that cover a **stretch of days** rather than a moment.
+         * The four pages that **list records over a stretch of days**.
          *
-         * Money owed is a balance and true right now; money sold, bought,
+         * Money owed is a balance and true right now; what was sold, bought,
          * received or spent only means anything over a period, and the header
-         * says which. Everything else about them differs only in wording, so they
-         * differ only in wording here.
+         * says which. Everything else about them differs in wording and in
+         * whether there is a number to print, so that is all they differ in here.
          */
-        private fun overSpan(
-            lines: List<TallyLine>,
+        private fun register(
+            lines: List<RecordLine>,
             range: StatementRange,
             settings: Settings,
             strings: Strings,
             title: String,
             nameHeading: String,
+            /** Null where the records carry no number — see [forSpending]. */
+            referenceHeading: String?,
             amountHeading: String,
             totalLabel: String,
             emptyLine: String,
-            detail: (Int) -> String,
             currency: Currency,
             footnote: String? = null
         ): SummaryDocument = SummaryDocument(
@@ -312,14 +321,26 @@ data class SummaryDocument(
                 // September", which nobody reads as August.
                 strings.longDate(range.end.minusSeconds(1))
             ),
-            columnHeadings = listOf(nameHeading, amountHeading),
+            columnHeadings = listOfNotNull(
+                nameHeading,
+                referenceHeading,
+                strings.columnDate,
+                amountHeading
+            ),
             rows = lines.map {
-                Row(name = it.what, amount = Money.text(it.total, currency), detail = detail(it.times))
+                Row(
+                    name = it.who,
+                    amount = Money.text(it.amount, currency),
+                    reference = if (referenceHeading == null) null else it.reference,
+                    // The short form, not the long one. Forty rows of "22 August
+                    // 2026" is a column three times wider than the fact in it.
+                    date = strings.pickedDate(it.at)
+                )
             },
             totalLabel = totalLabel,
             // Summed from the same figures the rows print, so the foot of the page
             // can never disagree with the page.
-            totalValue = Money.text(lines.sumOf { it.total }, currency),
+            totalValue = Money.text(lines.sumOf { it.amount }, currency),
             emptyLine = emptyLine,
             footnote = footnote
         )

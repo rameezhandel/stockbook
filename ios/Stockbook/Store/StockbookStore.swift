@@ -1006,13 +1006,13 @@ final class StockbookStore {
     /// rather than three. That collapsing is worth as much here as it is in the
     /// suggestion list, arguably more: three lines for one thing does not just
     /// look untidy, it hides how much the shop actually spends on it.
-    func spendingIn(_ period: StatementPeriod) -> [TallyLine] {
+    func spendingIn(_ period: StatementPeriod) -> [SpendLine] {
         let range = period.range()
         let inside = expenses.filter { range.contains($0.spentAt) && !$0.note.isBlank }
         return Dictionary(grouping: inside) { $0.note.trimmed.lowercased() }
-            .compactMap { _, group -> TallyLine? in
+            .compactMap { _, group -> SpendLine? in
                 guard let newest = group.max(by: { $0.spentAt < $1.spentAt }) else { return nil }
-                return TallyLine(
+                return SpendLine(
                     what: newest.note.trimmed,
                     times: group.count,
                     total: group.reduce(0) { $0 + $1.amount }
@@ -1415,60 +1415,60 @@ final class StockbookStore {
         .map { $0 }
     }
 
-    /// What the shop sold over `period`, folded to one line per customer,
-    /// biggest first.
+    /// What the sales page lists: every bill in `period`, newest first.
     ///
-    /// The sales twin of `spendingIn`, and grouped for the same reason: a month
-    /// is three hundred bills and nobody reads three hundred rows. "Ahmed, 12
-    /// bills, 4,300" is the answer; the bills themselves are on the screen the
-    /// page was made from.
-    ///
-    /// Grouped by the customer's **key**, not the typed name, so "Ahmed" and
-    /// "ahmed " are one line rather than two — and shown under the name the
-    /// roster spells, which is the one on every other page.
-    func salesByCustomerIn(_ period: StatementPeriod) -> [TallyLine] {
-        tally(billsIn(period).map { (($0.who.trimmed.lowercased()), $0.who, $0.total) })
+    /// **One line per bill, not one per customer.** A grouped page answers "who
+    /// bought the most", which is a question the owner can answer by looking at
+    /// the screen; this one answers "what did I write in August", which is the
+    /// question a page gets printed for — and it is the only one of the two that
+    /// can be checked against a paper book, line by line.
+    func salesRegisterIn(_ period: StatementPeriod, strings: Strings) -> [RecordLine] {
+        billsIn(period).map {
+            RecordLine(who: $0.who, reference: $0.reference(strings), at: $0.createdAt, amount: $0.total)
+        }
     }
 
-    /// The same page pointed the other way: what arrived, by supplier.
-    func purchasesBySupplierIn(_ period: StatementPeriod) -> [TallyLine] {
-        tally(purchasesIn(period).map {
-            ($0.supplierKey, supplier(key: $0.supplierKey)?.name ?? $0.supplierKey, $0.total)
-        })
+    /// The same register pointed the other way: what arrived, and from whom.
+    func purchasesRegisterIn(_ period: StatementPeriod, strings: Strings) -> [RecordLine] {
+        purchasesIn(period).map {
+            RecordLine(
+                who: supplier(key: $0.supplierKey)?.name ?? $0.supplierKey,
+                reference: $0.reference(strings),
+                at: $0.createdAt,
+                amount: $0.total
+            )
+        }
     }
 
-    /// What customers actually handed over inside `period`, by customer.
+    /// Every receipt the shop wrote in `period`, newest first.
     ///
-    /// Money in only. What went out to suppliers is a figure on the same page
-    /// rather than a row in this column — `SummaryDocument.forPayments` says why
+    /// Money in only. What went out to suppliers is a figure under the total
+    /// rather than a line in the column — `SummaryDocument.forPayments` says why
     /// a column that mixed the two would be a column nobody can add up.
-    func receiptsByCustomerIn(_ period: StatementPeriod) -> [TallyLine] {
-        tally(paymentsIn(period).map {
-            ($0.customerKey, customer(key: $0.customerKey)?.name ?? $0.customerKey, $0.amount)
-        })
+    func receiptsRegisterIn(_ period: StatementPeriod, strings: Strings) -> [RecordLine] {
+        paymentsIn(period).map { payment in
+            RecordLine(
+                who: customer(key: payment.customerKey)?.name ?? payment.customerKey,
+                // A receipt written without a number has none to print. The row
+                // still has the day and the figure, which is what identifies it.
+                reference: payment.paymentNo
+                    .flatMap { $0.isBlank ? nil : $0 }
+                    .map { strings.paymentRef($0) },
+                at: payment.receivedAt,
+                amount: payment.amount
+            )
+        }
     }
 
-    /// Groups (key, display name, amount) into lines, biggest first.
+    /// Every expense in `period`, newest first.
     ///
-    /// The name shown is the **most recent** spelling in the group, which is what
-    /// `spendingIn` settled on for the same reason: three lines for one thing
-    /// does not just look untidy, it hides how much the shop actually does with
-    /// them.
-    ///
-    /// Ties break on the name so two customers who spent the same come out in the
-    /// same order every time, rather than in whatever order the records happened
-    /// to be walked in.
-    private func tally(_ entries: [(String, String, Double)]) -> [TallyLine] {
-        Dictionary(grouping: entries, by: { $0.0 })
-            .values
-            .map { group in
-                TallyLine(
-                    what: group[0].1,
-                    times: group.count,
-                    total: group.reduce(0) { $0 + $1.2 }
-                )
-            }
-            .sorted { $0.total == $1.total ? $0.what < $1.what : $0.total > $1.total }
+    /// What it was for stands where a customer's name stands on the sales page,
+    /// and there is no number: an expense is a receipt from somebody else's shop,
+    /// and this app does not ask the owner to type theirs.
+    func expensesRegisterIn(_ period: StatementPeriod) -> [RecordLine] {
+        expensesIn(period).map {
+            RecordLine(who: $0.note, reference: nil, at: $0.spentAt, amount: $0.amount)
+        }
     }
 
     /// How many bills the shop wrote in `period`.
@@ -2933,15 +2933,14 @@ struct DraftLine {
     var price: Double
 }
 
-/// A group of records folded to one line: what it was, how many of them, and
-/// what they came to.
+/// What the shop spent on one thing over a stretch of days: what it was, how
+/// many times, and what that came to.
 ///
-/// One shape for four questions — what the shop spent on petrol, what it sold to
-/// Ahmed, what it bought from Gulf Traders, what Ahmed handed over. Each is a
-/// pile of records grouped by a name and added up, and the summary page that
-/// prints any of them wants exactly these three fields. It was called
-/// `SpendLine` while spending was the only one of the four with a page.
-struct TallyLine: Equatable {
+/// Grouping, which the printed pages do not do — they list records, one line
+/// each, because a page is checked against a paper book line by line. This
+/// answers the other question, "where did the month go", and `spendingIn` is the
+/// only thing that folds anything.
+struct SpendLine: Equatable {
     let what: String
     let times: Int
     let total: Double
@@ -3105,6 +3104,21 @@ struct SearchHit: Identifiable, Equatable {
     let reference: String?
     let amount: Double
     let at: Date
+}
+
+/// One record as a register line: who it was with, its number, when, and what it
+/// came to.
+///
+/// The shape every printed register wants, whichever of the four it is. Derived
+/// for a page to draw and nothing else — the records themselves keep their own
+/// types, and `who` is already resolved to the name the roster spells so the
+/// document does no lookups of its own.
+struct RecordLine: Equatable {
+    let who: String
+    /// The number on the paper, where the record carries one.
+    let reference: String?
+    let at: Date
+    let amount: Double
 }
 
 /// One slip on the payments list, whichever way the money went.

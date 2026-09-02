@@ -202,54 +202,77 @@ class SummaryDocumentTests {
     // --- Where the shop's own money went
 
     private fun StockbookStore.spendingDocument(period: StatementPeriod) =
-        SummaryDocument.forSpending(spendingIn(period), period.range(), settings, strings)
+        SummaryDocument.forSpending(expensesRegisterIn(period), period.range(), settings, strings)
+
+    /**
+     * The page lists what was spent, one line each, newest first.
+     *
+     * **It used to group by what the money went on.** A printed page is checked
+     * against something — the receipts in a drawer, the paper book — and a line
+     * reading "Petrol, 3 times, 195" cannot be checked against anything. Where
+     * the money went is still a question worth asking, and `spendingIn` still
+     * answers it; it is just not what gets printed.
+     */
+    @Test
+    fun `every expense is its own line, newest first`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", day)
+        store.addExpense(4.0, "Tea", day.plusSeconds(60))
+
+        val document = store.spendingDocument(StatementPeriod.thisYear())
+
+        assertEquals(listOf("Tea", "Petrol"), document.rows.map { it.name })
+        assertEquals(listOf("SAR 4", "SAR 60"), document.rows.map { it.amount })
+        assertEquals("SAR 64", document.totalValue)
+    }
+
+    /** Every register line says when, because that is how a page is checked. */
+    @Test
+    fun `each line carries the day it was written`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", day)
+
+        val row = store.spendingDocument(StatementPeriod.thisYear()).rows.single()
+
+        assertEquals(strings.pickedDate(day), row.date)
+        // An expense is a receipt from somebody else's shop. There is no number
+        // of the owner's to print, so the column is not there at all.
+        assertEquals(null, row.reference)
+        assertEquals(3, store.spendingDocument(StatementPeriod.thisYear()).columnHeadings.size)
+    }
 
     @Test
-    fun `spending is grouped by what it went on, biggest first`() {
-        // Forty-seven lines is a record. Three lines is an answer.
+    fun `spendingIn still folds the month into an answer`() {
+        // Forty-seven lines is a record. Three lines is an answer. Nothing prints
+        // this today, and it is the only thing in the app that groups anything —
+        // so it is tested here rather than left to rot.
         val store = store()
         store.addExpense(60.0, "Petrol", day)
         store.addExpense(4.0, "Tea", day)
         store.addExpense(2_000.0, "Rent", day)
         store.addExpense(65.0, "Petrol", day)
 
-        val document = store.spendingDocument(StatementPeriod.thisYear())
+        val lines = store.spendingIn(StatementPeriod.thisYear())
 
-        assertEquals(listOf("Rent", "Petrol", "Tea"), document.rows.map { it.name })
-        assertEquals(listOf("SAR 2,000", "SAR 125", "SAR 4"), document.rows.map { it.amount })
-        assertEquals("SAR 2,129", document.totalValue)
+        assertEquals(listOf("Rent", "Petrol", "Tea"), lines.map { it.what })
+        assertEquals(listOf(2_000.0, 125.0, 4.0), lines.map { it.total })
     }
 
     @Test
-    fun `how often sits beside what it came to`() {
-        // "Petrol, 12 times, 780" is a different fact from "petrol 780", and it
-        // is the one that says whether to look at the price or the habit.
-        val store = store()
-        store.addExpense(60.0, "Petrol", day)
-        store.addExpense(65.0, "Petrol", day)
-        store.addExpense(2_000.0, "Rent", day)
-
-        val rows = store.spendingDocument(StatementPeriod.thisYear()).rows
-
-        assertEquals("2 times", rows.first { it.name == "Petrol" }.detail)
-        assertEquals("once", rows.first { it.name == "Rent" }.detail, "never \"1 times\"")
-    }
-
-    @Test
-    fun `the same word in three casings is one line`() {
-        // Worth more here than in the suggestion list: three lines for one thing
-        // does not merely look untidy, it hides how much the shop spends on it.
+    fun `the same word in three casings is one folded line`() {
+        // Worth more than tidiness: three lines for one thing hides how much the
+        // shop spends on it.
         val store = store()
         store.addExpense(60.0, "petrol", day)
         store.addExpense(65.0, "PETROL", day.plusSeconds(60))
         store.addExpense(70.0, "Petrol", day.plusSeconds(120))
 
-        val rows = store.spendingDocument(StatementPeriod.thisYear()).rows
+        val lines = store.spendingIn(StatementPeriod.thisYear())
 
-        assertEquals(1, rows.size)
-        assertEquals("Petrol", rows.single().name, "and the newest spelling is the one shown")
-        assertEquals("SAR 195", rows.single().amount)
-        assertEquals("3 times", rows.single().detail)
+        assertEquals(1, lines.size)
+        assertEquals("Petrol", lines.single().what, "and the newest spelling is the one shown")
+        assertEquals(195.0, lines.single().total)
+        assertEquals(3, lines.single().times)
     }
 
     @Test
@@ -303,38 +326,58 @@ class SummaryDocumentTests {
         assertEquals("1 August 2026 to 31 August 2026", document.asOf)
     }
 
-    // --- The three pages the book gained beside the expense summary
+    // --- The three registers the book gained beside the expense page
 
     private fun trading(): StockbookStore {
         val store = store()
         store.addCustomer("Ahmed")
         store.addCustomer("Fatima")
         store.addSupplier("Gulf Traders")
-        store.saveBill(customer = "Ahmed", paid = null, amount = 300.0, createdAt = day)
+        store.saveBill(customer = "Ahmed", paid = null, amount = 300.0, createdAt = day, invoiceNo = "1207")
         store.saveBill(customer = "Ahmed", paid = null, amount = 200.0, createdAt = day)
         store.saveBill(customer = "Fatima", paid = null, amount = 900.0, createdAt = day)
-        store.recordPurchase(emptyList(), "gulf traders", amount = 800.0, createdAt = day)
-        store.recordPayment("ahmed", 250.0, receivedAt = day)
+        store.recordPurchase(emptyList(), "gulf traders", amount = 800.0, createdAt = day, invoiceNo = "GT-902")
+        store.recordPayment("ahmed", 250.0, receivedAt = day, paymentNo = "008455")
         store.recordSupplierPayment("gulf traders", 600.0, paidAt = day)
         return store
     }
 
     /**
-     * Several bills to one customer are one line and a count, not several rows.
-     * A month is three hundred bills, and the page exists to be read.
+     * One line per bill, with the number on the paper and the day beside it.
+     *
+     * Two bills to Ahmed are two lines, not one line saying "2 bills" — a page is
+     * printed to be checked against something, and a folded row cannot be.
      */
     @Test
-    fun `the sales page folds a customer's bills into one line`() {
+    fun `the sales page lists every bill, not every customer`() {
         val store = trading()
         val month = StatementPeriod.Month(day)
 
         val page = SummaryDocument.forSales(
-            store.salesByCustomerIn(month), month.range(), store.settings, strings
+            store.salesRegisterIn(month, strings), month.range(), store.settings, strings
         )
 
-        assertEquals(2, page.rows.size, "one row each, not one per bill")
-        assertEquals("Fatima", page.rows.first().name, "biggest first")
-        assertEquals("2 bills", page.rows.last().detail)
+        assertEquals(3, page.rows.size, "one per bill")
+        assertEquals(listOf("Fatima", "Ahmed", "Ahmed"), page.rows.map { it.name })
+        assertEquals("1207", page.rows.last().reference, "the number the owner typed")
+        assertEquals(strings.pickedDate(day), page.rows.first().date)
+        assertEquals(
+            listOf(strings.columnCustomer, strings.columnInvoiceReceipt, strings.columnDate, strings.soldInPeriod),
+            page.columnHeadings
+        )
+    }
+
+    /** A bill with no invoice number still has one to print: the app's own. */
+    @Test
+    fun `a bill with nothing typed on it falls back to the app's number`() {
+        val store = trading()
+        val month = StatementPeriod.Month(day)
+
+        val page = SummaryDocument.forSales(
+            store.salesRegisterIn(month, strings), month.range(), store.settings, strings
+        )
+
+        assertTrue(page.rows.all { !it.reference.isNullOrBlank() }, "every row is identifiable")
     }
 
     /**
@@ -349,19 +392,23 @@ class SummaryDocumentTests {
         val range = month.range()
 
         val sales = SummaryDocument.forSales(
-            store.salesByCustomerIn(month), range, store.settings, strings
+            store.salesRegisterIn(month, strings), range, store.settings, strings
         )
         val purchases = SummaryDocument.forPurchases(
-            store.purchasesBySupplierIn(month), range, store.settings, strings
+            store.purchasesRegisterIn(month, strings), range, store.settings, strings
         )
         val payments = SummaryDocument.forPayments(
-            store.receiptsByCustomerIn(month), store.paidOutIn(month), range, store.settings, strings
+            store.receiptsRegisterIn(month, strings), store.paidOutIn(month), range, store.settings, strings
+        )
+        val spending = SummaryDocument.forSpending(
+            store.expensesRegisterIn(month), range, store.settings, strings
         )
 
         val currency = store.settings.currency
         assertEquals(Money.text(store.soldIn(month), currency), sales.totalValue)
         assertEquals(Money.text(store.boughtIn(month), currency), purchases.totalValue)
         assertEquals(Money.text(store.receivedIn(month), currency), payments.totalValue)
+        assertEquals(Money.text(store.spentIn(month), currency), spending.totalValue)
     }
 
     /**
@@ -377,7 +424,7 @@ class SummaryDocumentTests {
         val month = StatementPeriod.Month(day)
 
         val page = SummaryDocument.forPayments(
-            store.receiptsByCustomerIn(month), store.paidOutIn(month), month.range(), store.settings, strings
+            store.receiptsRegisterIn(month, strings), store.paidOutIn(month), month.range(), store.settings, strings
         )
 
         assertEquals(1, page.rows.size, "the vouchers are not rows")
@@ -386,7 +433,7 @@ class SummaryDocumentTests {
         assertTrue(page.footnote!!.contains("600"), "and says what went out: ${page.footnote}")
     }
 
-    /** No footnote where nothing went out — "0 paid to suppliers" is a line that makes the reader stop. */
+    /** No footnote where nothing went out — "0 paid to suppliers" makes the reader stop. */
     @Test
     fun `a span with no vouchers has no footnote`() {
         val store = store()
@@ -395,7 +442,7 @@ class SummaryDocumentTests {
         val month = StatementPeriod.Month(day)
 
         val page = SummaryDocument.forPayments(
-            store.receiptsByCustomerIn(month), store.paidOutIn(month), month.range(), store.settings, strings
+            store.receiptsRegisterIn(month, strings), store.paidOutIn(month), month.range(), store.settings, strings
         )
 
         assertEquals(null, page.footnote)
@@ -410,17 +457,17 @@ class SummaryDocumentTests {
 
         assertTrue(
             SummaryDocument.forSales(
-                store.salesByCustomerIn(quiet), range, store.settings, strings
+                store.salesRegisterIn(quiet, strings), range, store.settings, strings
             ).isEmpty
         )
         assertTrue(
             SummaryDocument.forPurchases(
-                store.purchasesBySupplierIn(quiet), range, store.settings, strings
+                store.purchasesRegisterIn(quiet, strings), range, store.settings, strings
             ).isEmpty
         )
         assertTrue(
             SummaryDocument.forPayments(
-                store.receiptsByCustomerIn(quiet), store.paidOutIn(quiet), range, store.settings, strings
+                store.receiptsRegisterIn(quiet, strings), store.paidOutIn(quiet), range, store.settings, strings
             ).isEmpty
         )
     }

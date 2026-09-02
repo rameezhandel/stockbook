@@ -28,6 +28,27 @@ enum SummaryPDF {
     private static let grey = UIColor(red: 0.420, green: 0.420, blue: 0.463, alpha: 1)
     private static let ruleColour = UIColor(red: 0.839, green: 0.839, blue: 0.871, alpha: 1)
 
+    /// Where each column starts, as a fraction of the writable width, by how many
+    /// columns the page has.
+    ///
+    /// Three shapes, because three kinds of page come through here. A balance
+    /// list is a name and a figure. A register of expenses adds the day. A
+    /// register of bills, purchases or receipts adds the number on the paper as
+    /// well — and the name gives up the room for it, since a customer's name is
+    /// the one thing on the row a reader can still recognise cut short.
+    ///
+    /// The last column is right-aligned against the margin and takes no start.
+    private static let columnStarts: [Int: [CGFloat]] = [
+        2: [0],
+        3: [0, 0.62],
+        4: [0, 0.38, 0.66],
+    ]
+
+    /// How much room a column has: up to the next one, less a gutter.
+    private static func columnWidth(_ starts: [CGFloat], _ index: Int) -> CGFloat {
+        (index + 1 < starts.count ? starts[index + 1] : 0.98) - starts[index] - 0.02
+    }
+
     private static func attributes(_ size: CGFloat, bold: Bool = false, muted: Bool = false) -> [NSAttributedString.Key: Any] {
         [
             .font: bold ? UIFont.boldSystemFont(ofSize: size) : UIFont.systemFont(ofSize: size),
@@ -66,9 +87,25 @@ enum SummaryPDF {
                 return
             }
 
+            // Two, three or four, and the last of them is the figure. A page
+            // whose headings this does not know about would draw its columns on
+            // top of one another, so it falls back to the plainest shape rather
+            // than to nothing.
+            let starts = Self.columnStarts[document.columnHeadings.count] ?? [0]
+
             func drawHeadings() {
-                document.columnHeadings[0].draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(rowSize, bold: true))
-                drawRight(document.columnHeadings[1], rightEdge: right, y: y, attributes: attributes(rowSize, bold: true))
+                for (index, start) in starts.enumerated() {
+                    document.columnHeadings[index].draw(
+                        at: CGPoint(x: margin + width * start, y: y),
+                        withAttributes: attributes(rowSize, bold: true)
+                    )
+                }
+                drawRight(
+                    document.columnHeadings[document.columnHeadings.count - 1],
+                    rightEdge: right,
+                    y: y,
+                    attributes: attributes(rowSize, bold: true)
+                )
                 y += 16
                 rule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
                 y += 6
@@ -85,18 +122,31 @@ enum SummaryPDF {
                     drawHeadings()
                 }
 
-                // The name is truncated to the space before the figure rather
-                // than drawn over it. A long name running under the amount is
-                // how a chasing list becomes unreadable at exactly the row that
-                // matters most.
-                let nameWidth = width * 0.68
-                draw(row.name, at: CGPoint(x: margin, y: y), maxWidth: nameWidth, attributes: attributes(rowSize))
-                // The aside, where a row has one: how often something was bought,
-                // set grey and between the two so it never competes with the
-                // figure. A debtor has none — they are behind by an amount, not
-                // by a count of anything.
-                if let detail = row.detail {
-                    drawRight(detail, rightEdge: margin + width * 0.86, y: y, attributes: attributes(bodySize, muted: true))
+                // Every cell cut short rather than drawn over its neighbour. A
+                // long name running under the number is how a register becomes
+                // unreadable at exactly the row somebody is looking for.
+                //
+                // The middle cells are grey: the row is a name and a figure, and
+                // the number and the day are how you find it, not what it says.
+                // Positional, not compacted. A receipt written without a number
+                // leaves an empty cell; dropping it would slide the date up into
+                // the number's column and put the whole row out of step with its
+                // heading.
+                let cells: [String]
+                switch starts.count {
+                case 3: cells = [row.name, row.reference ?? "", row.date ?? ""]
+                case 2: cells = [row.name, row.date ?? ""]
+                default: cells = [row.name]
+                }
+                for (index, cell) in cells.enumerated() where !cell.isEmpty {
+                    draw(
+                        cell,
+                        at: CGPoint(x: margin + width * starts[index], y: y),
+                        maxWidth: width * Self.columnWidth(starts, index),
+                        attributes: index == 0
+                            ? attributes(rowSize)
+                            : attributes(bodySize, muted: true)
+                    )
                 }
                 drawRight(row.amount, rightEdge: right, y: y, attributes: attributes(rowSize))
                 y += 17

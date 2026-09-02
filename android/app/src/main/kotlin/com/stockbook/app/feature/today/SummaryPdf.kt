@@ -35,8 +35,27 @@ object SummaryPdf {
     private const val ROW_SIZE = 10f
     private const val LINE = 13f
 
-    /** How much of the writable width a name may take before it is cut short. */
-    private const val NAME_FRACTION = 0.68f
+    /**
+     * Where each column starts, as a fraction of the writable width, by how many
+     * columns the page has.
+     *
+     * Three shapes, because three kinds of page come through here. A balance list
+     * is a name and a figure. A register of expenses adds the day. A register of
+     * bills, purchases or receipts adds the number on the paper as well — and the
+     * name gives up the room for it, since a customer's name is the one thing on
+     * the row a reader can still recognise cut short.
+     *
+     * The last column is right-aligned against the margin and takes no start.
+     */
+    private val COLUMN_STARTS: Map<Int, List<Float>> = mapOf(
+        2 to listOf(0f),
+        3 to listOf(0f, 0.62f),
+        4 to listOf(0f, 0.38f, 0.66f)
+    )
+
+    /** How much room a column has: up to the next one, less a gutter. */
+    private fun columnWidth(starts: List<Float>, index: Int): Float =
+        (starts.getOrNull(index + 1) ?: 0.98f) - starts[index] - 0.02f
 
     private fun paint(size: Float, bold: Boolean = false, grey: Boolean = false) = Paint().apply {
         isAntiAlias = true
@@ -86,9 +105,17 @@ object SummaryPdf {
 
         // --- The list
 
+        // Two, three or four, and the last of them is the figure. A page whose
+        // headings this does not know about would draw its columns on top of one
+        // another, so it falls back to the plainest shape rather than to nothing.
+        val starts = COLUMN_STARTS[document.columnHeadings.size] ?: COLUMN_STARTS.getValue(2)
+
         fun drawHeadings() {
-            canvas.drawText(document.columnHeadings[0], MARGIN, y + ROW_SIZE, paint(ROW_SIZE, bold = true))
-            canvas.drawTextRight(document.columnHeadings[1], right, y + ROW_SIZE, paint(ROW_SIZE, bold = true))
+            val heading = paint(ROW_SIZE, bold = true)
+            for ((index, start) in starts.withIndex()) {
+                canvas.drawText(document.columnHeadings[index], MARGIN + width * start, y + ROW_SIZE, heading)
+            }
+            canvas.drawTextRight(document.columnHeadings.last(), right, y + ROW_SIZE, heading)
             y += 16
             canvas.drawLine(MARGIN, y, right, y, rule)
             y += 6
@@ -109,16 +136,31 @@ object SummaryPdf {
             }
 
             val body = paint(ROW_SIZE)
-            // Cut short rather than drawn over the figure. A long name running
-            // under the amount is how a chasing list becomes unreadable at
-            // exactly the row that matters most.
-            canvas.drawText(body.ellipsised(row.name, width * NAME_FRACTION), MARGIN, y + ROW_SIZE, body)
-            // The aside, where a row has one: how often something was bought, set
-            // grey and between the two so it never competes with the figure. A
-            // debtor has none — they are behind by an amount, not by a count of
-            // anything.
-            row.detail?.let {
-                canvas.drawTextRight(it, MARGIN + width * 0.86f, y + ROW_SIZE, paint(BODY_SIZE, grey = true))
+            val aside = paint(BODY_SIZE, grey = true)
+
+            // Every cell cut short rather than drawn over its neighbour. A long
+            // name running under the number is how a register becomes unreadable
+            // at exactly the row somebody is looking for.
+            //
+            // The middle cells are grey: the row is a name and a figure, and the
+            // number and the day are how you find it, not what it says.
+            // Positional, not compacted. A receipt written without a number
+            // leaves an empty cell; dropping it would slide the date up into the
+            // number's column and put the whole row out of step with its heading.
+            val cells = when (starts.size) {
+                3 -> listOf(row.name, row.reference.orEmpty(), row.date.orEmpty())
+                2 -> listOf(row.name, row.date.orEmpty())
+                else -> listOf(row.name)
+            }
+            for ((index, cell) in cells.withIndex()) {
+                if (cell.isEmpty()) continue
+                val ink = if (index == 0) body else aside
+                canvas.drawText(
+                    ink.ellipsised(cell, width * columnWidth(starts, index)),
+                    MARGIN + width * starts[index],
+                    y + ROW_SIZE,
+                    ink
+                )
             }
             canvas.drawTextRight(row.amount, right, y + ROW_SIZE, body)
             y += 17

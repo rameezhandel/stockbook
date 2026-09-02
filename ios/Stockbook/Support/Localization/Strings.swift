@@ -1187,16 +1187,6 @@ struct Strings {
         pick("Nothing received in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಏನೂ ಸ್ವೀಕರಿಸಿಲ್ಲ.")
     }
 
-    // The aside beside a name on those pages, the way `timesSpent` is beside a
-    // thing on the expense page. Singular where one reads better than "1 bills".
-    func billsCounted(_ n: Int) -> String { pick(n == 1 ? "1 bill" : "\(n) bills", "\(n) ಬಿಲ್") }
-    func purchasesCounted(_ n: Int) -> String {
-        pick(n == 1 ? "1 purchase" : "\(n) purchases", "\(n) ಖರೀದಿ")
-    }
-    func receiptsCounted(_ n: Int) -> String {
-        pick(n == 1 ? "1 receipt" : "\(n) receipts", "\(n) ರಸೀದಿ")
-    }
-
     func salesFileName(date: String) -> String { "sales-\(date).pdf" }
     func purchasesFileName(date: String) -> String { "purchases-\(date).pdf" }
     func paymentsFileName(date: String) -> String { "payments-\(date).pdf" }

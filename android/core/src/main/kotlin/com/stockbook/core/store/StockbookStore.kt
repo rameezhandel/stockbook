@@ -25,6 +25,7 @@ import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
 import com.stockbook.core.text.AppLanguage
+import com.stockbook.core.text.Strings
 import com.stockbook.core.transfer.BackupDocument
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,16 +42,15 @@ data class DraftLine(
 )
 
 /**
- * A group of records folded to one line: what it was, how many of them, and what
- * they came to.
+ * What the shop spent on one thing over a stretch of days: what it was, how many
+ * times, and what that came to.
  *
- * One shape for four questions — what the shop spent on petrol, what it sold to
- * Ahmed, what it bought from Gulf Traders, what Ahmed handed over. Each is a pile
- * of records grouped by a name and added up, and the summary page that prints any
- * of them wants exactly these three fields. It was called `SpendLine` while
- * spending was the only one of the four with a page.
+ * Grouping, which the printed pages do not do — they list records, one line each,
+ * because a page is checked against a paper book line by line. This answers the
+ * other question, "where did the month go", and `spendingIn` is the only thing
+ * that folds anything.
  */
-data class TallyLine(val what: String, val times: Int, val total: Double)
+data class SpendLine(val what: String, val times: Int, val total: Double)
 
 /**
  * What a stretch of trading actually left the shop with.
@@ -243,6 +243,23 @@ data class SearchHit(
     val reference: String?,
     val amount: Double,
     val at: Instant
+)
+
+/**
+ * One record as a register line: who it was with, its number, when, and what it
+ * came to.
+ *
+ * The shape every printed register wants, whichever of the four it is. Derived
+ * for a page to draw and nothing else — the records themselves keep their own
+ * types, and [who] is already resolved to the name the roster spells so the
+ * document does no lookups of its own.
+ */
+data class RecordLine(
+    val who: String,
+    /** The number on the paper, where the record carries one. */
+    val reference: String?,
+    val at: Instant,
+    val amount: Double
 )
 
 /**
@@ -1467,20 +1484,20 @@ class StockbookStore(private val repository: StockbookRepository) {
      * suggestion list, arguably more: three lines for one thing does not just
      * look untidy, it hides how much the shop actually spends on it.
      */
-    fun spendingIn(period: StatementPeriod): List<TallyLine> {
+    fun spendingIn(period: StatementPeriod): List<SpendLine> {
         val range = period.range()
         return expenses
             .filter { it.spentAt in range && it.note.isNotBlank() }
             .groupBy { it.note.trim().lowercase() }
             .values
             .map { group ->
-                TallyLine(
+                SpendLine(
                     what = group.maxBy { it.spentAt }.note.trim(),
                     times = group.size,
                     total = group.sumOf { it.amount }
                 )
             }
-            .sortedWith(compareByDescending<TallyLine> { it.total }.thenBy { it.what })
+            .sortedWith(compareByDescending<SpendLine> { it.total }.thenBy { it.what })
     }
 
     /**
@@ -1817,66 +1834,60 @@ class StockbookStore(private val repository: StockbookRepository) {
     }
 
     /**
-     * What the shop sold over [period], folded to one line per customer, biggest
-     * first.
+     * What the sales page lists: every bill in [period], newest first.
      *
-     * The sales twin of [spendingIn], and grouped for the same reason: a month is
-     * three hundred bills and nobody reads three hundred rows. "Ahmed, 12 bills,
-     * 4,300" is the answer; the bills themselves are on the screen the page was
-     * made from.
-     *
-     * Grouped by the customer's **key**, not the typed name, so "Ahmed" and
-     * "ahmed " are one line rather than two — and shown under the name the roster
-     * spells, which is the one on every other page.
+     * **One line per bill, not one per customer.** A grouped page answers "who
+     * bought the most", which is a question the owner can answer by looking at
+     * the screen; this one answers "what did I write in August", which is the
+     * question a page gets printed for — and it is the only one of the two that
+     * can be checked against a paper book, line by line.
      */
-    fun salesByCustomerIn(period: StatementPeriod): List<TallyLine> =
-        tally(billsIn(period).map { Triple(it.who.trim().lowercase(), it.who, it.total) })
+    fun salesRegisterIn(period: StatementPeriod, strings: Strings): List<RecordLine> =
+        billsIn(period).map {
+            RecordLine(who = it.who, reference = it.reference(strings), at = it.createdAt, amount = it.total)
+        }
 
-    /** The same page pointed the other way: what arrived, by supplier. */
-    fun purchasesBySupplierIn(period: StatementPeriod): List<TallyLine> =
-        tally(
-            purchasesIn(period).map {
-                Triple(it.supplierKey, supplier(it.supplierKey)?.name ?: it.supplierKey, it.total)
-            }
-        )
+    /** The same register pointed the other way: what arrived, and from whom. */
+    fun purchasesRegisterIn(period: StatementPeriod, strings: Strings): List<RecordLine> =
+        purchasesIn(period).map {
+            RecordLine(
+                who = supplier(it.supplierKey)?.name ?: it.supplierKey,
+                reference = it.reference(strings),
+                at = it.createdAt,
+                amount = it.total
+            )
+        }
 
     /**
-     * What customers actually handed over inside [period], by customer.
+     * Every receipt the shop wrote in [period], newest first.
      *
-     * Money in only. What went out to suppliers is a figure on the same page
-     * rather than a row in this column — [SummaryDocument.forPayments] says why a
+     * Money in only. What went out to suppliers is a figure under the total
+     * rather than a line in the column — [SummaryDocument.forPayments] says why a
      * column that mixed the two would be a column nobody can add up.
      */
-    fun receiptsByCustomerIn(period: StatementPeriod): List<TallyLine> =
-        tally(
-            paymentsIn(period).map {
-                Triple(it.customerKey, customer(it.customerKey)?.name ?: it.customerKey, it.amount)
-            }
-        )
+    fun receiptsRegisterIn(period: StatementPeriod, strings: Strings): List<RecordLine> =
+        paymentsIn(period).map {
+            RecordLine(
+                who = customer(it.customerKey)?.name ?: it.customerKey,
+                // A receipt written without a number has none to print. The row
+                // still has the day and the figure, which is what identifies it.
+                reference = it.paymentNo?.takeIf { no -> no.isNotBlank() }?.let { no -> strings.paymentRef(no) },
+                at = it.receivedAt,
+                amount = it.amount
+            )
+        }
 
     /**
-     * Groups (key, display name, amount) into lines, biggest first.
+     * Every expense in [period], newest first.
      *
-     * The name shown is the **most recent** spelling in the group, which is what
-     * [spendingIn] settled on for the same reason: three lines for one thing does
-     * not just look untidy, it hides how much the shop actually does with them.
-     *
-     * Ties break on the name so two customers who spent the same come out in the
-     * same order every time, rather than in whatever order the records happened
-     * to be walked in.
+     * What it was for stands where a customer's name stands on the sales page,
+     * and there is no number: an expense is a receipt from somebody else's shop,
+     * and this app does not ask the owner to type theirs.
      */
-    private fun tally(entries: List<Triple<String, String, Double>>): List<TallyLine> =
-        entries
-            .groupBy { it.first }
-            .values
-            .map { group ->
-                TallyLine(
-                    what = group.first().second,
-                    times = group.size,
-                    total = group.sumOf { it.third }
-                )
-            }
-            .sortedWith(compareByDescending<TallyLine> { it.total }.thenBy { it.what })
+    fun expensesRegisterIn(period: StatementPeriod): List<RecordLine> =
+        expensesIn(period).map {
+            RecordLine(who = it.note, reference = null, at = it.spentAt, amount = it.amount)
+        }
 
     /** How many bills the shop wrote in [period]. */
     fun billCountIn(period: StatementPeriod): Int {

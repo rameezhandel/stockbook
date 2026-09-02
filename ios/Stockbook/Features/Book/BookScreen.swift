@@ -526,21 +526,21 @@ struct BookScreen: View {
         switch side {
         case .sales:
             document = .forSales(
-                lines: store.salesByCustomerIn(period),
+                lines: store.salesRegisterIn(period, strings: Loc),
                 range: range,
                 settings: store.settings,
                 strings: Loc
             )
         case .purchases:
             document = .forPurchases(
-                lines: store.purchasesBySupplierIn(period),
+                lines: store.purchasesRegisterIn(period, strings: Loc),
                 range: range,
                 settings: store.settings,
                 strings: Loc
             )
         case .payments:
             document = .forPayments(
-                lines: store.receiptsByCustomerIn(period),
+                lines: store.receiptsRegisterIn(period, strings: Loc),
                 paidOut: store.paidOutIn(period),
                 range: range,
                 settings: store.settings,
@@ -548,7 +548,7 @@ struct BookScreen: View {
             )
         case .expenses:
             document = .forSpending(
-                lines: store.spendingIn(period),
+                lines: store.expensesRegisterIn(period),
                 range: range,
                 settings: store.settings,
                 strings: Loc

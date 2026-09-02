@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Stockbook
 
-/// The three pages the book gained beside the expense summary.
+/// The three registers the book gained beside the expense page.
 ///
 /// The twin of the trading half of `SummaryDocumentTests.kt`. One claim matters
 /// more than the rest: **the foot of each page is the figure the card above the
@@ -20,32 +20,54 @@ struct SummaryPagesTests {
         _ = store.addCustomer(name: "Ahmed")
         _ = store.addCustomer(name: "Fatima")
         _ = store.addSupplier(name: "Gulf Traders")
-        store.saveBill(customer: "Ahmed", paid: nil, amount: 300, createdAt: day)
+        store.saveBill(customer: "Ahmed", paid: nil, amount: 300, createdAt: day, invoiceNo: "1207")
         store.saveBill(customer: "Ahmed", paid: nil, amount: 200, createdAt: day)
         store.saveBill(customer: "Fatima", paid: nil, amount: 900, createdAt: day)
-        _ = store.recordPurchase(lines: [], supplierKey: "gulf traders", amount: 800, createdAt: day)
-        _ = store.recordPayment(customerKey: "ahmed", amount: 250, receivedAt: day)
+        _ = store.recordPurchase(
+            lines: [], supplierKey: "gulf traders", amount: 800, createdAt: day, invoiceNo: "GT-902"
+        )
+        _ = store.recordPayment(customerKey: "ahmed", amount: 250, receivedAt: day, paymentNo: "008455")
         _ = store.recordSupplierPayment(supplierKey: "gulf traders", amount: 600, paidAt: day)
         return store
     }
 
-    /// Several bills to one customer are one line and a count, not several rows.
-    /// A month is three hundred bills, and the page exists to be read.
-    @Test("The sales page folds a customer's bills into one line")
-    func salesFolds() {
+    /// One line per bill, with the number on the paper and the day beside it.
+    ///
+    /// Two bills to Ahmed are two lines, not one line saying "2 bills" — a page
+    /// is printed to be checked against something, and a folded row cannot be.
+    @Test("The sales page lists every bill, not every customer")
+    func salesLists() {
         let store = trading()
         let month = StatementPeriod.month(day)
 
         let page = SummaryDocument.forSales(
-            lines: store.salesByCustomerIn(month),
+            lines: store.salesRegisterIn(month, strings: strings),
             range: month.range(),
             settings: store.settings,
             strings: strings
         )
 
-        #expect(page.rows.count == 2, "one row each, not one per bill")
-        #expect(page.rows.first?.name == "Fatima", "biggest first")
-        #expect(page.rows.last?.detail == "2 bills")
+        #expect(page.rows.count == 3, "one per bill")
+        #expect(page.rows.map(\.name) == ["Fatima", "Ahmed", "Ahmed"])
+        #expect(page.rows.last?.reference == "1207", "the number the owner typed")
+        #expect(page.rows.first?.date == strings.pickedDate(day))
+        #expect(page.columnHeadings == [
+            strings.columnCustomer, strings.columnInvoiceReceipt, strings.columnDate, strings.soldInPeriod
+        ])
+    }
+
+    /// A bill with no invoice number still has one to print: the app's own.
+    @Test("A bill with nothing typed on it falls back to the app's number")
+    func fallsBackToTheCounter() {
+        let store = trading()
+        let month = StatementPeriod.month(day)
+
+        let page = SummaryDocument.forSales(
+            lines: store.salesRegisterIn(month, strings: strings),
+            range: month.range(), settings: store.settings, strings: strings
+        )
+
+        #expect(page.rows.allSatisfy { !($0.reference ?? "").isBlank }, "every row is identifiable")
     }
 
     /// The foot of every one of these pages is the figure the card above the list
@@ -57,22 +79,27 @@ struct SummaryPagesTests {
         let range = month.range()
 
         let sales = SummaryDocument.forSales(
-            lines: store.salesByCustomerIn(month), range: range,
+            lines: store.salesRegisterIn(month, strings: strings), range: range,
             settings: store.settings, strings: strings
         )
         let purchases = SummaryDocument.forPurchases(
-            lines: store.purchasesBySupplierIn(month), range: range,
+            lines: store.purchasesRegisterIn(month, strings: strings), range: range,
             settings: store.settings, strings: strings
         )
         let payments = SummaryDocument.forPayments(
-            lines: store.receiptsByCustomerIn(month), paidOut: store.paidOutIn(month),
+            lines: store.receiptsRegisterIn(month, strings: strings), paidOut: store.paidOutIn(month),
             range: range, settings: store.settings, strings: strings
+        )
+        let spending = SummaryDocument.forSpending(
+            lines: store.expensesRegisterIn(month), range: range,
+            settings: store.settings, strings: strings
         )
 
         let currency = store.settings.currency
         #expect(sales.totalValue == Money.text(store.soldIn(month), in: currency))
         #expect(purchases.totalValue == Money.text(store.boughtIn(month), in: currency))
         #expect(payments.totalValue == Money.text(store.receivedIn(month), in: currency))
+        #expect(spending.totalValue == Money.text(store.spentIn(month), in: currency))
     }
 
     /// Money out is stated, but never inside a column of money in.
@@ -86,7 +113,7 @@ struct SummaryPagesTests {
         let month = StatementPeriod.month(day)
 
         let page = SummaryDocument.forPayments(
-            lines: store.receiptsByCustomerIn(month), paidOut: store.paidOutIn(month),
+            lines: store.receiptsRegisterIn(month, strings: strings), paidOut: store.paidOutIn(month),
             range: month.range(), settings: store.settings, strings: strings
         )
 
@@ -95,8 +122,8 @@ struct SummaryPagesTests {
         #expect(page.footnote?.contains("600") == true, "and says what went out")
     }
 
-    /// No footnote where nothing went out — "0 paid to suppliers" is a line that
-    /// makes the reader stop.
+    /// No footnote where nothing went out — "0 paid to suppliers" makes the
+    /// reader stop.
     @Test("A span with no vouchers has no footnote")
     func noFootnote() {
         let store = StockbookStore(repository: InMemoryRepository())
@@ -105,11 +132,29 @@ struct SummaryPagesTests {
         let month = StatementPeriod.month(day)
 
         let page = SummaryDocument.forPayments(
-            lines: store.receiptsByCustomerIn(month), paidOut: store.paidOutIn(month),
+            lines: store.receiptsRegisterIn(month, strings: strings), paidOut: store.paidOutIn(month),
             range: month.range(), settings: store.settings, strings: strings
         )
 
         #expect(page.footnote == nil)
+    }
+
+    /// An expense is a receipt from somebody else's shop: no number, so no
+    /// column of dashes.
+    @Test("The expense page has three columns, not four")
+    func expensesHaveNoNumber() {
+        let store = StockbookStore(repository: InMemoryRepository())
+        _ = store.addExpense(amount: 60, note: "Petrol", spentAt: day)
+        let month = StatementPeriod.month(day)
+
+        let page = SummaryDocument.forSpending(
+            lines: store.expensesRegisterIn(month), range: month.range(),
+            settings: store.settings, strings: strings
+        )
+
+        #expect(page.columnHeadings.count == 3)
+        #expect(page.rows.first?.reference == nil)
+        #expect(page.rows.first?.date == strings.pickedDate(day))
     }
 
     /// Nothing in the span is a sentence, not an empty table.
@@ -120,15 +165,15 @@ struct SummaryPagesTests {
         let range = quiet.range()
 
         #expect(SummaryDocument.forSales(
-            lines: store.salesByCustomerIn(quiet), range: range,
+            lines: store.salesRegisterIn(quiet, strings: strings), range: range,
             settings: store.settings, strings: strings
         ).isEmpty)
         #expect(SummaryDocument.forPurchases(
-            lines: store.purchasesBySupplierIn(quiet), range: range,
+            lines: store.purchasesRegisterIn(quiet, strings: strings), range: range,
             settings: store.settings, strings: strings
         ).isEmpty)
         #expect(SummaryDocument.forPayments(
-            lines: store.receiptsByCustomerIn(quiet), paidOut: store.paidOutIn(quiet),
+            lines: store.receiptsRegisterIn(quiet, strings: strings), paidOut: store.paidOutIn(quiet),
             range: range, settings: store.settings, strings: strings
         ).isEmpty)
     }

@@ -499,20 +499,20 @@ private fun summaryPage(
     strings: Strings
 ): SummaryDocument = when (side) {
     Side.SALES -> SummaryDocument.forSales(
-        store.salesByCustomerIn(period), period.range(), state.settings, strings
+        store.salesRegisterIn(period, strings), period.range(), state.settings, strings
     )
     Side.PURCHASES -> SummaryDocument.forPurchases(
-        store.purchasesBySupplierIn(period), period.range(), state.settings, strings
+        store.purchasesRegisterIn(period, strings), period.range(), state.settings, strings
     )
     Side.PAYMENTS -> SummaryDocument.forPayments(
-        store.receiptsByCustomerIn(period),
+        store.receiptsRegisterIn(period, strings),
         store.paidOutIn(period),
         period.range(),
         state.settings,
         strings
     )
     Side.EXPENSES -> SummaryDocument.forSpending(
-        store.spendingIn(period), period.range(), state.settings, strings
+        store.expensesRegisterIn(period), period.range(), state.settings, strings
     )
 }
 
