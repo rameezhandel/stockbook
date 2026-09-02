@@ -95,7 +95,7 @@ struct BillDocument: Equatable {
                     // about a total is nearly always a query about one line's
                     // quantity or price, and this is the answer without anybody
                     // recomputing it.
-                    detail: strings.quantityAtPrice($0.qty, Money.text($0.price, in: money)),
+                    detail: strings.quantityAtPrice(quantity: $0.qty, price: Money.text($0.price, in: money)),
                     amount: Money.text($0.lineTotal, in: money)
                 )
             },
