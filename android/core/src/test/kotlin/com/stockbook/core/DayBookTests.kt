@@ -56,7 +56,7 @@ class DayBookTests {
                 DayEntryKind.BILL,
                 DayEntryKind.PAYMENT,
                 DayEntryKind.CREDIT_NOTE,
-                DayEntryKind.DELIVERY,
+                DayEntryKind.PURCHASE,
                 DayEntryKind.SUPPLIER_PAYMENT,
                 DayEntryKind.EXPENSE
             ),

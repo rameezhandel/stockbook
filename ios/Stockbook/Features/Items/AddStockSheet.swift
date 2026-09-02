@@ -441,7 +441,7 @@ struct AddStockSheet: View {
 
     private var actionLabel: String {
         if clash != nil { return Loc.changeTheInvoiceNo }
-        if supplierKey == nil { return supplier.isBlank ? Loc.whoDeliveredIt : Loc.chooseSupplierFromTheList }
+        if supplierKey == nil { return supplier.isBlank ? Loc.whoYouBoughtFrom : Loc.chooseSupplierFromTheList }
         if invoiceNo.isBlank { return Loc.enterBillNumber }
         if totalValue <= 0 { return Loc.enterAnAmount }
         return editing == nil ? Loc.recordPurchase : Loc.saveChanges
@@ -742,7 +742,7 @@ private struct SupplierPicker: View {
         VStack(alignment: .leading, spacing: 6) {
             NocturneField(
                 label: Loc.supplier,
-                placeholder: Loc.whoDeliveredIt,
+                placeholder: Loc.whoYouBoughtFrom,
                 text: Binding(get: { typed }, set: { typed = $0; chosenKey = nil }),
                 // Marked until somebody is actually chosen, not merely until the
                 // box has characters in it.

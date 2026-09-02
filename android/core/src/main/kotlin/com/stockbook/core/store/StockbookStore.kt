@@ -214,7 +214,7 @@ data class Earnings(
  * of them out would be a day the owner reconciles against the cash box and
  * cannot make balance.
  */
-enum class DayEntryKind { BILL, PAYMENT, CREDIT_NOTE, DELIVERY, SUPPLIER_PAYMENT, EXPENSE }
+enum class DayEntryKind { BILL, PAYMENT, CREDIT_NOTE, PURCHASE, SUPPLIER_PAYMENT, EXPENSE }
 
 /**
  * Which way each kind points: into the cash box, out of it, or neither.
@@ -229,7 +229,7 @@ enum class DayEntryKind { BILL, PAYMENT, CREDIT_NOTE, DELIVERY, SUPPLIER_PAYMENT
 private val DayEntryKind.direction: Int
     get() = when (this) {
         DayEntryKind.BILL, DayEntryKind.PAYMENT -> 1
-        DayEntryKind.DELIVERY, DayEntryKind.SUPPLIER_PAYMENT, DayEntryKind.EXPENSE -> -1
+        DayEntryKind.PURCHASE, DayEntryKind.SUPPLIER_PAYMENT, DayEntryKind.EXPENSE -> -1
         DayEntryKind.CREDIT_NOTE -> 0
     }
 
@@ -1717,7 +1717,7 @@ class StockbookStore(private val repository: StockbookRepository) {
             for (purchase in purchases.filter { it.createdAt in range }) {
                 add(
                     DayEntry(
-                        kind = DayEntryKind.DELIVERY,
+                        kind = DayEntryKind.PURCHASE,
                         who = supplierName[purchase.supplierKey] ?: purchase.supplierKey,
                         reference = purchase.invoiceNo,
                         amount = purchase.total,

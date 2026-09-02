@@ -67,7 +67,7 @@ struct PartyScreen: View {
                     if bills.isEmpty, purchases.isEmpty {
                         EmptyStateBox(
                             icon: isSupplier ? Icon.addStock : Icon.bills,
-                            message: isSupplier ? Loc.noDeliveriesYet : Loc.noBillsEver,
+                            message: isSupplier ? Loc.noPurchasesRecorded : Loc.noBillsEver,
                             actionTitle: isSupplier ? Loc.recordDelivery : Loc.startABill,
                             action: {
                                 onClose()
@@ -89,7 +89,7 @@ struct PartyScreen: View {
                         Button {
                             router.purchaseDetail = purchase
                         } label: {
-                            PartyDeliveryRow(purchase: purchase, supplierName: name)
+                            PartyPurchaseRow(purchase: purchase, supplierName: name)
                         }
                         .buttonStyle(.plain)
                     }
@@ -218,13 +218,13 @@ struct PartyScreen: View {
     }
 }
 
-/// One delivery under the supplier it came from.
+/// One purchase under the supplier it came from.
 ///
-/// A near-twin of the row on the Purchases list, which is private to that file
-/// and says the supplier's name on every line — worth repeating rather than
-/// sharing, because under one supplier that line would say the same name all the
-/// way down and the useful thing to show instead is when it arrived.
-private struct PartyDeliveryRow: View {
+/// A near-twin of `PurchaseRow`, which says the supplier's name on every line —
+/// worth repeating rather than sharing, because under one supplier that line
+/// would say the same name all the way down and the useful thing to show instead
+/// is when it arrived.
+private struct PartyPurchaseRow: View {
     let purchase: Purchase
     let supplierName: String
 
@@ -261,7 +261,7 @@ private struct PartyDeliveryRow: View {
         .contentShape(Rectangle())
     }
 
-    /// A delivery of one thing shows the arithmetic behind it; several show how
+    /// A purchase of one thing shows the arithmetic behind it; several show how
     /// many, since a row has one line's worth of space. A bill entered as a figure
     /// has none to show, so it shows the day it arrived instead.
     private var rowDetail: String {

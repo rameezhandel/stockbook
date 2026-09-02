@@ -144,6 +144,14 @@ the other.
 
 ## Domain rules worth knowing before you edit
 
+- **The app says "purchase", never "delivery".** The owner drives a van to the
+  wholesaler and buys hardware; nothing arrives at a door. Every visible word —
+  the chip, the empty state, `purchaseRef`'s `Purchase #88`, the day summary's
+  heading — uses the one word. Three string *keys* still read `recordDelivery`,
+  `itemsRecordDelivery` and `deliveryDetail`; all three render "Inventory", and
+  nothing outside `Strings` reads a key's name. Comments in the older files
+  still say delivery in places, which is prose to fix where you are already
+  editing, not a sweep to make on its own.
 - **Backup version bumps only when an older reader would _misinterpret_ the new
   shape**, not merely lose a label. Credit notes bumped it to **3**, because a
   reader dropping them shows every credited customer owing more than they do.
@@ -162,13 +170,13 @@ the other.
   `invoiceNo` is a **label**. Never conflate them.
 - **A mistake is edited or removed, not voided.** `deleteBill` returns the stock
   and frees the number. A `voided` key survives in old files and is ignored.
-- **Read `Purchase.items`, never `Purchase.lines`.** A delivery used to hold one
+- **Read `Purchase.items`, never `Purchase.lines`.** A purchase used to hold one
   product, and those four fields — `productUid`, `name`, `qty`, `unitCost` — are
   still on the type as the way in from records written then. `items` folds them
   into a single line and is the only thing the app should read; `lines` is the
   storage. Reading the old four compiles perfectly and shows nothing for every
-  delivery entered since, which is how five screens nearly shipped blank.
-- **Every number is typed by the owner, never suggested** — invoice, delivery,
+  purchase entered since, which is how five screens nearly shipped blank.
+- **Every number is typed by the owner, never suggested** — invoice, purchase,
   credit note and receipt numbers, each checked against its own series. Receipt
   1024 and invoice 1024 are different slips.
 - **The owner's spending is joined to nothing.** An `Expense` has no customer,

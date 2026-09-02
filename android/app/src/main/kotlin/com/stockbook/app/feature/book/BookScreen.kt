@@ -1,49 +1,76 @@
 package com.stockbook.app.feature.book
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
 import com.stockbook.app.design.ChoicePill
+import com.stockbook.app.design.EmptyStateBox
+import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.Icon
 import com.stockbook.app.design.IconButton
-import com.stockbook.app.design.Nocturne
+import com.stockbook.app.design.Kicker
 import com.stockbook.app.design.Metrics
+import com.stockbook.app.design.Nocturne
+import com.stockbook.app.design.NocturneType
+import com.stockbook.app.design.PeriodChoice
+import com.stockbook.app.design.PeriodPicker
 import com.stockbook.app.design.ScreenHeader
-import com.stockbook.app.feature.bills.BillsScreen
+import com.stockbook.app.design.card
+import com.stockbook.app.design.hairline
+import com.stockbook.app.feature.bills.BillRow
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.StatementPeriod
+import com.stockbook.core.model.Timestamps
+import com.stockbook.core.money.Money
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
+import java.time.Instant
 
 /**
- * The account book: every direction money moves.
+ * The account book: every record the shop keeps, one span at a time.
  *
- * **Sales** is what was sold and to whom; **Purchases** is what arrived and from
- * whom. Those two are mirror images in the domain — one `Statement.make` serves
- * both — so they belong beside each other rather than in two tabs.
+ * **One ledger, not three panes.** This screen used to be a switch between three
+ * separate screens, each of which owned its own idea of which days it was
+ * showing: the sales and purchase lists carried a four-chip period picker, and
+ * expenses carried a *different* three-chip one buried inside its total card. So
+ * "this month" was three pieces of state, the expenses side could not be asked
+ * for two dates at all, and switching chips silently threw away the span the
+ * owner had just chosen.
  *
- * **Expenses** is the odd one and sits here anyway. It is the owner's own
- * spending, tied to nobody, and it touches none of the arithmetic on the other
- * two chips. But it is money leaving, it is written down for the same reason the
- * others are, and the alternative was a fourth tab for something recorded once a
- * day — or Settings, which is where features go to be forgotten.
+ * Now the span is asked once, above everything, and every record type answers
+ * over it. Changing what you are looking at no longer changes when.
+ *
+ * The three chips pick the **kind of record**: what was sold, what arrived, and
+ * what the owner spent. The first two are mirror images in the domain — one
+ * `Statement.make` serves both — and expenses is the odd one, tied to nobody and
+ * touching neither side's arithmetic. It sits here anyway, because it is money
+ * leaving and it is written down for the same reason, and the alternative was a
+ * tab of its own for something recorded once a day.
  *
  * Chips rather than tabs, because the shop does not use these symmetrically: a
- * sale happens fifty times a day, a delivery arrives once a week. A tab bar is
- * weighted by how often a thumb goes there, not by how tidy the model is.
+ * sale happens fifty times a day, a load of stock arrives once a week.
  */
 @Composable
 fun BookScreen(
@@ -62,21 +89,68 @@ fun BookScreen(
     onSaveLedgerBook: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currency = state.settings.currency
+
     /**
-     * Which half is showing. `rememberSaveable` so it survives a rotation and,
-     * more usefully, a trip into a sheet and back — an owner who came here for
-     * suppliers should not be handed bills again on the way back.
+     * Which kind of record is showing. `rememberSaveable` so it survives a
+     * rotation and, more usefully, a trip into a document and back — an owner who
+     * came here for purchases should not be handed bills again on the way out.
      */
     var side by rememberSaveable { mutableStateOf(Side.SALES) }
+
+    // **The span, asked once for all three.** This month by default: the book is
+    // a year of rows before long, and the reason to open it is almost always
+    // something written recently — so it opens on the span that answers that, and
+    // the other three chips are there for the question it does not.
+    //
+    // Saved for the same reason the side is: a list that quietly reset to this
+    // month every time a document was closed would make a stretch of days
+    // impossible to read through.
+    var choice by rememberSaveable { mutableStateOf(PeriodChoice.THIS_MONTH) }
+    // Kept as epoch millis rather than `Instant`, which a `Bundle` cannot hold
+    // without a saver of its own. The two picked days are the only state here
+    // that is not already a plain value.
+    var fromMillis by rememberSaveable { mutableStateOf(Timestamps.now().toEpochMilli()) }
+    var toMillis by rememberSaveable { mutableStateOf(Timestamps.now().toEpochMilli()) }
+    val from = Instant.ofEpochMilli(fromMillis)
+    val to = Instant.ofEpochMilli(toMillis)
+    val period = remember(choice, fromMillis, toMillis) { choice.period(from, to) }
+
+    // Keyed on `state` as well as the span: these are plain functions over a
+    // StateFlow snapshot, so a bill written while this is on screen moves the
+    // list only if the read is keyed on what changed.
+    //
+    // Only the side on screen is read. Three lists and three totals computed on
+    // every recomposition would be two thirds of a walk over the whole book for
+    // figures nobody is looking at.
+    val bills = remember(state, side, period) {
+        if (side == Side.SALES) store.billsIn(period) else emptyList()
+    }
+    val purchases = remember(state, side, period) {
+        if (side == Side.PURCHASES) store.purchasesIn(period) else emptyList()
+    }
+    val expenses = remember(state, side, period) {
+        if (side == Side.EXPENSES) store.expensesIn(period) else emptyList()
+    }
+    val total = remember(state, side, period) {
+        when (side) {
+            Side.SALES -> store.soldIn(period)
+            Side.PURCHASES -> store.boughtIn(period)
+            Side.EXPENSES -> store.spentIn(period)
+        }
+    }
+
+    val listState = rememberLazyListState()
+    // Back to the top when the kind of record changes. Without it, switching from
+    // forty bills to five expenses lands the owner at the bottom of a list they
+    // have not read a line of — the scroll offset is the old list's, and the new
+    // one is only long enough to be clamped to its end.
+    LaunchedEffect(side) { listState.scrollToItem(0) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         ScreenHeader(
             title = strings.bookTitle,
             bottomPadding = 10.dp,
-            // Every customer's position on one day. It belongs on this tab
-            // rather than beside the day's transactions on Home: it is a list of
-            // people, read down, and this is the screen the owner comes to when
-            // the question is about people rather than about today.
             trailing = {
                 // Every customer's whole history, printed once and filed. The
                 // one thing this screen hands to a printer, so it lives here
@@ -91,6 +165,9 @@ fun BookScreen(
             }
         )
 
+        // Fixed above the scroll, not inside it. This row is the switch, and a
+        // switch that scrolls out of reach makes the owner flick back up to
+        // change what they are looking at.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -122,44 +199,232 @@ fun BookScreen(
             )
         }
 
-        // No `else` on purpose: a fourth side has to break this and be placed
-        // deliberately, not fall through to whichever branch was last.
-        when (side) {
-            // The Bills screen exactly as it was, minus the header this one now
-            // carries. Nothing about sales moved; it gained neighbours.
+        // Weighted, not wrapped. A `Column` measures an unweighted child against
+        // the *full* remaining height, so the list would have been given the whole
+        // screen and run off the bottom by exactly the height of the header and
+        // chips above it.
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(
+                start = Metrics.screenPadding,
+                end = Metrics.screenPadding,
+                bottom = 18.dp
+            )
+        ) {
+            item {
+                // Span first, then the figure it adds up to, then the rows behind
+                // the figure. The picker used to sit below the total on the
+                // expenses side and above it on the other two, which meant the
+                // same page read in two directions depending on a chip.
+                PeriodPicker(
+                    choice = choice,
+                    from = from,
+                    to = to,
+                    strings = strings,
+                    onChoose = { choice = it },
+                    onFrom = { fromMillis = it.toEpochMilli() },
+                    onTo = { toMillis = it.toEpochMilli() }
+                )
+                Spacer(Modifier.height(12.dp))
+
+                TotalCard(
+                    label = when (side) {
+                        Side.SALES -> strings.soldInPeriod
+                        Side.PURCHASES -> strings.boughtInPeriod
+                        Side.EXPENSES -> strings.expenseInPeriod
+                    },
+                    value = Money.text(total, currency),
+                    // Only the spending needs saying out loud: a shopkeeper
+                    // writing down their petrol deserves to know at a glance that
+                    // it will not turn up on a customer's statement. The other two
+                    // figures are the shop's own trade and surprise nobody.
+                    note = if (side == Side.EXPENSES) strings.expensesArePrivate else null,
+                    // The span the total covers is the span the page covers, so
+                    // the button that makes it lives in the total's own corner.
+                    // Spending is the only one of the three with a page to make;
+                    // a sales summary is a document this app does not have yet.
+                    onShare = if (side == Side.EXPENSES && total > 0) ({ onSaveExpenses(period) }) else null,
+                    shareLabel = strings.sharePdf
+                )
+                Spacer(Modifier.height(20.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Kicker(
+                        when (side) {
+                            Side.SALES -> strings.billsTitle
+                            Side.PURCHASES -> strings.purchasesSide
+                            Side.EXPENSES -> strings.expensesTitle
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    // Expenses are the one record with no other way in. A bill
+                    // starts on the Sell tab and a purchase from the shelf, but
+                    // nothing else in the app writes down the owner's own
+                    // spending, so the list carries its own pen.
+                    if (side == Side.EXPENSES) {
+                        GhostButton(
+                            strings.addAnExpense,
+                            onClick = { router.openNewExpense() },
+                            fontSize = 12.0
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
+            // Two different nothings, and they need different words. A shop that
+            // has never written a bill wants the button; a shop that wrote none in
+            // August wants to be told that rather than invited to start one,
+            // because the records it is looking for are on another span.
             //
-            // Weighted, not wrapped. A `Column` measures an unweighted child
-            // against the *full* remaining height, so the list inside would have
-            // been given the whole screen and run off the bottom by exactly the
-            // height of the header and chips above it.
-            Side.SALES -> BillsScreen(
-                state = state,
-                store = store,
-                router = router,
-                strings = strings,
-                showHeader = false,
-                modifier = Modifier.weight(1f)
-            )
+            // No `else` on any of these: a fourth kind of record has to break the
+            // `when` and be placed deliberately, not fall through to whichever
+            // branch was last.
+            item {
+                when (side) {
+                    Side.SALES -> if (bills.isEmpty()) {
+                        if (state.bills.isEmpty()) {
+                            EmptyStateBox(
+                                icon = Icon.bills,
+                                message = strings.noBillsEver,
+                                actionTitle = strings.startABill,
+                                onAction = { router.startBill() }
+                            )
+                        } else {
+                            EmptyStateBox(icon = Icon.bills, message = strings.nothingInThisPeriod)
+                        }
+                    }
 
-            Side.PURCHASES -> PurchasesPane(
-                state = state,
-                store = store,
-                router = router,
-                strings = strings,
-                modifier = Modifier.weight(1f)
-            )
+                    Side.PURCHASES -> if (purchases.isEmpty()) {
+                        if (state.purchases.isEmpty()) {
+                            EmptyStateBox(
+                                icon = Icon.addStock,
+                                message = strings.noPurchasesRecorded,
+                                actionTitle = strings.recordDelivery,
+                                onAction = { router.recordingDelivery = true }
+                            )
+                        } else {
+                            EmptyStateBox(icon = Icon.addStock, message = strings.nothingInThisPeriod)
+                        }
+                    }
 
-            Side.EXPENSES -> ExpensesPane(
-                state = state,
-                store = store,
-                router = router,
-                strings = strings,
-                onSave = onSaveExpenses,
-                modifier = Modifier.weight(1f)
+                    Side.EXPENSES -> if (expenses.isEmpty()) {
+                        if (state.expenses.isEmpty()) {
+                            EmptyStateBox(
+                                icon = Icon.expenses,
+                                message = strings.noExpensesYet,
+                                actionTitle = strings.addAnExpense,
+                                onAction = { router.openNewExpense() }
+                            )
+                        } else {
+                            EmptyStateBox(icon = Icon.expenses, message = strings.nothingInThisPeriod)
+                        }
+                    }
+                }
+            }
+
+            // Nothing on these lists corrects anything. A record entered wrong is
+            // opened first, and edited or removed from inside the document — which
+            // is the only place the owner can see what they are about to change.
+            when (side) {
+                Side.SALES -> items(bills, key = { it.number }) { bill ->
+                    BillRow(
+                        bill = bill,
+                        currency = currency,
+                        strings = strings,
+                        onClick = { router.openBill(bill) },
+                        modifier = Modifier.padding(bottom = Metrics.rowGap)
+                    )
+                }
+
+                Side.PURCHASES -> items(purchases, key = { it.id }) { purchase ->
+                    PurchaseRow(
+                        purchase = purchase,
+                        supplierName = remember(state, purchase.supplierKey) {
+                            store.supplier(purchase.supplierKey)?.name ?: purchase.supplierKey
+                        },
+                        currency = currency,
+                        strings = strings,
+                        onClick = { router.purchaseDetail = purchase },
+                        modifier = Modifier.padding(bottom = Metrics.rowGap)
+                    )
+                }
+
+                Side.EXPENSES -> items(expenses, key = { it.id }) { expense ->
+                    ExpenseRow(
+                        expense = expense,
+                        currency = currency,
+                        strings = strings,
+                        onClick = { router.openExpense(expense) },
+                        modifier = Modifier.padding(bottom = Metrics.rowGap)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * What the span came to, whatever is being counted.
+ *
+ * One card for all three sides rather than one the expenses pane kept to itself.
+ * Its chips went with it: the span is chosen above this now, so the figure and
+ * the rows under it can no longer be showing two different months — which is
+ * exactly what they were doing before the expenses list learned to narrow.
+ */
+@Composable
+private fun TotalCard(
+    label: String,
+    value: String,
+    /** A word of warning under the figure, where one is owed. */
+    note: String?,
+    /** Makes a page of the span on screen. Absent where there is no page to make. */
+    onShare: (() -> Unit)?,
+    shareLabel: String
+) {
+    Box(modifier = Modifier.fillMaxWidth().card().hairline(radius = Metrics.cardRadius)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+            Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
+            Text(
+                value,
+                style = NocturneType.fittedNumber(value),
+                color = Nocturne.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 3.dp)
+            )
+            if (note != null) {
+                Text(
+                    note,
+                    style = NocturneType.meta,
+                    color = Nocturne.neutral500,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        }
+
+        // Drawn over the card rather than in the column, because a 44dp touch
+        // target on the label's own row would push the figure a third of the card
+        // down to make room for it.
+        if (onShare != null) {
+            IconButton(
+                Icon.share,
+                onClick = onShare,
+                size = 15.dp,
+                tint = Nocturne.accent,
+                contentDescription = shareLabel,
+                modifier = Modifier.align(Alignment.TopEnd).padding(end = 2.dp, top = 2.dp)
             )
         }
     }
 }
 
-/** Which chip is on. Saved across a trip into a sheet and back. */
+/**
+ * Which kind of record is showing.
+ *
+ * Not `PeopleSide`, which `PeopleScreen` has in this package — a top-level
+ * `private` in Kotlin hides the declaration from other *files* but still puts the
+ * name in the package, so two of them collide.
+ */
 private enum class Side { SALES, PURCHASES, EXPENSES }

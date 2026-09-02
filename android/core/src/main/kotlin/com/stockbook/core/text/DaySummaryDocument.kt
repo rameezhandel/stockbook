@@ -107,7 +107,7 @@ data class DaySummaryDocument(
             DayEntryKind.BILL,
             DayEntryKind.PAYMENT,
             DayEntryKind.CREDIT_NOTE,
-            DayEntryKind.DELIVERY,
+            DayEntryKind.PURCHASE,
             DayEntryKind.SUPPLIER_PAYMENT,
             DayEntryKind.EXPENSE
         )
@@ -157,7 +157,7 @@ data class DaySummaryDocument(
             DayEntryKind.BILL -> strings.billsTitle
             DayEntryKind.PAYMENT -> strings.receivedInPeriod
             DayEntryKind.CREDIT_NOTE -> strings.creditNotes
-            DayEntryKind.DELIVERY -> strings.deliveriesTitle
+            DayEntryKind.PURCHASE -> strings.purchasesTitle
             DayEntryKind.SUPPLIER_PAYMENT -> strings.paidToSuppliers
             DayEntryKind.EXPENSE -> strings.expensesTitle
         }
@@ -201,7 +201,7 @@ data class DaySummaryDocument(
          */
         private val DayEntryKind.carriesCredit: Boolean
             get() = when (this) {
-                DayEntryKind.BILL, DayEntryKind.DELIVERY -> true
+                DayEntryKind.BILL, DayEntryKind.PURCHASE -> true
                 DayEntryKind.PAYMENT, DayEntryKind.SUPPLIER_PAYMENT,
                 DayEntryKind.CREDIT_NOTE, DayEntryKind.EXPENSE -> false
             }
@@ -209,9 +209,9 @@ data class DaySummaryDocument(
         /**
          * What to call the paper, worded exactly as [StatementDocument] words it.
          *
-         * The same delivery appearing as "Delivery #88" on one page and
-         * "Purchase 88" on another is the owner checking whether they are the
-         * same delivery, which is work this page exists to remove.
+         * The same load appearing as "Purchase #88" on one page and
+         * "Delivery 88" on another is the owner checking whether they are the
+         * same load, which is work this page exists to remove.
          */
         private fun reference(entry: DayEntry, strings: Strings): String? {
             val no = entry.reference?.takeIf { it.isNotBlank() }
@@ -222,8 +222,8 @@ data class DaySummaryDocument(
                     no?.let { strings.paymentRef(it) } ?: strings.paymentLabel
                 DayEntryKind.CREDIT_NOTE ->
                     no?.let { strings.creditNoteRef(it) } ?: strings.creditNoteLabel
-                DayEntryKind.DELIVERY ->
-                    no?.let { strings.deliveryRef(it) } ?: strings.purchaseLabel
+                DayEntryKind.PURCHASE ->
+                    no?.let { strings.purchaseRef(it) } ?: strings.purchaseLabel
                 // Joined to nobody and numbered by nobody. The row's name is
                 // already what it went on, and there is nothing else to say.
                 DayEntryKind.EXPENSE -> null

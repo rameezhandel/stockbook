@@ -85,6 +85,9 @@ class Strings(val language: AppLanguage) {
     val today: String get() = pick("Today", "ಇಂದು")
     val settings: String get() = pick("Settings", "ಸೆಟ್ಟಿಂಗ್‌ಗಳು")
     val soldInPeriod: String get() = pick("Sold", "ಮಾರಾಟ")
+    // The other side of the counter, over the same span. Home has no room for it;
+    // the book's total line uses it when the purchases are showing.
+    val boughtInPeriod: String get() = pick("Bought", "ಖರೀದಿ")
     val receivableStat: String get() = pick("Receivable", "ಬರಬೇಕಾದ ಬಾಕಿ")
     val payableStat: String get() = pick("Payable", "ಕೊಡಬೇಕಾದ ಬಾಕಿ")
     val billsStat: String get() = pick("Bills", "ಬಿಲ್‌ಗಳು")
@@ -207,6 +210,9 @@ class Strings(val language: AppLanguage) {
     // The other way into the same sheet the Items header opens, so it is called
     // the same thing. Two buttons that do one job under two names is how somebody
     // concludes there are two jobs.
+    //
+    // The key still says "delivery"; every word it puts on a screen says
+    // "Inventory" or "purchase". Nothing outside this file reads the name.
     val recordDelivery: String get() = pick("Inventory", "ದಾಸ್ತಾನು")
     val whichProductArrived: String get() = pick("What arrived?", "ಏನು ಬಂತು?")
 
@@ -214,17 +220,17 @@ class Strings(val language: AppLanguage) {
      * The way out of the product list when nothing in it matches, said the same
      * way `addAsSupplier` says it.
      *
-     * The delivery sheet needs one because a supplier's note is where genuinely
-     * new stock usually appears. Without it, a five-line delivery of things the
+     * The purchase sheet needs one because a supplier's note is where genuinely
+     * new stock usually appears. Without it, a five-line purchase of things the
      * shop has never carried is ten sheets: leave, add the product, come back,
      * find your place, repeat.
      */
     fun addAsProduct(name: String): String =
             pick("Add “$name” as a product", "“$name” ಅನ್ನು ಸಾಮಾನಾಗಿ ಸೇರಿಸಿ")
-    val noDeliveriesYet: String get() = pick("No deliveries yet", "ಇನ್ನೂ ಡೆಲಿವರಿ ಇಲ್ಲ")
+    val noPurchasesRecorded: String get() = pick("No purchases yet", "ಇನ್ನೂ ಖರೀದಿ ಇಲ್ಲ")
     val deliveryDetail: String get() = pick("Inventory", "ದಾಸ್ತಾನು")
 
-    // `12 × SAR 60` — what a delivery row says under the product's name.
+    // `12 × SAR 60` — what a purchase row says under the product's name.
     fun perPiece(qty: Int, cost: String): String = "$qty × $cost"
 
     val noBillsEver: String get() =
@@ -361,7 +367,7 @@ class Strings(val language: AppLanguage) {
     val removeFromSuppliers: String get() = pick("Remove from suppliers", "ಪೂರೈಕೆದಾರರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಿರಿ")
 
     // Says what removal does *not* do, because "remove" beside a name reads like
-    // deleting the deliveries too — and it does not.
+    // deleting the purchases too — and it does not.
     val removeSupplierNote: String
         get() = pick(
             "Their purchases stay. Only the saved details go.",
@@ -373,8 +379,8 @@ class Strings(val language: AppLanguage) {
     val paidOn: String get() = pick("Paid on", "ಪಾವತಿಸಿದ ದಿನ")
     val paymentNotAgainstOnePurchase: String
         get() = pick(
-            "Paid against the account, not one delivery.",
-            "ಒಂದು ಡೆಲಿವರಿಗೆ ಅಲ್ಲ, ಖಾತೆಗೆ ಪಾವತಿ."
+            "Paid against the account, not one purchase.",
+            "ಒಂದು ಖರೀದಿಗೆ ಅಲ್ಲ, ಖಾತೆಗೆ ಪಾವತಿ."
         )
     val boughtFromThem: String get() = pick("Bought", "ಖರೀದಿಸಿದ್ದು")
 
@@ -631,7 +637,7 @@ class Strings(val language: AppLanguage) {
     val receivedInPeriod: String get() = pick("Received", "ಸ್ವೀಕರಿಸಿದ್ದು")
 
     // The same two figures on a supplier's statement. "Billed" and "Received" are
-    // the customer's words and read backwards on a delivery note.
+    // the customer's words and read backwards on a supplier's note.
     val purchasedInPeriod: String get() = pick("Purchased", "ಖರೀದಿಸಿದ್ದು")
     val paidOutInPeriod: String get() = pick("Paid", "ಪಾವತಿಸಿದ್ದು")
     val closingBalance: String get() = pick("Balance due", "ಉಳಿದ ಬಾಕಿ")
@@ -848,8 +854,8 @@ class Strings(val language: AppLanguage) {
 
     val openingStockNote: String
         get() = pick(
-            "What is on the shelf today. After this, stock moves on a delivery, a bill, or a recount.",
-            "ಇಂದು ಶೆಲ್ಫಿನಲ್ಲಿ ಇರುವುದು. ನಂತರ ದಾಸ್ತಾನು ಡೆಲಿವರಿ, ಬಿಲ್ ಅಥವಾ ಮರು-ಎಣಿಕೆಯಿಂದ ಬದಲಾಗುತ್ತದೆ."
+            "What is on the shelf today. After this, stock moves on a purchase, a bill, or a recount.",
+            "ಇಂದು ಶೆಲ್ಫಿನಲ್ಲಿ ಇರುವುದು. ನಂತರ ದಾಸ್ತಾನು ಖರೀದಿ, ಬಿಲ್ ಅಥವಾ ಮರು-ಎಣಿಕೆಯಿಂದ ಬದಲಾಗುತ್ತದೆ."
         )
     val buyingPrice: String get() = pick("Buying price", "ಖರೀದಿ ಬೆಲೆ")
     val sellingPrice: String get() = pick("Selling price", "ಮಾರಾಟ ಬೆಲೆ")
@@ -874,7 +880,7 @@ class Strings(val language: AppLanguage) {
             )
 
     val supplier: String get() = pick("Supplier", "ಸರಬರಾಜುದಾರ")
-    val whoDeliveredIt: String get() = pick("Who delivered it", "ಯಾರು ತಂದುಕೊಟ್ಟರು")
+    val whoYouBoughtFrom: String get() = pick("Who you bought from", "ಯಾರಿಂದ ಖರೀದಿಸಿದಿರಿ")
     val howMany: String get() = pick("How many", "ಎಷ್ಟು")
     val paidPerPiece: String get() = pick("Paid per piece", "ಪ್ರತಿ ನಗಕ್ಕೆ ಕೊಟ್ಟದ್ದು")
     val recordPurchase: String get() = pick("Record purchase", "ಖರೀದಿ ದಾಖಲಿಸಿ")
@@ -943,8 +949,8 @@ class Strings(val language: AppLanguage) {
     // The supplier half of the same step, and the same promise: skippable.
     val suppliersSetupBody: String
         get() = pick(
-            "The people who deliver to you, so their names are ready when stock arrives. Skip this — you can add anybody while entering a delivery.",
-            "ನಿಮಗೆ ಸಾಮಾನು ತಲುಪಿಸುವವರು — ದಾಸ್ತಾನು ಬಂದಾಗ ಹೆಸರು ಸಿದ್ಧವಿರುತ್ತದೆ. ಇದನ್ನು ಬಿಟ್ಟುಬಿಡಬಹುದು — ಡೆಲಿವರಿ ದಾಖಲಿಸುವಾಗಲೂ ಸೇರಿಸಬಹುದು."
+            "The people you buy from, so their names are ready when stock arrives. Skip this — you can add anybody while entering a purchase.",
+            "ನೀವು ಯಾರಿಂದ ಖರೀದಿಸುತ್ತೀರೋ ಅವರು — ದಾಸ್ತಾನು ಬಂದಾಗ ಹೆಸರು ಸಿದ್ಧವಿರುತ್ತದೆ. ಇದನ್ನು ಬಿಟ್ಟುಬಿಡಬಹುದು — ಖರೀದಿ ದಾಖಲಿಸುವಾಗಲೂ ಸೇರಿಸಬಹುದು."
         )
 
     val noSuppliersYetKicker: String get() = pick("Nobody added yet", "ಇನ್ನೂ ಯಾರನ್ನೂ ಸೇರಿಸಿಲ್ಲ")
@@ -1031,7 +1037,7 @@ class Strings(val language: AppLanguage) {
     fun invoiceRef(no: String): String = pick("Invoice #$no", "ಬಿಲ್ #$no")
     fun creditNoteRef(no: String): String = pick("Credit Note #$no", "ಕ್ರೆಡಿಟ್ ನೋಟ್ #$no")
     fun paymentRef(no: String): String = pick("Payment #$no", "ಪಾವತಿ #$no")
-    fun deliveryRef(no: String): String = pick("Delivery #$no", "ಡೆಲಿವರಿ #$no")
+    fun purchaseRef(no: String): String = pick("Purchase #$no", "ಖರೀದಿ #$no")
 
     val accountStatementFor: String get() = pick("Account statement for:", "ಖಾತೆ ವಿವರ — ಇವರಿಗೆ:")
     val accountActivity: String get() = pick("Account Activity", "ಖಾತೆ ವ್ಯವಹಾರ")
@@ -1147,12 +1153,12 @@ class Strings(val language: AppLanguage) {
 
     val daySummary: String get() = pick("Day Summary", "ದಿನದ ಸಾರಾಂಶ")
     /** Section headings. `Bills`, `Received`, `Credit notes` and `Expenses` are already words this app owns. */
-    val deliveriesTitle: String get() = pick("Deliveries", "ಡೆಲಿವರಿಗಳು")
+    val purchasesTitle: String get() = pick("Purchases", "ಖರೀದಿಗಳು")
     val paidToSuppliers: String get() = pick("Paid to suppliers", "ಸರಬರಾಜುದಾರರಿಗೆ ಪಾವತಿ")
     /** `3 × Padlock 40mm` — a product under the row it was sold on. */
     fun itemLine(qty: Int, name: String): String = "$qty × $name"
     /**
-     * What is still owed on a bill or a delivery, said beside it.
+     * What is still owed on a bill or a purchase, said beside it.
      *
      * The page shows what was sold; this is what of it has not been paid for,
      * and without it a busy day on credit reads as a busy day of takings.

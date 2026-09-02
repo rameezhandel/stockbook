@@ -222,7 +222,7 @@ data class StatementDocument(
                     ?: strings.billNumber(entry.bill.number)
             is Statement.Entry.ForPurchase ->
                 entry.purchase.invoiceNo?.takeIf { it.isNotBlank() }
-                    ?.let { strings.deliveryRef(it) }
+                    ?.let { strings.purchaseRef(it) }
                     ?: strings.purchaseLabel
             is Statement.Entry.ForCreditNote ->
                 entry.note.noteNo?.takeIf { it.isNotBlank() }

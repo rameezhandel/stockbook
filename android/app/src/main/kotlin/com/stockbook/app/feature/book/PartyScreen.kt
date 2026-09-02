@@ -181,7 +181,7 @@ fun PartyScreen(
                 item {
                     EmptyStateBox(
                         icon = if (isSupplier) Icon.addStock else Icon.bills,
-                        message = if (isSupplier) strings.noDeliveriesYet else strings.noBillsEver,
+                        message = if (isSupplier) strings.noPurchasesRecorded else strings.noBillsEver,
                         actionTitle = if (isSupplier) strings.recordDelivery else strings.startABill,
                         onAction = {
                             onClose()
@@ -202,7 +202,7 @@ fun PartyScreen(
             }
 
             items(purchases, key = { it.id }) { purchase ->
-                DeliveryRow(
+                PurchaseRow(
                     purchase = purchase,
                     supplierName = name,
                     currency = currency,

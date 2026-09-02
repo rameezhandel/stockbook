@@ -1377,7 +1377,7 @@ final class StockbookStore {
         for purchase in purchases where range.contains(purchase.createdAt) {
             entries.append(
                 DayEntry(
-                    kind: .delivery,
+                    kind: .purchase,
                     who: supplierName[purchase.supplierKey] ?? purchase.supplierKey,
                     reference: purchase.invoiceNo,
                     amount: purchase.total,
@@ -2797,7 +2797,7 @@ struct Earnings: Equatable {
 /// of them out would be a day the owner reconciles against the cash box and
 /// cannot make balance.
 enum DayEntryKind: CaseIterable {
-    case bill, payment, creditNote, delivery, supplierPayment, expense
+    case bill, payment, creditNote, purchase, supplierPayment, expense
 
     /// Which way this kind points: into the cash box, out of it, or neither.
     ///
@@ -2811,7 +2811,7 @@ enum DayEntryKind: CaseIterable {
     var direction: Int {
         switch self {
         case .bill, .payment: 1
-        case .delivery, .supplierPayment, .expense: -1
+        case .purchase, .supplierPayment, .expense: -1
         case .creditNote: 0
         }
     }

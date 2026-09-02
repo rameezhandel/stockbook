@@ -185,7 +185,7 @@ struct DaySummaryDocumentTests {
             // fallback the statement uses.
             "Bill #1",
             "Payment #1024",
-            "Delivery #88",
+            "Purchase #88",
             // Joined to nobody, numbered by nobody.
             nil
         ])

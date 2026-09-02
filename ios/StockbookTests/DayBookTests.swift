@@ -51,7 +51,7 @@ struct DayBookTests {
         // In the order they happened, which is the order the store returns them
         // in — the document is what groups them, not this.
         #expect(book(store).entries.map(\.kind) == [
-            .bill, .payment, .creditNote, .delivery, .supplierPayment, .expense
+            .bill, .payment, .creditNote, .purchase, .supplierPayment, .expense
         ])
     }
 

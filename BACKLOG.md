@@ -59,6 +59,22 @@ Play will grant production access at all.
 
 ## Settled, so nobody reopens them
 
+- **The app says "purchase", never "delivery" — done.** The business is a van,
+  not a shop with a back door: the owner drives to the wholesaler and buys, and
+  nothing is delivered to them. Every visible word changed in one pass, English
+  and Kannada — "No purchases yet", `Purchase #88`, the day summary's heading,
+  the supplier field's "Who you bought from" — along with the identifiers tied
+  to them: `noPurchasesRecorded`, `purchaseRef`, `purchasesTitle`,
+  `whoYouBoughtFrom`, `PurchaseRow`, `DayEntryKind.PURCHASE`. That enum is
+  derived rather than stored, so no backup was touched and no version bumped.
+
+  **Three keys still read `recordDelivery`, `itemsRecordDelivery` and
+  `deliveryDetail`.** All three render "Inventory" and always did; renaming them
+  would collide with `recordPurchase`, which is a different button. Comments in
+  the older files still say "delivery" in places. Both are prose to correct
+  where you are already editing — a sweep of every comment in the repo would
+  bury the next real change under a hundred one-word diffs.
+
 - **A customer is identified by their name, and two accounts are never joined.**
   `Customer.key` is the trimmed, lowercased name, so two accounts cannot share
   one. That was examined properly when an owner asked whether customers should

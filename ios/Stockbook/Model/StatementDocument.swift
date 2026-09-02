@@ -223,7 +223,7 @@ struct StatementDocument: Equatable {
             if let no = bill.invoiceNo, !no.isBlank { return strings.invoiceRef(no) }
             return strings.billNumber(bill.number)
         case .purchase(let purchase):
-            if let no = purchase.invoiceNo, !no.isBlank { return strings.deliveryRef(no) }
+            if let no = purchase.invoiceNo, !no.isBlank { return strings.purchaseRef(no) }
             return strings.purchaseLabel
         case .creditNote(let note):
             if let no = note.noteNo, !no.isBlank { return strings.creditNoteRef(no) }

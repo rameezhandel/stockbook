@@ -89,6 +89,9 @@ struct Strings {
     var today: String { pick("Today", "ಇಂದು") }
     var settings: String { pick("Settings", "ಸೆಟ್ಟಿಂಗ್‌ಗಳು") }
     var soldInPeriod: String { pick("Sold", "ಮಾರಾಟ") }
+    // The other side of the counter, over the same span. Home has no room for it;
+    // the book's total line uses it when the purchases are showing.
+    var boughtInPeriod: String { pick("Bought", "ಖರೀದಿ") }
     var receivableStat: String { pick("Receivable", "ಬರಬೇಕಾದ ಬಾಕಿ") }
     var payableStat: String { pick("Payable", "ಕೊಡಬೇಕಾದ ಬಾಕಿ") }
     var billsStat: String { pick("Bills", "ಬಿಲ್‌ಗಳು") }
@@ -209,25 +212,29 @@ struct Strings {
     /// Printed instead of the contents where the shop has nobody on its books yet.
     var ledgerNoCustomers: String { pick("No customers yet", "ಇನ್ನೂ ಗ್ರಾಹಕರಿಲ್ಲ") }
 
-    /// On the Items header. Says "delivery" rather than "purchase" because that
-    /// is the word for the thing arriving at the door.
+    /// The other way into the same sheet the Items header opens, so it is called
+    /// the same thing. Two buttons that do one job under two names is how
+    /// somebody concludes there are two jobs.
+    ///
+    /// The key still says "delivery"; every word it puts on a screen says
+    /// "Inventory" or "purchase". Nothing outside this file reads the name.
     var recordDelivery: String { pick("Inventory", "ದಾಸ್ತಾನು") }
     var whichProductArrived: String { pick("What arrived?", "ಏನು ಬಂತು?") }
 
     /// The way out of the product list when nothing in it matches, said the same
     /// way `addAsSupplier` says it.
     ///
-    /// The delivery sheet needs one because a supplier's note is where genuinely
-    /// new stock usually appears. Without it, a five-line delivery of things the
+    /// The purchase sheet needs one because a supplier's note is where genuinely
+    /// new stock usually appears. Without it, a five-line purchase of things the
     /// shop has never carried is ten sheets: leave, add the product, come back,
     /// find your place, repeat.
     func addAsProduct(_ name: String) -> String {
         pick("Add “\(name)” as a product", "“\(name)” ಅನ್ನು ಸಾಮಾನಾಗಿ ಸೇರಿಸಿ")
     }
-    var noDeliveriesYet: String { pick("No deliveries yet", "ಇನ್ನೂ ಡೆಲಿವರಿ ಇಲ್ಲ") }
+    var noPurchasesRecorded: String { pick("No purchases yet", "ಇನ್ನೂ ಖರೀದಿ ಇಲ್ಲ") }
     var deliveryDetail: String { pick("Inventory", "ದಾಸ್ತಾನು") }
 
-    /// `12 × SAR 60` — what a delivery row says under the product's name.
+    /// `12 × SAR 60` — what a purchase row says under the product's name.
     func perPiece(qty: Int, cost: String) -> String { "\(qty) × \(cost)" }
 
     var noBillsEver: String {
@@ -379,7 +386,7 @@ struct Strings {
     var removeFromSuppliers: String { pick("Remove from suppliers", "ಪೂರೈಕೆದಾರರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಿರಿ") }
 
     /// Says what removal does *not* do, because "remove" beside a name reads like
-    /// deleting the deliveries too — and it does not.
+    /// deleting the purchases too — and it does not.
     var removeSupplierNote: String {
         pick(
             "Their purchases stay. Only the saved details go.",
@@ -391,7 +398,7 @@ struct Strings {
     var purchaseLabel: String { pick("Purchase", "ಖರೀದಿ") }
     var paidOn: String { pick("Paid on", "ಪಾವತಿಸಿದ ದಿನ") }
     var paymentNotAgainstOnePurchase: String {
-        pick("Paid against the account, not one delivery.", "ಒಂದು ಡೆಲಿವರಿಗೆ ಅಲ್ಲ, ಖಾತೆಗೆ ಪಾವತಿ.")
+        pick("Paid against the account, not one purchase.", "ಒಂದು ಖರೀದಿಗೆ ಅಲ್ಲ, ಖಾತೆಗೆ ಪಾವತಿ.")
     }
     var boughtFromThem: String { pick("Bought", "ಖರೀದಿಸಿದ್ದು") }
 
@@ -603,7 +610,7 @@ struct Strings {
     var receivedInPeriod: String { pick("Received", "ಸ್ವೀಕರಿಸಿದ್ದು") }
 
     /// The same two figures on a supplier's statement. "Billed" and "Received"
-    /// are the customer's words and read backwards on a delivery note.
+    /// are the customer's words and read backwards on a supplier's note.
     var purchasedInPeriod: String { pick("Purchased", "ಖರೀದಿಸಿದ್ದು") }
     var paidOutInPeriod: String { pick("Paid", "ಪಾವತಿಸಿದ್ದು") }
     var closingBalance: String { pick("Balance due", "ಉಳಿದ ಬಾಕಿ") }
@@ -834,8 +841,8 @@ struct Strings {
 
     var openingStockNote: String {
         pick(
-            "What is on the shelf today. After this, stock moves on a delivery, a bill, or a recount.",
-            "ಇಂದು ಶೆಲ್ಫಿನಲ್ಲಿ ಇರುವುದು. ನಂತರ ದಾಸ್ತಾನು ಡೆಲಿವರಿ, ಬಿಲ್ ಅಥವಾ ಮರು-ಎಣಿಕೆಯಿಂದ ಬದಲಾಗುತ್ತದೆ."
+            "What is on the shelf today. After this, stock moves on a purchase, a bill, or a recount.",
+            "ಇಂದು ಶೆಲ್ಫಿನಲ್ಲಿ ಇರುವುದು. ನಂತರ ದಾಸ್ತಾನು ಖರೀದಿ, ಬಿಲ್ ಅಥವಾ ಮರು-ಎಣಿಕೆಯಿಂದ ಬದಲಾಗುತ್ತದೆ."
         )
     }
     var buyingPrice: String { pick("Buying price", "ಖರೀದಿ ಬೆಲೆ") }
@@ -864,7 +871,7 @@ struct Strings {
     }
 
     var supplier: String { pick("Supplier", "ಸರಬರಾಜುದಾರ") }
-    var whoDeliveredIt: String { pick("Who delivered it", "ಯಾರು ತಂದುಕೊಟ್ಟರು") }
+    var whoYouBoughtFrom: String { pick("Who you bought from", "ಯಾರಿಂದ ಖರೀದಿಸಿದಿರಿ") }
     var howMany: String { pick("How many", "ಎಷ್ಟು") }
     var paidPerPiece: String { pick("Paid per piece", "ಪ್ರತಿ ನಗಕ್ಕೆ ಕೊಟ್ಟದ್ದು") }
     var recordPurchase: String { pick("Record purchase", "ಖರೀದಿ ದಾಖಲಿಸಿ") }
@@ -938,8 +945,8 @@ struct Strings {
     /// The supplier half of the same step, and the same promise: skippable.
     var suppliersSetupBody: String {
         pick(
-            "The people who deliver to you, so their names are ready when stock arrives. Skip this — you can add anybody while entering a delivery.",
-            "ನಿಮಗೆ ಸಾಮಾನು ತಲುಪಿಸುವವರು — ದಾಸ್ತಾನು ಬಂದಾಗ ಹೆಸರು ಸಿದ್ಧವಿರುತ್ತದೆ. ಇದನ್ನು ಬಿಟ್ಟುಬಿಡಬಹುದು — ಡೆಲಿವರಿ ದಾಖಲಿಸುವಾಗಲೂ ಸೇರಿಸಬಹುದು."
+            "The people you buy from, so their names are ready when stock arrives. Skip this — you can add anybody while entering a purchase.",
+            "ನೀವು ಯಾರಿಂದ ಖರೀದಿಸುತ್ತೀರೋ ಅವರು — ದಾಸ್ತಾನು ಬಂದಾಗ ಹೆಸರು ಸಿದ್ಧವಿರುತ್ತದೆ. ಇದನ್ನು ಬಿಟ್ಟುಬಿಡಬಹುದು — ಖರೀದಿ ದಾಖಲಿಸುವಾಗಲೂ ಸೇರಿಸಬಹುದು."
         )
     }
 
@@ -1034,7 +1041,7 @@ struct Strings {
     func invoiceRef(_ no: String) -> String { pick("Invoice #\(no)", "ಬಿಲ್ #\(no)") }
     func creditNoteRef(_ no: String) -> String { pick("Credit Note #\(no)", "ಕ್ರೆಡಿಟ್ ನೋಟ್ #\(no)") }
     func paymentRef(_ no: String) -> String { pick("Payment #\(no)", "ಪಾವತಿ #\(no)") }
-    func deliveryRef(_ no: String) -> String { pick("Delivery #\(no)", "ಡೆಲಿವರಿ #\(no)") }
+    func purchaseRef(_ no: String) -> String { pick("Purchase #\(no)", "ಖರೀದಿ #\(no)") }
 
     var accountStatementFor: String { pick("Account statement for:", "ಖಾತೆ ವಿವರ — ಇವರಿಗೆ:") }
     var accountActivity: String { pick("Account Activity", "ಖಾತೆ ವ್ಯವಹಾರ") }
@@ -1136,11 +1143,11 @@ struct Strings {
 
     var daySummary: String { pick("Day Summary", "ದಿನದ ಸಾರಾಂಶ") }
     /// Section headings. `Bills`, `Received`, `Credit notes` and `Expenses` are already words this app owns.
-    var deliveriesTitle: String { pick("Deliveries", "ಡೆಲಿವರಿಗಳು") }
+    var purchasesTitle: String { pick("Purchases", "ಖರೀದಿಗಳು") }
     var paidToSuppliers: String { pick("Paid to suppliers", "ಸರಬರಾಜುದಾರರಿಗೆ ಪಾವತಿ") }
     /// `3 × Padlock 40mm` — a product under the row it was sold on.
     func itemLine(_ qty: Int, _ name: String) -> String { "\(qty) × \(name)" }
-    /// What is still owed on a bill or a delivery, said beside it.
+    /// What is still owed on a bill or a purchase, said beside it.
     ///
     /// The page shows what was sold; this is what of it has not been paid for,
     /// and without it a busy day on credit reads as a busy day of takings.

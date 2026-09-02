@@ -97,7 +97,7 @@ struct DaySummaryDocument: Equatable {
     /// how the page reads is a change here and not a change to a type six other
     /// things depend on.
     private static let order: [DayEntryKind] = [
-        .bill, .payment, .creditNote, .delivery, .supplierPayment, .expense
+        .bill, .payment, .creditNote, .purchase, .supplierPayment, .expense
     ]
 
     static func forDay(
@@ -144,7 +144,7 @@ struct DaySummaryDocument: Equatable {
         case .bill: strings.billsTitle
         case .payment: strings.receivedInPeriod
         case .creditNote: strings.creditNotes
-        case .delivery: strings.deliveriesTitle
+        case .purchase: strings.purchasesTitle
         case .supplierPayment: strings.paidToSuppliers
         case .expense: strings.expensesTitle
         }
@@ -179,8 +179,8 @@ struct DaySummaryDocument: Equatable {
 
     /// What to call the paper, worded exactly as `StatementDocument` words it.
     ///
-    /// The same delivery appearing as "Delivery #88" on one page and "Purchase
-    /// 88" on another is the owner checking whether they are the same delivery,
+    /// The same load appearing as "Purchase #88" on one page and "Delivery
+    /// 88" on another is the owner checking whether they are the same load,
     /// which is work this page exists to remove.
     private static func reference(_ entry: DayEntry, _ strings: Strings) -> String? {
         let no = entry.reference.flatMap { $0.isEmpty ? nil : $0 }
@@ -191,8 +191,8 @@ struct DaySummaryDocument: Equatable {
             return no.map { strings.paymentRef($0) } ?? strings.paymentLabel
         case .creditNote:
             return no.map { strings.creditNoteRef($0) } ?? strings.creditNoteLabel
-        case .delivery:
-            return no.map { strings.deliveryRef($0) } ?? strings.purchaseLabel
+        case .purchase:
+            return no.map { strings.purchaseRef($0) } ?? strings.purchaseLabel
         case .expense:
             // Joined to nobody and numbered by nobody. The row's name is already
             // what it went on, and there is nothing else to say.
@@ -208,7 +208,7 @@ private extension DayEntryKind {
     /// payment or an expense is the settling.
     var carriesCredit: Bool {
         switch self {
-        case .bill, .delivery: true
+        case .bill, .purchase: true
         case .payment, .supplierPayment, .creditNote, .expense: false
         }
     }

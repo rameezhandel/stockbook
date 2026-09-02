@@ -517,7 +517,7 @@ fun AddStockSheet(
             title = when {
                 clash != null -> strings.changeTheInvoiceNo
                 supplierKey == null && supplier.isNotBlank() -> strings.chooseSupplierFromTheList
-                supplierKey == null -> strings.whoDeliveredIt
+                supplierKey == null -> strings.whoYouBoughtFrom
                 invoiceNo.isBlank() -> strings.enterBillNumber
                 totalValue <= 0 -> strings.enterAnAmount
                 // A correction says so, because "Record purchase" over a delivery
@@ -619,7 +619,7 @@ private fun SupplierPicker(
             value = typed,
             onValueChange = onType,
             label = strings.supplier,
-            placeholder = strings.whoDeliveredIt,
+            placeholder = strings.whoYouBoughtFrom,
             // Marked until somebody is actually chosen, not merely until the box
             // has characters in it.
             isRequiredAndEmpty = chosenKey == null

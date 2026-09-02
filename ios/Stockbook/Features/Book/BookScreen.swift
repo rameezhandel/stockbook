@@ -1,42 +1,63 @@
 import SwiftUI
 
-/// The account book: every direction money moves.
+/// The account book: every record the shop keeps, one span at a time.
 ///
-/// **Sales** is what was sold and to whom; **Purchases** is what arrived and
-/// from whom. Those two are mirror images in the domain — one `Statement.make`
-/// serves both — so they belong beside each other rather than in two tabs.
+/// **One ledger, not three panes.** This screen used to be a switch between
+/// three separate views, each of which owned its own idea of which days it was
+/// showing: the sales and purchase lists carried a four-chip period picker, and
+/// expenses carried a *different* three-chip one buried inside its total card.
+/// So "this month" was three pieces of state, the expenses side could not be
+/// asked for two dates at all, and switching chips silently threw away the span
+/// the owner had just chosen.
 ///
-/// **Expenses** is the odd one and sits here anyway. It is the owner's own
-/// spending, tied to nobody, and it touches none of the arithmetic on the other
-/// two chips. But it is money leaving, it is written down for the same reason
-/// the others are, and the alternative was a fourth tab for something recorded
-/// once a day — or Settings, which is where features go to be forgotten.
+/// Now the span is asked once, above everything, and every record type answers
+/// over it. Changing what you are looking at no longer changes when.
+///
+/// The three chips pick the **kind of record**: what was sold, what arrived, and
+/// what the owner spent. The first two are mirror images in the domain — one
+/// `Statement.make` serves both — and expenses is the odd one, tied to nobody
+/// and touching neither side's arithmetic. It sits here anyway, because it is
+/// money leaving and it is written down for the same reason, and the alternative
+/// was a tab of its own for something recorded once a day.
 ///
 /// Chips rather than tabs, because the shop does not use these symmetrically: a
-/// sale happens fifty times a day, a delivery arrives once a week. A tab bar is
-/// weighted by how often a thumb goes there, not by how tidy the model is.
+/// sale happens fifty times a day, a load of stock arrives once a week.
 struct BookScreen: View {
     @Environment(StockbookStore.self) private var store
+    @Environment(AppRouter.self) private var router
+    @Environment(\.currency) private var currency
 
-    /// The rendered book, waiting for the share sheet.
+    /// The rendered page, waiting for the share sheet. One for both documents
+    /// this screen makes — the whole ledger book and the spending summary — since
+    /// only one of them can be on its way to the chooser at a time.
     @State private var file: StatementFile?
 
-    /// Which side is showing. `@SceneStorage` rather than `@State` so it
-    /// survives a trip into a sheet and back — an owner who came here for
-    /// suppliers should not be handed bills again on the way out.
+    /// Which kind of record is showing. `@SceneStorage` rather than `@State` so
+    /// it survives a trip into a document and back — an owner who came here for
+    /// purchases should not be handed bills again on the way out.
     ///
-    /// Stored as its raw string because `@SceneStorage` takes only the handful
-    /// of types `AppStorage` does.
-    @SceneStorage("book.side") private var stored = Side.sales.rawValue
+    /// Stored as its raw string because `@SceneStorage` takes only the handful of
+    /// types `AppStorage` does.
+    @SceneStorage("book.side") private var storedSide = Side.sales.rawValue
 
-    private var side: Side { Side(rawValue: stored) ?? .sales }
+    /// **The span, asked once for all three.** This month by default: the book is
+    /// a year of rows before long, and the reason to open it is almost always
+    /// something written recently.
+    ///
+    /// Saved for the same reason the side is: a list that quietly reset to this
+    /// month every time a document was closed would make a stretch of days
+    /// impossible to read through.
+    @SceneStorage("book.period") private var storedPeriod = PeriodChoice.thisMonth.rawValue
+
+    @State private var from = Calendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now
+    @State private var to = Date.now
+
+    private var side: Side { Side(rawValue: storedSide) ?? .sales }
+    private var choice: PeriodChoice { PeriodChoice(rawValue: storedPeriod) ?? .thisMonth }
+    private var period: StatementPeriod { choice.period(from: from, to: to) }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Every customer's position on one day. It belongs on this tab
-            // rather than beside the day's transactions on Home: it is a list of
-            // people, read down, and this is the screen the owner comes to when
-            // the question is about people rather than about today.
             ScreenHeader(title: Loc.bookTitle) {
                 // Every customer's whole history, printed once and filed. The one
                 // thing this screen hands to a printer, so it lives here rather
@@ -48,6 +69,9 @@ struct BookScreen: View {
                 .accessibilityLabel(Loc.ledgerBook)
             }
 
+            // Fixed above the scroll, not inside it. This row is the switch, and
+            // a switch that scrolls out of reach makes the owner flick back up to
+            // change what they are looking at.
             HStack(spacing: 6) {
                 ChoicePill(title: Loc.salesSide, icon: Icon.bills, selected: side == .sales) {
                     choose(.sales)
@@ -62,25 +86,226 @@ struct BookScreen: View {
             .padding(.horizontal, Metrics.screenPadding)
             .padding(.bottom, 10)
 
-            // No `default` on purpose: a fourth side has to break this and be
-            // placed deliberately, not fall through to whichever branch was last.
-            switch side {
-            case .sales:
-                // The Bills screen exactly as it was, minus the header this one
-                // now carries. Nothing about sales moved; it gained neighbours.
-                BillsScreen(showsHeader: false)
-            case .purchases:
-                PurchasesPane()
-            case .expenses:
-                ExpensesPane()
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: Metrics.rowGap) {
+                    // Span first, then the figure it adds up to, then the rows
+                    // behind the figure. The picker used to sit below the total on
+                    // the expenses side and above it on the other two, which meant
+                    // the same page read in two directions depending on a chip.
+                    PeriodPicker(
+                        choice: Binding(get: { choice }, set: { storedPeriod = $0.rawValue }),
+                        from: $from,
+                        to: $to
+                    )
+                    .padding(.bottom, 12 - Metrics.rowGap)
+
+                    totalCard
+                        .padding(.bottom, 20 - Metrics.rowGap)
+
+                    HStack {
+                        Kicker(listTitle)
+                        Spacer(minLength: 6)
+                        // Expenses are the one record with no other way in. A bill
+                        // starts on the Sell tab and a purchase from the shelf, but
+                        // nothing else in the app writes down the owner's own
+                        // spending, so the list carries its own pen.
+                        if side == .expenses {
+                            Button(Loc.addAnExpense) { router.openNewExpense() }
+                                .buttonStyle(GhostButtonStyle(fontSize: 12))
+                        }
+                    }
+
+                    rows
+                }
+                .padding(.horizontal, Metrics.screenPadding)
+                .padding(.bottom, 18)
             }
+            .scrollDismissesKeyboard(.interactively)
+            // Back to the top when the kind of record changes. Without it,
+            // switching from forty bills to five expenses lands the owner at the
+            // bottom of a list they have not read a line of — the offset is the
+            // old list's, and the new one is only long enough to be clamped to its
+            // end. Re-identifying the scroll view is what discards that offset.
+            .id(side)
         }
         .sheet(item: $file) { ShareSheet(url: $0.url) }
     }
 
     private func choose(_ next: Side) {
-        withAnimation(Metrics.quick) { stored = next.rawValue }
+        withAnimation(Metrics.quick) { storedSide = next.rawValue }
     }
+
+    // MARK: The total
+
+    /// What the span came to, whatever is being counted.
+    ///
+    /// One card for all three sides rather than one the expenses pane kept to
+    /// itself. Its chips went with it: the span is chosen above this now, so the
+    /// figure and the rows under it can no longer be showing two different months
+    /// — which is exactly what they were doing before the expenses list learned
+    /// to narrow.
+    private var totalCard: some View {
+        // Read once: it is a walk over the whole book, and the rolling animation
+        // needs the same figure the label shows.
+        let total = self.total
+        let text = Money.text(total, in: currency)
+
+        return VStack(alignment: .leading, spacing: 0) {
+            Text(totalLabel)
+                .font(NocturneType.inter(11))
+                .foregroundStyle(Nocturne.neutral500)
+            Text(text)
+                .nocturneText(NocturneType.fittedNumber(text))
+                .lineLimit(1)
+                .rollingNumber(total)
+                .padding(.top, 3)
+            // Only the spending needs saying out loud: a shopkeeper writing down
+            // their petrol deserves to know at a glance that it will not turn up
+            // on a customer's statement. The other two figures are the shop's own
+            // trade and surprise nobody.
+            if side == .expenses {
+                Text(Loc.expensesArePrivate)
+                    .nocturneText(.meta)
+                    .padding(.top, 2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        .hairline(radius: Metrics.cardRadius)
+        // The span the total covers is the span the page covers, so the button
+        // that makes it lives in the total's own corner. Spending is the only one
+        // of the three with a page to make; a sales summary is a document this app
+        // does not have yet.
+        //
+        // An overlay rather than a row above the figure, because a tap target on
+        // the label's own line would push the figure a third of the card down to
+        // make room for it.
+        .overlay(alignment: .topTrailing) {
+            if side == .expenses, total > 0 {
+                Button(action: saveSpending) { Glyph(Icon.share, size: 15) }
+                    .buttonStyle(.iconOnly)
+                    .foregroundStyle(Nocturne.accent)
+                    .accessibilityLabel(Loc.sharePdf)
+                    .padding(2)
+            }
+        }
+    }
+
+    private var total: Double {
+        switch side {
+        case .sales: store.soldIn(period)
+        case .purchases: store.boughtIn(period)
+        case .expenses: store.spentIn(period)
+        }
+    }
+
+    private var totalLabel: String {
+        switch side {
+        case .sales: Loc.soldInPeriod
+        case .purchases: Loc.boughtInPeriod
+        case .expenses: Loc.expenseInPeriod
+        }
+    }
+
+    private var listTitle: String {
+        switch side {
+        case .sales: Loc.billsTitle
+        case .purchases: Loc.purchasesSide
+        case .expenses: Loc.expensesTitle
+        }
+    }
+
+    // MARK: The rows
+
+    /// Nothing on these lists corrects anything. A record entered wrong is opened
+    /// first, and edited or removed from inside the document — which is the only
+    /// place the owner can see what they are about to change.
+    ///
+    /// No `default` on any of these: a fourth kind of record has to break the
+    /// switch and be placed deliberately, not fall through to whichever branch
+    /// was last.
+    @ViewBuilder private var rows: some View {
+        switch side {
+        case .sales:
+            let bills = store.billsIn(period)
+            // Two different nothings, and they need different words. A shop that
+            // has never written a bill wants the button; a shop that wrote none in
+            // August wants to be told that rather than invited to start one,
+            // because the bills it is looking for are on another span.
+            if bills.isEmpty {
+                if store.bills.isEmpty {
+                    EmptyStateBox(
+                        icon: Icon.bills,
+                        message: Loc.noBillsEver,
+                        actionTitle: Loc.startABill,
+                        action: { router.startBill() }
+                    )
+                } else {
+                    EmptyStateBox(icon: Icon.bills, message: Loc.nothingInThisPeriod)
+                }
+            }
+            ForEach(bills) { bill in
+                Button {
+                    router.openBill(bill)
+                } label: {
+                    BillRow(bill: bill)
+                }
+                .buttonStyle(.plain)
+            }
+
+        case .purchases:
+            let purchases = store.purchasesIn(period)
+            if purchases.isEmpty {
+                if store.purchases.isEmpty {
+                    EmptyStateBox(
+                        icon: Icon.addStock,
+                        message: Loc.noPurchasesRecorded,
+                        actionTitle: Loc.recordDelivery,
+                        action: { router.recordDelivery() }
+                    )
+                } else {
+                    EmptyStateBox(icon: Icon.addStock, message: Loc.nothingInThisPeriod)
+                }
+            }
+            ForEach(purchases) { purchase in
+                Button {
+                    router.purchaseDetail = purchase
+                } label: {
+                    PurchaseRow(
+                        purchase: purchase,
+                        supplierName: store.supplier(key: purchase.supplierKey)?.name ?? purchase.supplierKey
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+
+        case .expenses:
+            let expenses = store.expensesIn(period)
+            if expenses.isEmpty {
+                if store.expenses.isEmpty {
+                    EmptyStateBox(
+                        icon: Icon.expenses,
+                        message: Loc.noExpensesYet,
+                        actionTitle: Loc.addAnExpense,
+                        action: { router.openNewExpense() }
+                    )
+                } else {
+                    EmptyStateBox(icon: Icon.expenses, message: Loc.nothingInThisPeriod)
+                }
+            }
+            ForEach(expenses) { expense in
+                Button {
+                    router.openExpense(expense)
+                } label: {
+                    ExpenseRow(expense: expense)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: The documents
 
     /// Every customer's whole history as one document, a page each.
     ///
@@ -117,7 +342,27 @@ struct BookScreen: View {
         file = StatementFile(url: url)
     }
 
-    /// Which chip is on.
+    /// The span's spending, broken down by what it went on.
+    ///
+    /// A failure leaves `file` nil and nothing opens, for the reason above: there
+    /// is no half-written page worth offering, and the figures are still on
+    /// screen.
+    private func saveSpending() {
+        let period = self.period
+        let document = SummaryDocument.forSpending(
+            lines: store.spendingIn(period),
+            range: period.range(),
+            settings: store.settings,
+            strings: Loc
+        )
+        guard let url = try? SummaryPDF.write(
+            document,
+            fileName: Loc.expenseFileName(date: Copy.fileDate(.now))
+        ) else { return }
+        file = StatementFile(url: url)
+    }
+
+    /// Which kind of record is showing.
     private enum Side: String {
         case sales, purchases, expenses
     }
