@@ -56,7 +56,7 @@ struct DaySummaryBalanceTests {
 
         let balance = try #require(try row(page(store, on(22)), "Ahmed").balance)
 
-        #expect(balance.label == "Balance at day end")
+        #expect(balance.label == "Closing balance")
         #expect(balance.value == "SAR 1,500", "the twentieth's thousand and today's five hundred")
     }
 
@@ -127,7 +127,7 @@ struct DaySummaryBalanceTests {
     }
 
     /// The owner's own spending is joined to nobody, so there is nothing for a
-    /// balance to be *of*. A line reading "Balance at day end —" under Petrol
+    /// balance to be *of*. A line reading "Closing balance —" under Petrol
     /// would invite the reader to wonder whose.
     @Test("An expense has no balance because it has no account")
     func expenseHasNoAccount() throws {

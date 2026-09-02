@@ -50,7 +50,7 @@ class DaySummaryBalanceTests {
 
         val balance = assertNotNull(store.page(on(22)).row("Ahmed").balance)
 
-        assertEquals("Balance at day end", balance.label)
+        assertEquals("Closing balance", balance.label)
         assertEquals("SAR 1,500", balance.value, "the twentieth's thousand and today's five hundred")
     }
 
@@ -129,7 +129,7 @@ class DaySummaryBalanceTests {
 
     /**
      * The owner's own spending is joined to nobody, so there is nothing for a
-     * balance to be *of*. A line reading "Balance at day end —" under Petrol
+     * balance to be *of*. A line reading "Closing balance —" under Petrol
      * would invite the reader to wonder whose.
      */
     @Test

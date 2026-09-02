@@ -58,7 +58,7 @@ struct DaySummaryDocument: Equatable {
         ///
         /// Nil where there is no account — an expense is joined to nobody, and a
         /// record restored from an older file with no name on it has nothing to
-        /// be a balance of. A line reading "Balance at day end —" would invite
+        /// be a balance of. A line reading "Closing balance —" would invite
         /// the reader to wonder whose.
         ///
         /// Repeated on every row a person appears on, deliberately. Three bills
@@ -169,7 +169,7 @@ struct DaySummaryDocument: Equatable {
             detail: detail.isEmpty ? nil : detail,
             amount: Money.text(entry.amount, in: currency),
             balance: entry.closingBalance.map {
-                Balance(label: strings.balanceAtDayEnd, value: Money.text($0, in: currency))
+                Balance(label: strings.dayClosingBalance, value: Money.text($0, in: currency))
             },
             items: entry.items.map {
                 Item(text: strings.itemLine($0.qty, $0.name), amount: Money.text($0.amount, in: currency))

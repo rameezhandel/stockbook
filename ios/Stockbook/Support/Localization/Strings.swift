@@ -1188,11 +1188,11 @@ struct Strings {
     /// The line under a row on the day's page: where that account stood when the
     /// day closed.
     ///
-    /// Says **"at day end"** rather than "now". The page is headed with a date
-    /// that is often not today, and a balance labelled as current beside a
-    /// fortnight-old bill would be the one figure on the page a reader could not
-    /// place.
-    var balanceAtDayEnd: String { pick("Balance at day end", "ದಿನದ ಕೊನೆಗೆ ಬಾಕಿ") }
+    /// Its own key rather than `closingBalance`, which says "Balance due" — the
+    /// two are the same idea worded for different papers, and collapsing them
+    /// would put "Balance due" under every row of a page that is the owner's own
+    /// and is never handed to anybody.
+    var dayClosingBalance: String { pick("Closing balance", "ಅಂತಿಮ ಬಾಕಿ") }
     var previousDay: String { pick("Previous day", "ಹಿಂದಿನ ದಿನ") }
     var nextDay: String { pick("Next day", "ಮುಂದಿನ ದಿನ") }
     func dayFileName(date: String) -> String { "day-\(date).pdf" }

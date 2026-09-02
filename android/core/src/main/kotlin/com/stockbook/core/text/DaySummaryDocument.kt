@@ -70,7 +70,7 @@ data class DaySummaryDocument(
          *
          * Null where there is no account — an expense is joined to nobody, and a
          * counter sale with no name typed on it has nothing to be a balance of.
-         * A line reading "Balance at day end —" would invite the reader to
+         * A line reading "Closing balance —" would invite the reader to
          * wonder whose.
          *
          * Repeated on every row a person appears on, deliberately. Three bills
@@ -182,7 +182,7 @@ data class DaySummaryDocument(
                 detail = detail,
                 amount = Money.text(entry.amount, currency),
                 balance = entry.closingBalance?.let {
-                    Balance(strings.balanceAtDayEnd, Money.text(it, currency))
+                    Balance(strings.dayClosingBalance, Money.text(it, currency))
                 },
                 items = entry.items.map {
                     Item(

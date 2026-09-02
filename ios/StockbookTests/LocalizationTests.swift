@@ -105,7 +105,7 @@ struct LocalizationTests {
         \.totalSpentLabel, \.nothingSpentThen, \.sharePdf,
         \.daySummary, \.deliveriesTitle, \.paidToSuppliers,
         \.moneyInLabel, \.moneyOutLabel, \.netForTheDay, \.nothingOnThisDay,
-        \.balanceAtDayEnd,
+        \.dayClosingBalance,
         \.previousDay, \.nextDay,
         \.earningsSummary, \.costOfGoods, \.goodsEarned, \.shopKept,
         \.notCounted, \.countedSales, \.creditedLabel, \.returnsNotValued, \.nothingSoldThen,

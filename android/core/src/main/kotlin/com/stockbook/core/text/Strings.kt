@@ -1198,12 +1198,12 @@ class Strings(val language: AppLanguage) {
      * The line under a row on the day's page: where that account stood when the
      * day closed.
      *
-     * Says **"at day end"** rather than "now". The page is headed with a date
-     * that is often not today, and a balance labelled as current beside a
-     * fortnight-old bill would be the one figure on the page a reader could not
-     * place.
+     * Its own key rather than [closingBalance], which says "Balance due" — the
+     * two are the same idea worded for different papers, and collapsing them
+     * would put "Balance due" under every row of a page that is the owner's own
+     * and is never handed to anybody.
      */
-    val balanceAtDayEnd: String get() = pick("Balance at day end", "ದಿನದ ಕೊನೆಗೆ ಬಾಕಿ")
+    val dayClosingBalance: String get() = pick("Closing balance", "ಅಂತಿಮ ಬಾಕಿ")
     val previousDay: String get() = pick("Previous day", "ಹಿಂದಿನ ದಿನ")
     val nextDay: String get() = pick("Next day", "ಮುಂದಿನ ದಿನ")
     fun dayFileName(date: String): String = "day-$date.pdf"
