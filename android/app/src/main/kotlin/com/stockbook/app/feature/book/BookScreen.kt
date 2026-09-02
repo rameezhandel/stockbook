@@ -171,11 +171,12 @@ fun BookScreen(
     val hits = remember(state, query) { if (searching) store.search(query) else emptyList() }
 
     val listState = rememberLazyListState()
-    // Back to the top when the kind of record changes. Without it, switching from
-    // forty bills to five expenses lands the owner at the bottom of a list they
-    // have not read a line of — the scroll offset is the old list's, and the new
-    // one is only long enough to be clamped to its end.
-    LaunchedEffect(side) { listState.scrollToItem(0) }
+    // Back to the top when the kind of record changes, and when a search starts or
+    // ends. Without it, switching from forty bills to five expenses lands the
+    // owner at the bottom of a list they have not read a line of — the scroll
+    // offset is the old list's, and the new one is only long enough to be clamped
+    // to its end.
+    LaunchedEffect(side, searching) { listState.scrollToItem(0) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         ScreenHeader(

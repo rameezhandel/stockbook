@@ -55,6 +55,20 @@ struct BookScreen: View {
     @State private var from = Calendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now
     @State private var to = Date.now
 
+    /// **What was typed, and whether anything was.** `@State` rather than
+    /// `@SceneStorage`: the owner who searched a receipt, opened it and came back
+    /// has finished with that search, and being handed the results again is one
+    /// more thing to clear.
+    @State private var query = ""
+
+    private var searching: Bool { !query.isBlank }
+
+    /// Read only while something is typed, and deliberately **without the span**:
+    /// the lists in the book answer "what happened in August", and this answers
+    /// "where is this piece of paper" — a question a month only gets in the way
+    /// of.
+    private var hits: [SearchHit] { searching ? store.search(query) : [] }
+
     private var side: Side { Side(rawValue: storedSide) ?? .sales }
     private var choice: PeriodChoice { PeriodChoice(rawValue: storedPeriod) ?? .thisMonth }
     private var period: StatementPeriod { choice.period(from: from, to: to) }
@@ -116,12 +130,13 @@ struct BookScreen: View {
                 .padding(.bottom, 18)
             }
             .scrollDismissesKeyboard(.interactively)
-            // Back to the top when the kind of record changes. Without it,
-            // switching from forty bills to five expenses lands the owner at the
-            // bottom of a list they have not read a line of — the offset is the
-            // old list's, and the new one is only long enough to be clamped to its
-            // end. Re-identifying the scroll view is what discards that offset.
-            .id(side)
+            // Back to the top when the kind of record changes, and when a search
+            // starts or ends. Without it, switching from forty bills to five
+            // expenses lands the owner at the bottom of a list they have not read
+            // a line of — the offset is the old list's, and the new one is only
+            // long enough to be clamped to its end. Re-identifying the scroll view
+            // is what discards that offset.
+            .id(searching ? "search" : side.rawValue)
         }
         .sheet(item: $file) { ShareSheet(url: $0.url) }
     }
@@ -202,9 +217,15 @@ struct BookScreen: View {
                 router.showReceipt(receipt, justSaved: false)
             }
         case .creditNote:
+            // The sheet needs the customer as well as the note — a note with
+            // nobody behind it is not a thing this app can draw, which is why
+            // `CreditNoteTarget` carries both. Android's router keeps the note
+            // alone and looks the person up itself; that difference is the
+            // routers', not the domain's.
             if let id = UUID(uuidString: hit.id),
-               let note = store.creditNotes.first(where: { $0.id == id }) {
-                router.editingCreditNote = note
+               let note = store.creditNotes.first(where: { $0.id == id }),
+               let customer = store.customer(key: note.customerKey) {
+                router.creditNoteFor = CreditNoteTarget(customer: customer, note: note)
             }
         case .purchase:
             if let id = UUID(uuidString: hit.id),
