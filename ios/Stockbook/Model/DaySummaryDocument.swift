@@ -53,7 +53,26 @@ struct DaySummaryDocument: Equatable {
         let name: String
         var detail: String?
         let amount: String
+        /// Where that account stood when the day closed, said on the line under
+        /// the row.
+        ///
+        /// Nil where there is no account — an expense is joined to nobody, and a
+        /// record restored from an older file with no name on it has nothing to
+        /// be a balance of. A line reading "Balance at day end —" would invite
+        /// the reader to wonder whose.
+        ///
+        /// Repeated on every row a person appears on, deliberately. Three bills
+        /// to one customer are three records of what was sold and one answer to
+        /// what they owe, and a figure printed only against the last of them is
+        /// a figure found by whoever happens to read that far.
+        var balance: Balance?
         var items: [Item] = []
+    }
+
+    /// The labelled figure under a row: what the account came to that day.
+    struct Balance: Equatable {
+        let label: String
+        let value: String
     }
 
     /// A product under its row: `3 × Padlock 40mm`, and what that line came to.
@@ -149,6 +168,9 @@ struct DaySummaryDocument: Equatable {
             name: entry.who,
             detail: detail.isEmpty ? nil : detail,
             amount: Money.text(entry.amount, in: currency),
+            balance: entry.closingBalance.map {
+                Balance(label: strings.balanceAtDayEnd, value: Money.text($0, in: currency))
+            },
             items: entry.items.map {
                 Item(text: strings.itemLine($0.qty, $0.name), amount: Money.text($0.amount, in: currency))
             }

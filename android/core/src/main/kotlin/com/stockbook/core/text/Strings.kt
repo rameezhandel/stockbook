@@ -1193,6 +1193,17 @@ class Strings(val language: AppLanguage) {
     val moneyOutLabel: String get() = pick("Money out", "ಹೋದ ಹಣ")
     val netForTheDay: String get() = pick("Net for the day", "ದಿನದ ನಿವ್ವಳ")
     val nothingOnThisDay: String get() = pick("Nothing was recorded on this day.", "ಈ ದಿನ ಯಾವುದೂ ದಾಖಲಾಗಿಲ್ಲ.")
+
+    /**
+     * The line under a row on the day's page: where that account stood when the
+     * day closed.
+     *
+     * Says **"at day end"** rather than "now". The page is headed with a date
+     * that is often not today, and a balance labelled as current beside a
+     * fortnight-old bill would be the one figure on the page a reader could not
+     * place.
+     */
+    val balanceAtDayEnd: String get() = pick("Balance at day end", "ದಿನದ ಕೊನೆಗೆ ಬಾಕಿ")
     val previousDay: String get() = pick("Previous day", "ಹಿಂದಿನ ದಿನ")
     val nextDay: String get() = pick("Next day", "ಮುಂದಿನ ದಿನ")
     fun dayFileName(date: String): String = "day-$date.pdf"

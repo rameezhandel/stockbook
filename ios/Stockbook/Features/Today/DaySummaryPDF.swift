@@ -105,6 +105,27 @@ enum DaySummaryPDF {
                     drawRight(row.amount, rightEdge: right, y: y, attributes: attributes(rowSize))
                     y += 13
 
+                    // Immediately under the row rather than after the products,
+                    // because this is what the owner reads the page for: the
+                    // record is what happened, and this is where it leaves the
+                    // person it happened to. Its figure sits in the same
+                    // right-hand column the amounts do, which is how a column of
+                    // money is read.
+                    if let balance = row.balance {
+                        room(24)
+                        balance.label.draw(
+                            at: CGPoint(x: margin, y: y),
+                            withAttributes: attributes(bodySize, muted: true)
+                        )
+                        drawRight(
+                            balance.value,
+                            rightEdge: right,
+                            y: y,
+                            attributes: attributes(bodySize, bold: true)
+                        )
+                        y += 12
+                    }
+
                     // The paper's number, and what is still owed on it. Grey and
                     // under the name, because it qualifies the row rather than
                     // competing with the figure.

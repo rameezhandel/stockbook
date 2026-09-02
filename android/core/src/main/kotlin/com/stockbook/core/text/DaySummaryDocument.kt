@@ -64,8 +64,26 @@ data class DaySummaryDocument(
         val name: String,
         val detail: String?,
         val amount: String,
+        /**
+         * Where that account stood when the day closed, said on the line under
+         * the row.
+         *
+         * Null where there is no account — an expense is joined to nobody, and a
+         * counter sale with no name typed on it has nothing to be a balance of.
+         * A line reading "Balance at day end —" would invite the reader to
+         * wonder whose.
+         *
+         * Repeated on every row a person appears on, deliberately. Three bills
+         * to one customer are three records of what was sold and one answer to
+         * what they owe, and a figure printed only against the last of them is a
+         * figure found by whoever happens to read that far.
+         */
+        val balance: Balance? = null,
         val items: List<Item> = emptyList()
     )
+
+    /** The labelled figure under a row: what the account came to that day. */
+    data class Balance(val label: String, val value: String)
 
     /** A product under its row: `3 × Padlock 40mm`, and what that line came to. */
     data class Item(val text: String, val amount: String)
@@ -163,6 +181,9 @@ data class DaySummaryDocument(
                 name = entry.who,
                 detail = detail,
                 amount = Money.text(entry.amount, currency),
+                balance = entry.closingBalance?.let {
+                    Balance(strings.balanceAtDayEnd, Money.text(it, currency))
+                },
                 items = entry.items.map {
                     Item(
                         text = strings.itemLine(it.qty, it.name),

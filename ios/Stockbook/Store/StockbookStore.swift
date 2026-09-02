@@ -1257,6 +1257,34 @@ final class StockbookStore {
         let customerName = Dictionary(customers().map { ($0.key, $0.name) }, uniquingKeysWith: { first, _ in first })
         let supplierName = Dictionary(suppliers().map { ($0.key, $0.name) }, uniquingKeysWith: { first, _ in first })
 
+        // Where each account named on this page stood when the day closed.
+        //
+        // **Read out of that account's own statement**, run to the end of this
+        // day, rather than summed again here. The figure under a customer's name
+        // and the figure on the statement they may be handed are the same claim
+        // about the same money, and two calculations of it would eventually
+        // disagree — on the day somebody is holding both pieces of paper.
+        //
+        // The period starts at the first record so nothing is left out of the
+        // opening figure, and ends on this day rather than at now: a page headed
+        // with a date in August that carried December's balance would be two
+        // claims side by side.
+        //
+        // Memoised, because a customer with three bills on one day is one
+        // account and each lookup walks their whole history.
+        let over = StatementPeriod.custom(from: min(earliestRecord(), day), to: day)
+        var closing: [String: Double?] = [:]
+        func closingFor(_ key: String, isSupplier: Bool) -> Double? {
+            guard !key.isEmpty else { return nil }
+            let cacheKey = isSupplier ? "s:\(key)" : "c:\(key)"
+            if let cached = closing[cacheKey] { return cached }
+            let balance = isSupplier
+                ? statementForSupplier(key: key, period: over)?.closingBalance
+                : statement(forCustomer: key, period: over)?.closingBalance
+            closing[cacheKey] = balance
+            return balance
+        }
+
         var entries: [DayEntry] = []
 
         for bill in bills where range.contains(bill.createdAt) {
@@ -1277,6 +1305,9 @@ final class StockbookStore {
                     // written on credit it is nothing.
                     settled: bill.total - bill.balance,
                     items: bill.lines.map { DayItem(name: $0.name, qty: $0.qty, amount: $0.lineTotal) },
+                    // Blank only on a record from an older file, which has no
+                    // account and so no balance — see `closingBalance`.
+                    closingBalance: closingFor(Customer.key(for: bill.who), isSupplier: false),
                     at: bill.createdAt
                 )
             )
@@ -1289,6 +1320,7 @@ final class StockbookStore {
                     reference: payment.paymentNo,
                     amount: payment.amount,
                     settled: payment.amount,
+                    closingBalance: closingFor(payment.customerKey, isSupplier: false),
                     at: payment.receivedAt
                 )
             )
@@ -1303,6 +1335,7 @@ final class StockbookStore {
                     // Credited, not paid. Nothing left the cash box.
                     settled: 0,
                     items: note.lines.map { DayItem(name: $0.name, qty: $0.qty, amount: $0.lineTotal) },
+                    closingBalance: closingFor(note.customerKey, isSupplier: false),
                     at: note.issuedAt
                 )
             )
@@ -1319,6 +1352,7 @@ final class StockbookStore {
                     // delivery could hold more than one product keeps its
                     // itemisation only through here.
                     items: purchase.items.map { DayItem(name: $0.name, qty: $0.qty, amount: $0.lineTotal) },
+                    closingBalance: closingFor(purchase.supplierKey, isSupplier: true),
                     at: purchase.createdAt
                 )
             )
@@ -1331,6 +1365,7 @@ final class StockbookStore {
                     reference: payment.paymentNo,
                     amount: payment.amount,
                     settled: payment.amount,
+                    closingBalance: closingFor(payment.supplierKey, isSupplier: true),
                     at: payment.paidAt
                 )
             )
@@ -2885,6 +2920,18 @@ struct DayEntry: Equatable {
     let settled: Double
     /// What was on it, where the record says. Empty for a bill entered as a figure.
     var items: [DayItem] = []
+    /// What the account this landed on stood at when the day closed.
+    ///
+    /// Nil where there is no account: an expense is joined to nobody, and a
+    /// record restored from an older file with no name on it has nothing to be a
+    /// balance of — the same case `dayLedger` skips outright. Nil is not zero:
+    /// zero means settled up, and printing it against something that was never
+    /// on anyone's account would answer a question nobody asked.
+    ///
+    /// **The end of the day, not today.** A page headed with a date in August
+    /// that carried December's figure would be two different claims side by
+    /// side, and the one the owner is reconciling against is the day's.
+    var closingBalance: Double?
     let at: Date
 }
 

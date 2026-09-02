@@ -139,6 +139,19 @@ object DaySummaryPdf {
                 canvas.drawTextRight(row.amount, right, y + ROW_SIZE, body)
                 y += 13
 
+                // Immediately under the row rather than after the products,
+                // because this is what the owner reads the page for: the record
+                // is what happened, and this is where it leaves the person it
+                // happened to. Its figure sits in the same right-hand column the
+                // amounts do, which is how a column of money is read.
+                row.balance?.let { balance ->
+                    room(24f)
+                    val small = paint(BODY_SIZE, grey = true)
+                    canvas.drawText(balance.label, MARGIN, y + BODY_SIZE, small)
+                    canvas.drawTextRight(balance.value, right, y + BODY_SIZE, paint(BODY_SIZE, bold = true))
+                    y += 12
+                }
+
                 // The paper's number, and what is still owed on it. Grey and
                 // under the name, because it qualifies the row rather than
                 // competing with the figure.

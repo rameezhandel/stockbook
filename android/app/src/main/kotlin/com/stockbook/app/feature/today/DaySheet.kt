@@ -241,6 +241,26 @@ private fun DayRow(row: DaySummaryDocument.Row) {
             Text(row.amount, style = NocturneType.rowPrimary, color = Nocturne.text)
         }
 
+        // Immediately under the row rather than after the products, because this
+        // is what the owner is scanning the page for: the record is what
+        // happened, and this is where it leaves the person it happened to. In
+        // the accent, so it can be picked out of a column of grey asides.
+        row.balance?.let { balance ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(top = 1.dp)
+            ) {
+                Text(
+                    balance.label,
+                    style = NocturneType.meta,
+                    color = Nocturne.neutral500,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(balance.value, style = NocturneType.meta, color = Nocturne.accent400)
+            }
+        }
+
         // Indented under the row they belong to, so a bill with four products on
         // it reads as one bill and not as four.
         row.items.forEach { item ->

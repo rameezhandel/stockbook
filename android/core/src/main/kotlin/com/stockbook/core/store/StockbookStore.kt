@@ -266,6 +266,20 @@ data class DayEntry(
     val settled: Double,
     /** What was on it, where the record says. Empty for a bill entered as a figure. */
     val items: List<DayItem> = emptyList(),
+    /**
+     * What the account this landed on stood at when the day closed.
+     *
+     * Null where there is no account: an expense is joined to nobody, and a
+     * record restored from an older file with no name on it has nothing to be a
+     * balance of — the same case [dayLedger] skips outright. Null is not zero:
+     * zero means settled up, and printing it against something that was never on
+     * anyone's account would answer a question nobody asked.
+     *
+     * **The end of the day, not today.** A page headed with a date in August
+     * that carried December's figure would be two different claims side by side,
+     * and the one the owner is reconciling against is the day's.
+     */
+    val closingBalance: Double? = null,
     val at: Instant
 )
 
@@ -1580,6 +1594,34 @@ class StockbookStore(private val repository: StockbookRepository) {
         val customerName = customers().associate { it.key to it.name }
         val supplierName = suppliers().associate { it.key to it.name }
 
+        // Where each account named on this page stood when the day closed.
+        //
+        // **Read out of that account's own statement**, run to the end of this
+        // day, rather than summed again here. The figure under a customer's name
+        // and the figure on the statement they may be handed are the same claim
+        // about the same money, and two calculations of it would eventually
+        // disagree — on the day somebody is holding both pieces of paper.
+        //
+        // The period starts at the first record so nothing is left out of the
+        // opening figure, and ends on this day rather than at now: a page headed
+        // with a date in August that carried December's balance would be two
+        // claims side by side.
+        //
+        // Memoised, because a customer with three bills on one day is one
+        // account and each lookup walks their whole history.
+        val over = StatementPeriod.Custom(minOf(earliestRecord(), day), day)
+        val closing = HashMap<String, Double?>()
+        fun closingFor(key: String, isSupplier: Boolean): Double? {
+            if (key.isBlank()) return null
+            val cacheKey = if (isSupplier) "s:$key" else "c:$key"
+            if (closing.containsKey(cacheKey)) return closing[cacheKey]
+            val balance =
+                if (isSupplier) statementForSupplier(key, over)?.closingBalance
+                else statementForCustomer(key, over)?.closingBalance
+            closing[cacheKey] = balance
+            return balance
+        }
+
         val entries = buildList {
             for (bill in bills.filter { it.createdAt in range }) {
                 add(
@@ -1599,6 +1641,9 @@ class StockbookStore(private val repository: StockbookRepository) {
                         // it; on one written on credit it is nothing.
                         settled = bill.total - bill.balance,
                         items = bill.lines.map { DayItem(it.name, it.qty, it.lineTotal) },
+                        // Blank only on a record from an older file, which has
+                        // no account and so no balance — see `closingBalance`.
+                        closingBalance = closingFor(Customer.key(bill.who), isSupplier = false),
                         at = bill.createdAt
                     )
                 )
@@ -1611,6 +1656,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                         reference = payment.paymentNo,
                         amount = payment.amount,
                         settled = payment.amount,
+                        closingBalance = closingFor(payment.customerKey, isSupplier = false),
                         at = payment.receivedAt
                     )
                 )
@@ -1625,6 +1671,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                         // Credited, not paid. Nothing left the cash box.
                         settled = 0.0,
                         items = note.lines.map { DayItem(it.name, it.qty, it.lineTotal) },
+                        closingBalance = closingFor(note.customerKey, isSupplier = false),
                         at = note.issuedAt
                     )
                 )
@@ -1641,6 +1688,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                         // delivery could hold more than one product keeps its
                         // itemisation only through here.
                         items = purchase.items.map { DayItem(it.name, it.qty, it.lineTotal) },
+                        closingBalance = closingFor(purchase.supplierKey, isSupplier = true),
                         at = purchase.createdAt
                     )
                 )
@@ -1653,6 +1701,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                         reference = payment.paymentNo,
                         amount = payment.amount,
                         settled = payment.amount,
+                        closingBalance = closingFor(payment.supplierKey, isSupplier = true),
                         at = payment.paidAt
                     )
                 )

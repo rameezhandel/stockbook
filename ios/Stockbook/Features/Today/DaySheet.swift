@@ -198,6 +198,23 @@ private struct DayRow: View {
                 Text(row.amount).nocturneText(.rowPrimary)
             }
 
+            // Immediately under the row rather than after the products, because
+            // this is what the owner is scanning the page for: the record is
+            // what happened, and this is where it leaves the person it happened
+            // to. In the accent, so it can be picked out of a column of grey
+            // asides.
+            if let balance = row.balance {
+                HStack(spacing: 8) {
+                    Text(balance.label)
+                        .nocturneText(.meta)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(balance.value)
+                        .nocturneText(.meta)
+                        .foregroundStyle(Nocturne.accent400)
+                }
+                .padding(.top, 1)
+            }
+
             // Indented under the row they belong to, so a bill with four
             // products on it reads as one bill and not as four.
             ForEach(Array(row.items.enumerated()), id: \.offset) { _, item in

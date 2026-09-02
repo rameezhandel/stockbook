@@ -1184,6 +1184,15 @@ struct Strings {
     var moneyOutLabel: String { pick("Money out", "ಹೋದ ಹಣ") }
     var netForTheDay: String { pick("Net for the day", "ದಿನದ ನಿವ್ವಳ") }
     var nothingOnThisDay: String { pick("Nothing was recorded on this day.", "ಈ ದಿನ ಯಾವುದೂ ದಾಖಲಾಗಿಲ್ಲ.") }
+
+    /// The line under a row on the day's page: where that account stood when the
+    /// day closed.
+    ///
+    /// Says **"at day end"** rather than "now". The page is headed with a date
+    /// that is often not today, and a balance labelled as current beside a
+    /// fortnight-old bill would be the one figure on the page a reader could not
+    /// place.
+    var balanceAtDayEnd: String { pick("Balance at day end", "ದಿನದ ಕೊನೆಗೆ ಬಾಕಿ") }
     var previousDay: String { pick("Previous day", "ಹಿಂದಿನ ದಿನ") }
     var nextDay: String { pick("Next day", "ಮುಂದಿನ ದಿನ") }
     func dayFileName(date: String) -> String { "day-\(date).pdf" }
