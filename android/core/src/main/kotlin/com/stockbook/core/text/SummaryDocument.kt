@@ -8,7 +8,7 @@ import com.stockbook.core.model.StatementRange
 import com.stockbook.core.model.Supplier
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
-import com.stockbook.core.store.SpendLine
+import com.stockbook.core.store.TallyLine
 import java.time.Instant
 
 /**
@@ -44,7 +44,17 @@ data class SummaryDocument(
     val totalLabel: String,
     val totalValue: String,
     /** Shown instead of the table when nobody owes anything. */
-    val emptyLine: String
+    val emptyLine: String,
+    /**
+     * One line under the total, where the page owes a fact the column cannot
+     * carry.
+     *
+     * The payments page is the reason it exists: its column is money in, and what
+     * the shop paid out over the same days belongs on the page but not in that
+     * column — a total that is not what the rows above add up to is the figure
+     * the first reader to check it stops trusting. Absent on every other page.
+     */
+    val footnote: String? = null
 ) {
     /**
      * One line: what it is, and what it comes to.
@@ -152,6 +162,94 @@ data class SummaryDocument(
         )
 
         /**
+         * What the shop sold over a stretch of days, by customer.
+         *
+         * Grouped rather than one row per bill, for the reason
+         * `salesByCustomerIn` groups: a month is three hundred bills, and a page
+         * nobody reads through is a page that may as well not print. The bills
+         * themselves are on the screen this was made from.
+         *
+         * @param lines biggest first, which the store already returns.
+         */
+        fun forSales(
+            lines: List<TallyLine>,
+            range: StatementRange,
+            settings: Settings,
+            strings: Strings,
+            currency: Currency = settings.currency
+        ): SummaryDocument = overSpan(
+            lines = lines,
+            range = range,
+            settings = settings,
+            strings = strings,
+            title = strings.salesSummary,
+            nameHeading = strings.columnCustomer,
+            amountHeading = strings.soldInPeriod,
+            totalLabel = strings.totalSoldLabel,
+            emptyLine = strings.nothingSoldThen,
+            detail = { strings.billsCounted(it) },
+            currency = currency
+        )
+
+        /** The mirror: what arrived over the same span, by supplier. */
+        fun forPurchases(
+            lines: List<TallyLine>,
+            range: StatementRange,
+            settings: Settings,
+            strings: Strings,
+            currency: Currency = settings.currency
+        ): SummaryDocument = overSpan(
+            lines = lines,
+            range = range,
+            settings = settings,
+            strings = strings,
+            title = strings.purchaseSummary,
+            nameHeading = strings.supplier,
+            amountHeading = strings.boughtInPeriod,
+            totalLabel = strings.totalBoughtLabel,
+            emptyLine = strings.nothingBoughtThen,
+            detail = { strings.purchasesCounted(it) },
+            currency = currency
+        )
+
+        /**
+         * What customers handed over, by customer — and, under the total, what
+         * the shop paid its suppliers over the same days.
+         *
+         * **Money in is the column; money out is a footnote.** Both directions in
+         * one column would leave a total that is neither the sum of the rows nor
+         * a figure the owner can check against anything, and signing the rows to
+         * make it add up would print `SAR -900` beside a supplier's name — which
+         * reads as a refund, and this app has no notion of one. So the page states
+         * one column honestly and says the other fact in words.
+         *
+         * @param paidOut what went out over the same span, or zero. Left off the
+         *   page entirely when nothing did, rather than printed as "0 paid to
+         *   suppliers", which is a line that makes the reader stop and check.
+         */
+        fun forPayments(
+            lines: List<TallyLine>,
+            paidOut: Double,
+            range: StatementRange,
+            settings: Settings,
+            strings: Strings,
+            currency: Currency = settings.currency
+        ): SummaryDocument = overSpan(
+            lines = lines,
+            range = range,
+            settings = settings,
+            strings = strings,
+            title = strings.paymentsSummary,
+            nameHeading = strings.columnCustomer,
+            amountHeading = strings.receivedInPeriod,
+            totalLabel = strings.totalReceivedLabel,
+            emptyLine = strings.nothingReceivedThen,
+            detail = { strings.receiptsCounted(it) },
+            currency = currency,
+            footnote = if (paidOut > 0) strings.alsoPaidOut(Money.text(paidOut, currency)) else null
+        )
+
+        /**
          * Where the shop's own money went, from `StockbookStore.spendingIn`.
          *
          * The one page here that covers a **stretch of days** rather than a
@@ -161,14 +259,52 @@ data class SummaryDocument(
          * @param lines biggest first, which `spendingIn` already returns.
          */
         fun forSpending(
-            lines: List<SpendLine>,
+            lines: List<TallyLine>,
             range: StatementRange,
             settings: Settings,
             strings: Strings,
             currency: Currency = settings.currency
+        ): SummaryDocument = overSpan(
+            lines = lines,
+            range = range,
+            settings = settings,
+            strings = strings,
+            title = strings.expenseSummary,
+            nameHeading = strings.columnWhatItWentOn,
+            amountHeading = strings.expenseInPeriod,
+            totalLabel = strings.totalSpentLabel,
+            emptyLine = strings.nothingSpentThen,
+            // How often, beside what it came to. "Petrol, 12 times, 780" is a
+            // different fact from "petrol 780", and it is the one that tells the
+            // owner whether to look at the price or the habit.
+            detail = { strings.timesSpent(it) },
+            currency = currency
+        )
+
+        /**
+         * The four pages that cover a **stretch of days** rather than a moment.
+         *
+         * Money owed is a balance and true right now; money sold, bought,
+         * received or spent only means anything over a period, and the header
+         * says which. Everything else about them differs only in wording, so they
+         * differ only in wording here.
+         */
+        private fun overSpan(
+            lines: List<TallyLine>,
+            range: StatementRange,
+            settings: Settings,
+            strings: Strings,
+            title: String,
+            nameHeading: String,
+            amountHeading: String,
+            totalLabel: String,
+            emptyLine: String,
+            detail: (Int) -> String,
+            currency: Currency,
+            footnote: String? = null
         ): SummaryDocument = SummaryDocument(
             shopName = settings.ownerName,
-            title = strings.expenseSummary,
+            title = title,
             asOf = strings.dateSpan(
                 strings.longDate(range.start),
                 // The last day *inside* the range. A period that ends at
@@ -176,21 +312,16 @@ data class SummaryDocument(
                 // September", which nobody reads as August.
                 strings.longDate(range.end.minusSeconds(1))
             ),
-            columnHeadings = listOf(strings.columnWhatItWentOn, strings.expenseInPeriod),
+            columnHeadings = listOf(nameHeading, amountHeading),
             rows = lines.map {
-                Row(
-                    name = it.what,
-                    amount = Money.text(it.total, currency),
-                    // How often, beside what it came to. "Petrol, 12 times, 780"
-                    // is a different fact from "petrol 780", and it is the one
-                    // that tells the owner whether to look at the price or the
-                    // habit.
-                    detail = strings.timesSpent(it.times)
-                )
+                Row(name = it.what, amount = Money.text(it.total, currency), detail = detail(it.times))
             },
-            totalLabel = strings.totalSpentLabel,
+            totalLabel = totalLabel,
+            // Summed from the same figures the rows print, so the foot of the page
+            // can never disagree with the page.
             totalValue = Money.text(lines.sumOf { it.total }, currency),
-            emptyLine = strings.nothingSpentThen
+            emptyLine = emptyLine,
+            footnote = footnote
         )
 
         /**

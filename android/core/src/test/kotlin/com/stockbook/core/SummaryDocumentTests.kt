@@ -302,4 +302,126 @@ class SummaryDocumentTests {
         // The last day *inside* August, not midnight on the 1st of September.
         assertEquals("1 August 2026 to 31 August 2026", document.asOf)
     }
+
+    // --- The three pages the book gained beside the expense summary
+
+    private fun trading(): StockbookStore {
+        val store = store()
+        store.addCustomer("Ahmed")
+        store.addCustomer("Fatima")
+        store.addSupplier("Gulf Traders")
+        store.saveBill(customer = "Ahmed", paid = null, amount = 300.0, createdAt = day)
+        store.saveBill(customer = "Ahmed", paid = null, amount = 200.0, createdAt = day)
+        store.saveBill(customer = "Fatima", paid = null, amount = 900.0, createdAt = day)
+        store.recordPurchase(emptyList(), "gulf traders", amount = 800.0, createdAt = day)
+        store.recordPayment("ahmed", 250.0, receivedAt = day)
+        store.recordSupplierPayment("gulf traders", 600.0, paidAt = day)
+        return store
+    }
+
+    /**
+     * Several bills to one customer are one line and a count, not several rows.
+     * A month is three hundred bills, and the page exists to be read.
+     */
+    @Test
+    fun `the sales page folds a customer's bills into one line`() {
+        val store = trading()
+        val month = StatementPeriod.Month(day)
+
+        val page = SummaryDocument.forSales(
+            store.salesByCustomerIn(month), month.range(), store.settings, strings
+        )
+
+        assertEquals(2, page.rows.size, "one row each, not one per bill")
+        assertEquals("Fatima", page.rows.first().name, "biggest first")
+        assertEquals("2 bills", page.rows.last().detail)
+    }
+
+    /**
+     * The foot of every one of these pages is the figure the card above the list
+     * was showing. Two answers to one question is the whole thing they exist to
+     * avoid.
+     */
+    @Test
+    fun `each page's total is the shop's own figure for that span`() {
+        val store = trading()
+        val month = StatementPeriod.Month(day)
+        val range = month.range()
+
+        val sales = SummaryDocument.forSales(
+            store.salesByCustomerIn(month), range, store.settings, strings
+        )
+        val purchases = SummaryDocument.forPurchases(
+            store.purchasesBySupplierIn(month), range, store.settings, strings
+        )
+        val payments = SummaryDocument.forPayments(
+            store.receiptsByCustomerIn(month), store.paidOutIn(month), range, store.settings, strings
+        )
+
+        val currency = store.settings.currency
+        assertEquals(Money.text(store.soldIn(month), currency), sales.totalValue)
+        assertEquals(Money.text(store.boughtIn(month), currency), purchases.totalValue)
+        assertEquals(Money.text(store.receivedIn(month), currency), payments.totalValue)
+    }
+
+    /**
+     * Money out is stated, but never inside a column of money in.
+     *
+     * A total that is not what the rows above add up to is the figure the first
+     * reader to check it stops trusting — so what the shop paid its suppliers
+     * goes under the total, in words.
+     */
+    @Test
+    fun `the payments page states what went out without counting it in`() {
+        val store = trading()
+        val month = StatementPeriod.Month(day)
+
+        val page = SummaryDocument.forPayments(
+            store.receiptsByCustomerIn(month), store.paidOutIn(month), month.range(), store.settings, strings
+        )
+
+        assertEquals(1, page.rows.size, "the vouchers are not rows")
+        assertEquals(Money.text(250.0, store.settings.currency), page.totalValue)
+        assertNotNull(page.footnote)
+        assertTrue(page.footnote!!.contains("600"), "and says what went out: ${page.footnote}")
+    }
+
+    /** No footnote where nothing went out — "0 paid to suppliers" is a line that makes the reader stop. */
+    @Test
+    fun `a span with no vouchers has no footnote`() {
+        val store = store()
+        store.addCustomer("Ahmed")
+        store.recordPayment("ahmed", 250.0, receivedAt = day)
+        val month = StatementPeriod.Month(day)
+
+        val page = SummaryDocument.forPayments(
+            store.receiptsByCustomerIn(month), store.paidOutIn(month), month.range(), store.settings, strings
+        )
+
+        assertEquals(null, page.footnote)
+    }
+
+    /** Nothing in the span is a sentence, not an empty table. */
+    @Test
+    fun `an empty span says so on each of the three`() {
+        val store = trading()
+        val quiet = StatementPeriod.Month(Instant.parse("2026-02-10T09:00:00Z"))
+        val range = quiet.range()
+
+        assertTrue(
+            SummaryDocument.forSales(
+                store.salesByCustomerIn(quiet), range, store.settings, strings
+            ).isEmpty
+        )
+        assertTrue(
+            SummaryDocument.forPurchases(
+                store.purchasesBySupplierIn(quiet), range, store.settings, strings
+            ).isEmpty
+        )
+        assertTrue(
+            SummaryDocument.forPayments(
+                store.receiptsByCustomerIn(quiet), store.paidOutIn(quiet), range, store.settings, strings
+            ).isEmpty
+        )
+    }
 }

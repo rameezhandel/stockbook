@@ -41,10 +41,16 @@ data class DraftLine(
 )
 
 /**
- * What the shop spent on one thing over a stretch of days: what it was, how many
- * times, and what that came to.
+ * A group of records folded to one line: what it was, how many of them, and what
+ * they came to.
+ *
+ * One shape for four questions — what the shop spent on petrol, what it sold to
+ * Ahmed, what it bought from Gulf Traders, what Ahmed handed over. Each is a pile
+ * of records grouped by a name and added up, and the summary page that prints any
+ * of them wants exactly these three fields. It was called `SpendLine` while
+ * spending was the only one of the four with a page.
  */
-data class SpendLine(val what: String, val times: Int, val total: Double)
+data class TallyLine(val what: String, val times: Int, val total: Double)
 
 /**
  * What a stretch of trading actually left the shop with.
@@ -1461,20 +1467,20 @@ class StockbookStore(private val repository: StockbookRepository) {
      * suggestion list, arguably more: three lines for one thing does not just
      * look untidy, it hides how much the shop actually spends on it.
      */
-    fun spendingIn(period: StatementPeriod): List<SpendLine> {
+    fun spendingIn(period: StatementPeriod): List<TallyLine> {
         val range = period.range()
         return expenses
             .filter { it.spentAt in range && it.note.isNotBlank() }
             .groupBy { it.note.trim().lowercase() }
             .values
             .map { group ->
-                SpendLine(
+                TallyLine(
                     what = group.maxBy { it.spentAt }.note.trim(),
                     times = group.size,
                     total = group.sumOf { it.amount }
                 )
             }
-            .sortedWith(compareByDescending<SpendLine> { it.total }.thenBy { it.what })
+            .sortedWith(compareByDescending<TallyLine> { it.total }.thenBy { it.what })
     }
 
     /**
@@ -1809,6 +1815,68 @@ class StockbookStore(private val repository: StockbookRepository) {
             )
             .take(limit)
     }
+
+    /**
+     * What the shop sold over [period], folded to one line per customer, biggest
+     * first.
+     *
+     * The sales twin of [spendingIn], and grouped for the same reason: a month is
+     * three hundred bills and nobody reads three hundred rows. "Ahmed, 12 bills,
+     * 4,300" is the answer; the bills themselves are on the screen the page was
+     * made from.
+     *
+     * Grouped by the customer's **key**, not the typed name, so "Ahmed" and
+     * "ahmed " are one line rather than two — and shown under the name the roster
+     * spells, which is the one on every other page.
+     */
+    fun salesByCustomerIn(period: StatementPeriod): List<TallyLine> =
+        tally(billsIn(period).map { Triple(it.who.trim().lowercase(), it.who, it.total) })
+
+    /** The same page pointed the other way: what arrived, by supplier. */
+    fun purchasesBySupplierIn(period: StatementPeriod): List<TallyLine> =
+        tally(
+            purchasesIn(period).map {
+                Triple(it.supplierKey, supplier(it.supplierKey)?.name ?: it.supplierKey, it.total)
+            }
+        )
+
+    /**
+     * What customers actually handed over inside [period], by customer.
+     *
+     * Money in only. What went out to suppliers is a figure on the same page
+     * rather than a row in this column — [SummaryDocument.forPayments] says why a
+     * column that mixed the two would be a column nobody can add up.
+     */
+    fun receiptsByCustomerIn(period: StatementPeriod): List<TallyLine> =
+        tally(
+            paymentsIn(period).map {
+                Triple(it.customerKey, customer(it.customerKey)?.name ?: it.customerKey, it.amount)
+            }
+        )
+
+    /**
+     * Groups (key, display name, amount) into lines, biggest first.
+     *
+     * The name shown is the **most recent** spelling in the group, which is what
+     * [spendingIn] settled on for the same reason: three lines for one thing does
+     * not just look untidy, it hides how much the shop actually does with them.
+     *
+     * Ties break on the name so two customers who spent the same come out in the
+     * same order every time, rather than in whatever order the records happened
+     * to be walked in.
+     */
+    private fun tally(entries: List<Triple<String, String, Double>>): List<TallyLine> =
+        entries
+            .groupBy { it.first }
+            .values
+            .map { group ->
+                TallyLine(
+                    what = group.first().second,
+                    times = group.size,
+                    total = group.sumOf { it.third }
+                )
+            }
+            .sortedWith(compareByDescending<TallyLine> { it.total }.thenBy { it.what })
 
     /** How many bills the shop wrote in [period]. */
     fun billCountIn(period: StatementPeriod): Int {

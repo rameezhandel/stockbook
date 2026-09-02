@@ -131,6 +131,15 @@ object SummaryPdf {
         canvas.drawText(document.totalLabel, MARGIN, y + ROW_SIZE, paint(ROW_SIZE, bold = true))
         canvas.drawTextRight(document.totalValue, right, y + ROW_SIZE, paint(ROW_SIZE, bold = true))
 
+        // The fact the column could not carry, set small and grey under the total
+        // so it is plainly not another row. Only the payments page has one: what
+        // the shop paid out over the same days, which belongs on the page but not
+        // in a column of money coming in.
+        document.footnote?.let {
+            y += 17
+            canvas.drawText(it, MARGIN, y + BODY_SIZE, paint(BODY_SIZE, grey = true))
+        }
+
         pdf.finishPage(page)
         return pdf.saveTo(into, fileName)
     }

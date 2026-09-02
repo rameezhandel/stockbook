@@ -1166,6 +1166,40 @@ struct Strings {
     func receivableFileName(date: String) -> String { "receivable-\(date).pdf" }
     func payableFileName(date: String) -> String { "payable-\(date).pdf" }
     func expenseFileName(date: String) -> String { "expenses-\(date).pdf" }
+
+    // MARK: - The other three summary pages the book can make
+
+    var salesSummary: String { pick("Sales Summary", "ಮಾರಾಟದ ಸಾರಾಂಶ") }
+    var purchaseSummary: String { pick("Purchase Summary", "ಖರೀದಿಯ ಸಾರಾಂಶ") }
+    // Says "received" rather than "payments", because the column on it is money
+    // in and the page would otherwise promise the vouchers as well. What went out
+    // is under the total, on one line, where it cannot be mistaken for a row.
+    var paymentsSummary: String { pick("Payments Received", "ಸ್ವೀಕರಿಸಿದ ಪಾವತಿಗಳು") }
+
+    var totalSoldLabel: String { pick("Total sold", "ಒಟ್ಟು ಮಾರಾಟ") }
+    var totalBoughtLabel: String { pick("Total bought", "ಒಟ್ಟು ಖರೀದಿ") }
+    var totalReceivedLabel: String { pick("Total received", "ಒಟ್ಟು ಸ್ವೀಕೃತಿ") }
+
+    var nothingBoughtThen: String {
+        pick("Nothing bought in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಖರೀದಿ ಇಲ್ಲ.")
+    }
+    var nothingReceivedThen: String {
+        pick("Nothing received in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಏನೂ ಸ್ವೀಕರಿಸಿಲ್ಲ.")
+    }
+
+    // The aside beside a name on those pages, the way `timesSpent` is beside a
+    // thing on the expense page. Singular where one reads better than "1 bills".
+    func billsCounted(_ n: Int) -> String { pick(n == 1 ? "1 bill" : "\(n) bills", "\(n) ಬಿಲ್") }
+    func purchasesCounted(_ n: Int) -> String {
+        pick(n == 1 ? "1 purchase" : "\(n) purchases", "\(n) ಖರೀದಿ")
+    }
+    func receiptsCounted(_ n: Int) -> String {
+        pick(n == 1 ? "1 receipt" : "\(n) receipts", "\(n) ರಸೀದಿ")
+    }
+
+    func salesFileName(date: String) -> String { "sales-\(date).pdf" }
+    func purchasesFileName(date: String) -> String { "purchases-\(date).pdf" }
+    func paymentsFileName(date: String) -> String { "payments-\(date).pdf" }
     /// The button under every page this app makes: the statement, the
     /// receivable and payable lists, the expense summary, the day.
     ///

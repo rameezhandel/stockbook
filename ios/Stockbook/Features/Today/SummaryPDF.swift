@@ -108,6 +108,15 @@ enum SummaryPDF {
             y += 6
             document.totalLabel.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(rowSize, bold: true))
             drawRight(document.totalValue, rightEdge: right, y: y, attributes: attributes(rowSize, bold: true))
+
+            // The fact the column could not carry, set small and grey under the
+            // total so it is plainly not another row. Only the payments page has
+            // one: what the shop paid out over the same days, which belongs on the
+            // page but not in a column of money coming in.
+            if let footnote = document.footnote {
+                y += 17
+                footnote.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, muted: true))
+            }
         }
 
         return url

@@ -212,20 +212,12 @@ private fun Shell(store: StockbookStore) {
                         store = store,
                         router = router,
                         strings = strings,
-                        onSaveExpenses = { period ->
-                            sharePdf(
-                                context,
-                                SummaryPdf.write(
-                                    SummaryDocument.forSpending(
-                                        store.spendingIn(period),
-                                        period.range(),
-                                        state.settings,
-                                        strings
-                                    ),
-                                    context,
-                                    strings.expenseFileName(Dates.fileDate(Timestamps.now()))
-                                )
-                            )
+                        // The screen builds the page, because it is the screen
+                        // that knows which of the four chips is showing. This end
+                        // only renders and hands it out, the way it does for every
+                        // other document the app makes.
+                        onSaveSummary = { document, fileName ->
+                            sharePdf(context, SummaryPdf.write(document, context, fileName))
                         },
                         onSaveLedgerBook = {
                             // One document, a page per customer, drawn through

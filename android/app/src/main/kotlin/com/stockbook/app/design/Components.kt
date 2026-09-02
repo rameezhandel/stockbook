@@ -484,13 +484,20 @@ fun FadedRule(modifier: Modifier = Modifier, inset: Dp = 24.dp) {
 }
 
 /**
- * One of two or three answers, all of them on screen at once: an icon, a word,
- * and an accent outline on the one in force.
+ * One of two to four answers, all of them on screen at once: an icon, a word,
+ * and **the one in force filled in accent**.
  *
  * Where a dropdown hides the alternatives behind a tap, this shows them — the
  * right trade for a short list somebody chooses by comparing (full payment
  * against part payment, dark against light) and the wrong one for fourteen
  * currencies.
+ *
+ * **Filled rather than outlined, the way `PeriodPicker`'s chips are.** An accent
+ * outline against a dark surface is most of a hairline's worth of difference, and
+ * on a row of four it stopped reading as a selection at all — the owner could not
+ * tell at a glance which half of the book they were looking at. Both rows on the
+ * book's screen answer "which one of these", so both answer it the same way; the
+ * span row stays shorter, which is what keeps them apart.
  *
  * Started life as `PaymentPill` inside the cart, and moved here the second time a
  * screen needed it rather than the third.
@@ -513,19 +520,27 @@ fun ChoicePill(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .height(38.dp)
+            // Clipped before it is filled, or the accent squares off the corners
+            // the hairline is drawing round.
+            .clip(RoundedCornerShape(Metrics.controlRadius))
+            .background(if (selected) Nocturne.accent else Color.Transparent)
             .hairline(if (selected) Nocturne.accent else Nocturne.neutral800, Metrics.controlRadius)
             .clickable(onClick = onClick)
     ) {
         if (icon != null) {
-            Glyph(icon, size = 14.dp, tint = if (selected) Nocturne.accent else Nocturne.neutral500)
+            Glyph(icon, size = 14.dp, tint = if (selected) Nocturne.bg else Nocturne.neutral500)
             Spacer(Modifier.width(6.dp))
         }
         Text(
             title,
             style = NocturneType.inter(13.0, FontWeight.Medium),
-            color = if (selected) Nocturne.accent else Nocturne.neutral500,
+            // The page's own background on the filled one, which is the only
+            // colour guaranteed to have contrast against the accent in both
+            // themes — a fixed white would vanish on the light one.
+            color = if (selected) Nocturne.bg else Nocturne.neutral500,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 6.dp)
         )
     }
 }

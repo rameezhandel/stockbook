@@ -45,10 +45,12 @@ import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
+import com.stockbook.core.text.Dates
 import com.stockbook.core.store.DayEntryKind
 import com.stockbook.core.store.SearchHit
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.Strings
+import com.stockbook.core.text.SummaryDocument
 import java.time.Instant
 
 /**
@@ -84,8 +86,14 @@ fun BookScreen(
     store: StockbookStore,
     router: AppRouter,
     strings: Strings,
-    /** Renders the spending on screen as a page and hands it to the chooser. */
-    onSaveExpenses: (StatementPeriod) -> Unit,
+    /**
+     * Renders the page this screen built and hands it to the chooser.
+     *
+     * The document comes from here rather than from the caller, because which of
+     * the four pages it is depends on which chip is showing — and that is a fact
+     * this screen owns.
+     */
+    onSaveSummary: (SummaryDocument, fileName: String) -> Unit,
     /**
      * Renders every customer's whole history as one document.
      *
@@ -313,9 +321,11 @@ fun BookScreen(
                     },
                     // The span the total covers is the span the page covers, so
                     // the button that makes it lives in the total's own corner.
-                    // Spending is the only one of the four with a page to make;
-                    // a sales summary is a document this app does not have yet.
-                    onShare = if (side == Side.EXPENSES && total > 0) ({ onSaveExpenses(period) }) else null,
+                    // All four make one now; a page saying nothing happened is a
+                    // page nobody needs, so it appears only where something did.
+                    onShare = if (total > 0) ({
+                        onSaveSummary(summaryPage(side, store, period, state, strings), summaryFileName(side, strings))
+                    }) else null,
                     shareLabel = strings.sharePdf
                 )
                 Spacer(Modifier.height(20.dp))
@@ -468,6 +478,52 @@ fun BookScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * The page behind the share button, whichever chip is showing.
+ *
+ * Built from the same store calls the card's own figure came from, so the total
+ * on the page and the total above the list are one number read twice rather than
+ * two answers to one question.
+ *
+ * A `when` with no `else`, so a fifth chip has to be given a page rather than
+ * quietly handing out the last one's.
+ */
+private fun summaryPage(
+    side: Side,
+    store: StockbookStore,
+    period: StatementPeriod,
+    state: ShopState,
+    strings: Strings
+): SummaryDocument = when (side) {
+    Side.SALES -> SummaryDocument.forSales(
+        store.salesByCustomerIn(period), period.range(), state.settings, strings
+    )
+    Side.PURCHASES -> SummaryDocument.forPurchases(
+        store.purchasesBySupplierIn(period), period.range(), state.settings, strings
+    )
+    Side.PAYMENTS -> SummaryDocument.forPayments(
+        store.receiptsByCustomerIn(period),
+        store.paidOutIn(period),
+        period.range(),
+        state.settings,
+        strings
+    )
+    Side.EXPENSES -> SummaryDocument.forSpending(
+        store.spendingIn(period), period.range(), state.settings, strings
+    )
+}
+
+/** Named for what is on it, and dated so two months' pages do not overwrite. */
+private fun summaryFileName(side: Side, strings: Strings): String {
+    val date = Dates.fileDate(Timestamps.now())
+    return when (side) {
+        Side.SALES -> strings.salesFileName(date)
+        Side.PURCHASES -> strings.purchasesFileName(date)
+        Side.PAYMENTS -> strings.paymentsFileName(date)
+        Side.EXPENSES -> strings.expenseFileName(date)
     }
 }
 

@@ -278,16 +278,16 @@ struct BookScreen: View {
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
         .hairline(radius: Metrics.cardRadius)
         // The span the total covers is the span the page covers, so the button
-        // that makes it lives in the total's own corner. Spending is the only one
-        // of the four with a page to make; a sales summary is a document this app
-        // does not have yet.
+        // that makes it lives in the total's own corner. All four make one now; a
+        // page saying nothing happened is a page nobody needs, so it appears only
+        // where something did.
         //
         // An overlay rather than a row above the figure, because a tap target on
         // the label's own line would push the figure a third of the card down to
         // make room for it.
         .overlay(alignment: .topTrailing) {
-            if side == .expenses, total > 0 {
-                Button(action: saveSpending) { Glyph(Icon.share, size: 15) }
+            if total > 0 {
+                Button(action: saveSummary) { Glyph(Icon.share, size: 15) }
                     .buttonStyle(.iconOnly)
                     .foregroundStyle(Nocturne.accent)
                     .accessibilityLabel(Loc.sharePdf)
@@ -508,24 +508,66 @@ struct BookScreen: View {
         file = StatementFile(url: url)
     }
 
-    /// The span's spending, broken down by what it went on.
+    /// The page behind the share button, whichever chip is showing.
+    ///
+    /// Built from the same store calls the card's own figure came from, so the
+    /// total on the page and the total above the list are one number read twice
+    /// rather than two answers to one question.
     ///
     /// A failure leaves `file` nil and nothing opens, for the reason above: there
     /// is no half-written page worth offering, and the figures are still on
     /// screen.
-    private func saveSpending() {
+    private func saveSummary() {
         let period = self.period
-        let document = SummaryDocument.forSpending(
-            lines: store.spendingIn(period),
-            range: period.range(),
-            settings: store.settings,
-            strings: Loc
-        )
-        guard let url = try? SummaryPDF.write(
-            document,
-            fileName: Loc.expenseFileName(date: Copy.fileDate(.now))
-        ) else { return }
+        let range = period.range()
+        // A `switch` with no `default`, so a fifth chip has to be given a page
+        // rather than quietly handing out the last one's.
+        let document: SummaryDocument
+        switch side {
+        case .sales:
+            document = .forSales(
+                lines: store.salesByCustomerIn(period),
+                range: range,
+                settings: store.settings,
+                strings: Loc
+            )
+        case .purchases:
+            document = .forPurchases(
+                lines: store.purchasesBySupplierIn(period),
+                range: range,
+                settings: store.settings,
+                strings: Loc
+            )
+        case .payments:
+            document = .forPayments(
+                lines: store.receiptsByCustomerIn(period),
+                paidOut: store.paidOutIn(period),
+                range: range,
+                settings: store.settings,
+                strings: Loc
+            )
+        case .expenses:
+            document = .forSpending(
+                lines: store.spendingIn(period),
+                range: range,
+                settings: store.settings,
+                strings: Loc
+            )
+        }
+
+        guard let url = try? SummaryPDF.write(document, fileName: summaryFileName) else { return }
         file = StatementFile(url: url)
+    }
+
+    /// Named for what is on it, and dated so two months' pages do not overwrite.
+    private var summaryFileName: String {
+        let date = Copy.fileDate(.now)
+        switch side {
+        case .sales: return Loc.salesFileName(date: date)
+        case .purchases: return Loc.purchasesFileName(date: date)
+        case .payments: return Loc.paymentsFileName(date: date)
+        case .expenses: return Loc.expenseFileName(date: date)
+        }
     }
 
     /// Which kind of record is showing.
