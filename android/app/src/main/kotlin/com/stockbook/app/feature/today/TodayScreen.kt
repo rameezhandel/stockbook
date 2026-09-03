@@ -230,19 +230,32 @@ fun TodayScreen(
             // tab, one tap away, on the screen the owner lands on. Nothing else in
             // the app volunteers that something is running out, and it is the one
             // thing here they can act on while standing at the counter.
-            item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 9.dp)
-                ) {
-                    Kicker(strings.runningLow, modifier = Modifier.weight(1f))
-                    GhostButton(strings.all, onClick = { router.tab = com.stockbook.core.text.AppTab.ITEMS })
-                }
-            }
-
             val low = state.products
                 .filter { it.isLow(state.settings.lowStockAt) }
                 .sortedBy { it.stock }
+
+            // **Nothing to act on, nothing on the screen.** This section used to
+            // say "Nothing running low" under its own heading, on the argument
+            // that a blank space reads as a section that failed to load. It
+            // reads instead as a heading that earns its space on the days it has
+            // nothing to say — which, for a shop that keeps its shelves stocked,
+            // is most of them. A section that only appears when it matters is
+            // noticed when it does.
+            //
+            // The empty shelf is a different case and keeps its prompt: a shop
+            // with no products at all has not got started, and this is the only
+            // place in the app that says so.
+            if (state.products.isEmpty() || low.isNotEmpty()) {
+                item {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 9.dp)
+                    ) {
+                        Kicker(strings.runningLow, modifier = Modifier.weight(1f))
+                        GhostButton(strings.all, onClick = { router.tab = com.stockbook.core.text.AppTab.ITEMS })
+                    }
+                }
+            }
 
             when {
                 state.products.isEmpty() -> item {
@@ -250,17 +263,6 @@ fun TodayScreen(
                         message = strings.shelfEmpty,
                         actionTitle = strings.addAProduct,
                         onAction = { router.openNewProduct() }
-                    )
-                }
-
-                low.isEmpty() -> item {
-                    // Said rather than left blank. An empty space here reads as a
-                    // section that failed to load; one line reads as good news.
-                    Text(
-                        strings.nothingRunningLow,
-                        style = NocturneType.meta,
-                        color = Nocturne.neutral500,
-                        modifier = Modifier.padding(bottom = Metrics.rowGap)
                     )
                 }
 

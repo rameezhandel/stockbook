@@ -347,30 +347,24 @@ struct StatementScreen: View {
 
     // MARK: Sharing
 
-    /// Two ways out, side by side. The app makes no network call either way; the
-    /// OS does whatever the owner picks.
+    /// One way out, and it is the document. The app makes no network call; the OS
+    /// does whatever the owner picks.
     ///
-    /// Plain text is the quick one — a WhatsApp line, which is how a statement
-    /// usually reaches a customer here. The PDF is the document somebody files
-    /// beside their supplier statements, and it is the same figures either way.
+    /// There was a plain-text share beside this for a quick message, and it was a
+    /// second rendering of the same figures with none of the page's wording,
+    /// arithmetic or letterhead — a statement somebody could quote back that the
+    /// app would not recognise as its own.
     private func shareRow(_ statement: Statement) -> some View {
-        HStack(spacing: 8) {
-            ShareLink(item: plainText(statement)) {
-                Label(Loc.share, systemImage: Icon.share)
-            }
-            .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
-
-            Button(Loc.sharePdf) { makePDF(statement) }
-                .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
-        }
-        .padding(.top, 10)
+        Button(Loc.sharePdf) { makePDF(statement) }
+            .buttonStyle(PrimaryButtonStyle(fullWidth: true, height: 44, fontSize: 13.5))
+            .padding(.top, 10)
     }
 
     /// Renders the document to a file and hands the URL to the share sheet.
     ///
     /// A failure leaves `pdfFile` nil and nothing opens, which is the honest
-    /// outcome: there is no half-written statement worth offering, and the owner
-    /// still has the plain-text button beside it.
+    /// outcome: there is no half-written statement worth offering, and the
+    /// figures are still on screen.
     private func makePDF(_ statement: Statement) {
         let document = StatementDocument.make(
             statement: statement,
@@ -386,47 +380,5 @@ struct StatementScreen: View {
             fileName: Loc.statementFileName(name: slug, date: Copy.fileDate(.now))
         ) else { return }
         pdfFile = StatementFile(url: url)
-    }
-
-    private func plainText(_ statement: Statement) -> String {
-        var lines: [String] = []
-        if !store.settings.ownerName.isBlank { lines.append(store.settings.ownerName) }
-        lines.append("\(Loc.statement) — \(statement.party.name)")
-        lines.append(Loc.dateSpan(from: Loc.longDate(statement.range.start), to: Loc.longDate(lastDay(of: statement.range))))
-        lines.append("")
-        lines.append("\(Loc.openingBalance): \(Money.text(statement.openingBalance, in: currency))")
-
-        for (index, entry) in statement.entries.enumerated() {
-            let balance = Money.text(statement.runningBalances[index], in: currency)
-            switch entry {
-            case .bill(let bill):
-                lines.append("\(Loc.longDate(bill.createdAt))  \(reference(entry))  \(Money.text(bill.total, in: currency))  →  \(balance)")
-            case .payment(let payment):
-                lines.append("\(Loc.longDate(payment.receivedAt))  \(reference(entry))  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
-            case .creditNote(let note):
-                lines.append("\(Loc.longDate(note.issuedAt))  \(reference(entry))  − \(Money.text(note.total, in: currency))  →  \(balance)")
-            case .purchase(let purchase):
-                lines.append("\(Loc.longDate(purchase.createdAt))  \(reference(entry))  \(deliveryDetail(purchase))  \(Money.text(purchase.total, in: currency))  →  \(balance)")
-            case .supplierPayment(let payment):
-                lines.append("\(Loc.longDate(payment.paidAt))  \(reference(entry))  − \(Money.text(payment.amount, in: currency))  →  \(balance)")
-            case .transfer:
-                lines.append("\(Loc.longDate(entry.date))  \(reference(entry))  \(amountText(entry))  →  \(balance)")
-            }
-        }
-
-        lines.append("")
-        lines.append("\(chargedLabel(statement)): \(Money.text(statement.billed, in: currency))")
-        lines.append("\(settledLabel(statement)): \(Money.text(statement.received, in: currency))")
-        if statement.credited > 0 {
-            lines.append("\(Loc.creditNotes): \(Money.text(statement.credited, in: currency))")
-        }
-        if statement.transferredIn > 0 {
-            lines.append("\(Loc.transferredInLabel): \(Money.text(statement.transferredIn, in: currency))")
-        }
-        if statement.transferredOut > 0 {
-            lines.append("\(Loc.transferredOutLabel): \(Money.text(statement.transferredOut, in: currency))")
-        }
-        lines.append("\(Loc.closingBalance): \(closingText(statement))")
-        return lines.joined(separator: "\n")
     }
 }

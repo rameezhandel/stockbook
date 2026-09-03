@@ -103,7 +103,6 @@ struct Strings {
     // while standing at the counter — and the shelf running out is the one thing
     // nothing else in the app volunteers.
     var runningLow: String { pick("Running low", "ಕಡಿಮೆ ಆಗುತ್ತಿದೆ") }
-    var nothingRunningLow: String { pick("Nothing running low.", "ಯಾವುದೂ ಕಡಿಮೆ ಆಗಿಲ್ಲ.") }
 
     func greeting(_ firstName: String) -> String {
         pick("Hello, \(firstName)", "ನಮಸ್ಕಾರ, \(firstName)")

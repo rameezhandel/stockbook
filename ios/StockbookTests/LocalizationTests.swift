@@ -20,7 +20,7 @@ struct LocalizationTests {
         \.all, \.share, \.back, \.continueAction,
         \.next, \.startABill, \.addAProduct, \.today,
         \.settings, \.soldInPeriod, \.boughtInPeriod, \.receivableStat, \.payableStat, \.billsStat,
-        \.runningLow, \.nothingRunningLow,
+        \.runningLow,
         \.itemsTitle, \.search, \.nothingAddedYet, \.shelfEmpty, \.itemsRecordDelivery,
         \.billsTitle, \.noBillsEver, \.editBill, \.saveChanges, \.removeBill, \.removeBillNote,
         \.allCustomers, \.customerLabel, \.transactions, \.pendingPayment,

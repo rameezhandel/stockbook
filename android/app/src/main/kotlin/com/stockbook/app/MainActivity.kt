@@ -39,6 +39,7 @@ import com.stockbook.app.feature.book.PurchaseSheet
 import com.stockbook.app.feature.customers.CreditNoteSheet
 import com.stockbook.app.feature.customers.CustomerEditorSheet
 import com.stockbook.app.feature.customers.PaymentReceiptOverlay
+import com.stockbook.app.feature.customers.PaymentReceiptSheet
 import com.stockbook.app.feature.customers.PaymentReceiptPdf
 import com.stockbook.app.feature.customers.RecordPaymentSheet
 import com.stockbook.app.feature.customers.PaySupplierSheet
@@ -314,7 +315,6 @@ private fun Shell(store: StockbookStore) {
                 store = store,
                 currency = state.settings.currency,
                 strings = strings,
-                onShare = { text -> shareText(context, text) },
                 onSharePdf = { document ->
                     sharePdf(
                         context,
@@ -357,7 +357,6 @@ private fun Shell(store: StockbookStore) {
                 store = store,
                 currency = state.settings.currency,
                 strings = strings,
-                onShare = { text -> shareText(context, text) },
                 onSharePdf = { document ->
                     sharePdf(
                         context,
@@ -708,36 +707,59 @@ private fun Shell(store: StockbookStore) {
             }
         }
 
+        // **Two shapes for one page.** A payment just taken takes the whole
+        // screen, the way a saved bill does: it is a confirmation, and the owner
+        // turns it round to the customer. The same slip looked up afterwards is a
+        // sheet over whatever they were reading, the way an opened bill is —
+        // taking the screen for it read as something having happened, and left
+        // nothing behind it to go back to.
         router.paymentReceipt?.let { receipt ->
-            // Nothing is lost by leaving: the payment is written, and this page
-            // only states it. The same reasoning the bill's receipt settled on.
-            BackHandler { router.paymentReceipt = null }
             val document = PaymentReceiptDocument.make(
                 receipt,
                 state.settings,
                 strings
             )
-            PaymentReceiptOverlay(
-                document = document,
-                // Only a payment just taken gets the tick. The same page reached
-                // from a correction is a document being looked up.
-                justSaved = router.paymentReceiptIsNew,
-                strings = strings,
-                onSharePdf = {
-                    sharePdf(
+            val share = {
+                sharePdf(
+                    context,
+                    PaymentReceiptPdf.write(
+                        document,
                         context,
-                        PaymentReceiptPdf.write(
-                            document,
-                            context,
-                            strings.receiptFileName(
-                                document.partyName.replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').lowercase(),
-                                Dates.fileDate(receipt.at)
-                            )
+                        strings.receiptFileName(
+                            document.partyName.replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').lowercase(),
+                            Dates.fileDate(receipt.at)
                         )
                     )
-                },
-                onClose = { router.paymentReceipt = null }
-            )
+                )
+            }
+
+            if (router.paymentReceiptIsNew) {
+                // Nothing is lost by leaving: the payment is written, and this
+                // page only states it. The same reasoning the bill's receipt
+                // settled on.
+                BackHandler { router.paymentReceipt = null }
+                PaymentReceiptOverlay(
+                    document = document,
+                    strings = strings,
+                    onSharePdf = share,
+                    onClose = { router.paymentReceipt = null }
+                )
+            } else {
+                // `BottomSheet` registers its own back handler, so there is none
+                // here — a second would take the press first and close the sheet
+                // twice over.
+                BottomSheet(
+                    visible = true,
+                    onDismiss = { router.paymentReceipt = null }
+                ) {
+                    PaymentReceiptSheet(
+                        document = document,
+                        strings = strings,
+                        onSharePdf = share,
+                        onClose = { router.paymentReceipt = null }
+                    )
+                }
+            }
         }
     }
 }
@@ -781,21 +803,13 @@ private fun shareBillPdf(
 }
 
 /**
- * Hands text to whatever the owner picks — a message, a note, a printer app.
+ * Hands a file to whatever the owner picks — a message, a note, a printer app.
  *
  * `ACTION_SEND` is a hand-off, not a network call: this app opens no socket and
  * has no permission to. What happens next belongs to the app the owner chose.
- */
-private fun shareText(context: android.content.Context, text: String) {
-    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(android.content.Intent.EXTRA_TEXT, text)
-    }
-    context.startActivity(android.content.Intent.createChooser(intent, null))
-}
-
-/**
- * The same hand-off, carrying a file.
+ *
+ * There was a plain-text twin of this until every screen that shared went to
+ * sharing the document instead.
  *
  * The URI comes from the app's own `FileProvider` and is granted read access for
  * the life of the chooser — a path would be unreadable to whatever app the owner

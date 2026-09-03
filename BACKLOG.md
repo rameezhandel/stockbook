@@ -59,6 +59,31 @@ Play will grant production access at all.
 
 ## Settled, so nobody reopens them
 
+- **Share text is gone; every screen shares the document — done.** The statement
+  had a plain-text button beside the PDF, for a quick message. It was a second
+  rendering of the same figures with none of the page's wording, arithmetic or
+  letterhead: a statement somebody could quote back that the app would not
+  recognise as its own. The bill screens lost theirs earlier; this was the last.
+  `shareText` on Android went with it.
+
+- **The receipt has two shapes — done.** A payment just taken is full-screen,
+  the way a saved bill is: a confirmation with a tick, the page the owner turns
+  to face the customer. The same slip looked up afterwards is a **sheet**, the
+  way an opened bill is — taking the whole screen for it read as something
+  having just happened and left nothing behind it to go back to.
+  `PaymentReceiptSheet` is the second shape; both draw one shared body.
+
+- **Running low shows nothing when nothing is low — done.** It used to print
+  "Nothing running low" under its own heading, on the argument that a blank
+  space reads as a section that failed to load. It reads instead as a heading
+  earning its space on the days it has nothing to say, which for a stocked shop
+  is most of them. The empty-shelf prompt stays: a shop with no products at all
+  has not got started, and this is the only place that says so.
+
+- **The two dates sit side by side — done.** A span is one fact with two ends,
+  and reading it down a column made two settings of it — the second of which the
+  owner could scroll past without noticing it was still on today.
+
 - **One letterhead on every page — done.** The statement had a violet band and
   nothing else did, so **eight** of the fourteen documents printed with no
   masthead at all: a sheet in a folder that did not say whose shop it came from.

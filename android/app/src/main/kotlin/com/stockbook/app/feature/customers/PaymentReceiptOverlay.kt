@@ -47,9 +47,12 @@ import com.stockbook.core.text.Strings
  * The slip for one payment: what was taken, from whom, and where the account
  * stands now.
  *
- * Full-screen and opaque, like the bill's receipt, and for the same reason: the
- * payment is written and there is nothing left to edit here. It is the page the
- * owner turns to face the customer.
+ * **Two ways in, two shapes, the same page.** Straight after taking the money
+ * this is full-screen and opaque, like the bill's own receipt: the payment is
+ * written, there is nothing left to edit, and it is the page the owner turns to
+ * face the customer. Looked up afterwards — from the payments list, or on the
+ * way to a correction — it is a sheet over whatever you were reading, exactly as
+ * a bill opened from a list is. `PaymentReceiptSheet` is that second shape.
  *
  * **Drawn from [PaymentReceiptDocument] — the same structure the PDF draws.**
  * Not a screen that happens to show the same figures: the same wording, the same
@@ -60,14 +63,6 @@ import com.stockbook.core.text.Strings
 @Composable
 fun PaymentReceiptOverlay(
     document: PaymentReceiptDocument,
-    /**
-     * Whether this is confirming something that just happened.
-     *
-     * The tick and "Payment saved" belong to the moment the money was taken. The
-     * same page reached from a correction is a document being looked up, and a
-     * confirmation on it would be claiming something happened that did not.
-     */
-    justSaved: Boolean,
     strings: Strings,
     onSharePdf: () -> Unit,
     onClose: () -> Unit
@@ -90,21 +85,22 @@ fun PaymentReceiptOverlay(
             .padding(horizontal = Metrics.screenPadding)
             .padding(top = 24.dp, bottom = 24.dp)
     ) {
+        // The tick and "Payment saved" belong to the moment the money was taken.
+        // The same page looked up later is a document, not a confirmation, and it
+        // comes through `PaymentReceiptSheet` without either.
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            if (justSaved) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .scale(scale)
-                        .border(1.dp, Nocturne.accent, CircleShape)
-                ) {
-                    Glyph(Icon.confirm, size = 18.dp, tint = Nocturne.accent)
-                }
-                Spacer(Modifier.width(11.dp))
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(36.dp)
+                    .scale(scale)
+                    .border(1.dp, Nocturne.accent, CircleShape)
+            ) {
+                Glyph(Icon.confirm, size = 18.dp, tint = Nocturne.accent)
             }
+            Spacer(Modifier.width(11.dp))
             Text(
-                if (justSaved) strings.paymentSaved else document.docType,
+                strings.paymentSaved,
                 style = NocturneType.inter(18.0, FontWeight.Medium),
                 color = Nocturne.text
             )
@@ -113,106 +109,156 @@ fun PaymentReceiptOverlay(
         Spacer(Modifier.height(18.dp))
 
         Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            ReceiptBody(document)
+        }
 
-            // The letterhead, as it prints: the shop, then what the paper is.
-            Text(document.shopName, style = NocturneType.inter(15.0, FontWeight.Medium), color = Nocturne.text)
-            if (document.shopAddressLines.isNotEmpty()) {
-                Text(
-                    document.shopAddressLines.joinToString(", "),
-                    style = NocturneType.meta,
-                    color = Nocturne.neutral500
-                )
-            }
-            Spacer(Modifier.height(16.dp))
+        Actions(strings, onSharePdf, onClose)
+    }
+}
 
-            Fact(document.addressedToLabel, document.partyName, document.partyLines.joinToString(" · "))
-            Spacer(Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Box(Modifier.weight(1f)) { Fact(document.receiptLabel, document.receiptValue) }
-                Box(Modifier.weight(1f)) { Fact(document.dateLabel, document.dateValue) }
-            }
+/**
+ * The same slip as a sheet, for a payment being looked up rather than taken.
+ *
+ * A bill opened from a list arrives this way and a receipt did not — it took the
+ * whole screen, which reads as something having just happened and leaves the
+ * owner nothing behind it to go back to.
+ *
+ * **No scroll of its own.** `BottomSheet` already puts its content in a scrolling
+ * column, and a second scroll nested in the first is the trap that has emptied a
+ * list on this codebase before.
+ */
+@Composable
+fun PaymentReceiptSheet(
+    document: PaymentReceiptDocument,
+    strings: Strings,
+    onSharePdf: () -> Unit,
+    onClose: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            document.docType,
+            style = NocturneType.inter(18.0, FontWeight.Medium),
+            color = Nocturne.text
+        )
+        Spacer(Modifier.height(18.dp))
+        ReceiptBody(document)
+        Actions(strings, onSharePdf, onClose)
+    }
+}
 
-            Spacer(Modifier.height(16.dp))
+/**
+ * Print it now or never: the customer is still at the counter, and this is the
+ * moment they want the slip.
+ */
+@Composable
+private fun Actions(strings: Strings, onSharePdf: () -> Unit, onClose: () -> Unit) {
+    Spacer(Modifier.height(14.dp))
+    SecondaryButton(
+        strings.sharePdf,
+        onClick = onSharePdf,
+        fullWidth = true,
+        height = 44.dp,
+        fontSize = 13.5,
+        leading = Icon.share
+    )
+    Spacer(Modifier.height(8.dp))
+    PrimaryButton(
+        strings.done,
+        onClick = onClose,
+        fullWidth = true,
+        height = 46.dp
+    )
+}
 
-            // The figure the page exists to state, set alone so it is the one
-            // thing read across a counter.
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(Metrics.cardRadius))
-                    .background(Nocturne.surface)
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    document.amountLabel.uppercase(),
-                    style = NocturneType.meta,
-                    color = Nocturne.accent400
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    document.amountValue,
-                    style = NocturneType.inter(26.0, FontWeight.SemiBold),
-                    color = Nocturne.accent
-                )
-            }
+/**
+ * Everything the slip states, in the order the printed page states it.
+ *
+ * Neither sized nor scrolled here: the full-screen page gives it a scrolling
+ * column and the sheet lets its own scroll carry it.
+ */
+@Composable
+private fun ReceiptBody(document: PaymentReceiptDocument) {
+    Column(modifier = Modifier.fillMaxWidth()) {
 
-            document.noteLabel?.let { label ->
-                Spacer(Modifier.height(14.dp))
-                Text(label.uppercase(), style = NocturneType.meta, color = Nocturne.neutral500)
-                Text(
-                    document.noteValue.orEmpty(),
-                    style = NocturneType.inter(13.5),
-                    color = Nocturne.text
-                )
-            }
-
-            Spacer(Modifier.height(18.dp))
+        // The letterhead, as it prints: the shop, then what the paper is.
+        Text(document.shopName, style = NocturneType.inter(15.0, FontWeight.Medium), color = Nocturne.text)
+        if (document.shopAddressLines.isNotEmpty()) {
             Text(
-                document.summaryTitle.uppercase(),
+                document.shopAddressLines.joinToString(", "),
                 style = NocturneType.meta,
                 color = Nocturne.neutral500
             )
-            Spacer(Modifier.height(8.dp))
-            for (row in document.summaryRows) {
-                SummaryLine(row.label, if (row.deduction) "(${row.value})" else row.value)
-            }
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    document.closingLabel,
-                    style = NocturneType.inter(13.5, FontWeight.Medium),
-                    color = Nocturne.text,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    document.closingValue,
-                    style = NocturneType.inter(17.0, FontWeight.SemiBold),
-                    color = Nocturne.accent
-                )
-            }
+        }
+        Spacer(Modifier.height(16.dp))
 
-            Spacer(Modifier.height(16.dp))
-            Text(document.footnote, style = NocturneType.meta, color = Nocturne.neutral500)
+        Fact(document.addressedToLabel, document.partyName, document.partyLines.joinToString(" · "))
+        Spacer(Modifier.height(12.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Box(Modifier.weight(1f)) { Fact(document.receiptLabel, document.receiptValue) }
+            Box(Modifier.weight(1f)) { Fact(document.dateLabel, document.dateValue) }
         }
 
-        // Print it now or never: the customer is still at the counter, and this
-        // is the moment they want the slip.
-        Spacer(Modifier.height(14.dp))
-        SecondaryButton(
-            strings.sharePdf,
-            onClick = onSharePdf,
-            fullWidth = true,
-            height = 44.dp,
-            fontSize = 13.5,
-            leading = Icon.share
+        Spacer(Modifier.height(16.dp))
+
+        // The figure the page exists to state, set alone so it is the one
+        // thing read across a counter.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(Metrics.cardRadius))
+                .background(Nocturne.surface)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+        ) {
+            Text(
+                document.amountLabel.uppercase(),
+                style = NocturneType.meta,
+                color = Nocturne.accent400
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                document.amountValue,
+                style = NocturneType.inter(26.0, FontWeight.SemiBold),
+                color = Nocturne.accent
+            )
+        }
+
+        document.noteLabel?.let { label ->
+            Spacer(Modifier.height(14.dp))
+            Text(label.uppercase(), style = NocturneType.meta, color = Nocturne.neutral500)
+            Text(
+                document.noteValue.orEmpty(),
+                style = NocturneType.inter(13.5),
+                color = Nocturne.text
+            )
+        }
+
+        Spacer(Modifier.height(18.dp))
+        Text(
+            document.summaryTitle.uppercase(),
+            style = NocturneType.meta,
+            color = Nocturne.neutral500
         )
         Spacer(Modifier.height(8.dp))
-        PrimaryButton(
-            strings.done,
-            onClick = onClose,
-            fullWidth = true,
-            height = 46.dp
-        )
+        for (row in document.summaryRows) {
+            SummaryLine(row.label, if (row.deduction) "(${row.value})" else row.value)
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                document.closingLabel,
+                style = NocturneType.inter(13.5, FontWeight.Medium),
+                color = Nocturne.text,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                document.closingValue,
+                style = NocturneType.inter(17.0, FontWeight.SemiBold),
+                color = Nocturne.accent
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Text(document.footnote, style = NocturneType.meta, color = Nocturne.neutral500)
     }
 }
 

@@ -131,10 +131,15 @@ private fun DateRangeCard(
     /** Which of the two boxes opened the picker, or none. */
     var editing by remember { mutableStateOf<String?>(null) }
 
-    Column(modifier = Modifier.fillMaxWidth().card().hairline(radius = Metrics.cardRadius).padding(12.dp)) {
-        DateRow(strings.fromDate, from, strings) { editing = "from" }
-        Spacer(Modifier.height(8.dp))
-        DateRow(strings.toDate, to, strings) { editing = "to" }
+    // Side by side, not stacked. A span is one fact with two ends, and reading it
+    // down a column made two settings out of it — the second of which the owner
+    // could scroll past without noticing they had left it on today.
+    Row(
+        modifier = Modifier.fillMaxWidth().card().hairline(radius = Metrics.cardRadius).padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        DateBox(strings.fromDate, from, strings, Modifier.weight(1f)) { editing = "from" }
+        DateBox(strings.toDate, to, strings, Modifier.weight(1f)) { editing = "to" }
     }
 
     val which = editing
@@ -165,13 +170,29 @@ private fun DateRangeCard(
     }
 }
 
+/**
+ * One end of the span: the label over the day, in half the card's width.
+ *
+ * Stacked rather than on one line, because the two boxes have to fit side by
+ * side and `22 August 2026` beside its own label leaves no room for the other
+ * half. The label is the small thing, so it is the one that gives up the line.
+ */
 @Composable
-private fun DateRow(label: String, value: Instant, strings: Strings, onTap: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onTap)
-    ) {
-        Text(label, style = NocturneType.inter(13.0), color = Nocturne.neutral500, modifier = Modifier.weight(1f))
-        Text(strings.longDate(value), style = NocturneType.inter(13.0), color = Nocturne.accent)
+private fun DateBox(
+    label: String,
+    value: Instant,
+    strings: Strings,
+    modifier: Modifier = Modifier,
+    onTap: () -> Unit
+) {
+    Column(modifier = modifier.clickable(onClick = onTap)) {
+        Text(label, style = NocturneType.meta, color = Nocturne.neutral500)
+        Text(
+            strings.longDate(value),
+            style = NocturneType.inter(13.0),
+            color = Nocturne.accent,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

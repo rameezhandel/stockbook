@@ -150,7 +150,12 @@ private struct AppShell: View {
 
             // Above the statements, not below: it is reached from the payment
             // sheet, which can itself be opened from a statement.
-            if let slip = router.paymentReceipt {
+            //
+            // **Only the confirmation takes the screen.** A payment just taken is
+            // the page the owner turns to face the customer; the same slip looked
+            // up afterwards is a sheet, the way an opened bill is — see the
+            // `nocturneSheet` below.
+            if let slip = router.paymentReceipt, router.paymentReceiptIsNew {
                 PaymentReceiptOverlay(receipt: slip)
                     .transition(.opacity)
                     .zIndex(5)
@@ -209,6 +214,22 @@ private struct AppShell: View {
         }
         .nocturneSheet(item: $router.billDetail) { bill in
             BillSheet(bill: bill)
+        }
+        // The looked-up half of the receipt. `paymentReceiptIsNew` decides which
+        // of the two shapes appears, so only one is ever on screen.
+        //
+        // `isPresented` rather than `item`, because `PaymentReceipt` is derived
+        // rather than stored and carries no id to be identified by — it is built
+        // from a statement each time it is asked for.
+        .nocturneSheet(
+            isPresented: Binding(
+                get: { router.paymentReceipt != nil && !router.paymentReceiptIsNew },
+                set: { if !$0 { router.paymentReceipt = nil } }
+            )
+        ) {
+            if let slip = router.paymentReceipt {
+                PaymentReceiptSheet(receipt: slip)
+            }
         }
         .nocturneSheet(item: $router.customerEditor) { target in
             CustomerEditorSheet(existing: target.customer) { router.customerEditor = nil }

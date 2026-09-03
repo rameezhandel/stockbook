@@ -37,7 +37,6 @@ import com.stockbook.app.design.PeriodPicker
 import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.ScreenHeader
 import com.stockbook.app.design.PrimaryButton
-import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
 import com.stockbook.core.model.Currency
@@ -74,7 +73,6 @@ fun StatementScreen(
     store: StockbookStore,
     currency: Currency,
     strings: Strings,
-    onShare: (String) -> Unit,
     /** Hands the rendered document to the share sheet. */
     onSharePdf: (StatementDocument) -> Unit = {},
     /**
@@ -154,28 +152,18 @@ fun StatementScreen(
                     onEditCreditNote = onEditCreditNote
                 )
                 Spacer(Modifier.height(10.dp))
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    SecondaryButton(
-                        strings.share,
-                        onClick = { onShare(plainText(statement, store, currency, strings)) },
-                        fullWidth = true,
-                        height = 44.dp,
-                        fontSize = 13.5,
-                        leading = Icon.share,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    // The plain text above is for a quick WhatsApp line; this is
-                    // the document somebody files. Same figures, two audiences.
-                    PrimaryButton(
-                        strings.sharePdf,
-                        onClick = { onSharePdf(StatementDocument.make(statement, store.settings, strings, currency)) },
-                        fullWidth = true,
-                        height = 44.dp,
-                        fontSize = 13.5,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                // One way out, and it is the document. There was a plain-text
+                // share beside this for a quick message, and it was a second
+                // rendering of the same figures with none of the page's wording,
+                // arithmetic or letterhead — a statement somebody could quote
+                // back that the app would not recognise as its own.
+                PrimaryButton(
+                    strings.sharePdf,
+                    onClick = { onSharePdf(StatementDocument.make(statement, store.settings, strings, currency)) },
+                    fullWidth = true,
+                    height = 44.dp,
+                    fontSize = 13.5
+                )
             }
         }
     }
@@ -498,81 +486,3 @@ private fun closingText(statement: Statement, currency: Currency, strings: Strin
  * so the screen and the PDF are headed with the same date.
  */
 private fun lastDay(range: StatementRange): Instant = range.asOf()
-
-/**
- * Plain text for the share sheet, which is how a statement actually reaches a
- * customer here — a photo of a screen or a message, not an emailed PDF. The app
- * makes no network call either way; the OS does whatever the owner picks.
- */
-private fun plainText(
-    statement: Statement,
-    store: StockbookStore,
-    currency: Currency,
-    strings: Strings
-): String {
-    val lines = mutableListOf<String>()
-    if (store.settings.ownerName.isNotBlank()) lines.add(store.settings.ownerName)
-    lines.add("${strings.statement} — ${statement.party.name}")
-    lines.add(
-        strings.dateSpan(
-            from = strings.longDate(statement.range.start),
-            to = strings.longDate(lastDay(statement.range))
-        )
-    )
-    lines.add("")
-    lines.add("${strings.openingBalance}: ${Money.text(statement.openingBalance, currency)}")
-
-    statement.entries.forEachIndexed { index, entry ->
-        val balance = Money.text(statement.runningBalances[index], currency)
-        when (entry) {
-            is Statement.Entry.ForBill -> lines.add(
-                "${strings.longDate(entry.bill.createdAt)}  ${reference(entry, strings)}  " +
-                    "${Money.text(entry.bill.total, currency)}  →  $balance"
-            )
-            is Statement.Entry.ForCreditNote -> lines.add(
-                "${strings.longDate(entry.date)}  ${reference(entry, strings)}  " +
-                    "− ${Money.text(entry.note.total, currency)}  →  $balance"
-            )
-            is Statement.Entry.ForPayment -> lines.add(
-                "${strings.longDate(entry.payment.receivedAt)}  ${reference(entry, strings)}  " +
-                    "− ${Money.text(entry.payment.amount, currency)}  →  $balance"
-            )
-            is Statement.Entry.ForPurchase -> {
-                // Only where the bill named something. Interpolating regardless
-                // is how a supplier bill for a mixed load ends up reading
-                // "null × 0" on a document somebody is sent.
-                val describes = listOfNotNull(reference(entry, strings), entry.purchase.described)
-                lines.add(
-                    "${strings.longDate(entry.purchase.createdAt)}  " +
-                        "${describes.joinToString("  ")}  " +
-                        "${Money.text(entry.purchase.total, currency)}  →  $balance"
-                )
-            }
-            is Statement.Entry.ForSupplierPayment -> lines.add(
-                "${strings.longDate(entry.payment.paidAt)}  ${reference(entry, strings)}  " +
-                    "− ${Money.text(entry.payment.amount, currency)}  →  $balance"
-            )
-            is Statement.Entry.ForTransfer -> lines.add(
-                "${strings.longDate(entry.date)}  ${reference(entry, strings)}  " +
-                    "${amountText(entry, currency)}  →  $balance"
-            )
-        }
-    }
-
-    lines.add("")
-    lines.add("${chargedLabel(statement, strings)}: ${Money.text(statement.billed, currency)}")
-    lines.add("${settledLabel(statement, strings)}: ${Money.text(statement.received, currency)}")
-    if (statement.credited > 0) {
-        lines.add("${strings.creditNotes}: ${Money.text(statement.credited, currency)}")
-    }
-    // Their own lines, drawn only where there is one — for the reason `credited`
-    // has its own: a transfer is neither what the shop invoiced nor money it took.
-    if (statement.transferredIn > 0) {
-        lines.add("${strings.transferredInLabel}: ${Money.text(statement.transferredIn, currency)}")
-    }
-    if (statement.transferredOut > 0) {
-        lines.add("${strings.transferredOutLabel}: ${Money.text(statement.transferredOut, currency)}")
-    }
-    lines.add("${strings.closingBalance}: ${closingText(statement, currency, strings)}")
-    return lines.joinToString("\n")
-}

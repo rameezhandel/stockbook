@@ -417,14 +417,26 @@ struct TodayScreen: View {
             .filter { $0.isLow(threshold: store.settings.lowStockAt) }
             .sorted { $0.stock < $1.stock }
 
+        // **Nothing to act on, nothing on the screen.** This section used to say
+        // "Nothing running low" under its own heading, on the argument that a
+        // blank space reads as a section that failed to load. It reads instead as
+        // a heading that earns its space on the days it has nothing to say —
+        // which, for a shop that keeps its shelves stocked, is most of them. A
+        // section that only appears when it matters is noticed when it does.
+        //
+        // The empty shelf is a different case and keeps its prompt: a shop with
+        // no products at all has not got started, and this is the only place in
+        // the app that says so.
         return VStack(spacing: 0) {
-            HStack {
-                Kicker(Loc.runningLow)
-                Spacer()
-                Button(Loc.all) { router.tab = .items }
-                    .buttonStyle(.ghost)
+            if store.products.isEmpty || !low.isEmpty {
+                HStack {
+                    Kicker(Loc.runningLow)
+                    Spacer()
+                    Button(Loc.all) { router.tab = .items }
+                        .buttonStyle(.ghost)
+                }
+                .padding(.bottom, 9)
             }
-            .padding(.bottom, 9)
 
             if store.products.isEmpty {
                 EmptyStateBox(
@@ -432,13 +444,7 @@ struct TodayScreen: View {
                     actionTitle: Loc.addAProduct,
                     action: { router.openNewProduct() }
                 )
-            } else if low.isEmpty {
-                // Said rather than left blank. An empty space here reads as a
-                // section that failed to load; one line reads as good news.
-                Text(Loc.nothingRunningLow)
-                    .nocturneText(.meta)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
+            } else if !low.isEmpty {
                 VStack(spacing: Metrics.rowGap) {
                     ForEach(low.prefix(4)) { product in
                         Button {

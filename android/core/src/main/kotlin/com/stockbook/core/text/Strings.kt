@@ -99,7 +99,6 @@ class Strings(val language: AppLanguage) {
     // while standing at the counter — and the shelf running out is the one thing
     // nothing else in the app volunteers.
     val runningLow: String get() = pick("Running low", "ಕಡಿಮೆ ಆಗುತ್ತಿದೆ")
-    val nothingRunningLow: String get() = pick("Nothing running low.", "ಯಾವುದೂ ಕಡಿಮೆ ಆಗಿಲ್ಲ.")
 
     fun greeting(firstName: String): String =
             pick("Hello, $firstName", "ನಮಸ್ಕಾರ, $firstName")

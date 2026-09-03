@@ -72,11 +72,18 @@ struct PeriodPicker: View {
     }
 
     private var dateRangeCard: some View {
-        VStack(spacing: 10) {
-            DatePicker(Loc.fromDate, selection: $from, displayedComponents: .date)
-            DatePicker(Loc.toDate, selection: $to, displayedComponents: .date)
+        // Side by side, not stacked. A span is one fact with two ends, and
+        // reading it down a column made two settings out of it — the second of
+        // which the owner could scroll past without noticing they had left it on
+        // today.
+        //
+        // The label goes above each picker rather than beside it: `22 Aug 2026`
+        // and its own label do not both fit in half a card's width, and the label
+        // is the smaller thing.
+        HStack(alignment: .top, spacing: 12) {
+            dateBox(Loc.fromDate, selection: $from)
+            dateBox(Loc.toDate, selection: $to)
         }
-        .datePickerStyle(.compact)
         .font(NocturneType.inter(13))
         .tint(Nocturne.accent)
         .padding(12)
@@ -85,5 +92,19 @@ struct PeriodPicker: View {
         // No `onChange` needed: the period is derived, so moving either picker
         // rebuilds whatever is below on the next pass. Whichever way round they
         // were dragged, `StatementPeriod` sorts out.
+    }
+
+    /// One end of the span: the label over the day, in half the card's width.
+    private func dateBox(_ label: String, selection: Binding<Date>) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .nocturneText(.meta)
+            DatePicker("", selection: selection, displayedComponents: .date)
+                .labelsHidden()
+                .datePickerStyle(.compact)
+                .font(NocturneType.inter(13))
+                .tint(Nocturne.accent)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
