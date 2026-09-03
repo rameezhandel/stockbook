@@ -27,9 +27,17 @@ struct PartyRow: Identifiable {
 /// purpose-built sheet to get from "Ahmed still owes" to Ahmed.
 ///
 /// Capped rather than complete. A shop with two hundred customers should not
-/// have to scroll past all of them to reach today's bills, so the list shows the
-/// few who owe most — `customers()` hands them over in that order — and the rest
-/// are behind the search box or the toggle.
+/// **Everybody, not the top five.** The list used to stop at five names with an
+/// "All" underneath, because every row was built whether or not it was on screen
+/// — two hundred customers meant two hundred rows composed to show five. A
+/// `LazyVStack` builds only what is visible, which removes the reason for the cap
+/// rather than moving it: no page size, no button, just the list.
+///
+/// Nothing to fetch, either. The roster is already in memory — `customers()` is a
+/// walk over a snapshot — so there is no page to load, only rows to draw, and
+/// drawing them on demand is the whole of it.
+///
+/// Biggest debt first, which is the order `customers()` hands them over in.
 struct PartyList: View {
     let title: String
     let rows: [PartyRow]
@@ -41,17 +49,16 @@ struct PartyList: View {
     let onOpen: (String) -> Void
 
     @State private var query = ""
-    @State private var expanded = false
 
-    /// How many fit above the documents before the list stops being a summary.
-    private static let visible = 5
+    /// Above how many names a search box earns its place.
+    ///
+    /// Not a page size — the list shows everybody. This is only the point at
+    /// which scrolling stops being the quickest way to find one.
+    private static let searchable = 5
 
     private var searching: Bool { !query.isBlank }
 
-    private var shown: [PartyRow] {
-        if searching { return search(query) }
-        return expanded ? rows : Array(rows.prefix(Self.visible))
-    }
+    private var shown: [PartyRow] { searching ? search(query) : rows }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -69,7 +76,7 @@ struct PartyList: View {
                 // Offered only once the list is longer than it is worth reading
                 // through. A shop with four customers does not need a way to
                 // search four names.
-                if rows.count > Self.visible {
+                if rows.count > Self.searchable {
                     NocturneField(
                         placeholder: Loc.search,
                         text: $query,
@@ -82,7 +89,10 @@ struct PartyList: View {
                 if shown.isEmpty {
                     Text(Loc.nobodyMatches).nocturneText(.meta)
                 } else {
-                    VStack(spacing: Metrics.rowGap) {
+                    // Lazy: the enclosing `ScrollView` builds a row when it comes
+                    // into view and not before, which is what lets this show the
+                    // whole roster.
+                    LazyVStack(spacing: Metrics.rowGap) {
                         ForEach(shown) { row in
                             Button {
                                 onOpen(row.key)
@@ -92,15 +102,6 @@ struct PartyList: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .motion(Motion.list, value: shown.count)
-                }
-
-                // Nothing to expand while searching: the search already showed
-                // everybody who answers to what was typed.
-                if !searching, !expanded, rows.count > Self.visible {
-                    Button(Loc.all) { expanded = true }
-                        .buttonStyle(GhostButtonStyle(fontSize: 12))
-                        .padding(.top, Metrics.rowGap)
                 }
             }
         }

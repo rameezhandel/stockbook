@@ -59,6 +59,21 @@ Play will grant production access at all.
 
 ## Settled, so nobody reopens them
 
+- **The People list shows everybody — done.** It stopped at five names with an
+  "All" button under them, because the screen was one long `Column`: every row
+  was built whether or not it was on screen, so two hundred customers meant two
+  hundred rows composed to show five.
+
+  **A lazy list removes the reason for the cap rather than moving it.** A
+  `LazyColumn` on Android and a `LazyVStack` on iOS build a row when it comes
+  into view and not before, so the whole roster costs what is visible. No page
+  size, no button, and nothing to fetch — `customers()` is a walk over a snapshot
+  already in memory, so there was never a page to load, only rows to draw.
+
+  The search box stays, and still appears only above five names: it is the point
+  at which scrolling stops being the quickest way to find one, which is a
+  different question from how much the list may show.
+
 - **Share text is gone; every screen shares the document — done.** The statement
   had a plain-text button beside the PDF, for a quick message. It was a second
   rendering of the same figures with none of the page's wording, arithmetic or

@@ -72,6 +72,10 @@ struct PeopleScreen: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .padding(.horizontal, Metrics.screenPadding)
+            // Back to the top when the side changes. Two hundred customers
+            // scrolled halfway down, then three suppliers, lands the owner at the
+            // bottom of a list they have not read a line of.
+            .id(side)
         }
     }
 
