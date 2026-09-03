@@ -99,20 +99,13 @@ enum StatementPDF {
     /// pages did not match the statement the customer was handed would be two
     /// documents claiming to be one, and the first correction to either would
     /// separate them for good.
-    /// - Parameter colour: whether to spend colour on it. A statement is one
-    ///   sheet handed to one customer, and the band is worth its toner there. The
-    ///   ledger book is a hundred of them printed at once and filed, so it takes
-    ///   the monochrome treatment: the same page, drawn with a rule where the
-    ///   band would be and the balance reversed out of black rather than sitting
-    ///   in a tint. Same routine, same geometry — a sheet pulled from the book is
-    ///   still the statement, just cheaper.
-    static func write(_ documents: [StatementDocument], fileName: String, colour: Bool = true) throws -> URL {
+static func write(_ documents: [StatementDocument], fileName: String) throws -> URL {
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(origin: .zero, size: pageSize))
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
 
         try renderer.writePDF(to: url) { context in
             for document in documents {
-                draw(document, in: context, colour: colour)
+                draw(document, in: context)
             }
         }
 
@@ -124,8 +117,12 @@ enum StatementPDF {
     /// The index is drawn from `SummaryDocument.forLedgerBook`, which is built
     /// from the very statements passed here — so a line in the contents and the
     /// page it points at cannot state different balances. Both are drawn in the
-    /// monochrome treatment, because the whole book is filed rather than handed
-    /// over.
+    /// **The book prints like every other page in the app.** It carried a
+    /// monochrome treatment of its own for a while, on the argument that a
+    /// hundred pages of band is toner worth saving. Doing the arithmetic put that
+    /// at something under forty riyals a print — real, but not enough to be the
+    /// one document that does not match the other thirteen, and not enough to
+    /// keep a second layout alive for.
     static func writeLedgerBook(
         index: SummaryDocument,
         pages: [StatementDocument],
@@ -141,7 +138,7 @@ enum StatementPDF {
             // starts on a fresh one.
             _ = drawIndex(index, in: context, from: 0)
             for page in pages {
-                draw(page, in: context, colour: false)
+                draw(page, in: context)
             }
         }
 
@@ -150,10 +147,9 @@ enum StatementPDF {
 
     /// The contents page: two columns, however many sheets it takes.
     ///
-    /// Its own routine rather than `SummaryPDF`, which writes a file of its own
-    /// and draws the colour treatment — this one has to append into a book
-    /// already being built, and in one ink. The wording is still shared: every
-    /// string here came from `SummaryDocument`.
+    /// Its own routine rather than `SummaryPDF`, which writes a file of its own —
+    /// this one has to append into a book already being built. The wording is
+    /// still shared: every string here came from `SummaryDocument`.
     ///
     /// Returns the last page it used, so the statements know where to carry on.
     private static func drawIndex(
@@ -177,15 +173,21 @@ enum StatementPDF {
             drawRight("\(pageNumber)", rightEdge: right, y: footY, attributes: attributes(7.5, muted: true))
         }
 
-        document.shopName.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(titleSize, bold: true))
-        drawRight(document.title, rightEdge: right, y: y + 3, attributes: attributes(13))
-        y += titleSize + 6
-        // A balance is true at a moment, so the moment is on the page. Without
-        // it, last month's printout reads as this morning's.
-        document.asOf.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(7.5, muted: true))
-        y += 14
-        heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-        y += 18
+        // The same letterhead every other page carries. `asOf` rides in the
+        // band's date slot: a balance is true at a moment, and without the moment
+        // last month's printout reads as this morning's.
+        func masthead() {
+            PageBand.draw(
+                pageWidth: pageSize.width,
+                margin: margin,
+                shopName: document.shopName,
+                addressLines: document.shopAddressLines,
+                docType: document.title,
+                dateLine: document.asOf
+            )
+            y = PageBand.contentTop
+        }
+        masthead()
 
         if document.isEmpty {
             document.emptyLine.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, muted: true))
@@ -241,47 +243,27 @@ enum StatementPDF {
     }
 
     /// Draws one statement, starting a fresh page for it.
-    private static func draw(_ document: StatementDocument, in context: UIGraphicsPDFRendererContext, colour: Bool) {
+    private static func draw(_ document: StatementDocument, in context: UIGraphicsPDFRendererContext) {
         context.beginPage()
 
         let right = pageSize.width - margin
         let width = right - margin
         var y = margin
 
-        // MARK: The band
-        //
-        // Full bleed to the paper's edge, not inset to the margin: an inset
-        // colour block reads as a box somebody drew, where a band that runs off
-        // both sides reads as the head of the page.
-        //
-        // Sans throughout, deliberately. A serif here would set the shop's own
-        // name — which the owner types, and which may be in Arabic or Kannada —
-        // in a face whose coverage of those scripts is patchy, and the failure is
-        // tofu boxes in the largest text on the page.
-
-        if colour {
-            let bandHeight: CGFloat = 74
-            fill(CGRect(x: 0, y: 0, width: pageSize.width, height: bandHeight), accent)
-            document.shopName.draw(at: CGPoint(x: margin, y: 18), withAttributes: reversed(titleSize))
-            for (index, addressLine) in document.shopAddressLines.enumerated() {
-                addressLine.draw(
-                    at: CGPoint(x: margin, y: 38 + CGFloat(index) * 10),
-                    withAttributes: reversed(7.5, alpha: 0.8)
-                )
-            }
-            drawRight(document.docType.uppercased(), rightEdge: right, y: 18, attributes: reversed(8, alpha: 0.82))
-            drawRight(document.periodValue, rightEdge: right, y: 30, attributes: reversed(11))
-            y = bandHeight + 24
-        } else {
-            document.shopName.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(titleSize, bold: true))
-            drawRight(document.docType, rightEdge: right, y: y + 3, attributes: attributes(13))
-            y += titleSize + 6
-            document.shopAddressLines.joined(separator: ", ")
-                .draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(7.5, muted: true))
-            y += 14
-            heavyRule(from: CGPoint(x: margin, y: y), to: CGPoint(x: right, y: y))
-            y += 18
+        // The letterhead, through the shared drawer so this page and the eight
+        // that gained one later cannot drift apart.
+        func masthead() {
+            PageBand.draw(
+                pageWidth: pageSize.width,
+                margin: margin,
+                shopName: document.shopName,
+                addressLines: document.shopAddressLines,
+                docType: document.docType,
+                dateLine: document.periodValue
+            )
+            y = PageBand.contentTop
         }
+        masthead()
 
         // MARK: The two boxed facts — whose account, and over what
 
@@ -289,24 +271,18 @@ enum StatementPDF {
         let factsHeight: CGFloat = 46
         let middle = margin + width / 2
 
-        // Boxed only in the monochrome treatment, where a hairline is the only
-        // thing available to group two facts. The colour page has an accent label
-        // doing that job already, and a box round it as well is one device too
-        // many — the reason this page read busier than it should have.
-        if !colour {
-            stroke(CGRect(x: margin, y: factsTop, width: width, height: factsHeight))
-            rule(from: CGPoint(x: middle, y: factsTop), to: CGPoint(x: middle, y: factsTop + factsHeight))
-        }
+        // Not boxed: the accent labels group these two facts already, and a
+        // hairline round them as well is one device too many — the reason this
+        // page once read busier than it was meant to.
 
-        let inset: CGFloat = colour ? 0 : 10
-        let factLabel = colour ? accentText(7.5, bold: true) : attributes(7.5, muted: true)
-        document.accountLabel.uppercased().draw(at: CGPoint(x: margin + inset, y: factsTop + 4), withAttributes: factLabel)
-        document.partyName.draw(at: CGPoint(x: margin + inset, y: factsTop + 16), withAttributes: attributes(11, bold: true))
-        document.partyLines.joined(separator: " · ").draw(at: CGPoint(x: margin + inset, y: factsTop + 31), withAttributes: attributes(8, muted: true))
+        let factLabel = accentText(7.5, bold: true)
+        document.accountLabel.uppercased().draw(at: CGPoint(x: margin, y: factsTop + 4), withAttributes: factLabel)
+        document.partyName.draw(at: CGPoint(x: margin, y: factsTop + 16), withAttributes: attributes(11, bold: true))
+        document.partyLines.joined(separator: " · ").draw(at: CGPoint(x: margin, y: factsTop + 31), withAttributes: attributes(8, muted: true))
 
-        document.periodLabel.uppercased().draw(at: CGPoint(x: middle + inset, y: factsTop + 4), withAttributes: factLabel)
-        document.periodValue.draw(at: CGPoint(x: middle + inset, y: factsTop + 16), withAttributes: attributes(11, bold: true))
-        document.summaryTitle.draw(at: CGPoint(x: middle + inset, y: factsTop + 31), withAttributes: attributes(8, muted: true))
+        document.periodLabel.uppercased().draw(at: CGPoint(x: middle, y: factsTop + 4), withAttributes: factLabel)
+        document.periodValue.draw(at: CGPoint(x: middle, y: factsTop + 16), withAttributes: attributes(11, bold: true))
+        document.summaryTitle.draw(at: CGPoint(x: middle, y: factsTop + 31), withAttributes: attributes(8, muted: true))
 
         y = factsTop + factsHeight + 24
 
@@ -319,7 +295,7 @@ enum StatementPDF {
             // Set on a tinted row rather than over a rule: the band at the top
             // has already said this page uses colour, and a second heavy black
             // rule would be a different page's idea.
-            if colour { fill(CGRect(x: margin, y: y - 3, width: width, height: 15), accentSoft) }
+            fill(CGRect(x: margin, y: y - 3, width: width, height: 15), accentSoft)
             let head = attributes(7.5, muted: true)
             document.columnHeadings[0].uppercased().draw(at: CGPoint(x: margin + width * colDate, y: y), withAttributes: head)
             document.columnHeadings[1].uppercased().draw(at: CGPoint(x: margin + width * colReference, y: y), withAttributes: head)
@@ -327,7 +303,6 @@ enum StatementPDF {
             drawRight(document.columnHeadings[3].uppercased(), rightEdge: margin + width * edgeSettled, y: y, attributes: head)
             drawRight(document.columnHeadings[4].uppercased(), rightEdge: margin + width * edgeBalance, y: y, attributes: head)
             y += 17
-            if !colour { heavyRule(from: CGPoint(x: margin, y: y - 4), to: CGPoint(x: right, y: y - 4)) }
         }
         headings()
 
@@ -337,7 +312,7 @@ enum StatementPDF {
             // for the totals block.
             if y > pageSize.height - margin - 130 {
                 context.beginPage()
-                y = margin
+                masthead()
                 headings()
             }
 
@@ -369,36 +344,22 @@ enum StatementPDF {
         // round the lines and a tinted panel under them made two — the shape that
         // had this page reading as a different design from the one it was meant
         // to be.
-        if colour {
-            let cardHeight = CGFloat(document.summaryRows.count) * lineHeight + dueHeight
-            fill(CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: cardHeight), accentSoft)
-            fill(CGRect(x: totalsLeft, y: totalY, width: 3.5, height: cardHeight), accent)
-        } else {
-            stroke(CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: CGFloat(document.summaryRows.count) * lineHeight))
-        }
+        let cardHeight = CGFloat(document.summaryRows.count) * lineHeight + dueHeight
+        fill(CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: cardHeight), accentSoft)
+        fill(CGRect(x: totalsLeft, y: totalY, width: 3.5, height: cardHeight), accent)
 
-        let labelInset: CGFloat = colour ? 12 : 9
-        for (index, row) in document.summaryRows.enumerated() {
+        let labelInset: CGFloat = 12
+        for row in document.summaryRows {
             row.label.draw(at: CGPoint(x: totalsLeft + labelInset, y: totalY + 4), withAttributes: attributes(bodySize, muted: true))
             drawRight(row.value.bracketed(row.deduction), rightEdge: right - 9, y: totalY + 4, attributes: attributes(bodySize))
             totalY += lineHeight
-            if !colour, index < document.summaryRows.count - 1 {
-                rule(from: CGPoint(x: totalsLeft, y: totalY), to: CGPoint(x: right, y: totalY))
-            }
         }
 
-        // The one figure the reader came for. On the colour page it closes the
-        // card it already sits in, over a hairline; on the mono page it is
-        // reversed out of solid black, which is the only weight left there.
-        if colour {
-            rule(from: CGPoint(x: totalsLeft + labelInset, y: totalY), to: CGPoint(x: right - 9, y: totalY))
-            document.closingLabel.uppercased().draw(at: CGPoint(x: totalsLeft + labelInset, y: totalY + 7), withAttributes: accentText(7.5, bold: true))
-            drawRight(document.closingValue, rightEdge: right - 9, y: totalY + 7, attributes: accentText(15, bold: true))
-        } else {
-            fill(CGRect(x: totalsLeft, y: totalY, width: right - totalsLeft, height: dueHeight), ink)
-            document.closingLabel.uppercased().draw(at: CGPoint(x: totalsLeft + 12, y: totalY + 6), withAttributes: reversed(7.5))
-            drawRight(document.closingValue, rightEdge: right - 9, y: totalY + 7, attributes: reversed(13))
-        }
+        // The one figure the reader came for, closing the card it already sits
+        // in, over a hairline.
+        rule(from: CGPoint(x: totalsLeft + labelInset, y: totalY), to: CGPoint(x: right - 9, y: totalY))
+        document.closingLabel.uppercased().draw(at: CGPoint(x: totalsLeft + labelInset, y: totalY + 7), withAttributes: accentText(7.5, bold: true))
+        drawRight(document.closingValue, rightEdge: right - 9, y: totalY + 7, attributes: accentText(15, bold: true))
 
         // MARK: Footer — the address, and the shop it came from
 
@@ -436,13 +397,6 @@ enum StatementPDF {
             cut = String(cut.dropLast())
         }
         (cut == text ? text : cut + "…").draw(at: point, withAttributes: attributes)
-    }
-
-    private static func stroke(_ rect: CGRect) {
-        let path = UIBezierPath(rect: rect)
-        path.lineWidth = 0.9
-        ruleColour.setStroke()
-        path.stroke()
     }
 }
 

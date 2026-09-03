@@ -15,10 +15,16 @@ import android.graphics.Typeface
  * into three more writers would have been three more sets of constants to drift
  * apart, which is already how this app ended up with two greys for one hairline.
  *
- * **The ledger book does not use it, on purpose.** That is a hundred pages
- * printed at once and filed; `StatementPdf` draws it with a rule where the band
- * would be. Everything else in the app is a sheet or three, where a band costs
- * nothing worth counting.
+ * **Sans throughout, deliberately.** A serif here would set the shop's own
+ * name — which the owner types, and which may be in Arabic or Kannada — in a
+ * face whose coverage of those scripts is patchy, and the failure is tofu
+ * boxes in the largest text on the page.
+ *
+ * **Every page the app prints uses it, the ledger book included.** The book had
+ * a monochrome treatment of its own for a while, on the argument that a hundred
+ * pages of band is toner worth saving. The arithmetic put that at under forty
+ * riyals a print — real, but not enough to leave one document looking unlike the
+ * other thirteen, and not enough to keep a second layout alive for.
  */
 object PageBand {
 

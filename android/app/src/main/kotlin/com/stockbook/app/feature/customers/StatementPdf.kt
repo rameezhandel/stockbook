@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import com.stockbook.app.pdf.PageBand
 import com.stockbook.core.text.StatementDocument
 import com.stockbook.core.text.SummaryDocument
 import java.io.File
@@ -135,23 +136,12 @@ object StatementPdf {
     fun write(
         documents: List<StatementDocument>,
         into: Context,
-        fileName: String,
-        /**
-         * Whether to spend colour on it.
-         *
-         * A statement is one sheet handed to one customer, and the band is worth
-         * its toner there. The ledger book is a hundred of them printed at once
-         * and filed, so it takes the monochrome treatment: the same page, drawn
-         * with a rule where the band would be and the balance reversed out of
-         * black rather than sitting in a tint. Same routine, same geometry — a
-         * sheet pulled from the book is still the statement, just cheaper.
-         */
-        colour: Boolean = true
+        fileName: String
     ): File {
         val pdf = PdfDocument()
         var pageNumber = 0
         for (document in documents) {
-            pageNumber = draw(document, pdf, pageNumber, colour)
+            pageNumber = draw(document, pdf, pageNumber)
         }
         val file = File(into.cacheDir, fileName)
         file.outputStream().use { pdf.writeTo(it) }
@@ -164,9 +154,14 @@ object StatementPdf {
      *
      * The index is drawn from [SummaryDocument.forLedgerBook], which is built
      * from the very statements passed here — so a line in the contents and the
-     * page it points at cannot state different balances. Both are drawn in the
-     * monochrome treatment, because the whole book is filed rather than handed
-     * over.
+     * page it points at cannot state different balances.
+     *
+     * **The book prints like every other page in the app.** It carried a
+     * monochrome treatment of its own for a while, on the argument that a hundred
+     * pages of band is toner worth saving. Doing the arithmetic put that at
+     * something under forty riyals a print — real, but not enough to be the one
+     * document that does not match the other thirteen, and not enough to keep a
+     * second layout alive for.
      */
     fun writeLedgerBook(
         index: SummaryDocument,
@@ -177,7 +172,7 @@ object StatementPdf {
         val pdf = PdfDocument()
         var pageNumber = drawIndex(index, pdf, 0)
         for (page in pages) {
-            pageNumber = draw(page, pdf, pageNumber, colour = false)
+            pageNumber = draw(page, pdf, pageNumber)
         }
         val file = File(into.cacheDir, fileName)
         file.outputStream().use { pdf.writeTo(it) }
@@ -188,10 +183,9 @@ object StatementPdf {
     /**
      * The contents page: two columns, however many sheets it takes.
      *
-     * Its own routine rather than [SummaryPdf], which writes a file of its own
-     * and draws the colour treatment — this one has to append into a book
-     * already being built, and in one ink. The wording is still shared: every
-     * string here came from [SummaryDocument].
+     * Its own routine rather than [SummaryPdf], which writes a file of its own —
+     * this one has to append into a book already being built. The wording is
+     * still shared: every string here came from [SummaryDocument].
      *
      * Returns the last page it used, so the statements know where to carry on.
      */
@@ -212,15 +206,22 @@ object StatementPdf {
             canvas.drawTextRight("$pageNumber", right, footY, paint(7.5f, grey = true))
         }
 
-        canvas.drawText(document.shopName, MARGIN, y + TITLE_SIZE, paint(TITLE_SIZE, bold = true))
-        canvas.drawTextRight(document.title, right, y + TITLE_SIZE, paint(13f))
-        y += TITLE_SIZE + 6
-        // A balance is true at a moment, so the moment is on the page. Without
-        // it, last month's printout reads as this morning's.
-        canvas.drawText(document.asOf, MARGIN, y + 8, paint(7.5f, grey = true))
-        y += 14
-        canvas.drawLine(MARGIN, y, right, y, heavyRule)
-        y += 20
+        // The same letterhead every other page carries. `asOf` rides in the
+        // band's date slot: a balance is true at a moment, and without the moment
+        // last month's printout reads as this morning's.
+        fun masthead() {
+            PageBand.draw(
+                canvas = canvas,
+                pageWidth = PAGE_WIDTH.toFloat(),
+                margin = MARGIN,
+                shopName = document.shopName,
+                addressLines = document.shopAddressLines,
+                docType = document.title,
+                dateLine = document.asOf
+            )
+            y = PageBand.CONTENT_TOP
+        }
+        masthead()
 
         if (document.isEmpty) {
             canvas.drawText(document.emptyLine, MARGIN, y + BODY_SIZE, paint(BODY_SIZE, grey = true))
@@ -251,7 +252,7 @@ object StatementPdf {
                 pageNumber += 1
                 page = pdf.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
                 canvas = page.canvas
-                y = MARGIN
+                masthead()
                 headings()
             }
 
@@ -279,7 +280,7 @@ object StatementPdf {
     }
 
     /** Draws one statement from a fresh page, and returns the last page it used. */
-    private fun draw(document: StatementDocument, pdf: PdfDocument, from: Int, colour: Boolean): Int {
+    private fun draw(document: StatementDocument, pdf: PdfDocument, from: Int): Int {
         var pageNumber = from + 1
         var page = pdf.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
         var canvas = page.canvas
@@ -288,41 +289,24 @@ object StatementPdf {
         val right = PAGE_WIDTH - MARGIN
         val width = right - MARGIN
 
-        // --- The band
-        //
-        // Full bleed to the paper's edge, not inset to the margin: an inset
-        // colour block reads as a box somebody drew, where a band that runs off
-        // both sides reads as the head of the page.
-        //
-        // Sans throughout, deliberately. A serif here would set the shop's own
-        // name — which the owner types, and which may be in Arabic or Kannada —
-        // in a face whose coverage of those scripts is patchy, and the failure
-        // is tofu boxes in the largest text on the page.
-
-        if (colour) {
-            val bandHeight = 74f
-            canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), bandHeight, accent)
-            canvas.drawText(document.shopName, MARGIN, 30f, reversed(TITLE_SIZE))
-            for ((index, line) in document.shopAddressLines.withIndex()) {
-                canvas.drawText(line, MARGIN, 44f + index * 10f, reversed(7.5f).apply { alpha = 200 })
-            }
-            canvas.drawTextRight(document.docType.uppercase(), right, 26f, reversed(8f).apply { alpha = 210 })
-            canvas.drawTextRight(document.periodValue, right, 40f, reversed(11f))
-            y = bandHeight + 24
-        } else {
-            canvas.drawText(document.shopName, MARGIN, y + TITLE_SIZE, paint(TITLE_SIZE, bold = true))
-            canvas.drawTextRight(document.docType, right, y + TITLE_SIZE, paint(13f))
-            y += TITLE_SIZE + 6
-            canvas.drawText(
-                document.shopAddressLines.joinToString(", "),
-                MARGIN,
-                y + 8,
-                paint(7.5f, grey = true)
+        // The letterhead, through the shared drawer so this page and the eight
+        // that gained one later cannot drift apart. Full bleed to the paper's
+        // edge, not inset to the margin: an inset colour block reads as a box
+        // somebody drew, where a band that runs off both sides reads as the head
+        // of the page.
+        fun masthead() {
+            PageBand.draw(
+                canvas = canvas,
+                pageWidth = PAGE_WIDTH.toFloat(),
+                margin = MARGIN,
+                shopName = document.shopName,
+                addressLines = document.shopAddressLines,
+                docType = document.docType,
+                dateLine = document.periodValue
             )
-            y += 14
-            canvas.drawLine(MARGIN, y, right, y, heavyRule)
-            y += 20
+            y = PageBand.CONTENT_TOP
         }
+        masthead()
 
         // --- Whose account, and over what
 
@@ -330,24 +314,17 @@ object StatementPdf {
         val factsHeight = 46f
         val middle = MARGIN + width / 2
 
-        // Boxed only in the monochrome treatment, where a hairline is the only
-        // thing available to group two facts. The colour page has an accent
-        // label doing that job already, and a box round it as well is one device
-        // too many — the reason this page reads busier than it should have.
-        if (!colour) {
-            canvas.drawRect(MARGIN, factsTop, right, factsTop + factsHeight, rule.stroke())
-            canvas.drawLine(middle, factsTop, middle, factsTop + factsHeight, rule)
-        }
+        // Not boxed: the accent labels group these two facts already, and a
+        // hairline round them as well is one device too many — the reason this
+        // page once read busier than it was meant to.
+        val factLabel = accentText(7.5f, bold = true)
+        canvas.drawText(document.accountLabel.uppercase(), MARGIN, factsTop + 12, factLabel)
+        canvas.drawText(document.partyName, MARGIN, factsTop + 27, paint(11f, bold = true))
+        canvas.drawText(document.partyLines.joinToString(" · "), MARGIN, factsTop + 39, paint(8f, grey = true))
 
-        val inset = if (colour) 0f else 10f
-        val factLabel = if (colour) accentText(7.5f, bold = true) else paint(7.5f, grey = true)
-        canvas.drawText(document.accountLabel.uppercase(), MARGIN + inset, factsTop + 12, factLabel)
-        canvas.drawText(document.partyName, MARGIN + inset, factsTop + 27, paint(11f, bold = true))
-        canvas.drawText(document.partyLines.joinToString(" · "), MARGIN + inset, factsTop + 39, paint(8f, grey = true))
-
-        canvas.drawText(document.periodLabel.uppercase(), middle + inset, factsTop + 12, factLabel)
-        canvas.drawText(document.periodValue, middle + inset, factsTop + 27, paint(11f, bold = true))
-        canvas.drawText(document.summaryTitle, middle + inset, factsTop + 39, paint(8f, grey = true))
+        canvas.drawText(document.periodLabel.uppercase(), middle, factsTop + 12, factLabel)
+        canvas.drawText(document.periodValue, middle, factsTop + 27, paint(11f, bold = true))
+        canvas.drawText(document.summaryTitle, middle, factsTop + 39, paint(8f, grey = true))
 
         y = factsTop + factsHeight + 26
 
@@ -360,7 +337,7 @@ object StatementPdf {
             // Set on a tinted row rather than over a rule: the band at the top
             // has already said this page uses colour, and a second heavy black
             // rule would be a different page's idea.
-            if (colour) canvas.drawRect(MARGIN, y - 2, right, y + 13, accentSoft)
+            canvas.drawRect(MARGIN, y - 2, right, y + 13, accentSoft)
             val head = paint(7.5f, grey = true)
             canvas.drawText(document.columnHeadings[0].uppercase(), MARGIN + width * COL_DATE, y + 10, head)
             canvas.drawText(document.columnHeadings[1].uppercase(), MARGIN + width * COL_REFERENCE, y + 10, head)
@@ -368,7 +345,6 @@ object StatementPdf {
             canvas.drawTextRight(document.columnHeadings[3].uppercase(), MARGIN + width * EDGE_SETTLED, y + 10, head)
             canvas.drawTextRight(document.columnHeadings[4].uppercase(), MARGIN + width * EDGE_BALANCE, y + 10, head)
             y += 17
-            if (!colour) canvas.drawLine(MARGIN, y - 4, right, y - 4, heavyRule)
         }
         headings()
 
@@ -381,7 +357,7 @@ object StatementPdf {
                 pageNumber += 1
                 page = pdf.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
                 canvas = page.canvas
-                y = MARGIN
+                masthead()
                 headings()
             }
 
@@ -412,36 +388,22 @@ object StatementPdf {
         // rectangle round the lines and a tinted panel under them made two — the
         // shape that had this page reading as a different design from the one it
         // was meant to be.
-        if (colour) {
-            val cardHeight = document.summaryRows.size * lineHeight + dueHeight
-            canvas.drawRect(totalsLeft, totalY, right, totalY + cardHeight, accentSoft)
-            canvas.drawRect(totalsLeft, totalY, totalsLeft + 3.5f, totalY + cardHeight, accent)
-        } else {
-            canvas.drawRect(totalsLeft, totalY, right, totalY + document.summaryRows.size * lineHeight, rule.stroke())
-        }
+        val cardHeight = document.summaryRows.size * lineHeight + dueHeight
+        canvas.drawRect(totalsLeft, totalY, right, totalY + cardHeight, accentSoft)
+        canvas.drawRect(totalsLeft, totalY, totalsLeft + 3.5f, totalY + cardHeight, accent)
 
-        val labelInset = if (colour) 12f else 9f
+        val labelInset = 12f
         for (row in document.summaryRows) {
             canvas.drawText(row.label, totalsLeft + labelInset, totalY + 12, paint(BODY_SIZE, grey = true))
             canvas.drawTextRight(row.value.bracketed(row.deduction), right - 9, totalY + 12, paint(BODY_SIZE))
             totalY += lineHeight
-            if (!colour && row !== document.summaryRows.last()) {
-                canvas.drawLine(totalsLeft, totalY, right, totalY, rule)
-            }
         }
 
-        // The one figure the reader came for. On the colour page it closes the
-        // card it already sits in, over a hairline; on the mono page it is
-        // reversed out of solid black, which is the only weight left there.
-        if (colour) {
-            canvas.drawLine(totalsLeft + labelInset, totalY, right - 9, totalY, rule)
-            canvas.drawText(document.closingLabel.uppercase(), totalsLeft + labelInset, totalY + 18, accentText(7.5f, bold = true))
-            canvas.drawTextRight(document.closingValue, right - 9, totalY + 21, accentText(15f, bold = true))
-        } else {
-            canvas.drawRect(totalsLeft, totalY, right, totalY + dueHeight, fillInk)
-            canvas.drawText(document.closingLabel.uppercase(), totalsLeft + 12, totalY + 18, reversed(7.5f))
-            canvas.drawTextRight(document.closingValue, right - 9, totalY + 19, reversed(13f))
-        }
+        // The one figure the reader came for, closing the card it already sits
+        // in, over a hairline.
+        canvas.drawLine(totalsLeft + labelInset, totalY, right - 9, totalY, rule)
+        canvas.drawText(document.closingLabel.uppercase(), totalsLeft + labelInset, totalY + 18, accentText(7.5f, bold = true))
+        canvas.drawTextRight(document.closingValue, right - 9, totalY + 21, accentText(15f, bold = true))
 
         // --- Footer: the address, and which page this is
 
@@ -461,7 +423,6 @@ object StatementPdf {
      */
     private fun String.bracketed(deduction: Boolean): String = if (deduction) "($this)" else this
 
-    private fun Paint.stroke(): Paint = Paint(this).apply { style = Paint.Style.STROKE }
 
     /** `Muhammad Al Q…` — a name cut to the room it has, rather than over the figure. */
     private fun Paint.ellipsised(text: String, maxWidth: Float): String {

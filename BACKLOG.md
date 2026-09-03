@@ -65,10 +65,17 @@ Play will grant production access at all.
   (The grey `#EDEDF2` on the day and earnings pages is their *section heading*
   tint, a different device — those two had no masthead either.)
 
-  `PageBand` now draws it for the summary, day and earnings writers, and
-  `Settings.addressLines` feeds all four documents the address the statement was
-  splitting on its own. **The ledger book stays mono**, which is the one place
-  the toner is worth counting: a hundred pages printed at once and filed.
+  `PageBand` now draws it for all four writers, and `Settings.addressLines` feeds
+  every document the address the statement was splitting on its own.
+
+  **The ledger book took the band too, in the end.** It kept a monochrome
+  treatment for a day on the argument that a hundred pages of band is toner worth
+  saving — and the arithmetic said that is a band over 8.8% of each sheet, about
+  three times a plain page's coverage, or somewhere under forty riyals a print.
+  Real, but not enough to leave one document looking unlike the other thirteen.
+  The whole mono path is deleted rather than left unreachable: the boxed facts,
+  the reversed closing block, the second totals layout, `heavyRule` on the
+  statement, and the `colour` flag that chose between them.
 
   The four registers are **Reports** now, not Summaries — a report lists records
   and can be checked line by line against the paper book. The day and earnings

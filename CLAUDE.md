@@ -144,13 +144,13 @@ the other.
 
 ## Domain rules worth knowing before you edit
 
-- **Every printed page carries the band except the ledger book.** `PageBand` is
-  the one drawer — violet, 74pt, shop name and address reversed out of it, the
-  document's title and its span on the right. `StatementPdf` keeps its own copy
-  of the same geometry because it also draws the book, where the band is replaced
-  by a rule: a hundred pages printed at once is the only place the toner is worth
-  counting. A new PDF writer that draws its own header is a page that will not
-  look like the others.
+- **Every printed page carries the band.** `PageBand` is the one drawer —
+  violet, 74pt, shop name and address reversed out of it, the document's title
+  and its span on the right — and all four writers call it, on every page rather
+  than the first. There is no monochrome alternative any more: the ledger book
+  had one, and a hundred pages of band works out under forty riyals a print,
+  which is not enough to keep a second layout alive for. A new PDF writer that
+  draws its own header is a page that will not look like the others.
 - **The four registers are Reports; the day and earnings are Summaries.** Not
   decoration: a report lists records one line each and can be checked against the
   paper book; a summary folds figures and cannot. `salesReport`,
