@@ -1156,7 +1156,7 @@ struct Strings {
     /// The shop's own spending over a stretch of days, broken down by what it
     /// went on. Never called a *statement*: that word means one party's account,
     /// and an expense is joined to no party at all.
-    var expenseSummary: String { pick("Expense Summary", "ಖರ್ಚಿನ ಸಾರಾಂಶ") }
+    var expenseReport: String { pick("Expense Report", "ಖರ್ಚಿನ ವರದಿ") }
     var columnWhatItWentOn: String { pick("What it went on", "ಯಾವುದಕ್ಕೆ") }
     var totalSpentLabel: String { pick("Total spent", "ಒಟ್ಟು ಖರ್ಚು") }
     var nothingSpentThen: String { pick("Nothing spent in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಖರ್ಚು ಇಲ್ಲ.") }
@@ -1169,12 +1169,12 @@ struct Strings {
 
     // MARK: - The other three summary pages the book can make
 
-    var salesSummary: String { pick("Sales Summary", "ಮಾರಾಟದ ಸಾರಾಂಶ") }
-    var purchaseSummary: String { pick("Purchase Summary", "ಖರೀದಿಯ ಸಾರಾಂಶ") }
-    // Says "received" rather than "payments", because the column on it is money
-    // in and the page would otherwise promise the vouchers as well. What went out
-    // is under the total, on one line, where it cannot be mistaken for a row.
-    var paymentsSummary: String { pick("Payments Received", "ಸ್ವೀಕರಿಸಿದ ಪಾವತಿಗಳು") }
+    var salesReport: String { pick("Sales Report", "ಮಾರಾಟದ ವರದಿ") }
+    var purchaseReport: String { pick("Purchase Report", "ಖರೀದಿಯ ವರದಿ") }
+    // The column on it is money in; what went out is under the total, on one
+    // line, where it cannot be mistaken for a row. Both are the page's business,
+    // which is why it reports on payments rather than naming one direction.
+    var paymentsReport: String { pick("Payments Report", "ಪಾವತಿಗಳ ವರದಿ") }
 
     var totalSoldLabel: String { pick("Total sold", "ಒಟ್ಟು ಮಾರಾಟ") }
     var totalBoughtLabel: String { pick("Total bought", "ಒಟ್ಟು ಖರೀದಿ") }

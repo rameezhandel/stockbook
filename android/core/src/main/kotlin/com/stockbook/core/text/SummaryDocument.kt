@@ -35,6 +35,15 @@ import java.time.Instant
  */
 data class SummaryDocument(
     val shopName: String,
+    /**
+     * The shop's address for the masthead, from [Settings.addressLines].
+     *
+     * Every page the app prints carries the same letterhead now — the shop's
+     * name and where it is — so a sheet on a desk says whose it is without
+     * anybody having to remember. The ledger book is the exception, and it is
+     * drawn by a different writer.
+     */
+    val shopAddressLines: List<String>,
     /** What this is, said so nobody mistakes it for a statement. */
     val title: String,
     /** `As of 22 August 2026`, or `1 – 31 August 2026`. See above. */
@@ -156,6 +165,7 @@ data class SummaryDocument(
             now: Instant = Timestamps.now()
         ): SummaryDocument = SummaryDocument(
             shopName = settings.ownerName,
+            shopAddressLines = settings.addressLines,
             title = strings.customerBalances,
             asOf = strings.asOfDate(strings.longDate(now)),
             columnHeadings = listOf(strings.columnCustomer, strings.balance),
@@ -195,7 +205,7 @@ data class SummaryDocument(
             range = range,
             settings = settings,
             strings = strings,
-            title = strings.salesSummary,
+            title = strings.salesReport,
             nameHeading = strings.columnCustomer,
             referenceHeading = strings.columnInvoiceReceipt,
             amountHeading = strings.soldInPeriod,
@@ -216,7 +226,7 @@ data class SummaryDocument(
             range = range,
             settings = settings,
             strings = strings,
-            title = strings.purchaseSummary,
+            title = strings.purchaseReport,
             nameHeading = strings.supplier,
             referenceHeading = strings.columnInvoiceReceipt,
             amountHeading = strings.boughtInPeriod,
@@ -252,7 +262,7 @@ data class SummaryDocument(
             range = range,
             settings = settings,
             strings = strings,
-            title = strings.paymentsSummary,
+            title = strings.paymentsReport,
             nameHeading = strings.columnCustomer,
             referenceHeading = strings.columnInvoiceReceipt,
             amountHeading = strings.receivedInPeriod,
@@ -280,7 +290,7 @@ data class SummaryDocument(
             range = range,
             settings = settings,
             strings = strings,
-            title = strings.expenseSummary,
+            title = strings.expenseReport,
             nameHeading = strings.columnWhatItWentOn,
             referenceHeading = null,
             amountHeading = strings.expenseInPeriod,
@@ -313,6 +323,7 @@ data class SummaryDocument(
             footnote: String? = null
         ): SummaryDocument = SummaryDocument(
             shopName = settings.ownerName,
+            shopAddressLines = settings.addressLines,
             title = title,
             asOf = strings.dateSpan(
                 strings.longDate(range.start),
@@ -371,6 +382,7 @@ data class SummaryDocument(
 
             return SummaryDocument(
                 shopName = settings.ownerName,
+            shopAddressLines = settings.addressLines,
                 title = title,
                 asOf = strings.asOfDate(strings.longDate(now)),
                 columnHeadings = listOf(partyHeading, amountHeading),

@@ -73,12 +73,21 @@ enum SummaryPDF {
 
             // MARK: Whose list this is, and when it was true
 
-            document.shopName.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, muted: true))
-            y += line + 4
-            document.title.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(titleSize, bold: true))
-            y += titleSize + 6
-            document.asOf.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, muted: true))
-            y += line + 18
+            // The letterhead, on every page of every document the app prints but
+            // the ledger book. A sheet in a folder has to say whose shop it came
+            // from, and until now this one did not.
+            func masthead() {
+                PageBand.draw(
+                    pageWidth: pageSize.width,
+                    margin: margin,
+                    shopName: document.shopName,
+                    addressLines: document.shopAddressLines,
+                    docType: document.title,
+                    dateLine: document.asOf
+                )
+                y = PageBand.contentTop
+            }
+            masthead()
 
             // MARK: The list
 
@@ -118,7 +127,7 @@ enum SummaryPDF {
                 // a page nobody can read on its own.
                 if y > pageSize.height - margin - 60 {
                     context.beginPage()
-                    y = margin
+                    masthead()
                     drawHeadings()
                 }
 

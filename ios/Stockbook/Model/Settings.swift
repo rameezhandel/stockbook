@@ -53,6 +53,18 @@ struct Settings: Codable, Equatable {
 
     var hasBackup: Bool { lastExportAt != nil }
 
+    /// `shopAddress` split for a letterhead: trimmed, blanks dropped.
+    ///
+    /// Here rather than in each document, because every page that prints a
+    /// masthead needs the same lines and four copies of one split is four
+    /// chances to disagree about whether a trailing blank line is an address
+    /// line.
+    var addressLines: [String] {
+        shopAddress.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { String($0).trimmed }
+            .filter { !$0.isEmpty }
+    }
+
     init() {}
 
     /// Written by hand, because the synthesised one refuses a file that is merely

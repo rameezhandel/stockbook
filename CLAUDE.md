@@ -144,6 +144,18 @@ the other.
 
 ## Domain rules worth knowing before you edit
 
+- **Every printed page carries the band except the ledger book.** `PageBand` is
+  the one drawer — violet, 74pt, shop name and address reversed out of it, the
+  document's title and its span on the right. `StatementPdf` keeps its own copy
+  of the same geometry because it also draws the book, where the band is replaced
+  by a rule: a hundred pages printed at once is the only place the toner is worth
+  counting. A new PDF writer that draws its own header is a page that will not
+  look like the others.
+- **The four registers are Reports; the day and earnings are Summaries.** Not
+  decoration: a report lists records one line each and can be checked against the
+  paper book; a summary folds figures and cannot. `salesReport`,
+  `purchaseReport`, `paymentsReport`, `expenseReport` against `daySummary` and
+  `earningsSummary`.
 - **The app says "purchase", never "delivery".** The owner drives a van to the
   wholesaler and buys hardware; nothing arrives at a door. Every visible word —
   the chip, the empty state, `purchaseRef`'s `Purchase #88`, the day summary's

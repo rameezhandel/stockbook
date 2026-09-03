@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import com.stockbook.app.pdf.PageBand
 import com.stockbook.core.text.SummaryDocument
 import java.io.File
 
@@ -90,12 +91,22 @@ object SummaryPdf {
 
         // --- Whose list this is, and when it was true
 
-        canvas.drawText(document.shopName, MARGIN, y + BODY_SIZE, paint(BODY_SIZE, grey = true))
-        y += LINE + 4
-        canvas.drawText(document.title, MARGIN, y + TITLE_SIZE, paint(TITLE_SIZE, bold = true))
-        y += TITLE_SIZE + 6
-        canvas.drawText(document.asOf, MARGIN, y + BODY_SIZE, paint(BODY_SIZE, grey = true))
-        y += LINE + 18
+        // The letterhead, on every page of every document the app prints but the
+        // ledger book. A sheet in a folder has to say whose shop it came from,
+        // and until now this one did not.
+        fun masthead() {
+            PageBand.draw(
+                canvas = canvas,
+                pageWidth = PAGE_WIDTH.toFloat(),
+                margin = MARGIN,
+                shopName = document.shopName,
+                addressLines = document.shopAddressLines,
+                docType = document.title,
+                dateLine = document.asOf
+            )
+            y = PageBand.CONTENT_TOP
+        }
+        masthead()
 
         if (document.isEmpty) {
             canvas.drawText(document.emptyLine, MARGIN, y + BODY_SIZE, paint(BODY_SIZE))
@@ -131,7 +142,7 @@ object SummaryPdf {
                 pageNumber += 1
                 page = pdf.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
                 canvas = page.canvas
-                y = MARGIN
+                masthead()
                 drawHeadings()
             }
 

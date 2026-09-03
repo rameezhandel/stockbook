@@ -67,6 +67,17 @@ data class Settings(
     val currency: Currency get() = Currency.named(currencyCode)
 
     val hasBackup: Boolean get() = lastExportAt != null
+
+    /**
+     * [shopAddress] split for a letterhead: trimmed, blanks dropped.
+     *
+     * Here rather than in each document, because every page that prints a
+     * masthead needs the same lines and four copies of one `split` is four
+     * chances to disagree about whether a trailing blank line is an address
+     * line.
+     */
+    val addressLines: List<String>
+        get() = shopAddress.lines().map { it.trim() }.filter { it.isNotEmpty() }
 }
 
 /**

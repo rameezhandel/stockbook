@@ -59,6 +59,21 @@ Play will grant production access at all.
 
 ## Settled, so nobody reopens them
 
+- **One letterhead on every page — done.** The statement had a violet band and
+  nothing else did, so **eight** of the fourteen documents printed with no
+  masthead at all: a sheet in a folder that did not say whose shop it came from.
+  (The grey `#EDEDF2` on the day and earnings pages is their *section heading*
+  tint, a different device — those two had no masthead either.)
+
+  `PageBand` now draws it for the summary, day and earnings writers, and
+  `Settings.addressLines` feeds all four documents the address the statement was
+  splitting on its own. **The ledger book stays mono**, which is the one place
+  the toner is worth counting: a hundred pages printed at once and filed.
+
+  The four registers are **Reports** now, not Summaries — a report lists records
+  and can be checked line by line against the paper book. The day and earnings
+  pages keep "Summary", because folding figures is what they do.
+
 - **A page from every card — done.** Expenses was the only one of the four with
   a share button; sales, purchases and payments have one now, over whatever span
   the card is showing, and every foot ties to the figure above the list.

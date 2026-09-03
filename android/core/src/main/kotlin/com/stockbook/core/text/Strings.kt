@@ -1165,7 +1165,7 @@ class Strings(val language: AppLanguage) {
      * went on. Never called a *statement*: that word means one party's account,
      * and an expense is joined to no party at all.
      */
-    val expenseSummary: String get() = pick("Expense Summary", "ಖರ್ಚಿನ ಸಾರಾಂಶ")
+    val expenseReport: String get() = pick("Expense Report", "ಖರ್ಚಿನ ವರದಿ")
     val columnWhatItWentOn: String get() = pick("What it went on", "ಯಾವುದಕ್ಕೆ")
     val totalSpentLabel: String get() = pick("Total spent", "ಒಟ್ಟು ಖರ್ಚು")
     val nothingSpentThen: String get() = pick("Nothing spent in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಖರ್ಚು ಇಲ್ಲ.")
@@ -1178,12 +1178,12 @@ class Strings(val language: AppLanguage) {
 
     // --- The other three summary pages the book can make
 
-    val salesSummary: String get() = pick("Sales Summary", "ಮಾರಾಟದ ಸಾರಾಂಶ")
-    val purchaseSummary: String get() = pick("Purchase Summary", "ಖರೀದಿಯ ಸಾರಾಂಶ")
-    // Says "received" rather than "payments", because the column on it is money
-    // in and the page would otherwise promise the vouchers as well. What went out
-    // is under the total, on one line, where it cannot be mistaken for a row.
-    val paymentsSummary: String get() = pick("Payments Received", "ಸ್ವೀಕರಿಸಿದ ಪಾವತಿಗಳು")
+    val salesReport: String get() = pick("Sales Report", "ಮಾರಾಟದ ವರದಿ")
+    val purchaseReport: String get() = pick("Purchase Report", "ಖರೀದಿಯ ವರದಿ")
+    // The column on it is money in; what went out is under the total, on one
+    // line, where it cannot be mistaken for a row. Both are the page's business,
+    // which is why it reports on payments rather than naming one direction.
+    val paymentsReport: String get() = pick("Payments Report", "ಪಾವತಿಗಳ ವರದಿ")
 
     val totalSoldLabel: String get() = pick("Total sold", "ಒಟ್ಟು ಮಾರಾಟ")
     val totalBoughtLabel: String get() = pick("Total bought", "ಒಟ್ಟು ಖರೀದಿ")

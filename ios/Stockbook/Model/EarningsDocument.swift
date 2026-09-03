@@ -21,6 +21,13 @@ import Foundation
 struct EarningsDocument: Equatable {
 
     let shopName: String
+    /// The shop's address for the masthead, from `Settings.addressLines`.
+    ///
+    /// Every page the app prints carries the same letterhead now — the shop's
+    /// name and where it is — so a sheet on a desk says whose it is without
+    /// anybody having to remember. The ledger book is the exception, and it is
+    /// drawn by a different writer.
+    let shopAddressLines: [String]
     /// What this is. Says *summary*, never *statement*.
     let title: String
     /// `1 – 31 August 2026` — the stretch the figures cover.
@@ -120,6 +127,7 @@ struct EarningsDocument: Equatable {
 
         return EarningsDocument(
             shopName: settings.ownerName,
+            shopAddressLines: settings.addressLines,
             title: strings.earningsSummary,
             onDate: strings.dateSpan(
                 from: strings.longDate(range.start),

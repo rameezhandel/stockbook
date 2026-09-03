@@ -177,4 +177,59 @@ struct SummaryPagesTests {
             range: range, settings: store.settings, strings: strings
         ).isEmpty)
     }
+
+    // MARK: The letterhead every printed page now carries
+
+    /// The shop's name and address reach the page.
+    ///
+    /// Eight of the app's pages printed with no letterhead at all: a sheet in a
+    /// folder that did not say whose shop it came from. The band draws these two
+    /// fields, so a document that does not carry them is a page that cannot have
+    /// one.
+    @Test("Every page carries the shop's name and address")
+    func letterhead() {
+        let store = StockbookStore(repository: InMemoryRepository())
+        store.setOwnerName("Al Faisal Hardware")
+        store.setShopAddress("King Abdulaziz Road\n\nAl Madinah")
+        _ = store.addExpense(amount: 60, note: "Petrol", spentAt: day)
+        _ = store.addCustomer(name: "Ahmed")
+        let month = StatementPeriod.month(day)
+
+        let pages = [
+            SummaryDocument.forSpending(
+                lines: store.expensesRegisterIn(month), range: month.range(),
+                settings: store.settings, strings: strings
+            ),
+            SummaryDocument.forSales(
+                lines: store.salesRegisterIn(month, strings: strings), range: month.range(),
+                settings: store.settings, strings: strings
+            ),
+            SummaryDocument.forReceivable(
+                customers: store.customers(), settings: store.settings, strings: strings
+            ),
+        ]
+
+        for page in pages {
+            #expect(page.shopName == "Al Faisal Hardware")
+            // Blank lines dropped, each line trimmed — the owner types an address
+            // as an address, not as a list.
+            #expect(page.shopAddressLines == ["King Abdulaziz Road", "Al Madinah"])
+        }
+    }
+
+    /// A shop that never typed one prints a name and no address, not an empty
+    /// line.
+    @Test("An address nobody typed is no lines at all")
+    func noAddress() {
+        let store = StockbookStore(repository: InMemoryRepository())
+        _ = store.addExpense(amount: 60, note: "Petrol", spentAt: day)
+        let month = StatementPeriod.month(day)
+
+        let page = SummaryDocument.forSpending(
+            lines: store.expensesRegisterIn(month), range: month.range(),
+            settings: store.settings, strings: strings
+        )
+
+        #expect(page.shopAddressLines.isEmpty)
+    }
 }

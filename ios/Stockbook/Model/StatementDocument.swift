@@ -157,10 +157,7 @@ struct StatementDocument: Equatable {
 
         return StatementDocument(
             shopName: settings.ownerName,
-            shopAddressLines: settings.shopAddress
-                .split(separator: "\n", omittingEmptySubsequences: false)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty },
+            shopAddressLines: settings.addressLines,
             docType: strings.statementOfAccount,
             addressedToLabel: strings.accountStatementFor,
             partyName: statement.party.name,

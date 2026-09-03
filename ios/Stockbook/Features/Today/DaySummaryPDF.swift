@@ -55,21 +55,31 @@ enum DaySummaryPDF {
             let width = right - margin
             var y = margin
 
+            // The letterhead, on every page of every document the app prints but
+            // the ledger book. A sheet in a folder has to say whose shop it came
+            // from, and until now this one did not.
+            func masthead() {
+                PageBand.draw(
+                    pageWidth: pageSize.width,
+                    margin: margin,
+                    shopName: document.shopName,
+                    addressLines: document.shopAddressLines,
+                    docType: document.title,
+                    dateLine: document.onDate
+                )
+                y = PageBand.contentTop
+            }
+
             /// A page break before a row rather than through one.
             func room(_ needed: CGFloat) {
                 guard y > pageSize.height - margin - needed else { return }
                 context.beginPage()
-                y = margin
+                masthead()
             }
 
             // MARK: Whose day this is, and which one
 
-            document.shopName.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, muted: true))
-            y += line + 4
-            document.title.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(titleSize, bold: true))
-            y += titleSize + 6
-            document.onDate.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, muted: true))
-            y += line + 18
+            masthead()
 
             guard !document.isEmpty else {
                 document.emptyLine.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize))

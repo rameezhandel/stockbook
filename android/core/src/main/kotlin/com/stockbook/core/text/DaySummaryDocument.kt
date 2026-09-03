@@ -29,6 +29,15 @@ import com.stockbook.core.store.DayEntryKind
  */
 data class DaySummaryDocument(
     val shopName: String,
+    /**
+     * The shop's address for the masthead, from [Settings.addressLines].
+     *
+     * Every page the app prints carries the same letterhead now — the shop's
+     * name and where it is — so a sheet on a desk says whose it is without
+     * anybody having to remember. The ledger book is the exception, and it is
+     * drawn by a different writer.
+     */
+    val shopAddressLines: List<String>,
     /** What this is. Says *summary*, never *statement*. */
     val title: String,
     /** `22 August 2026` — the one day the page covers. */
@@ -134,6 +143,7 @@ data class DaySummaryDocument(
 
             return DaySummaryDocument(
                 shopName = settings.ownerName,
+            shopAddressLines = settings.addressLines,
                 title = strings.daySummary,
                 onDate = strings.longDate(book.day),
                 sections = sections,

@@ -155,7 +155,7 @@ data class StatementDocument(
 
             return StatementDocument(
                 shopName = settings.ownerName,
-                shopAddressLines = settings.shopAddress.lines().map { it.trim() }.filter { it.isNotEmpty() },
+                shopAddressLines = settings.addressLines,
                 docType = strings.statementOfAccount,
                 addressedToLabel = strings.accountStatementFor,
                 partyName = statement.party.name,

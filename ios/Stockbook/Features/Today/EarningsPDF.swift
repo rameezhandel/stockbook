@@ -48,12 +48,21 @@ enum EarningsPDF {
 
             // MARK: Whose figures these are, and which days
 
-            document.shopName.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, muted: true))
-            y += line + 4
-            document.title.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(titleSize, bold: true))
-            y += titleSize + 6
-            document.onDate.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize, muted: true))
-            y += line + 20
+            // The letterhead, on every page of every document the app prints but
+            // the ledger book. A sheet in a folder has to say whose shop it came
+            // from, and until now this one did not.
+            func masthead() {
+                PageBand.draw(
+                    pageWidth: pageSize.width,
+                    margin: margin,
+                    shopName: document.shopName,
+                    addressLines: document.shopAddressLines,
+                    docType: document.title,
+                    dateLine: document.onDate
+                )
+                y = PageBand.contentTop
+            }
+            masthead()
 
             guard !document.isEmpty else {
                 document.emptyLine.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes(bodySize))

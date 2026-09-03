@@ -24,6 +24,13 @@ import Foundation
 struct SummaryDocument: Equatable {
 
     let shopName: String
+    /// The shop's address for the masthead, from `Settings.addressLines`.
+    ///
+    /// Every page the app prints carries the same letterhead now — the shop's
+    /// name and where it is — so a sheet on a desk says whose it is without
+    /// anybody having to remember. The ledger book is the exception, and it is
+    /// drawn by a different writer.
+    let shopAddressLines: [String]
     /// What this is, said so nobody mistakes it for a statement.
     let title: String
     /// `As of 22 August 2026`, or `1 – 31 August 2026`. See above.
@@ -139,6 +146,7 @@ struct SummaryDocument: Equatable {
         let money = currency ?? settings.currency
         return SummaryDocument(
             shopName: settings.ownerName,
+            shopAddressLines: settings.addressLines,
             title: strings.customerBalances,
             asOf: strings.asOfDate(strings.longDate(now)),
             columnHeadings: [strings.columnCustomer, strings.balance],
@@ -178,7 +186,7 @@ struct SummaryDocument: Equatable {
             range: range,
             settings: settings,
             strings: strings,
-            title: strings.salesSummary,
+            title: strings.salesReport,
             nameHeading: strings.columnCustomer,
             referenceHeading: strings.columnInvoiceReceipt,
             amountHeading: strings.soldInPeriod,
@@ -201,7 +209,7 @@ struct SummaryDocument: Equatable {
             range: range,
             settings: settings,
             strings: strings,
-            title: strings.purchaseSummary,
+            title: strings.purchaseReport,
             nameHeading: strings.supplier,
             referenceHeading: strings.columnInvoiceReceipt,
             amountHeading: strings.boughtInPeriod,
@@ -238,7 +246,7 @@ struct SummaryDocument: Equatable {
             range: range,
             settings: settings,
             strings: strings,
-            title: strings.paymentsSummary,
+            title: strings.paymentsReport,
             nameHeading: strings.columnCustomer,
             referenceHeading: strings.columnInvoiceReceipt,
             amountHeading: strings.receivedInPeriod,
@@ -266,7 +274,7 @@ struct SummaryDocument: Equatable {
             range: range,
             settings: settings,
             strings: strings,
-            title: strings.expenseSummary,
+            title: strings.expenseReport,
             nameHeading: strings.columnWhatItWentOn,
             referenceHeading: nil,
             amountHeading: strings.expenseInPeriod,
@@ -301,6 +309,7 @@ struct SummaryDocument: Equatable {
     ) -> SummaryDocument {
         SummaryDocument(
             shopName: settings.ownerName,
+            shopAddressLines: settings.addressLines,
             title: title,
             asOf: strings.dateSpan(
                 from: strings.longDate(range.start),
@@ -354,6 +363,7 @@ struct SummaryDocument: Equatable {
 
         return SummaryDocument(
             shopName: settings.ownerName,
+            shopAddressLines: settings.addressLines,
             title: title,
             asOf: strings.asOfDate(strings.longDate(now)),
             columnHeadings: [partyHeading, amountHeading],

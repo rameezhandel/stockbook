@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import com.stockbook.app.pdf.PageBand
 import com.stockbook.core.text.DaySummaryDocument
 import java.io.File
 
@@ -82,6 +83,22 @@ object DaySummaryPdf {
         val right = PAGE_WIDTH - MARGIN
         val width = right - MARGIN
 
+        // The letterhead, on every page of every document the app prints but the
+        // ledger book. A sheet in a folder has to say whose shop it came from,
+        // and until now this one did not.
+        fun masthead() {
+            PageBand.draw(
+                canvas = canvas,
+                pageWidth = PAGE_WIDTH.toFloat(),
+                margin = MARGIN,
+                shopName = document.shopName,
+                addressLines = document.shopAddressLines,
+                docType = document.title,
+                dateLine = document.onDate
+            )
+            y = PageBand.CONTENT_TOP
+        }
+
         /** A page break before a row rather than through one. */
         fun room(needed: Float) {
             if (y <= PAGE_HEIGHT - MARGIN - needed) return
@@ -89,17 +106,12 @@ object DaySummaryPdf {
             pageNumber += 1
             page = pdf.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
             canvas = page.canvas
-            y = MARGIN
+            masthead()
         }
 
         // --- Whose day this is, and which one
 
-        canvas.drawText(document.shopName, MARGIN, y + BODY_SIZE, paint(BODY_SIZE, grey = true))
-        y += LINE + 4
-        canvas.drawText(document.title, MARGIN, y + TITLE_SIZE, paint(TITLE_SIZE, bold = true))
-        y += TITLE_SIZE + 6
-        canvas.drawText(document.onDate, MARGIN, y + BODY_SIZE, paint(BODY_SIZE, grey = true))
-        y += LINE + 18
+        masthead()
 
         if (document.isEmpty) {
             canvas.drawText(document.emptyLine, MARGIN, y + BODY_SIZE, paint(BODY_SIZE))

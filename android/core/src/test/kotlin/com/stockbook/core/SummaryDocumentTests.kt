@@ -320,7 +320,7 @@ class SummaryDocumentTests {
 
         val document = store.spendingDocument(StatementPeriod.Month(Instant.parse("2026-08-10T00:00:00Z")))
 
-        assertEquals("Expense Summary", document.title)
+        assertEquals("Expense Report", document.title)
         assertTrue(!document.title.contains("Statement", ignoreCase = true))
         // The last day *inside* August, not midnight on the 1st of September.
         assertEquals("1 August 2026 to 31 August 2026", document.asOf)
@@ -470,5 +470,45 @@ class SummaryDocumentTests {
                 store.receiptsRegisterIn(quiet, strings), store.paidOutIn(quiet), range, store.settings, strings
             ).isEmpty
         )
+    }
+
+    // --- The letterhead every printed page now carries
+
+    /**
+     * The shop's name and address reach the page.
+     *
+     * Eight of the app's pages printed with no letterhead at all: a sheet in a
+     * folder that did not say whose shop it came from. The band draws these two
+     * fields, so a document that does not carry them is a page that cannot have
+     * one.
+     */
+    @Test
+    fun `every page carries the shop's name and address`() {
+        val store = store()
+        store.setOwnerName("Al Faisal Hardware")
+        store.setShopAddress("King Abdulaziz Road\n\nAl Madinah")
+        store.addExpense(60.0, "Petrol", day)
+        store.addCustomer("Ahmed")
+        val month = StatementPeriod.Month(day)
+
+        for (page in listOf(
+            store.spendingDocument(month),
+            SummaryDocument.forSales(store.salesRegisterIn(month, strings), month.range(), store.settings, strings),
+            SummaryDocument.forReceivable(store.customers(), store.settings, strings)
+        )) {
+            assertEquals("Al Faisal Hardware", page.shopName)
+            // Blank lines dropped, each line trimmed — the owner types an address
+            // as an address, not as a list.
+            assertEquals(listOf("King Abdulaziz Road", "Al Madinah"), page.shopAddressLines)
+        }
+    }
+
+    /** A shop that never typed one prints a name and no address, not an empty line. */
+    @Test
+    fun `an address nobody typed is no lines at all`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", day)
+
+        assertEquals(emptyList(), store.spendingDocument(StatementPeriod.Month(day)).shopAddressLines)
     }
 }

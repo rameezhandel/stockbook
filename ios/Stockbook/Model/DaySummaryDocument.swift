@@ -22,6 +22,13 @@ import Foundation
 struct DaySummaryDocument: Equatable {
 
     let shopName: String
+    /// The shop's address for the masthead, from `Settings.addressLines`.
+    ///
+    /// Every page the app prints carries the same letterhead now — the shop's
+    /// name and where it is — so a sheet on a desk says whose it is without
+    /// anybody having to remember. The ledger book is the exception, and it is
+    /// drawn by a different writer.
+    let shopAddressLines: [String]
     /// What this is. Says *summary*, never *statement*.
     let title: String
     /// `22 August 2026` — the one day the page covers.
@@ -124,6 +131,7 @@ struct DaySummaryDocument: Equatable {
 
         return DaySummaryDocument(
             shopName: settings.ownerName,
+            shopAddressLines: settings.addressLines,
             title: strings.daySummary,
             onDate: strings.longDate(book.day),
             sections: sections,
