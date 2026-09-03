@@ -158,6 +158,12 @@ struct PaymentReceiptSheet: View {
 /// other printed pages already settled on. Shared by both shapes of the page so
 /// the file the counter hands out and the file a copy is asked for a week later
 /// are the same document under the same name.
+///
+/// `@MainActor` because it reads `Loc` for the file name, and a top-level
+/// function is nonisolated however main-actor the views calling it are. Both
+/// call sites are button actions inside a `body`, so the annotation costs
+/// nothing — and without it this is the `Loc` isolation error again.
+@MainActor
 private func receiptFile(_ document: PaymentReceiptDocument, at moment: Date) -> StatementFile? {
     let name = document.partyName
         .replacingOccurrences(of: "[^A-Za-z0-9]+", with: "-", options: .regularExpression)
