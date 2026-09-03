@@ -2238,7 +2238,15 @@ class StockbookStore(private val repository: StockbookRepository) {
             payment.customerKey,
             wholeHistoryAround(payment.receivedAt)
         ) ?: return null
-        return receipt(statement, "payment-$id", payment.paymentNo, payment.amount, payment.receivedAt, payment.note)
+        return receipt(
+            statement,
+            "payment-$id",
+            payment.id,
+            payment.paymentNo,
+            payment.amount,
+            payment.receivedAt,
+            payment.note
+        )
     }
 
     /**
@@ -2261,6 +2269,7 @@ class StockbookStore(private val repository: StockbookRepository) {
     private fun receipt(
         statement: Statement,
         entryId: String,
+        paymentId: String,
         paymentNo: String?,
         amount: Double,
         at: Instant,
@@ -2271,6 +2280,7 @@ class StockbookStore(private val repository: StockbookRepository) {
         val after = statement.runningBalances[index]
         return PaymentReceipt(
             party = statement.party,
+            paymentId = paymentId,
             paymentNo = paymentNo,
             amount = amount,
             at = at,
@@ -2970,7 +2980,15 @@ class StockbookStore(private val repository: StockbookRepository) {
             payment.supplierKey,
             wholeHistoryAround(payment.paidAt)
         ) ?: return null
-        return receipt(statement, "supplier-payment-$id", payment.paymentNo, payment.amount, payment.paidAt, payment.note)
+        return receipt(
+            statement,
+            "supplier-payment-$id",
+            payment.id,
+            payment.paymentNo,
+            payment.amount,
+            payment.paidAt,
+            payment.note
+        )
     }
 
     /**

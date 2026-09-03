@@ -1815,6 +1815,7 @@ final class StockbookStore {
         return Self.receipt(
             statement: statement,
             entryId: "payment-\(id.uuidString)",
+            paymentId: payment.id,
             paymentNo: payment.paymentNo,
             amount: payment.amount,
             at: payment.receivedAt,
@@ -1837,6 +1838,7 @@ final class StockbookStore {
     private static func receipt(
         statement: Statement,
         entryId: String,
+        paymentId: UUID,
         paymentNo: String?,
         amount: Double,
         at: Date,
@@ -1846,6 +1848,7 @@ final class StockbookStore {
         let after = statement.runningBalances[index]
         return PaymentReceipt(
             party: statement.party,
+            paymentId: paymentId,
             paymentNo: paymentNo,
             amount: amount,
             at: at,
@@ -2544,6 +2547,7 @@ final class StockbookStore {
         return Self.receipt(
             statement: statement,
             entryId: "supplier-payment-\(id.uuidString)",
+            paymentId: payment.id,
             paymentNo: payment.paymentNo,
             amount: payment.amount,
             at: payment.paidAt,

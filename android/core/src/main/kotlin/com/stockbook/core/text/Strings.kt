@@ -572,6 +572,11 @@ class Strings(val language: AppLanguage) {
 
     val savePayment: String get() = pick("Save payment", "ಪಾವತಿ ಉಳಿಸಿ")
     val paymentLabel: String get() = pick("Payment", "ಪಾವತಿ")
+    val removePaymentNote: String
+        get() = pick(
+            "The account goes back to where it stood before this slip.",
+            "ಈ ಚೀಟಿಗೆ ಮೊದಲು ಖಾತೆ ಇದ್ದ ಸ್ಥಿತಿಗೆ ಮರಳುತ್ತದೆ."
+        )
     val deleteThisPayment: String get() = pick("Delete this payment", "ಈ ಪಾವತಿಯನ್ನು ಅಳಿಸಿ")
     val enterAnAmount: String get() = pick("Enter an amount", "ಮೊತ್ತ ಬರೆಯಿರಿ")
 

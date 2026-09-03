@@ -219,8 +219,10 @@ private struct AppShell: View {
         // of the two shapes appears, so only one is ever on screen.
         //
         // `isPresented` rather than `item`, because `PaymentReceipt` is derived
-        // rather than stored and carries no id to be identified by — it is built
-        // from a statement each time it is asked for.
+        // rather than stored — it is built from a statement each time it is
+        // asked for, and is not `Identifiable`. It does now carry the
+        // `paymentId` of the record behind it, which is what the sheet deletes
+        // by; that is an id for the payment, not an identity for the slip.
         .nocturneSheet(
             isPresented: Binding(
                 get: { router.paymentReceipt != nil && !router.paymentReceiptIsNew },

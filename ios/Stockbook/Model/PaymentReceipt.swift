@@ -18,6 +18,13 @@ import Foundation
 struct PaymentReceipt: Equatable {
     /// Whose account, and which way it runs — the receipt is worded from this.
     let party: StatementParty
+    /// The payment this was derived from.
+    ///
+    /// Carried so a screen showing the slip can act on the record behind it —
+    /// deleting a payment needs the payment, and everything else here is a figure
+    /// read out of a statement. `StatementParty.isSupplier` says which of the two
+    /// stores to ask.
+    let paymentId: UUID
     /// The number the shop wrote on the slip, or nil on a record from before
     /// receipt numbers were typed. The document says so rather than leaving a
     /// gap.

@@ -85,6 +85,12 @@ struct PaymentReceiptOverlay: View {
 /// the whole screen, which reads as something having just happened and leaves
 /// the owner nothing behind it to go back to.
 ///
+/// **Shaped like `BillSheet`, because it is the same kind of thing.** The close
+/// and the share sit in the header where a sheet's chrome belongs, and removal
+/// is a ghost button at the foot behind a second tap. The full-screen
+/// confirmation keeps its worded Done: there, finishing is the action, not
+/// closing a document.
+///
 /// **No scroll of its own.** The sheet already scrolls its content, and a second
 /// scroll nested in the first is the trap that has emptied a list on this
 /// codebase before.
@@ -92,6 +98,10 @@ struct PaymentReceiptSheet: View {
     let receipt: PaymentReceipt
 
     @Environment(StockbookStore.self) private var store
+    @Environment(AppRouter.self) private var router
+
+    @State private var file: StatementFile?
+    @State private var confirmingRemoval = false
 
     private var document: PaymentReceiptDocument {
         PaymentReceiptDocument.make(receipt: receipt, settings: store.settings, strings: Loc)
@@ -100,20 +110,73 @@ struct PaymentReceiptSheet: View {
     var body: some View {
         let slip = document
         VStack(alignment: .leading, spacing: 0) {
-            Text(slip.docType)
-                .font(NocturneType.inter(18, .medium))
-                .padding(.bottom, 18)
+            SheetHeader(
+                title: slip.docType,
+                // The figure, which is what the owner opened this to check.
+                subtitle: slip.amountValue,
+                onShare: { file = receiptFile(slip, at: receipt.at) },
+                onClose: { router.paymentReceipt = nil }
+            )
+
             PaymentReceiptBody(document: slip)
-            PaymentReceiptActions(receipt: receipt, document: slip)
+
+            // Removal is a second tap, exactly as a bill's is: it takes a figure
+            // back out of somebody's account, and the balance moves the moment
+            // it lands.
+            //
+            // Deleted here rather than by a closure the presenter hands down,
+            // because the sheet is given the receipt itself and `paymentId` with
+            // it — the same shape `BillSheet` deletes in. Which of the two books
+            // to reach for is what `isSupplier` decides; money in and money out
+            // are separate types and neither store will find the other's id.
+            VStack(alignment: .leading, spacing: 6) {
+                Button(confirmingRemoval ? Loc.tapAgainToRemove : Loc.deleteThisPayment) {
+                    if confirmingRemoval {
+                        if receipt.party.isSupplier {
+                            store.deleteSupplierPayment(id: receipt.paymentId)
+                        } else {
+                            store.deletePayment(id: receipt.paymentId)
+                        }
+                        router.paymentReceipt = nil
+                    } else {
+                        withAnimation(Metrics.quick) { confirmingRemoval = true }
+                    }
+                }
+                .buttonStyle(.ghostMuted)
+
+                Text(Loc.removePaymentNote).nocturneText(.meta)
+            }
+            .padding(.top, 18)
         }
+        .sheet(item: $file) { ShareSheet(url: $0.url) }
     }
+}
+
+/// The slip as a file, named after whoever it was for and the day it was taken.
+///
+/// A failure returns nil and nothing opens, which is the honest outcome the
+/// other printed pages already settled on. Shared by both shapes of the page so
+/// the file the counter hands out and the file a copy is asked for a week later
+/// are the same document under the same name.
+private func receiptFile(_ document: PaymentReceiptDocument, at moment: Date) -> StatementFile? {
+    let name = document.partyName
+        .replacingOccurrences(of: "[^A-Za-z0-9]+", with: "-", options: .regularExpression)
+        .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        .lowercased()
+    guard let url = try? PaymentReceiptPDF.write(
+        document,
+        fileName: Loc.receiptFileName(name, Copy.fileDate(moment))
+    ) else { return nil }
+    return StatementFile(url: url)
 }
 
 /// Print it now or never: the customer is still at the counter, and this is the
 /// moment they want the slip.
 ///
-/// Holds the rendered file, so both shapes of the page get the share sheet
-/// without either of them owning it.
+/// Worded buttons rather than the sheet's header chrome, because this page is a
+/// confirmation: the owner is being told the payment landed and then dismissing
+/// it, and Done is the thing they are doing. There is no removal here either —
+/// the money was just taken, and a delete beside the tick invites the wrong tap.
 private struct PaymentReceiptActions: View {
     let receipt: PaymentReceipt
     let document: PaymentReceiptDocument
@@ -125,7 +188,7 @@ private struct PaymentReceiptActions: View {
     var body: some View {
         VStack(spacing: 8) {
             Button {
-                share()
+                file = receiptFile(document, at: receipt.at)
             } label: {
                 Label(Loc.sharePdf, systemImage: Icon.share)
             }
@@ -136,20 +199,6 @@ private struct PaymentReceiptActions: View {
         }
         .padding(.top, 14)
         .sheet(item: $file) { ShareSheet(url: $0.url) }
-    }
-
-    /// A failure leaves `file` nil and nothing opens, which is the honest
-    /// outcome the other printed pages already settled on.
-    private func share() {
-        let name = document.partyName
-            .replacingOccurrences(of: "[^A-Za-z0-9]+", with: "-", options: .regularExpression)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-            .lowercased()
-        guard let url = try? PaymentReceiptPDF.write(
-            document,
-            fileName: Loc.receiptFileName(name, Copy.fileDate(receipt.at))
-        ) else { return }
-        file = StatementFile(url: url)
     }
 }
 

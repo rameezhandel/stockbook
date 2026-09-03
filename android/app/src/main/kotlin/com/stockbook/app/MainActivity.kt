@@ -756,6 +756,16 @@ private fun Shell(store: StockbookStore) {
                         document = document,
                         strings = strings,
                         onSharePdf = share,
+                        // Which of the two stores holds it is what the account's
+                        // own direction says — a receipt and a voucher are
+                        // separate records, and always were.
+                        onRemove = {
+                            if (receipt.party.isSupplier) {
+                                store.deleteSupplierPayment(receipt.paymentId)
+                            } else {
+                                store.deletePayment(receipt.paymentId)
+                            }
+                        },
                         onClose = { router.paymentReceipt = null }
                     )
                 }

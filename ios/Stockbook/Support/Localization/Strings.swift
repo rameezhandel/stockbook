@@ -546,6 +546,12 @@ struct Strings {
 
     var savePayment: String { pick("Save payment", "ಪಾವತಿ ಉಳಿಸಿ") }
     var paymentLabel: String { pick("Payment", "ಪಾವತಿ") }
+    var removePaymentNote: String {
+        pick(
+            "The account goes back to where it stood before this slip.",
+            "ಈ ಚೀಟಿಗೆ ಮೊದಲು ಖಾತೆ ಇದ್ದ ಸ್ಥಿತಿಗೆ ಮರಳುತ್ತದೆ."
+        )
+    }
     var deleteThisPayment: String { pick("Delete this payment", "ಈ ಪಾವತಿಯನ್ನು ಅಳಿಸಿ") }
     var enterAnAmount: String { pick("Enter an amount", "ಮೊತ್ತ ಬರೆಯಿರಿ") }
 

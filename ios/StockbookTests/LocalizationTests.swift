@@ -43,7 +43,7 @@ struct LocalizationTests {
         \.enterCreditNoteNumber, \.changeTheCreditNoteNo, \.itemsReturned,
         \.addReturnedItems, \.noCreditNotesYet, \.creditNoteNotAPayment,
         \.recordAPayment, \.correctAPayment, \.amountReceived, \.receivedOn, \.paymentNote,
-        \.paymentNoteExample, \.savePayment, \.paymentLabel, \.deleteThisPayment,
+        \.paymentNoteExample, \.savePayment, \.paymentLabel, \.deleteThisPayment, \.removePaymentNote,
         \.enterAnAmount, \.paymentNotAgainstOneBill,
         \.paymentNoField, \.paymentNoHint, \.enterPaymentNumber, \.changeThePaymentNo,
         \.paymentSaved, \.viewReceipt, \.paymentReceipt, \.paymentVoucher,

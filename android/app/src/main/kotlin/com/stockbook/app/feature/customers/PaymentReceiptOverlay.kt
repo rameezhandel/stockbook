@@ -38,8 +38,10 @@ import com.stockbook.app.design.Icon
 import com.stockbook.app.design.Metrics
 import com.stockbook.app.design.Nocturne
 import com.stockbook.app.design.NocturneType
+import com.stockbook.app.design.GhostButton
 import com.stockbook.app.design.PrimaryButton
 import com.stockbook.app.design.SecondaryButton
+import com.stockbook.app.design.SheetHeader
 import com.stockbook.core.text.PaymentReceiptDocument
 import com.stockbook.core.text.Strings
 
@@ -123,6 +125,12 @@ fun PaymentReceiptOverlay(
  * whole screen, which reads as something having just happened and leaves the
  * owner nothing behind it to go back to.
  *
+ * **Shaped like `BillSheet`, because it is the same kind of thing.** The close
+ * and the share live in the header where a sheet's chrome belongs, and removal
+ * is a ghost button at the foot behind a second tap. The full-screen
+ * confirmation keeps its worded Done: there, finishing is the action, not
+ * closing a document.
+ *
  * **No scroll of its own.** `BottomSheet` already puts its content in a scrolling
  * column, and a second scroll nested in the first is the trap that has emptied a
  * list on this codebase before.
@@ -132,23 +140,52 @@ fun PaymentReceiptSheet(
     document: PaymentReceiptDocument,
     strings: Strings,
     onSharePdf: () -> Unit,
+    /** Takes the payment out of the account. Absent where the record has gone. */
+    onRemove: () -> Unit,
     onClose: () -> Unit
 ) {
+    var confirmingRemoval by remember(document) { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            document.docType,
-            style = NocturneType.inter(18.0, FontWeight.Medium),
-            color = Nocturne.text
+        SheetHeader(
+            title = document.docType,
+            // The figure, which is what the owner opened this to check.
+            subtitle = document.amountValue,
+            onShare = onSharePdf,
+            onClose = onClose
         )
-        Spacer(Modifier.height(18.dp))
+
         ReceiptBody(document)
-        Actions(strings, onSharePdf, onClose)
+
+        // Removal is a second tap, exactly as a bill's is: it takes a figure back
+        // out of somebody's account, and the balance moves the moment it lands.
+        Column(modifier = Modifier.fillMaxWidth().padding(top = 18.dp)) {
+            GhostButton(
+                if (confirmingRemoval) strings.tapAgainToRemove else strings.deleteThisPayment,
+                onClick = {
+                    if (confirmingRemoval) {
+                        onRemove()
+                        onClose()
+                    } else {
+                        confirmingRemoval = true
+                    }
+                },
+                fontSize = 12.0,
+                tint = if (confirmingRemoval) Nocturne.accent400 else Nocturne.neutral500
+            )
+            Text(
+                strings.removePaymentNote,
+                style = NocturneType.meta,
+                color = Nocturne.neutral500,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        }
     }
 }
 
 /**
- * Print it now or never: the customer is still at the counter, and this is the
- * moment they want the slip.
+ * The confirmation's two buttons. Print it now or never: the customer is still
+ * at the counter, and this is the moment they want the slip.
  */
 @Composable
 private fun Actions(strings: Strings, onSharePdf: () -> Unit, onClose: () -> Unit) {
