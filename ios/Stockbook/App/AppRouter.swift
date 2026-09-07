@@ -159,6 +159,14 @@ final class AppRouter {
     /// the date at the top of Home.
     var dayInView: Date?
 
+    /// Which month the expense summary is folding, or nil when it is closed.
+    ///
+    /// A date inside the month rather than a flag, for the reason `dayInView`
+    /// holds a day: the sheet steps between months and the one it is on has to
+    /// survive being redrawn. Opened from the total on the book's expenses list,
+    /// on the month that list is showing where it is showing one.
+    var expenseSummaryFor: Date?
+
     /// A supplier's statement, full screen — a key for the same reason
     /// `statementFor` is one, and a separate field so the screen knows which side
     /// of the book it is drawing without being told twice.
@@ -282,6 +290,7 @@ final class AppRouter {
         showingCreditors = false
         dayInView = nil
         earningsFor = nil
+        expenseSummaryFor = nil
     }
 }
 

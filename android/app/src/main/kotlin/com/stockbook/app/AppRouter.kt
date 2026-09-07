@@ -399,6 +399,7 @@ class AppRouter {
         showingCreditors = false
         dayInView = null
         earningsFor = null
+        expenseSummaryFor = null
         receipt = null
         billDetail = null
         editingBill = null

@@ -320,6 +320,22 @@ private struct AppShell: View {
                 onClose: { router.dayInView = nil }
             )
         }
+        // Where a month's money went, from the total on the book's expenses list.
+        // Presented on *whether* there is a month rather than keyed on which one,
+        // for the reason the day summary is: a sheet keyed on the month would
+        // dismiss and re-present itself on every arrow.
+        .nocturneSheet(
+            isPresented: Binding(
+                get: { router.expenseSummaryFor != nil },
+                set: { if !$0 { router.expenseSummaryFor = nil } }
+            )
+        ) {
+            ExpenseSummarySheet(
+                month: router.expenseSummaryFor ?? .now,
+                onMonth: { router.expenseSummaryFor = $0 },
+                onClose: { router.expenseSummaryFor = nil }
+            )
+        }
     }
 
     /// Hidden only under Sell's product picker, which carries its own bottom

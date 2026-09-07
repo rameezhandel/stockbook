@@ -156,7 +156,27 @@ struct BookScreen: View {
         .padding(.bottom, 12 - Metrics.rowGap)
 
         totalCard
+            .padding(.bottom, side == .expenses ? 10 - Metrics.rowGap : 20 - Metrics.rowGap)
+
+        // The other question about the same money, one tap from the figure that
+        // raises it. Expenses only for now; the same fold makes sense of sales and
+        // purchases and is not built yet.
+        //
+        // It opens on the month the list is showing, so the sheet does not
+        // contradict the page it came from — but only where that span *is* a
+        // month. A year or a hand-picked stretch has no month to carry across, and
+        // this month is the honest place to start.
+        if side == .expenses {
+            Button(Loc.summaryReport) {
+                if case .month(let inside) = period {
+                    router.expenseSummaryFor = inside
+                } else {
+                    router.expenseSummaryFor = .now
+                }
+            }
+            .buttonStyle(GhostButtonStyle(fontSize: 12))
             .padding(.bottom, 20 - Metrics.rowGap)
+        }
 
         HStack {
             Kicker(listTitle)
