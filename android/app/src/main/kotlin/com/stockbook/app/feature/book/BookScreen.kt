@@ -1,6 +1,5 @@
 package com.stockbook.app.feature.book
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -39,6 +38,7 @@ import com.stockbook.app.design.NocturneType
 import com.stockbook.app.design.PeriodChoice
 import com.stockbook.app.design.PeriodPicker
 import com.stockbook.app.design.ScreenHeader
+import com.stockbook.app.design.SecondaryButton
 import com.stockbook.app.design.card
 import com.stockbook.app.design.hairline
 import com.stockbook.app.feature.bills.BillRow
@@ -321,34 +321,28 @@ fun BookScreen(
                         else -> null
                     },
                     // The span the total covers is the span the page covers, so
-                    // the button that makes it lives in the total's own corner.
-                    // All four make one now; a page saying nothing happened is a
-                    // page nobody needs, so it appears only where something did.
-                    onShare = if (total > 0) ({
+                    // both buttons that make one live in the total's own card.
+                    // All four sides have both now.
+                    onReport = if (total > 0) ({
                         onSaveSummary(summaryPage(side, store, period, state, strings), summaryFileName(side, strings))
                     }) else null,
-                    shareLabel = strings.sharePdf
-                )
-
-                // The other question about the same money, one tap from the
-                // figure that raises it — on all four sides now. Sales fold by
-                // customer, purchases by supplier, payments by whoever paid, and
-                // expenses by what the money went on.
-                //
-                // It opens on the month the list is showing, so the sheet does
-                // not contradict the page it came from — but only where that span
-                // *is* a month. A year or a hand-picked stretch has no month to
-                // carry across, and this month is the honest place to start.
-                Spacer(Modifier.height(10.dp))
-                GhostButton(
-                    strings.summaryReport,
-                    onClick = {
+                    // The other question about the same money, one tap from the
+                    // figure that raises it. Sales fold by customer, purchases by
+                    // supplier, payments by whoever paid, and expenses by what the
+                    // money went on.
+                    //
+                    // It opens on the month the list is showing, so the sheet does
+                    // not contradict the page it came from — but only where that
+                    // span *is* a month. A year or a hand-picked stretch has no
+                    // month to carry across, and this month is the honest place to
+                    // start.
+                    onSummary = {
                         router.summaryFor = SummaryTarget(
                             side,
                             (period as? StatementPeriod.Month)?.inside ?: Timestamps.now()
                         )
                     },
-                    fontSize = 12.0
+                    strings = strings
                 )
 
                 Spacer(Modifier.height(20.dp))
@@ -599,41 +593,71 @@ private fun TotalCard(
     /** A word of warning under the figure, where one is owed. */
     note: String?,
     /** Makes a page of the span on screen. Absent where there is no page to make. */
-    onShare: (() -> Unit)?,
-    shareLabel: String
+    onReport: (() -> Unit)?,
+    /** Opens the same money folded, a month at a time. */
+    onSummary: () -> Unit,
+    strings: Strings
 ) {
-    Box(modifier = Modifier.fillMaxWidth().card().hairline(radius = Metrics.cardRadius)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
-            Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .card()
+            .hairline(radius = Metrics.cardRadius)
+            .padding(14.dp)
+    ) {
+        Text(label, style = NocturneType.inter(11.0), color = Nocturne.neutral500)
+        Text(
+            value,
+            style = NocturneType.fittedNumber(value),
+            color = Nocturne.text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 3.dp)
+        )
+        if (note != null) {
             Text(
-                value,
-                style = NocturneType.fittedNumber(value),
-                color = Nocturne.text,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 3.dp)
+                note,
+                style = NocturneType.meta,
+                color = Nocturne.neutral500,
+                modifier = Modifier.padding(top = 2.dp)
             )
-            if (note != null) {
-                Text(
-                    note,
-                    style = NocturneType.meta,
-                    color = Nocturne.neutral500,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
-            }
         }
 
-        // Drawn over the card rather than in the column, because a 44dp touch
-        // target on the label's own row would push the figure a third of the card
-        // down to make room for it.
-        if (onShare != null) {
-            IconButton(
-                Icon.share,
-                onClick = onShare,
-                size = 15.dp,
-                tint = Nocturne.accent,
-                contentDescription = shareLabel,
-                modifier = Modifier.align(Alignment.TopEnd).padding(end = 2.dp, top = 2.dp)
+        // Both pages this figure can become, on one row inside the card that
+        // states it.
+        //
+        // The share used to be a glyph in the card's top corner and the summary a
+        // ghost button below the card altogether — an icon most owners never
+        // found, and a button that read as belonging to the list rather than to
+        // the total. Named and side by side, each says what comes back: the words
+        // are the ones printed at the top of the two pages, `Report` for the
+        // register and `Summary` for the fold.
+        //
+        // **Report goes when there is nothing to report.** A page saying nothing
+        // happened is a page nobody needs, and Summary takes the whole width
+        // rather than leaving a gap where a button was — it still opens, because
+        // the month stepper inside it is how the owner reaches a month that does
+        // have something in it.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+        ) {
+            if (onReport != null) {
+                SecondaryButton(
+                    strings.reportButton,
+                    onClick = onReport,
+                    height = 38.dp,
+                    fontSize = 12.5,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            SecondaryButton(
+                strings.summaryButton,
+                onClick = onSummary,
+                height = 38.dp,
+                fontSize = 12.5,
+                modifier = Modifier.weight(1f)
             )
         }
     }

@@ -106,7 +106,7 @@ struct LocalizationTests {
         \.totalSoldLabel, \.totalBoughtLabel, \.totalReceivedLabel,
         \.nothingBoughtThen, \.nothingReceivedThen,
         \.totalSpentLabel, \.nothingSpentThen, \.sharePdf,
-        \.expenseSummary, \.columnHowOften, \.summaryReport, \.nothingSpentThatMonth,
+        \.expenseSummary, \.columnHowOften, \.reportButton, \.summaryButton, \.nothingSpentThatMonth,
         \.previousMonth, \.nextMonth,
         \.salesSummary, \.purchaseSummary, \.paymentsSummary,
         \.columnSupplier, \.columnHowMany,

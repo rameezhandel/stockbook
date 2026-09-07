@@ -1195,8 +1195,22 @@ class Strings(val language: AppLanguage) {
      */
     val columnHowOften: String get() = pick("How often", "ಎಷ್ಟು ಸಲ")
 
-    /** The way in, from the total on whichever list the summary folds. */
-    val summaryReport: String get() = pick("Summary report", "ಸಾರಾಂಶ ವರದಿ")
+    /**
+     * The two buttons inside every total card, one per page the figure can
+     * become.
+     *
+     * One word each, because they sit side by side on a phone row and each has
+     * half the card. They are also the two words printed at the top of the pages
+     * they open, so the button says what comes back rather than what the tap
+     * does.
+     *
+     * **Not `Statement`.** In this app that means one party's account, addressed
+     * to that party and handed across the counter. The register behind [reportButton]
+     * lists everybody, and showing it to a customer would be a breach rather than
+     * an untidy page — see the note on `SummaryDocument`.
+     */
+    val reportButton: String get() = pick("Report", "ವರದಿ")
+    val summaryButton: String get() = pick("Summary", "ಸಾರಾಂಶ")
 
     /** The month stepper's two arrows, read out rather than shown. */
     val previousMonth: String get() = pick("Previous month", "ಹಿಂದಿನ ತಿಂಗಳು")

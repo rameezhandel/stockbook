@@ -156,26 +156,7 @@ struct BookScreen: View {
         .padding(.bottom, 12 - Metrics.rowGap)
 
         totalCard
-            .padding(.bottom, side == .expenses ? 10 - Metrics.rowGap : 20 - Metrics.rowGap)
-
-        // The other question about the same money, one tap from the figure that
-        // raises it — on all four sides now. Sales fold by customer, purchases by
-        // supplier, payments by whoever paid, and expenses by what the money went
-        // on.
-        //
-        // It opens on the month the list is showing, so the sheet does not
-        // contradict the page it came from — but only where that span *is* a
-        // month. A year or a hand-picked stretch has no month to carry across, and
-        // this month is the honest place to start.
-        Button(Loc.summaryReport) {
-            if case .month(let inside) = period {
-                router.summaryFor = SummaryTarget(side: side, month: inside)
-            } else {
-                router.summaryFor = SummaryTarget(side: side, month: .now)
-            }
-        }
-        .buttonStyle(GhostButtonStyle(fontSize: 12))
-        .padding(.bottom, 20 - Metrics.rowGap)
+            .padding(.bottom, 20 - Metrics.rowGap)
 
         HStack {
             Kicker(listTitle)
@@ -292,26 +273,48 @@ struct BookScreen: View {
                     .padding(.top, 2)
             }
         }
+            // Both pages this figure can become, on one row inside the card that
+            // states it.
+            //
+            // The share used to be a glyph in the card's top corner and the
+            // summary a ghost button below the card altogether — an icon most
+            // owners never found, and a button that read as belonging to the list
+            // rather than to the total. Named and side by side, each says what
+            // comes back: the words are the ones printed at the top of the two
+            // pages, `Report` for the register and `Summary` for the fold.
+            //
+            // **Report goes when there is nothing to report.** A page saying
+            // nothing happened is a page nobody needs, and Summary takes the whole
+            // width rather than leaving a gap where a button was — it still opens,
+            // because the month stepper inside it is how the owner reaches a month
+            // that does have something in it.
+            HStack(spacing: 8) {
+                if total > 0 {
+                    Button(Loc.reportButton, action: saveSummary)
+                        .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 38, fontSize: 12.5))
+                }
+                Button(Loc.summaryButton, action: openSummary)
+                    .buttonStyle(SecondaryButtonStyle(fullWidth: true, height: 38, fontSize: 12.5))
+            }
+            .padding(.top, 12)
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Nocturne.surface, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
         .hairline(radius: Metrics.cardRadius)
-        // The span the total covers is the span the page covers, so the button
-        // that makes it lives in the total's own corner. All four make one now; a
-        // page saying nothing happened is a page nobody needs, so it appears only
-        // where something did.
-        //
-        // An overlay rather than a row above the figure, because a tap target on
-        // the label's own line would push the figure a third of the card down to
-        // make room for it.
-        .overlay(alignment: .topTrailing) {
-            if total > 0 {
-                Button(action: saveSummary) { Glyph(Icon.share, size: 15) }
-                    .buttonStyle(.iconOnly)
-                    .foregroundStyle(Nocturne.accent)
-                    .accessibilityLabel(Loc.sharePdf)
-                    .padding(2)
-            }
+    }
+
+    /// The same money folded, a month at a time.
+    ///
+    /// It opens on the month the list is showing, so the sheet does not
+    /// contradict the page it came from — but only where that span *is* a month.
+    /// A year or a hand-picked stretch has no month to carry across, and this
+    /// month is the honest place to start.
+    private func openSummary() {
+        if case .month(let inside) = period {
+            router.summaryFor = SummaryTarget(side: side, month: inside)
+        } else {
+            router.summaryFor = SummaryTarget(side: side, month: .now)
         }
     }
 
