@@ -42,15 +42,20 @@ data class DraftLine(
 )
 
 /**
- * What the shop spent on one thing over a stretch of days: what it was, how many
- * times, and what that came to.
+ * One folded line of a summary: a name, how many records carried it, and what
+ * they came to.
  *
- * Grouping, which the printed pages do not do — they list records, one line each,
+ * Grouping, which the registers do not do — they list records, one line each,
  * because a page is checked against a paper book line by line. This answers the
- * other question, "where did the month go", and `spendingIn` is the only thing
- * that folds anything.
+ * other question, "where did the month go", and the four `…In` folds are the
+ * only things in the store that fold anything.
+ *
+ * **One type for all four on purpose.** What a line groups by differs — an
+ * expense folds by what the money went on, the other three by the person on the
+ * other side of the counter — but the shape of the answer does not, and four
+ * near-identical types would be four places for a correction to reach three of.
  */
-data class SpendLine(val what: String, val times: Int, val total: Double)
+data class SummaryLine(val name: String, val count: Int, val total: Double)
 
 /**
  * What a stretch of trading actually left the shop with.
@@ -1484,21 +1489,116 @@ class StockbookStore(private val repository: StockbookRepository) {
      * suggestion list, arguably more: three lines for one thing does not just
      * look untidy, it hides how much the shop actually spends on it.
      */
-    fun spendingIn(period: StatementPeriod): List<SpendLine> {
+    fun spendingIn(period: StatementPeriod): List<SummaryLine> {
         val range = period.range()
         return expenses
             .filter { it.spentAt in range && it.note.isNotBlank() }
             .groupBy { it.note.trim().lowercase() }
             .values
             .map { group ->
-                SpendLine(
-                    what = group.maxBy { it.spentAt }.note.trim(),
-                    times = group.size,
+                SummaryLine(
+                    name = group.maxBy { it.spentAt }.note.trim(),
+                    count = group.size,
                     total = group.sumOf { it.amount }
                 )
             }
-            .sortedWith(compareByDescending<SpendLine> { it.total }.thenBy { it.what })
+            .biggestFirst()
     }
+
+    /**
+     * What each customer bought in [period], one line each, biggest first.
+     *
+     * The sales register's question folded: the register says which bills were
+     * written, this says who they were written for. A van doing forty bills a
+     * month has a handful of names behind them, and which of those names is
+     * worth driving back to is not a question a list of forty rows answers.
+     *
+     * **Grouped on [Customer.key], never on the typed name**, so "Khalid",
+     * "khalid" and "Khalid " are one customer and one line. That is the app's
+     * rule for identity everywhere, and it matters more here than anywhere: three
+     * lines for one customer does not look untidy, it hides how much they buy.
+     *
+     * The label is the customer's stored name where the shop keeps a record for
+     * them, and the most recent spelling on a bill otherwise — the same fallback
+     * the register makes, in the same direction.
+     */
+    fun salesByCustomerIn(period: StatementPeriod): List<SummaryLine> {
+        val range = period.range()
+        return bills
+            .filter { it.createdAt in range }
+            .groupBy { Customer.key(it.who) }
+            .map { (key, group) ->
+                SummaryLine(
+                    name = customer(key)?.name ?: group.maxBy { it.createdAt }.who.trim(),
+                    count = group.size,
+                    total = group.sumOf { it.total }
+                )
+            }
+            .biggestFirst()
+    }
+
+    /**
+     * The same fold pointed the other way: what each supplier was bought from.
+     *
+     * Grouped on the stored [Purchase.supplierKey] rather than on a typed name,
+     * because a purchase already carries the key — there is no second spelling
+     * to collapse.
+     */
+    fun purchasesBySupplierIn(period: StatementPeriod): List<SummaryLine> {
+        val range = period.range()
+        return purchases
+            .filter { it.createdAt in range }
+            .groupBy { it.supplierKey }
+            .map { (key, group) ->
+                SummaryLine(
+                    name = supplier(key)?.name ?: key,
+                    count = group.size,
+                    total = group.sumOf { it.total }
+                )
+            }
+            .biggestFirst()
+    }
+
+    /**
+     * What each customer paid in [period], one line each, biggest first.
+     *
+     * **Money in only, exactly as [receiptsRegisterIn] is.** What the shop paid
+     * its suppliers over the same days is a real figure and belongs on the page,
+     * but not in this column: a customer and a supplier folded into one list
+     * gives a total that is neither what came in nor what went out, and
+     * [SummaryDocument.forPayments] already settled that the honest place for it
+     * is under the total rather than in it. Ask [paidOutIn] for that figure.
+     *
+     * Credit notes are not here for the reason they are in no other payment
+     * list: both reduce what somebody owes, only one is money, and a page that
+     * swept them in would say the shop took money it never saw.
+     */
+    fun receiptsByCustomerIn(period: StatementPeriod): List<SummaryLine> {
+        val range = period.range()
+        return payments
+            .filter { it.receivedAt in range }
+            .groupBy { it.customerKey }
+            .map { (key, group) ->
+                SummaryLine(
+                    name = customer(key)?.name ?: key,
+                    count = group.size,
+                    total = group.sumOf { it.amount }
+                )
+            }
+            .biggestFirst()
+    }
+
+    /**
+     * Biggest first, ties broken on the name.
+     *
+     * The order is the whole point of folding — the answer to "where did the
+     * month go" is the top line — so it is decided once here rather than four
+     * times. The tie-break is not cosmetic: Kotlin's sort is stable and Swift's
+     * is not, so without it the two platforms could print the same month in
+     * different orders and one of them would be wrong.
+     */
+    private fun List<SummaryLine>.biggestFirst(): List<SummaryLine> =
+        sortedWith(compareByDescending<SummaryLine> { it.total }.thenBy { it.name })
 
     /**
      * The note already carrying this number, if any — the same question

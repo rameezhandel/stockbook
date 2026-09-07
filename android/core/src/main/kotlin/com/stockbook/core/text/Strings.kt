@@ -1218,6 +1218,48 @@ class Strings(val language: AppLanguage) {
      */
     fun expenseSummaryFileName(month: String): String = "expense-summary-$month.pdf"
 
+    // --- The other three folded pages, one per side of the book
+    //
+    // Named "Summary" against the four "Report" pages on purpose: a report lists
+    // records one line each and can be checked against the paper book, a summary
+    // folds them and cannot. The wording is the only warning the reader gets.
+
+    val salesSummary: String get() = pick("Sales Summary", "ಮಾರಾಟದ ಸಾರಾಂಶ")
+    val purchaseSummary: String get() = pick("Purchase Summary", "ಖರೀದಿಯ ಸಾರಾಂಶ")
+    val paymentsSummary: String get() = pick("Payments Summary", "ಪಾವತಿಗಳ ಸಾರಾಂಶ")
+
+    /** Who was on the other side of the counter, on the pages that fold by person. */
+    val columnSupplier: String get() = pick("Supplier", "ಸರಬರಾಜುದಾರ")
+
+    /**
+     * How many records a folded line stands for, where those records are things
+     * rather than occasions.
+     *
+     * Separate from [columnHowOften] because the cells under them differ: an
+     * expense line answers "how often" with `6 times`, and a customer's line
+     * answers "how many" with `4 bills`. One heading over both would be wrong
+     * over one of them.
+     */
+    val columnHowMany: String get() = pick("How many", "ಎಷ್ಟು")
+
+    fun billsFolded(n: Int): String = pick(if (n == 1) "1 bill" else "$n bills", "$n ಬಿಲ್")
+    fun purchasesFolded(n: Int): String =
+        pick(if (n == 1) "1 purchase" else "$n purchases", "$n ಖರೀದಿ")
+    fun receiptsFolded(n: Int): String =
+        pick(if (n == 1) "1 receipt" else "$n receipts", "$n ರಸೀದಿ")
+
+    /** What each sheet says for a month in which nothing happened on its side. */
+    val nothingSoldThatMonth: String
+        get() = pick("Nothing sold that month.", "ಆ ತಿಂಗಳು ಮಾರಾಟ ಇಲ್ಲ.")
+    val nothingBoughtThatMonth: String
+        get() = pick("Nothing bought that month.", "ಆ ತಿಂಗಳು ಖರೀದಿ ಇಲ್ಲ.")
+    val nothingReceivedThatMonth: String
+        get() = pick("Nothing received that month.", "ಆ ತಿಂಗಳು ಏನೂ ಸ್ವೀಕರಿಸಿಲ್ಲ.")
+
+    fun salesSummaryFileName(month: String): String = "sales-summary-$month.pdf"
+    fun purchaseSummaryFileName(month: String): String = "purchase-summary-$month.pdf"
+    fun paymentsSummaryFileName(month: String): String = "payments-summary-$month.pdf"
+
     // --- The other three summary pages the book can make
 
     val salesReport: String get() = pick("Sales Report", "ಮಾರಾಟದ ವರದಿ")

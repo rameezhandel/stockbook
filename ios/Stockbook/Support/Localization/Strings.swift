@@ -1203,6 +1203,47 @@ struct Strings {
     /// leave two files behind.
     func expenseSummaryFileName(month: String) -> String { "expense-summary-\(month).pdf" }
 
+    // MARK: - The other three folded pages, one per side of the book
+    //
+    // Named "Summary" against the four "Report" pages on purpose: a report lists
+    // records one line each and can be checked against the paper book, a summary
+    // folds them and cannot. The wording is the only warning the reader gets.
+
+    var salesSummary: String { pick("Sales Summary", "ಮಾರಾಟದ ಸಾರಾಂಶ") }
+    var purchaseSummary: String { pick("Purchase Summary", "ಖರೀದಿಯ ಸಾರಾಂಶ") }
+    var paymentsSummary: String { pick("Payments Summary", "ಪಾವತಿಗಳ ಸಾರಾಂಶ") }
+
+    /// Who was on the other side of the counter, on the pages that fold by person.
+    var columnSupplier: String { pick("Supplier", "ಸರಬರಾಜುದಾರ") }
+
+    /// How many records a folded line stands for, where those records are things
+    /// rather than occasions.
+    ///
+    /// Separate from `columnHowOften` because the cells under them differ: an
+    /// expense line answers "how often" with `6 times`, and a customer's line
+    /// answers "how many" with `4 bills`. One heading over both would be wrong
+    /// over one of them.
+    var columnHowMany: String { pick("How many", "ಎಷ್ಟು") }
+
+    func billsFolded(_ n: Int) -> String { pick(n == 1 ? "1 bill" : "\(n) bills", "\(n) ಬಿಲ್") }
+    func purchasesFolded(_ n: Int) -> String {
+        pick(n == 1 ? "1 purchase" : "\(n) purchases", "\(n) ಖರೀದಿ")
+    }
+    func receiptsFolded(_ n: Int) -> String {
+        pick(n == 1 ? "1 receipt" : "\(n) receipts", "\(n) ರಸೀದಿ")
+    }
+
+    /// What each sheet says for a month in which nothing happened on its side.
+    var nothingSoldThatMonth: String { pick("Nothing sold that month.", "ಆ ತಿಂಗಳು ಮಾರಾಟ ಇಲ್ಲ.") }
+    var nothingBoughtThatMonth: String { pick("Nothing bought that month.", "ಆ ತಿಂಗಳು ಖರೀದಿ ಇಲ್ಲ.") }
+    var nothingReceivedThatMonth: String {
+        pick("Nothing received that month.", "ಆ ತಿಂಗಳು ಏನೂ ಸ್ವೀಕರಿಸಿಲ್ಲ.")
+    }
+
+    func salesSummaryFileName(month: String) -> String { "sales-summary-\(month).pdf" }
+    func purchaseSummaryFileName(month: String) -> String { "purchase-summary-\(month).pdf" }
+    func paymentsSummaryFileName(month: String) -> String { "payments-summary-\(month).pdf" }
+
     // MARK: - The other three summary pages the book can make
 
     var salesReport: String { pick("Sales Report", "ಮಾರಾಟದ ವರದಿ") }

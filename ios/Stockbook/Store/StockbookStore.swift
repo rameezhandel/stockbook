@@ -1006,19 +1006,95 @@ final class StockbookStore {
     /// rather than three. That collapsing is worth as much here as it is in the
     /// suggestion list, arguably more: three lines for one thing does not just
     /// look untidy, it hides how much the shop actually spends on it.
-    func spendingIn(_ period: StatementPeriod) -> [SpendLine] {
+    func spendingIn(_ period: StatementPeriod) -> [SummaryLine] {
         let range = period.range()
         let inside = expenses.filter { range.contains($0.spentAt) && !$0.note.isBlank }
         return Dictionary(grouping: inside) { $0.note.trimmed.lowercased() }
-            .compactMap { _, group -> SpendLine? in
+            .compactMap { _, group -> SummaryLine? in
                 guard let newest = group.max(by: { $0.spentAt < $1.spentAt }) else { return nil }
-                return SpendLine(
-                    what: newest.note.trimmed,
-                    times: group.count,
+                return SummaryLine(
+                    name: newest.note.trimmed,
+                    count: group.count,
                     total: group.reduce(0) { $0 + $1.amount }
                 )
             }
-            .sorted { $0.total == $1.total ? $0.what < $1.what : $0.total > $1.total }
+            .biggestFirst()
+    }
+
+    /// What each customer bought in `period`, one line each, biggest first.
+    ///
+    /// The sales register's question folded: the register says which bills were
+    /// written, this says who they were written for. A van doing forty bills a
+    /// month has a handful of names behind them, and which of those names is
+    /// worth driving back to is not a question a list of forty rows answers.
+    ///
+    /// **Grouped on `Customer.key`, never on the typed name**, so "Khalid",
+    /// "khalid" and "Khalid " are one customer and one line. That is the app's
+    /// rule for identity everywhere, and it matters more here than anywhere:
+    /// three lines for one customer does not look untidy, it hides how much they
+    /// buy.
+    ///
+    /// The label is the customer's stored name where the shop keeps a record for
+    /// them, and the most recent spelling on a bill otherwise — the same
+    /// fallback the register makes, in the same direction.
+    func salesByCustomerIn(_ period: StatementPeriod) -> [SummaryLine] {
+        let range = period.range()
+        let inside = bills.filter { range.contains($0.createdAt) }
+        return Dictionary(grouping: inside) { Customer.key(for: $0.who) }
+            .compactMap { key, group -> SummaryLine? in
+                guard let newest = group.max(by: { $0.createdAt < $1.createdAt }) else { return nil }
+                return SummaryLine(
+                    name: customer(key: key)?.name ?? newest.who.trimmed,
+                    count: group.count,
+                    total: group.reduce(0) { $0 + $1.total }
+                )
+            }
+            .biggestFirst()
+    }
+
+    /// The same fold pointed the other way: what each supplier was bought from.
+    ///
+    /// Grouped on the stored `Purchase.supplierKey` rather than on a typed name,
+    /// because a purchase already carries the key — there is no second spelling
+    /// to collapse.
+    func purchasesBySupplierIn(_ period: StatementPeriod) -> [SummaryLine] {
+        let range = period.range()
+        let inside = purchases.filter { range.contains($0.createdAt) }
+        return Dictionary(grouping: inside) { $0.supplierKey }
+            .map { key, group in
+                SummaryLine(
+                    name: supplier(key: key)?.name ?? key,
+                    count: group.count,
+                    total: group.reduce(0) { $0 + $1.total }
+                )
+            }
+            .biggestFirst()
+    }
+
+    /// What each customer paid in `period`, one line each, biggest first.
+    ///
+    /// **Money in only, exactly as `receiptsRegisterIn` is.** What the shop paid
+    /// its suppliers over the same days is a real figure and belongs on the
+    /// page, but not in this column: a customer and a supplier folded into one
+    /// list gives a total that is neither what came in nor what went out, and
+    /// `SummaryDocument.forPayments` already settled that the honest place for
+    /// it is under the total rather than in it. Ask `paidOutIn` for that figure.
+    ///
+    /// Credit notes are not here for the reason they are in no other payment
+    /// list: both reduce what somebody owes, only one is money, and a page that
+    /// swept them in would say the shop took money it never saw.
+    func receiptsByCustomerIn(_ period: StatementPeriod) -> [SummaryLine] {
+        let range = period.range()
+        let inside = payments.filter { range.contains($0.receivedAt) }
+        return Dictionary(grouping: inside) { $0.customerKey }
+            .map { key, group in
+                SummaryLine(
+                    name: customer(key: key)?.name ?? key,
+                    count: group.count,
+                    total: group.reduce(0) { $0 + $1.amount }
+                )
+            }
+            .biggestFirst()
     }
 
     /// What the owner has called an expense before, most-used first.
@@ -2937,17 +3013,36 @@ struct DraftLine {
     var price: Double
 }
 
-/// What the shop spent on one thing over a stretch of days: what it was, how
-/// many times, and what that came to.
+/// One folded line of a summary: a name, how many records carried it, and what
+/// they came to.
 ///
-/// Grouping, which the printed pages do not do — they list records, one line
-/// each, because a page is checked against a paper book line by line. This
-/// answers the other question, "where did the month go", and `spendingIn` is the
-/// only thing that folds anything.
-struct SpendLine: Equatable {
-    let what: String
-    let times: Int
+/// Grouping, which the registers do not do — they list records, one line each,
+/// because a page is checked against a paper book line by line. This answers the
+/// other question, "where did the month go", and the four `…In` folds are the
+/// only things in the store that fold anything.
+///
+/// **One type for all four on purpose.** What a line groups by differs — an
+/// expense folds by what the money went on, the other three by the person on the
+/// other side of the counter — but the shape of the answer does not, and four
+/// near-identical types would be four places for a correction to reach three of.
+struct SummaryLine: Equatable {
+    let name: String
+    let count: Int
     let total: Double
+}
+
+extension Array where Element == SummaryLine {
+    /// Biggest first, ties broken on the name.
+    ///
+    /// The order is the whole point of folding — the answer to "where did the
+    /// month go" is the top line — so it is decided once here rather than four
+    /// times. The tie-break is not cosmetic on this platform: `sorted(by:)` is
+    /// not stable and `Dictionary(grouping:)` hands its groups back in no order
+    /// at all, so two equal totals would come out differently from one run to
+    /// the next, and differently again from Kotlin.
+    func biggestFirst() -> [SummaryLine] {
+        sorted { $0.total == $1.total ? $0.name < $1.name : $0.total > $1.total }
+    }
 }
 /// What a stretch of trading actually left the shop with.
 ///

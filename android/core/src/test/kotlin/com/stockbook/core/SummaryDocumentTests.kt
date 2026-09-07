@@ -254,7 +254,7 @@ class SummaryDocumentTests {
 
         val lines = store.spendingIn(StatementPeriod.thisYear())
 
-        assertEquals(listOf("Rent", "Petrol", "Tea"), lines.map { it.what })
+        assertEquals(listOf("Rent", "Petrol", "Tea"), lines.map { it.name })
         assertEquals(listOf(2_000.0, 125.0, 4.0), lines.map { it.total })
     }
 
@@ -270,9 +270,9 @@ class SummaryDocumentTests {
         val lines = store.spendingIn(StatementPeriod.thisYear())
 
         assertEquals(1, lines.size)
-        assertEquals("Petrol", lines.single().what, "and the newest spelling is the one shown")
+        assertEquals("Petrol", lines.single().name, "and the newest spelling is the one shown")
         assertEquals(195.0, lines.single().total)
-        assertEquals(3, lines.single().times)
+        assertEquals(3, lines.single().count)
     }
 
     @Test
@@ -627,5 +627,164 @@ class SummaryDocumentTests {
         store.addExpense(60.0, "Petrol", day)
 
         assertEquals(emptyList(), store.spendingDocument(StatementPeriod.Month(day)).shopAddressLines)
+    }
+
+    // --- The other three folds: a month by person rather than by record
+
+    private fun StockbookStore.salesSummary(monthOf: Instant) = SummaryDocument.forSalesSummary(
+        salesByCustomerIn(StatementPeriod.Month(monthOf)), monthOf, settings, strings
+    )
+
+    private fun StockbookStore.purchaseSummary(monthOf: Instant) = SummaryDocument.forPurchaseSummary(
+        purchasesBySupplierIn(StatementPeriod.Month(monthOf)), monthOf, settings, strings
+    )
+
+    private fun StockbookStore.paymentsSummary(monthOf: Instant) = SummaryDocument.forPaymentsSummary(
+        receiptsByCustomerIn(StatementPeriod.Month(monthOf)),
+        paidOutIn(StatementPeriod.Month(monthOf)),
+        monthOf,
+        settings,
+        strings
+    )
+
+    /**
+     * Two bills to Ahmed are one line saying `2 bills`.
+     *
+     * The exact opposite of the register above, which pins that they are two
+     * lines. Both pages are right — they answer different questions — and the
+     * pair of tests is what stops one of them quietly becoming the other.
+     */
+    @Test
+    fun `the sales summary folds every customer into one line`() {
+        val page = trading().salesSummary(day)
+
+        assertEquals(listOf("Fatima", "Ahmed"), page.rows.map { it.name })
+        assertEquals(listOf("SAR 900", "SAR 500"), page.rows.map { it.amount })
+        assertEquals(listOf("1 bill", "2 bills"), page.rows.map { it.count })
+        assertEquals("SAR 1,400", page.totalValue)
+    }
+
+    /**
+     * Identity is the key, never the typed string — so three spellings of one
+     * customer are one line.
+     *
+     * Worth more here than tidiness: three lines for Khalid hides how much
+     * Khalid buys, which is the one question this page exists to answer.
+     */
+    @Test
+    fun `one customer typed three ways is one folded line`() {
+        val store = store()
+        store.addCustomer("Khalid")
+        store.saveBill(customer = "khalid", paid = null, amount = 100.0, createdAt = day)
+        store.saveBill(customer = "KHALID", paid = null, amount = 200.0, createdAt = day)
+        store.saveBill(customer = "Khalid ", paid = null, amount = 300.0, createdAt = day)
+
+        val page = store.salesSummary(day)
+
+        assertEquals(1, page.rows.size)
+        assertEquals("Khalid", page.rows.single().name, "and the stored spelling is the one shown")
+        assertEquals("3 bills", page.rows.single().count)
+        assertEquals("SAR 600", page.totalValue)
+    }
+
+    /**
+     * A bill for somebody the shop keeps no record of still counts.
+     *
+     * Every bill has a name on it and not every name is a customer — the app does
+     * not make you add somebody before selling to them. A fold that counted only
+     * known customers would report less than the month took.
+     */
+    @Test
+    fun `a bill for a name with no customer record is still on the page`() {
+        val store = store()
+        store.saveBill(customer = "Passing trade", paid = null, amount = 75.0, createdAt = day)
+
+        val page = store.salesSummary(day)
+
+        assertEquals(listOf("Passing trade"), page.rows.map { it.name })
+        assertEquals("SAR 75", page.totalValue)
+    }
+
+    @Test
+    fun `the purchase summary folds by supplier`() {
+        val page = trading().purchaseSummary(day)
+
+        assertEquals(listOf("Gulf Traders"), page.rows.map { it.name })
+        assertEquals(listOf("1 purchase"), page.rows.map { it.count })
+        assertEquals("SAR 800", page.totalValue)
+    }
+
+    /**
+     * Money in is the column; money out is a line under the total.
+     *
+     * The rule the payments register already lives by. A column holding both
+     * totals to neither, and the first person to add it up is the person who
+     * stops trusting the page.
+     */
+    @Test
+    fun `the payments summary counts receipts and states what went out beneath`() {
+        val page = trading().paymentsSummary(day)
+
+        assertEquals(listOf("Ahmed"), page.rows.map { it.name })
+        assertEquals(listOf("1 receipt"), page.rows.map { it.count })
+        assertEquals("SAR 250", page.totalValue, "money in, and only money in")
+        assertEquals("SAR 600 paid to suppliers", page.footnote)
+    }
+
+    /** Nothing went out, so there is nothing to say about it. */
+    @Test
+    fun `a month that paid no supplier carries no footnote`() {
+        val store = store()
+        store.addCustomer("Ahmed")
+        store.recordPayment("ahmed", 250.0, receivedAt = day)
+
+        assertEquals(null, store.paymentsSummary(day).footnote)
+    }
+
+    /**
+     * Each folded total is the figure its own card on the pane shows.
+     *
+     * The summary and the register walk the book differently — one folds, one
+     * lists — and the owner reads the card, prints the page, and expects the two
+     * to agree. Three assertions rather than one because a fold that quietly
+     * dropped a record would still be self-consistent.
+     */
+    @Test
+    fun `every folded total is the store's own figure for that month`() {
+        val store = trading()
+        val month = StatementPeriod.Month(day)
+        val currency = store.settings.currency
+
+        assertEquals(Money.text(store.soldIn(month), currency), store.salesSummary(day).totalValue)
+        assertEquals(Money.text(store.boughtIn(month), currency), store.purchaseSummary(day).totalValue)
+        assertEquals(Money.text(store.receivedIn(month), currency), store.paymentsSummary(day).totalValue)
+    }
+
+    /** Each of the three is headed by its month and says what kind of page it is. */
+    @Test
+    fun `the three new summaries are titled as summaries, by month`() {
+        val store = trading()
+        val august = Instant.parse("2026-08-10T00:00:00Z")
+
+        for ((page, title) in listOf(
+            store.salesSummary(august) to "Sales Summary",
+            store.purchaseSummary(august) to "Purchase Summary",
+            store.paymentsSummary(august) to "Payments Summary"
+        )) {
+            assertEquals(title, page.title)
+            assertEquals("August 2026", page.asOf)
+            assertTrue(!page.title.contains("Report", ignoreCase = true))
+            assertEquals(3, page.columnHeadings.size)
+        }
+    }
+
+    /** Each says so in its own words rather than in the expense page's. */
+    @Test
+    fun `a month with nothing on a side says so in that side's words`() {
+        val store = store()
+
+        assertEquals("Nothing sold that month.", store.salesSummary(day).emptyLine)
+        assertEquals("Nothing bought that month.", store.purchaseSummary(day).emptyLine)
+        assertEquals("Nothing received that month.", store.paymentsSummary(day).emptyLine)
     }
 }

@@ -10,7 +10,7 @@ import com.stockbook.core.model.Supplier
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.RecordLine
-import com.stockbook.core.store.SpendLine
+import com.stockbook.core.store.SummaryLine
 import java.time.Instant
 
 /**
@@ -334,35 +334,181 @@ data class SummaryDocument(
          *   argument is a twin that drifts.
          */
         fun forSpendingSummary(
-            lines: List<SpendLine>,
+            lines: List<SummaryLine>,
             monthOf: Instant,
             settings: Settings,
             strings: Strings,
             currency: Currency = settings.currency
+        ): SummaryDocument = summary(
+            lines = lines,
+            monthOf = monthOf,
+            title = strings.expenseSummary,
+            nameHeading = strings.columnWhatItWentOn,
+            countHeading = strings.columnHowOften,
+            amountHeading = strings.expenseInPeriod,
+            countText = strings::timesSpent,
+            totalLabel = strings.totalSpentLabel,
+            emptyLine = strings.nothingSpentThatMonth,
+            settings = settings,
+            strings = strings,
+            currency = currency
+        )
+
+        /**
+         * What each customer bought that month: `Khalid Hardware, 4 bills, 12,300`.
+         *
+         * Folded **by person rather than by product**, and the reason is the way
+         * this app is actually used. Entering a paper bill as a single figure is
+         * ordinary here, and such a bill lists nothing — a page folded by product
+         * would leave every one of those bills off, and be flattering or
+         * alarming by whatever they came to. Every bill has a customer on it, so
+         * every bill is on this page and the total is the month's takings.
+         *
+         * @param lines from `StockbookStore.salesByCustomerIn`.
+         */
+        fun forSalesSummary(
+            lines: List<SummaryLine>,
+            monthOf: Instant,
+            settings: Settings,
+            strings: Strings,
+            currency: Currency = settings.currency
+        ): SummaryDocument = summary(
+            lines = lines,
+            monthOf = monthOf,
+            title = strings.salesSummary,
+            nameHeading = strings.columnCustomer,
+            countHeading = strings.columnHowMany,
+            amountHeading = strings.columnInvoiceAmount,
+            countText = strings::billsFolded,
+            totalLabel = strings.totalSoldLabel,
+            emptyLine = strings.nothingSoldThatMonth,
+            settings = settings,
+            strings = strings,
+            currency = currency
+        )
+
+        /**
+         * What was bought from each supplier that month.
+         *
+         * @param lines from `StockbookStore.purchasesBySupplierIn`.
+         */
+        fun forPurchaseSummary(
+            lines: List<SummaryLine>,
+            monthOf: Instant,
+            settings: Settings,
+            strings: Strings,
+            currency: Currency = settings.currency
+        ): SummaryDocument = summary(
+            lines = lines,
+            monthOf = monthOf,
+            title = strings.purchaseSummary,
+            nameHeading = strings.columnSupplier,
+            countHeading = strings.columnHowMany,
+            amountHeading = strings.columnBillAmount,
+            countText = strings::purchasesFolded,
+            totalLabel = strings.totalBoughtLabel,
+            emptyLine = strings.nothingBoughtThatMonth,
+            settings = settings,
+            strings = strings,
+            currency = currency
+        )
+
+        /**
+         * What each customer paid that month, with what the shop paid out under
+         * the total.
+         *
+         * **The one folded page with a footnote, for the reason [forPayments]
+         * has one.** Money in and money out are two types and stay two types; a
+         * column holding both would total to neither, and the first person to
+         * add it up is the person who stops trusting the page. So the column is
+         * receipts, and [paidOut] — from `StockbookStore.paidOutIn` over the same
+         * month — is stated beneath it as a fact the column cannot carry.
+         *
+         * @param lines from `StockbookStore.receiptsByCustomerIn`.
+         * @param paidOut what went to suppliers over the same month. Zero prints
+         *   no footnote: a line saying nothing went out is noise on a page about
+         *   what came in.
+         */
+        fun forPaymentsSummary(
+            lines: List<SummaryLine>,
+            paidOut: Double,
+            monthOf: Instant,
+            settings: Settings,
+            strings: Strings,
+            currency: Currency = settings.currency
+        ): SummaryDocument = summary(
+            lines = lines,
+            monthOf = monthOf,
+            title = strings.paymentsSummary,
+            nameHeading = strings.columnCustomer,
+            countHeading = strings.columnHowMany,
+            amountHeading = strings.columnReceivedAmount,
+            countText = strings::receiptsFolded,
+            totalLabel = strings.totalReceivedLabel,
+            emptyLine = strings.nothingReceivedThatMonth,
+            settings = settings,
+            strings = strings,
+            currency = currency,
+            footnote = if (paidOut > 0) strings.alsoPaidOut(Money.text(paidOut, currency)) else null
+        )
+
+        /**
+         * The four pages that **fold a month into an answer**.
+         *
+         * Written once for the reason [register] is: they differ in their
+         * wording and in nothing else, and a layout copied four times is a
+         * layout that gets corrected three times.
+         *
+         * **By month, and the heading says so.** Every register here is titled
+         * with the two dates at the ends of its span; a summary is asked for one
+         * month at a time and is titled with the month's name.
+         *
+         * @param lines already **biggest first**, which is the order that makes
+         *   the page an answer. Sorting again here would be a second opinion
+         *   about which is right.
+         * @param monthOf any instant inside the month those lines were folded
+         *   from — the same one handed to [StatementPeriod.Month]. A date rather
+         *   than the period itself because Swift's `StatementPeriod` is a flat
+         *   enum with no `Month` type to name, and a twin that takes a different
+         *   argument is a twin that drifts.
+         * @param countText turns a line's count into the cell under
+         *   [countHeading] — `6 times`, `4 bills`.
+         */
+        private fun summary(
+            lines: List<SummaryLine>,
+            monthOf: Instant,
+            title: String,
+            nameHeading: String,
+            countHeading: String,
+            amountHeading: String,
+            countText: (Int) -> String,
+            totalLabel: String,
+            emptyLine: String,
+            settings: Settings,
+            strings: Strings,
+            currency: Currency,
+            footnote: String? = null
         ): SummaryDocument = SummaryDocument(
             shopName = settings.ownerName,
             shopAddressLines = settings.addressLines,
-            title = strings.expenseSummary,
+            title = title,
             asOf = strings.monthYear(monthOf),
-            columnHeadings = listOf(
-                strings.columnWhatItWentOn,
-                strings.columnHowOften,
-                strings.expenseInPeriod
-            ),
+            columnHeadings = listOf(nameHeading, countHeading, amountHeading),
             rows = lines.map {
                 Row(
-                    name = it.what,
+                    name = it.name,
                     amount = Money.text(it.total, currency),
-                    count = strings.timesSpent(it.times)
+                    count = countText(it.count)
                 )
             },
-            totalLabel = strings.totalSpentLabel,
+            totalLabel = totalLabel,
             // Summed from the same figures the rows print, so the foot of the page
-            // can never disagree with the page — and, because `spendingIn` folds
-            // every expense in the month into exactly one line, this is also what
-            // `spentIn` says for the same month. `SummaryDocumentTests` pins that.
+            // can never disagree with the page — and, because each fold puts every
+            // record in the month on exactly one line, this is also what the store's
+            // own figure for that month says. `SummaryDocumentTests` pins that.
             totalValue = Money.text(lines.sumOf { it.total }, currency),
-            emptyLine = strings.nothingSpentThatMonth
+            emptyLine = emptyLine,
+            footnote = footnote
         )
 
         /**
