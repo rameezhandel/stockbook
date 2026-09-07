@@ -46,6 +46,7 @@ import com.stockbook.app.feature.customers.PaySupplierSheet
 import com.stockbook.app.feature.customers.SupplierEditorSheet
 import com.stockbook.app.feature.customers.StatementPdf
 import com.stockbook.app.feature.book.ExpenseSheet
+import com.stockbook.app.feature.book.ExpenseSummarySheet
 import com.stockbook.app.feature.book.PartyScreen
 import com.stockbook.app.feature.customers.StatementScreen
 import com.stockbook.app.feature.items.AddStockSheet
@@ -74,6 +75,7 @@ import com.stockbook.core.store.JsonFileRepository
 import com.stockbook.core.store.StockbookStore
 import com.stockbook.core.text.AppTab
 import com.stockbook.core.text.BillDocument
+import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.text.Dates
 import com.stockbook.core.text.DaySummaryDocument
 import com.stockbook.core.text.EarningsDocument
@@ -577,6 +579,41 @@ private fun Shell(store: StockbookStore) {
                         )
                     },
                     onClose = { router.dayInView = null }
+                )
+            }
+        }
+
+        // Where a month's money went, from the total on the book's expenses list.
+        BottomSheet(
+            visible = router.expenseSummaryFor != null,
+            onDismiss = { router.expenseSummaryFor = null }
+        ) {
+            router.expenseSummaryFor?.let { month ->
+                ExpenseSummarySheet(
+                    month = month,
+                    state = state,
+                    store = store,
+                    strings = strings,
+                    onMonth = { router.expenseSummaryFor = it },
+                    onSave = {
+                        sharePdf(
+                            context,
+                            SummaryPdf.write(
+                                SummaryDocument.forSpendingSummary(
+                                    store.spendingIn(StatementPeriod.Month(month)),
+                                    month,
+                                    state.settings,
+                                    strings
+                                ),
+                                context,
+                                // Named for the month it folds, not for today: two
+                                // prints of August are the same page, and a folder
+                                // of these is read by their file names.
+                                strings.expenseSummaryFileName(Dates.fileMonth(month))
+                            )
+                        )
+                    },
+                    onClose = { router.expenseSummaryFor = null }
                 )
             }
         }

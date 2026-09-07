@@ -1186,6 +1186,10 @@ struct Strings {
     /// The way in, from the total on whichever list the summary folds.
     var summaryReport: String { pick("Summary report", "ಸಾರಾಂಶ ವರದಿ") }
 
+    /// The month stepper's two arrows, read out rather than shown.
+    var previousMonth: String { pick("Previous month", "ಹಿಂದಿನ ತಿಂಗಳು") }
+    var nextMonth: String { pick("Next month", "ಮುಂದಿನ ತಿಂಗಳು") }
+
     /// What the sheet says for a month in which the shop spent nothing.
     var nothingSpentThatMonth: String { pick("Nothing spent that month.", "ಆ ತಿಂಗಳು ಖರ್ಚು ಇಲ್ಲ.") }
 

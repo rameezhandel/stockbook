@@ -328,6 +328,27 @@ fun BookScreen(
                     }) else null,
                     shareLabel = strings.sharePdf
                 )
+
+                // The other question about the same money, one tap from the
+                // figure that raises it. Expenses only for now; the same fold
+                // makes sense of sales and purchases and is not built yet.
+                //
+                // It opens on the month the list is showing, so the sheet does
+                // not contradict the page it came from — but only where that span
+                // *is* a month. A year or a hand-picked stretch has no month to
+                // carry across, and this month is the honest place to start.
+                if (side == Side.EXPENSES) {
+                    Spacer(Modifier.height(10.dp))
+                    GhostButton(
+                        strings.summaryReport,
+                        onClick = {
+                            router.expenseSummaryFor =
+                                (period as? StatementPeriod.Month)?.inside ?: Timestamps.now()
+                        },
+                        fontSize = 12.0
+                    )
+                }
+
                 Spacer(Modifier.height(20.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {

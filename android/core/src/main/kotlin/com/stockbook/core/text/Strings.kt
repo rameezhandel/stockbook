@@ -1198,6 +1198,10 @@ class Strings(val language: AppLanguage) {
     /** The way in, from the total on whichever list the summary folds. */
     val summaryReport: String get() = pick("Summary report", "ಸಾರಾಂಶ ವರದಿ")
 
+    /** The month stepper's two arrows, read out rather than shown. */
+    val previousMonth: String get() = pick("Previous month", "ಹಿಂದಿನ ತಿಂಗಳು")
+    val nextMonth: String get() = pick("Next month", "ಮುಂದಿನ ತಿಂಗಳು")
+
     /** What the sheet says for a month in which the shop spent nothing. */
     val nothingSpentThatMonth: String
         get() = pick("Nothing spent that month.", "ಆ ತಿಂಗಳು ಖರ್ಚು ಇಲ್ಲ.")

@@ -112,6 +112,16 @@ class AppRouter {
      */
     var dayInView by mutableStateOf<java.time.Instant?>(null)
 
+    /**
+     * Which month the expense summary is folding, or null when it is closed.
+     *
+     * An instant inside the month rather than a flag, for the reason [dayInView]
+     * holds a day: the sheet steps between months and the one it is on has to
+     * survive a recomposition. Opened from the total on the book's expenses list,
+     * on the month that list is showing where it is showing one.
+     */
+    var expenseSummaryFor by mutableStateOf<java.time.Instant?>(null)
+
     /** The receipt, shown full-screen after a bill is saved. */
     var receipt by mutableStateOf<Bill?>(null)
 
