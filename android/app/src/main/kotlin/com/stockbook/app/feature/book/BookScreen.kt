@@ -647,9 +647,11 @@ private fun TotalCard(
  * `private` but still puts its name in the package, so two plain `Side`s would
  * collide however private each of them was.
  *
- * `internal` rather than `private` because the summary sheet and the router both
- * have to name it now: which of the four a folded page is for follows the chip
- * the owner was reading, and a second enum saying the same four things is a
- * second enum to forget about when a fifth arrives.
+ * Not `private` either, because the summary sheet and the router both have to
+ * name it now: which of the four a folded page is for follows the chip the owner
+ * was reading, and a second enum saying the same four things is a second enum to
+ * forget about when a fifth arrives. Nor `internal`, which was the first attempt
+ * — `SummarySheet` and `SummaryTarget` are both public and a public declaration
+ * may not expose an internal type in its signature.
  */
-internal enum class BookSide { SALES, PURCHASES, PAYMENTS, EXPENSES }
+enum class BookSide { SALES, PURCHASES, PAYMENTS, EXPENSES }
