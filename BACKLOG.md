@@ -132,9 +132,19 @@ Play will grant production access at all.
   folded row cannot be checked against anything.
 
   **The expense page changed with them**, from grouped-by-category to a register.
-  `spendingIn` still folds a month into "petrol 780, rent 2,000" and is still
-  tested; nothing prints it today, and it is one call away if that page is ever
-  wanted back.
+  The folded page has since come back **beside** it rather than instead of it:
+  `spendingIn` feeds `SummaryDocument.forSpendingSummary`, which the **Summary
+  report** button under the Expenses total opens as a sheet, one month at a
+  time. Two pages, two questions about the same money — what was spent, and
+  where the month went — and the wording keeps them apart, `Report` against
+  `Summary`.
+
+  **Sales and purchases have no folded page yet**, and the owner has asked for
+  both. The same shape works: one line per customer or supplier, with how many
+  bills. `Row.count`, the writers' three-column branch and the month stepper are
+  all in place; what is missing is the fold itself — there is no
+  `salesIn(period)` grouping the way `spendingIn` groups — and a way in from
+  those two chips.
 
   The payments page prints **money in as its column and money out as a
   footnote**. Both directions in one column would leave a total that is neither

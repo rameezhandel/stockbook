@@ -151,11 +151,18 @@ the other.
   had one, and a hundred pages of band works out under forty riyals a print,
   which is not enough to keep a second layout alive for. A new PDF writer that
   draws its own header is a page that will not look like the others.
-- **The four registers are Reports; the day and earnings are Summaries.** Not
-  decoration: a report lists records one line each and can be checked against the
-  paper book; a summary folds figures and cannot. `salesReport`,
-  `purchaseReport`, `paymentsReport`, `expenseReport` against `daySummary` and
-  `earningsSummary`.
+- **A page that lists records is a Report; a page that folds them is a
+  Summary.** Not decoration: a report has one line per record and can be checked
+  against the paper book receipt by receipt, and a folded page cannot be checked
+  against anything. `salesReport`, `purchaseReport`, `paymentsReport`,
+  `expenseReport` against `daySummary`, `earningsSummary` and `expenseSummary`.
+  Expenses is the one kind of record with both, and they are two pages answering
+  two questions rather than one page in two styles — the register over whatever
+  span the picker says, the summary one month at a time and titled by the month's
+  name. `Row.count` is what a folded page puts where a register puts the day; no
+  row carries both, which is what lets the PDF writers pick between them with
+  nothing to decide. Sales and purchases are to get the same fold and have not
+  yet.
 - **The app says "purchase", never "delivery".** The owner drives a van to the
   wholesaler and buys hardware; nothing arrives at a door. Every visible word —
   the chip, the empty state, `purchaseRef`'s `Purchase #88`, the day summary's
