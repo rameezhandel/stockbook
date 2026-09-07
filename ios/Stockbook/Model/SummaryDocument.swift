@@ -67,6 +67,17 @@ struct SummaryDocument: Equatable {
         let amount: String
         var reference: String?
         var date: String?
+        /// How many records this line folds — `once`, `6 times` — on the pages
+        /// that fold any.
+        ///
+        /// The summary's middle cell, where a register's is the day. A row never
+        /// carries both: one page lists records and the other counts them, and
+        /// nothing folds a line that is already a single record.
+        ///
+        /// Declared last on purpose. The memberwise initialiser takes its
+        /// arguments in declaration order, and putting this before `date` would
+        /// quietly re-point every existing `Row(name:amount:reference:date:)`.
+        var count: String?
     }
 
     /// Whether there is a table to draw at all.
@@ -281,6 +292,62 @@ struct SummaryDocument: Equatable {
             totalLabel: strings.totalSpentLabel,
             emptyLine: strings.nothingSpentThen,
             currency: currency ?? settings.currency
+        )
+    }
+
+    /// Where a month's money went, folded by what it went on: `Petrol, 6 times,
+    /// 780`.
+    ///
+    /// **The one page in the app that groups anything**, and the counterpart to
+    /// `forSpending` rather than a replacement for it. A register is checked —
+    /// against the receipts in a drawer, line by line — and a folded page cannot
+    /// be. This answers the other question, the one a register buries under
+    /// forty-seven rows: where did the month go.
+    ///
+    /// **By month, and the heading says so.** Every other page here is titled
+    /// with the two dates at the ends of its span; a summary is asked for one
+    /// month at a time and is titled with the month's name.
+    ///
+    /// - Parameters:
+    ///   - lines: from `StockbookStore.spendingIn`, **biggest first**, which is
+    ///     the order that makes the page an answer. Sorting again here would be a
+    ///     second opinion about which is right.
+    ///   - monthOf: any date inside the month those lines were folded from — the
+    ///     same one handed to `StatementPeriod.month`. A date rather than the
+    ///     period itself because `StatementPeriod` is a flat enum with no `month`
+    ///     type to name, and the Kotlin twin takes the same argument.
+    static func forSpendingSummary(
+        lines: [SpendLine],
+        monthOf: Date,
+        settings: Settings,
+        strings: Strings,
+        currency: Currency? = nil
+    ) -> SummaryDocument {
+        let money = currency ?? settings.currency
+        return SummaryDocument(
+            shopName: settings.ownerName,
+            shopAddressLines: settings.addressLines,
+            title: strings.expenseSummary,
+            asOf: strings.monthYear(monthOf),
+            columnHeadings: [
+                strings.columnWhatItWentOn,
+                strings.columnHowOften,
+                strings.expenseInPeriod
+            ],
+            rows: lines.map {
+                Row(
+                    name: $0.what,
+                    amount: Money.text($0.total, in: money),
+                    count: strings.timesSpent($0.times)
+                )
+            },
+            totalLabel: strings.totalSpentLabel,
+            // Summed from the same figures the rows print, so the foot of the page
+            // can never disagree with the page — and, because `spendingIn` folds
+            // every expense in the month into exactly one line, this is also what
+            // `spentIn` says for the same month. `SummaryDocumentTests` pins that.
+            totalValue: Money.text(lines.reduce(0) { $0 + $1.total }, in: money),
+            emptyLine: strings.nothingSpentThatMonth
         )
     }
 

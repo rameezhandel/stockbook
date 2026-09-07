@@ -1167,10 +1167,37 @@ struct Strings {
     var nothingSpentThen: String { pick("Nothing spent in this period.", "ಈ ಅವಧಿಯಲ್ಲಿ ಖರ್ಚು ಇಲ್ಲ.") }
     /// `once` reads better than `1 times`, and a shop buys plenty of things once.
     func timesSpent(_ n: Int) -> String { pick(n == 1 ? "once" : "\(n) times", "\(n) ಸಲ") }
+
+    /// The other question about the same money: not *what was spent* but *what
+    /// it went on*.
+    ///
+    /// A **summary**, and the word is doing work. Every other page the book
+    /// prints is a report — one line per record, checkable against the receipts
+    /// in a drawer. This one folds forty-seven receipts into "Petrol, 6 times,
+    /// 780" and cannot be checked against anything, which is precisely why it is
+    /// useful and precisely why it must not be mistaken for the register.
+    var expenseSummary: String { pick("Expense Summary", "ಖರ್ಚಿನ ಸಾರಾಂಶ") }
+
+    /// How many receipts a folded line stands for. Headed as a question because
+    /// the cell under it answers one — `once`, `6 times` — rather than being a
+    /// bare count.
+    var columnHowOften: String { pick("How often", "ಎಷ್ಟು ಸಲ") }
+
+    /// The way in, from the total on whichever list the summary folds.
+    var summaryReport: String { pick("Summary report", "ಸಾರಾಂಶ ವರದಿ") }
+
+    /// What the sheet says for a month in which the shop spent nothing.
+    var nothingSpentThatMonth: String { pick("Nothing spent that month.", "ಆ ತಿಂಗಳು ಖರ್ಚು ಇಲ್ಲ.") }
+
     /// Not translated: a file name is read by a file manager, not by a shopkeeper.
     func receivableFileName(date: String) -> String { "receivable-\(date).pdf" }
     func payableFileName(date: String) -> String { "payable-\(date).pdf" }
     func expenseFileName(date: String) -> String { "expenses-\(date).pdf" }
+
+    /// Named by the month it folds rather than the day it was made — two prints
+    /// of August are the same page, and a summary asked for twice should not
+    /// leave two files behind.
+    func expenseSummaryFileName(month: String) -> String { "expense-summary-\(month).pdf" }
 
     // MARK: - The other three summary pages the book can make
 
@@ -1503,6 +1530,11 @@ struct Strings {
 
     func longDate(_ date: Date) -> String {
         Copy.longDate(date, locale: language.locale)
+    }
+
+    /// `August 2026` — a summary's heading, and the month stepper's own label.
+    func monthYear(_ date: Date) -> String {
+        Copy.monthYear(date, locale: language.locale)
     }
 
     /// `Aug 13, 2026` — the date shown in a date field the owner can change.

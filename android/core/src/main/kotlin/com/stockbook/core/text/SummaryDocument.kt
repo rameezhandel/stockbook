@@ -4,11 +4,13 @@ import com.stockbook.core.model.Currency
 import com.stockbook.core.model.Customer
 import com.stockbook.core.model.Settings
 import com.stockbook.core.model.Statement
+import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.model.StatementRange
 import com.stockbook.core.model.Supplier
 import com.stockbook.core.model.Timestamps
 import com.stockbook.core.money.Money
 import com.stockbook.core.store.RecordLine
+import com.stockbook.core.store.SpendLine
 import java.time.Instant
 
 /**
@@ -82,7 +84,16 @@ data class SummaryDocument(
         val name: String,
         val amount: String,
         val reference: String? = null,
-        val date: String? = null
+        val date: String? = null,
+        /**
+         * How many records this line folds — `once`, `6 times` — on the pages
+         * that fold any.
+         *
+         * The summary's middle cell, where a register's is the day. A row never
+         * carries both: one page lists records and the other counts them, and
+         * nothing folds a line that is already a single record.
+         */
+        val count: String? = null
     )
 
     /** Whether there is a table to draw at all. */
@@ -297,6 +308,61 @@ data class SummaryDocument(
             totalLabel = strings.totalSpentLabel,
             emptyLine = strings.nothingSpentThen,
             currency = currency
+        )
+
+        /**
+         * Where a month's money went, folded by what it went on: `Petrol, 6
+         * times, 780`.
+         *
+         * **The one page in the app that groups anything**, and the counterpart
+         * to [forSpending] rather than a replacement for it. A register is
+         * checked — against the receipts in a drawer, line by line — and a
+         * folded page cannot be. This answers the other question, the one a
+         * register buries under forty-seven rows: where did the month go.
+         *
+         * **By month, and the heading says so.** Every other page here is titled
+         * with the two dates at the ends of its span; a summary is asked for one
+         * month at a time and is titled with the month's name.
+         *
+         * @param lines from `StockbookStore.spendingIn`, **biggest first**,
+         *   which is the order that makes the page an answer. Sorting again here
+         *   would be a second opinion about which is right.
+         * @param monthOf any instant inside the month those lines were folded
+         *   from — the same one handed to [StatementPeriod.Month]. A date rather
+         *   than the period itself because Swift's `StatementPeriod` is a flat
+         *   enum with no `Month` type to name, and a twin that takes a different
+         *   argument is a twin that drifts.
+         */
+        fun forSpendingSummary(
+            lines: List<SpendLine>,
+            monthOf: Instant,
+            settings: Settings,
+            strings: Strings,
+            currency: Currency = settings.currency
+        ): SummaryDocument = SummaryDocument(
+            shopName = settings.ownerName,
+            shopAddressLines = settings.addressLines,
+            title = strings.expenseSummary,
+            asOf = strings.monthYear(monthOf),
+            columnHeadings = listOf(
+                strings.columnWhatItWentOn,
+                strings.columnHowOften,
+                strings.expenseInPeriod
+            ),
+            rows = lines.map {
+                Row(
+                    name = it.what,
+                    amount = Money.text(it.total, currency),
+                    count = strings.timesSpent(it.times)
+                )
+            },
+            totalLabel = strings.totalSpentLabel,
+            // Summed from the same figures the rows print, so the foot of the page
+            // can never disagree with the page — and, because `spendingIn` folds
+            // every expense in the month into exactly one line, this is also what
+            // `spentIn` says for the same month. `SummaryDocumentTests` pins that.
+            totalValue = Money.text(lines.sumOf { it.total }, currency),
+            emptyLine = strings.nothingSpentThatMonth
         )
 
         /**

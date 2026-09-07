@@ -141,10 +141,16 @@ enum SummaryPDF {
                 // leaves an empty cell; dropping it would slide the date up into
                 // the number's column and put the whole row out of step with its
                 // heading.
+                //
+                // Three columns arrive in two shapes: a register of expenses,
+                // whose middle cell is the day it was written, and a summary,
+                // whose middle cell is how many receipts the line folds. A row
+                // never carries both — one page lists records and the other
+                // counts them — so there is nothing here to choose between.
                 let cells: [String]
                 switch starts.count {
                 case 3: cells = [row.name, row.reference ?? "", row.date ?? ""]
-                case 2: cells = [row.name, row.date ?? ""]
+                case 2: cells = [row.name, row.count ?? row.date ?? ""]
                 default: cells = [row.name]
                 }
                 for (index, cell) in cells.enumerated() where !cell.isEmpty {

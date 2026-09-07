@@ -34,6 +34,23 @@ object Dates {
         formatter("d MMMM yyyy", locale).format(at.atZone(ZoneId.systemDefault()))
 
     /**
+     * `August 2026` — the whole span a summary folds, in its own title.
+     *
+     * A summary is asked for one month at a time, so its heading names the month
+     * rather than the two dates at its ends. "1 August 2026 — 31 August 2026"
+     * states the same fact and leaves the reader to work out what it amounts to.
+     */
+    fun monthYear(at: Instant, locale: Locale): String =
+        formatter("MMMM yyyy", locale).format(at.atZone(ZoneId.systemDefault()))
+
+    /**
+     * `2026-08` — the month in a file name, and not localised for the reason
+     * [fileDate] is not: a folder of them has to sort in the order they happened.
+     */
+    fun fileMonth(at: Instant): String =
+        formatter("yyyy-MM", Locale.US).format(at.atZone(ZoneId.systemDefault()))
+
+    /**
      * `Aug 13, 2026` — the date sitting in a form the owner is filling in.
      *
      * The month is named rather than numbered because a date on a form is read

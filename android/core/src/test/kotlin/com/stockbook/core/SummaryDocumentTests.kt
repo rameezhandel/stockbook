@@ -326,6 +326,123 @@ class SummaryDocumentTests {
         assertEquals("1 August 2026 to 31 August 2026", document.asOf)
     }
 
+    // --- The same money folded: where the month went
+
+    /**
+     * The two arguments the page is built from, taken from one instant so the
+     * lines and the heading can never be two different months.
+     */
+    private fun StockbookStore.summary(monthOf: Instant) = SummaryDocument.forSpendingSummary(
+        spendingIn(StatementPeriod.Month(monthOf)), monthOf, settings, strings
+    )
+
+    /**
+     * The whole point of the page: forty-seven receipts become the handful of
+     * things the shop actually spends on, biggest first.
+     */
+    @Test
+    fun `the summary folds the month into one line per thing`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", day)
+        store.addExpense(65.0, "Petrol", day.plusSeconds(60))
+        store.addExpense(4.0, "Tea", day)
+        store.addExpense(2_000.0, "Rent", day)
+
+        val page = store.summary(day)
+
+        assertEquals(listOf("Rent", "Petrol", "Tea"), page.rows.map { it.name })
+        assertEquals(listOf("SAR 2,000", "SAR 125", "SAR 4"), page.rows.map { it.amount })
+        assertEquals(listOf("once", "2 times", "once"), page.rows.map { it.count })
+    }
+
+    /**
+     * The summary and the register are two readings of one month and may never
+     * disagree about what it came to. They are built from different walks of the
+     * book — one folds, one lists — which is exactly why this is pinned.
+     */
+    @Test
+    fun `the folded total is the listed total is the card on the pane`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", day)
+        store.addExpense(65.0, "Petrol", day.plusSeconds(60))
+        store.addExpense(4.5, "Tea", day)
+        val month = StatementPeriod.Month(day)
+
+        assertEquals(
+            Money.text(store.spentIn(month), store.settings.currency),
+            store.summary(day).totalValue
+        )
+        assertEquals(store.spendingDocument(month).totalValue, store.summary(day).totalValue)
+    }
+
+    /**
+     * Titled by the month's name, not by the two dates at its ends.
+     *
+     * A summary is asked for one month at a time, and "August 2026" is what the
+     * owner asked for. It is also **not** called a report: every other page here
+     * lists records and can be checked against the drawer, and this one cannot.
+     */
+    @Test
+    fun `the summary is headed by the month, and is not called a report`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", day)
+
+        val page = store.summary(Instant.parse("2026-08-10T00:00:00Z"))
+
+        assertEquals("Expense Summary", page.title)
+        assertEquals("August 2026", page.asOf)
+        assertTrue(!page.title.contains("Report", ignoreCase = true))
+        assertTrue(!page.title.contains("Statement", ignoreCase = true))
+    }
+
+    /**
+     * Three columns, and the middle one counts rather than dates.
+     *
+     * The writer picks its cells by how many columns there are, so a summary row
+     * carrying a date as well would print the wrong thing in the middle of every
+     * line. Pinned from the row's side, where the mistake would be made.
+     */
+    @Test
+    fun `a folded row counts where a register row dates`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", day)
+        val month = StatementPeriod.Month(day)
+
+        val folded = store.summary(day).rows.single()
+        val listed = store.spendingDocument(month).rows.single()
+
+        assertEquals(3, store.summary(day).columnHeadings.size)
+        assertEquals("once", folded.count)
+        assertEquals(null, folded.date)
+        assertEquals(null, folded.reference)
+        assertEquals(null, listed.count, "and a register line folds nothing, so it counts nothing")
+        assertNotNull(listed.date)
+    }
+
+    /** Only that month, whatever the shop spent on either side of it. */
+    @Test
+    fun `the summary folds one month and no other`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", Instant.parse("2026-08-22T09:00:00Z"))
+        store.addExpense(999.0, "July petrol", Instant.parse("2026-07-30T09:00:00Z"))
+        store.addExpense(500.0, "September rent", Instant.parse("2026-09-02T09:00:00Z"))
+
+        val page = store.summary(Instant.parse("2026-08-10T00:00:00Z"))
+
+        assertEquals(listOf("Petrol"), page.rows.map { it.name })
+        assertEquals("SAR 60", page.totalValue)
+    }
+
+    /** A month with nothing in it says so in the month's own words. */
+    @Test
+    fun `a month with no spending says so`() {
+        val page = store().summary(day)
+
+        assertTrue(page.isEmpty)
+        assertEquals("Nothing spent that month.", page.emptyLine)
+        assertEquals("SAR 0", page.totalValue)
+    }
+
     // --- The three registers the book gained beside the expense page
 
     private fun trading(): StockbookStore {

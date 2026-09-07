@@ -158,9 +158,15 @@ object SummaryPdf {
             // Positional, not compacted. A receipt written without a number
             // leaves an empty cell; dropping it would slide the date up into the
             // number's column and put the whole row out of step with its heading.
+            //
+            // Three columns arrive in two shapes: a register of expenses, whose
+            // middle cell is the day it was written, and a summary, whose middle
+            // cell is how many receipts the line folds. A row never carries
+            // both — one page lists records and the other counts them — so there
+            // is nothing here to choose between.
             val cells = when (starts.size) {
                 3 -> listOf(row.name, row.reference.orEmpty(), row.date.orEmpty())
-                2 -> listOf(row.name, row.date.orEmpty())
+                2 -> listOf(row.name, row.count ?: row.date.orEmpty())
                 else -> listOf(row.name)
             }
             for ((index, cell) in cells.withIndex()) {
