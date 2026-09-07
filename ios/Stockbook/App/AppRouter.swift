@@ -159,13 +159,18 @@ final class AppRouter {
     /// the date at the top of Home.
     var dayInView: Date?
 
-    /// Which month the expense summary is folding, or nil when it is closed.
+    /// Which side and which month the summary sheet is folding, or nil when it is
+    /// closed.
     ///
     /// A date inside the month rather than a flag, for the reason `dayInView`
     /// holds a day: the sheet steps between months and the one it is on has to
-    /// survive being redrawn. Opened from the total on the book's expenses list,
-    /// on the month that list is showing where it is showing one.
-    var expenseSummaryFor: Date?
+    /// survive being redrawn. The side comes with it because all four lists make
+    /// one now, and a sheet that forgot which chip opened it would fold the wrong
+    /// records under the right heading.
+    ///
+    /// Opened from the total on whichever list the owner is reading, on the month
+    /// that list is showing where it is showing one.
+    var summaryFor: SummaryTarget?
 
     /// A supplier's statement, full screen — a key for the same reason
     /// `statementFor` is one, and a separate field so the screen knows which side
@@ -290,7 +295,7 @@ final class AppRouter {
         showingCreditors = false
         dayInView = nil
         earningsFor = nil
-        expenseSummaryFor = nil
+        summaryFor = nil
     }
 }
 
@@ -338,4 +343,16 @@ struct CreditNoteTarget: Identifiable {
 struct CustomerEditorTarget: Identifiable {
     let customer: Customer?
     var id: String { customer?.key ?? "new" }
+}
+
+/// Which folded page the summary sheet is showing: one of the book's four sides,
+/// and a month.
+///
+/// The two travel together because neither is any use alone — a month with no
+/// side folds nothing, and a side with no month folds everything. Stepping to the
+/// previous month replaces the whole target rather than mutating it, which is
+/// what makes the sheet redraw.
+struct SummaryTarget: Equatable {
+    let side: BookSide
+    var month: Date
 }

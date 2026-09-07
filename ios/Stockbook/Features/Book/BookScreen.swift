@@ -41,7 +41,7 @@ struct BookScreen: View {
     ///
     /// Stored as its raw string because `@SceneStorage` takes only the handful of
     /// types `AppStorage` does.
-    @SceneStorage("book.side") private var storedSide = Side.sales.rawValue
+    @SceneStorage("book.side") private var storedSide = BookSide.sales.rawValue
 
     /// **The span, asked once for all four.** This month by default: the book is
     /// a year of rows before long, and the reason to open it is almost always
@@ -69,7 +69,7 @@ struct BookScreen: View {
     /// of.
     private var hits: [SearchHit] { searching ? store.search(query) : [] }
 
-    private var side: Side { Side(rawValue: storedSide) ?? .sales }
+    private var side: BookSide { BookSide(rawValue: storedSide) ?? .sales }
     private var choice: PeriodChoice { PeriodChoice(rawValue: storedPeriod) ?? .thisMonth }
     private var period: StatementPeriod { choice.period(from: from, to: to) }
 
@@ -108,7 +108,7 @@ struct BookScreen: View {
             // reading "Sales · This month" over a list of results that is neither.
             if !searching {
                 HStack(spacing: 6) {
-                    ForEach(Side.allCases) { candidate in
+                    ForEach(BookSide.allCases) { candidate in
                         ChoicePill(title: label(for: candidate), selected: side == candidate) {
                             choose(candidate)
                         }
@@ -159,24 +159,23 @@ struct BookScreen: View {
             .padding(.bottom, side == .expenses ? 10 - Metrics.rowGap : 20 - Metrics.rowGap)
 
         // The other question about the same money, one tap from the figure that
-        // raises it. Expenses only for now; the same fold makes sense of sales and
-        // purchases and is not built yet.
+        // raises it — on all four sides now. Sales fold by customer, purchases by
+        // supplier, payments by whoever paid, and expenses by what the money went
+        // on.
         //
         // It opens on the month the list is showing, so the sheet does not
         // contradict the page it came from — but only where that span *is* a
         // month. A year or a hand-picked stretch has no month to carry across, and
         // this month is the honest place to start.
-        if side == .expenses {
-            Button(Loc.summaryReport) {
-                if case .month(let inside) = period {
-                    router.expenseSummaryFor = inside
-                } else {
-                    router.expenseSummaryFor = .now
-                }
+        Button(Loc.summaryReport) {
+            if case .month(let inside) = period {
+                router.summaryFor = SummaryTarget(side: side, month: inside)
+            } else {
+                router.summaryFor = SummaryTarget(side: side, month: .now)
             }
-            .buttonStyle(GhostButtonStyle(fontSize: 12))
-            .padding(.bottom, 20 - Metrics.rowGap)
         }
+        .buttonStyle(GhostButtonStyle(fontSize: 12))
+        .padding(.bottom, 20 - Metrics.rowGap)
 
         HStack {
             Kicker(listTitle)
@@ -259,7 +258,7 @@ struct BookScreen: View {
         }
     }
 
-    private func choose(_ next: Side) {
+    private func choose(_ next: BookSide) {
         withAnimation(Metrics.quick) { storedSide = next.rawValue }
     }
 
@@ -359,7 +358,7 @@ struct BookScreen: View {
         }
     }
 
-    private func label(for candidate: Side) -> String {
+    private func label(for candidate: BookSide) -> String {
         switch candidate {
         case .sales: Loc.salesSide
         case .purchases: Loc.purchasesSide
@@ -590,10 +589,4 @@ struct BookScreen: View {
         }
     }
 
-    /// Which kind of record is showing.
-    private enum Side: String, CaseIterable, Identifiable {
-        case sales, purchases, payments, expenses
-
-        var id: Self { self }
-    }
 }

@@ -155,14 +155,24 @@ the other.
   Summary.** Not decoration: a report has one line per record and can be checked
   against the paper book receipt by receipt, and a folded page cannot be checked
   against anything. `salesReport`, `purchaseReport`, `paymentsReport`,
-  `expenseReport` against `daySummary`, `earningsSummary` and `expenseSummary`.
-  Expenses is the one kind of record with both, and they are two pages answering
-  two questions rather than one page in two styles — the register over whatever
-  span the picker says, the summary one month at a time and titled by the month's
-  name. `Row.count` is what a folded page puts where a register puts the day; no
-  row carries both, which is what lets the PDF writers pick between them with
-  nothing to decide. Sales and purchases are to get the same fold and have not
-  yet.
+  `expenseReport` against `salesSummary`, `purchaseSummary`, `paymentsSummary`,
+  `expenseSummary`, `daySummary` and `earningsSummary`. **All four sides of the
+  book have both**, and they are two pages answering two questions rather than
+  one page in two styles — the register over whatever span the picker says, the
+  summary one month at a time and titled by the month's name. `Row.count` is what
+  a folded page puts where a register puts the day; no row carries both, which is
+  what lets the PDF writers pick between them with nothing to decide.
+- **The folds go by person, except expenses, which go by thing.**
+  `salesByCustomerIn`, `purchasesBySupplierIn` and `receiptsByCustomerIn` beside
+  `spendingIn`, all returning `SummaryLine(name, count, total)` and all sorted by
+  `biggestFirst` — one type and one order, because four near-identical ones would
+  be four places for a correction to reach three of. Folding sales by *product*
+  is the obvious-looking mistake: a bill entered as a single figure lists no
+  products, that is the ordinary way to use this app, and such a page would
+  silently leave out every one of those bills. Sales group on `Customer.key`
+  rather than the typed name; the other two group on a key the record already
+  stores. `biggestFirst`'s tie-break is load-bearing on Swift, where `sorted(by:)`
+  is unstable and `Dictionary(grouping:)` returns groups in no order at all.
 - **The app says "purchase", never "delivery".** The owner drives a van to the
   wholesaler and buys hardware; nothing arrives at a door. Every visible word —
   the chip, the empty state, `purchaseRef`'s `Purchase #88`, the day summary's

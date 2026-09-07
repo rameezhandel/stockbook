@@ -1,14 +1,19 @@
 import SwiftUI
 
-/// Where a month's money went, folded by what it went on.
+/// A month folded into an answer: where it went, or who it was with.
 ///
-/// **The other question about the same expenses.** The list behind this sheet
-/// answers "what did I spend", one receipt a line, over whatever span the picker
+/// **The other question about the same records.** The list behind this sheet
+/// answers "what happened", one record a line, over whatever span the picker
 /// says. This answers "where did the month go" — and the two are not the same
 /// page in two styles: a register is checked against the receipts in a drawer
 /// line by line, and a folded page cannot be checked against anything. Which is
 /// why the wording keeps them apart, `Report` against `Summary`, everywhere they
 /// are named.
+///
+/// **One sheet for all four sides.** Expenses fold by what the money went on and
+/// the other three by the person on the other side of the counter, but that
+/// difference lives entirely in `SummaryDocument` — everything below is a title,
+/// some rows, a total and a month, whichever chip asked for it.
 ///
 /// **A month at a time, and only a month.** The book's own picker offers a year
 /// and a hand-picked stretch as well; neither belongs here. "Petrol, 84 times"
@@ -18,9 +23,11 @@ import SwiftUI
 ///
 /// Everything drawn comes out of `SummaryDocument`, so what is read on the
 /// screen and what comes out of the printer cannot drift.
-struct ExpenseSummarySheet: View {
+struct SummarySheet: View {
     @Environment(StockbookStore.self) private var store
 
+    /// Which of the four is being folded.
+    let side: BookSide
     /// Any date inside the month being folded.
     let month: Date
     /// Steps to another month without closing the sheet.
@@ -32,15 +39,10 @@ struct ExpenseSummarySheet: View {
     @State private var file: StatementFile?
 
     /// Read straight off the store rather than snapshotted into `@State`: it is
-    /// `@Observable`, so an expense written while this is open redraws the line
-    /// it belongs to. Android has to key this on the shop state by hand.
+    /// `@Observable`, so a record written while this is open redraws the line it
+    /// belongs to. Android has to key this on the shop state by hand.
     private var page: SummaryDocument {
-        SummaryDocument.forSpendingSummary(
-            lines: store.spendingIn(.month(month)),
-            monthOf: month,
-            settings: store.settings,
-            strings: Loc
-        )
+        SummaryDocument.folded(side: side, month: month, in: store)
     }
 
     /// No stepping into next month. A month that has not started has nothing in
@@ -98,19 +100,20 @@ struct ExpenseSummarySheet: View {
             } else {
                 // A plain stack rather than a lazy one: the sheet already scrolls
                 // its content, and a second scroll nested in the first is the trap
-                // that has emptied a list on this codebase before. A shop with
-                // more things to spend on than fit here has a bigger problem than
-                // the scroll.
+                // that has emptied a list on this codebase before. A month with
+                // more names on it than fit here still scrolls, because the sheet
+                // does.
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(spacing: Metrics.rowGap) {
                         ForEach(Array(document.rows.enumerated()), id: \.offset) { _, row in
-                            SpendRow(row: row)
+                            FoldedRow(row: row)
                         }
                     }
 
                     // Inside the card it totals, under a rule — and it is the same
-                    // figure the Expense card on the pane shows for the same
-                    // month, which is what `SummaryDocumentTests` pins.
+                    // figure this side's card on the pane shows for the same
+                    // month, which is what `SummaryDocumentTests` pins for all
+                    // four.
                     FadedRule(inset: 0)
                         .padding(.top, 10)
                         .padding(.bottom, 8)
@@ -119,6 +122,17 @@ struct ExpenseSummarySheet: View {
                         Text(document.totalLabel).nocturneText(.meta)
                         Spacer(minLength: 8)
                         Text(document.totalValue).nocturneText(.rowPrimary)
+                    }
+
+                    // What the column cannot carry — on payments, the money that
+                    // went the other way. Under the total rather than in it,
+                    // because a total that is not what the rows add up to is the
+                    // figure the first reader to check it stops trusting. Drawn
+                    // where the printed page draws it.
+                    if let footnote = document.footnote {
+                        Text(footnote)
+                            .nocturneText(.meta)
+                            .padding(.top, 8)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -148,23 +162,76 @@ struct ExpenseSummarySheet: View {
     /// A failure leaves `file` nil and nothing opens, which is the honest outcome
     /// the other printed pages already settled on.
     private func save() {
-        guard let url = try? SummaryPDF.write(
-            page,
-            // Named for the month it folds, not for today: two prints of August
-            // are the same page, and a folder of these is read by their file
-            // names.
-            fileName: Loc.expenseSummaryFileName(month: Copy.fileMonth(month))
-        ) else { return }
+        // Named for the month it folds, not for today: two prints of August are
+        // the same page, and a folder of these is read by their file names.
+        let name = Copy.fileMonth(month)
+        let fileName = switch side {
+        case .sales: Loc.salesSummaryFileName(month: name)
+        case .purchases: Loc.purchaseSummaryFileName(month: name)
+        case .payments: Loc.paymentsSummaryFileName(month: name)
+        case .expenses: Loc.expenseSummaryFileName(month: name)
+        }
+        guard let url = try? SummaryPDF.write(page, fileName: fileName) else { return }
         file = StatementFile(url: url)
     }
 }
 
-/// One thing the money went on, and how often.
+extension SummaryDocument {
+    /// The folded page for one side of the book, over one month.
+    ///
+    /// The one place the four differ, kept together so a fifth side is a branch
+    /// here rather than a fifth sheet — and so the sheet and the printed page are
+    /// built by the same call. Payments is the odd one and reads the store twice:
+    /// its column is money in, and what went out over the same month goes under
+    /// the total as a fact rather than a row.
+    ///
+    /// `@MainActor` because `Loc` is read inside it and `Loc` is main-actor
+    /// isolated. Every caller is a `body` or a button action there already, so
+    /// the annotation costs nothing — and without it this is the isolation error
+    /// that has cost this codebase a round trip before.
+    @MainActor
+    static func folded(side: BookSide, month: Date, in store: StockbookStore) -> SummaryDocument {
+        let period = StatementPeriod.month(month)
+        switch side {
+        case .sales:
+            return forSalesSummary(
+                lines: store.salesByCustomerIn(period),
+                monthOf: month,
+                settings: store.settings,
+                strings: Loc
+            )
+        case .purchases:
+            return forPurchaseSummary(
+                lines: store.purchasesBySupplierIn(period),
+                monthOf: month,
+                settings: store.settings,
+                strings: Loc
+            )
+        case .payments:
+            return forPaymentsSummary(
+                lines: store.receiptsByCustomerIn(period),
+                paidOut: store.paidOutIn(period),
+                monthOf: month,
+                settings: store.settings,
+                strings: Loc
+            )
+        case .expenses:
+            return forSpendingSummary(
+                lines: store.spendingIn(period),
+                monthOf: month,
+                settings: store.settings,
+                strings: Loc
+            )
+        }
+    }
+}
+
+/// One folded line — a name, and how many records stand behind it.
 ///
 /// The count sits under the name rather than in a column of its own: a phone row
 /// has room for a name and a figure, and squeezing a third column between them
 /// takes the room from the one thing on the row that has to stay readable.
-private struct SpendRow: View {
+private struct FoldedRow: View {
     let row: SummaryDocument.Row
 
     var body: some View {

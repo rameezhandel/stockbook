@@ -3,6 +3,7 @@ package com.stockbook.app
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.stockbook.app.feature.book.BookSide
 import com.stockbook.core.model.Bill
 import com.stockbook.core.model.CreditNote
 import com.stockbook.core.model.Payment
@@ -113,14 +114,19 @@ class AppRouter {
     var dayInView by mutableStateOf<java.time.Instant?>(null)
 
     /**
-     * Which month the expense summary is folding, or null when it is closed.
+     * Which side and which month the summary sheet is folding, or null when it is
+     * closed.
      *
      * An instant inside the month rather than a flag, for the reason [dayInView]
      * holds a day: the sheet steps between months and the one it is on has to
-     * survive a recomposition. Opened from the total on the book's expenses list,
-     * on the month that list is showing where it is showing one.
+     * survive a recomposition. The side comes with it because all four lists make
+     * one now, and a sheet that forgot which chip opened it would fold the wrong
+     * records under the right heading.
+     *
+     * Opened from the total on whichever list the owner is reading, on the month
+     * that list is showing where it is showing one.
      */
-    var expenseSummaryFor by mutableStateOf<java.time.Instant?>(null)
+    var summaryFor by mutableStateOf<SummaryTarget?>(null)
 
     /** The receipt, shown full-screen after a bill is saved. */
     var receipt by mutableStateOf<Bill?>(null)
@@ -399,7 +405,7 @@ class AppRouter {
         showingCreditors = false
         dayInView = null
         earningsFor = null
-        expenseSummaryFor = null
+        summaryFor = null
         receipt = null
         billDetail = null
         editingBill = null
@@ -419,3 +425,14 @@ class AppRouter {
         supplierStatementFor = null
     }
 }
+
+/**
+ * Which folded page the summary sheet is showing: one of the book's four sides,
+ * and a month.
+ *
+ * The two travel together because neither is any use alone — a month with no side
+ * folds nothing, and a side with no month folds everything. Stepping to the
+ * previous month replaces the whole target rather than mutating it, which is what
+ * makes the sheet redraw.
+ */
+data class SummaryTarget(val side: BookSide, val month: java.time.Instant)

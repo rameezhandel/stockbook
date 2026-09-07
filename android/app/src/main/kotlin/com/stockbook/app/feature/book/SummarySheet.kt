@@ -27,21 +27,27 @@ import com.stockbook.app.design.hairline
 import com.stockbook.core.model.ShopState
 import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.store.StockbookStore
+import com.stockbook.core.text.Dates
 import com.stockbook.core.text.Strings
 import com.stockbook.core.text.SummaryDocument
 import java.time.Instant
 import java.time.ZoneId
 
 /**
- * Where a month's money went, folded by what it went on.
+ * A month folded into an answer: where it went, or who it was with.
  *
- * **The other question about the same expenses.** The list behind this sheet
- * answers "what did I spend", one receipt a line, over whatever span the picker
+ * **The other question about the same records.** The list behind this sheet
+ * answers "what happened", one record a line, over whatever span the picker
  * says. This answers "where did the month go" — and the two are not the same
  * page in two styles: a register is checked against the receipts in a drawer
  * line by line, and a folded page cannot be checked against anything. Which is
  * why the wording keeps them apart, `Report` against `Summary`, everywhere they
  * are named.
+ *
+ * **One sheet for all four sides.** Expenses fold by what the money went on and
+ * the other three by the person on the other side of the counter, but that
+ * difference lives entirely in [SummaryDocument] — everything below is a title,
+ * some rows, a total and a month, whichever chip asked for it.
  *
  * **A month at a time, and only a month.** The book's own picker offers a year
  * and a hand-picked stretch as well; neither belongs here. "Petrol, 84 times" is
@@ -53,7 +59,9 @@ import java.time.ZoneId
  * and what comes out of the printer cannot drift.
  */
 @Composable
-fun ExpenseSummarySheet(
+fun SummarySheet(
+    /** Which of the four is being folded. */
+    side: BookSide,
     /** Any instant inside the month being folded. */
     month: Instant,
     state: ShopState,
@@ -69,10 +77,8 @@ fun ExpenseSummarySheet(
     // a plain function over a StateFlow snapshot, so an expense written while
     // this is open would otherwise leave the page showing the figures it had when
     // it was first drawn.
-    val page = remember(month, state) {
-        SummaryDocument.forSpendingSummary(
-            store.spendingIn(StatementPeriod.Month(month)), month, state.settings, strings
-        )
+    val page = remember(side, month, state) {
+        foldedPage(side, month, store, state, strings)
     }
 
     // No stepping into next month. A month that has not started has nothing in
@@ -146,8 +152,8 @@ fun ExpenseSummarySheet(
 
         // A plain Column rather than a lazy list: the sheet already scrolls its
         // content, and a lazy list given an unbounded height measures to zero and
-        // draws no rows at all. A shop with more things to spend on than fit here
-        // has a bigger problem than the scroll.
+        // draws no rows at all. A month with more names on it than fit here still
+        // scrolls, because the sheet does.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -156,13 +162,13 @@ fun ExpenseSummarySheet(
                 .padding(14.dp)
         ) {
             page.rows.forEachIndexed { index, row ->
-                SpendRow(row)
+                FoldedRow(row)
                 if (index < page.rows.lastIndex) Spacer(Modifier.height(Metrics.rowGap))
             }
 
             // Inside the card it totals, under a rule — and it is the same figure
-            // the Expense card on the pane shows for the same month, which is
-            // what `SummaryDocumentTests` pins.
+            // this side's card on the pane shows for the same month, which is what
+            // `SummaryDocumentTests` pins for all four.
             FadedRule(modifier = Modifier.padding(top = 10.dp, bottom = 8.dp), inset = 0.dp)
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -173,8 +179,71 @@ fun ExpenseSummarySheet(
                 )
                 Text(page.totalValue, style = NocturneType.rowPrimary, color = Nocturne.text)
             }
+
+            // What the column cannot carry — on payments, the money that went the
+            // other way. Under the total rather than in it, because a total that
+            // is not what the rows add up to is the figure the first reader to
+            // check it stops trusting. Drawn where the printed page draws it.
+            page.footnote?.let {
+                Text(
+                    it,
+                    style = NocturneType.meta,
+                    color = Nocturne.neutral500,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
         Spacer(Modifier.height(4.dp))
+    }
+}
+
+/**
+ * The folded page for one side of the book, over one month.
+ *
+ * The one place the four differ, kept together so a fifth side is a branch here
+ * rather than a fifth sheet. Payments is the odd one and reads the store twice:
+ * its column is money in, and what went out over the same month goes under the
+ * total as a fact rather than a row.
+ */
+internal fun foldedPage(
+    side: BookSide,
+    month: Instant,
+    store: StockbookStore,
+    state: ShopState,
+    strings: Strings
+): SummaryDocument {
+    val period = StatementPeriod.Month(month)
+    return when (side) {
+        BookSide.SALES -> SummaryDocument.forSalesSummary(
+            store.salesByCustomerIn(period), month, state.settings, strings
+        )
+        BookSide.PURCHASES -> SummaryDocument.forPurchaseSummary(
+            store.purchasesBySupplierIn(period), month, state.settings, strings
+        )
+        BookSide.PAYMENTS -> SummaryDocument.forPaymentsSummary(
+            store.receiptsByCustomerIn(period),
+            store.paidOutIn(period),
+            month,
+            state.settings,
+            strings
+        )
+        BookSide.EXPENSES -> SummaryDocument.forSpendingSummary(
+            store.spendingIn(period), month, state.settings, strings
+        )
+    }
+}
+
+/**
+ * What the file is called, named by the month it folds rather than the day it
+ * was made — two prints of August are the same page.
+ */
+internal fun foldedFileName(side: BookSide, month: Instant, strings: Strings): String {
+    val name = Dates.fileMonth(month)
+    return when (side) {
+        BookSide.SALES -> strings.salesSummaryFileName(name)
+        BookSide.PURCHASES -> strings.purchaseSummaryFileName(name)
+        BookSide.PAYMENTS -> strings.paymentsSummaryFileName(name)
+        BookSide.EXPENSES -> strings.expenseSummaryFileName(name)
     }
 }
 
@@ -186,7 +255,7 @@ fun ExpenseSummarySheet(
  * takes the room from the one thing on the row that has to stay readable.
  */
 @Composable
-private fun SpendRow(row: SummaryDocument.Row) {
+private fun FoldedRow(row: SummaryDocument.Row) {
     Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.weight(1f)) {
             Text(

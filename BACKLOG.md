@@ -139,12 +139,18 @@ Play will grant production access at all.
   where the month went — and the wording keeps them apart, `Report` against
   `Summary`.
 
-  **Sales and purchases have no folded page yet**, and the owner has asked for
-  both. The same shape works: one line per customer or supplier, with how many
-  bills. `Row.count`, the writers' three-column branch and the month stepper are
-  all in place; what is missing is the fold itself — there is no
-  `salesIn(period)` grouping the way `spendingIn` groups — and a way in from
-  those two chips.
+  **All four sides fold now — done.** `salesByCustomerIn`,
+  `purchasesBySupplierIn` and `receiptsByCustomerIn` joined `spendingIn`, and the
+  `Summary report` button sits under every total rather than only under Expenses.
+  One sheet draws all four, because the only thing that differs between them is
+  the wording `SummaryDocument` picks.
+
+  They fold **by person**, not by product, and that was a decision rather than a
+  default. A bill entered as a single figure lists no products — the ordinary way
+  to use this app — so a sales page folded by item would leave those bills off
+  and be wrong by whatever they came to. Every bill has a customer on it.
+  Expenses stay folded by what the money went on, because an expense has no
+  person.
 
   The payments page prints **money in as its column and money out as a
   footnote**. Both directions in one column would leave a total that is neither

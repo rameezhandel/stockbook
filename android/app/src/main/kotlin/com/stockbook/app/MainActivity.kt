@@ -46,7 +46,9 @@ import com.stockbook.app.feature.customers.PaySupplierSheet
 import com.stockbook.app.feature.customers.SupplierEditorSheet
 import com.stockbook.app.feature.customers.StatementPdf
 import com.stockbook.app.feature.book.ExpenseSheet
-import com.stockbook.app.feature.book.ExpenseSummarySheet
+import com.stockbook.app.feature.book.SummarySheet
+import com.stockbook.app.feature.book.foldedFileName
+import com.stockbook.app.feature.book.foldedPage
 import com.stockbook.app.feature.book.PartyScreen
 import com.stockbook.app.feature.customers.StatementScreen
 import com.stockbook.app.feature.items.AddStockSheet
@@ -583,37 +585,35 @@ private fun Shell(store: StockbookStore) {
             }
         }
 
-        // Where a month's money went, from the total on the book's expenses list.
+        // Where a month went, from the total on whichever list the owner is
+        // reading. The page itself is built by `foldedPage`, which is also what
+        // the sheet draws — so the paper and the screen cannot disagree.
         BottomSheet(
-            visible = router.expenseSummaryFor != null,
-            onDismiss = { router.expenseSummaryFor = null }
+            visible = router.summaryFor != null,
+            onDismiss = { router.summaryFor = null }
         ) {
-            router.expenseSummaryFor?.let { month ->
-                ExpenseSummarySheet(
-                    month = month,
+            router.summaryFor?.let { target ->
+                SummarySheet(
+                    side = target.side,
+                    month = target.month,
                     state = state,
                     store = store,
                     strings = strings,
-                    onMonth = { router.expenseSummaryFor = it },
+                    onMonth = { router.summaryFor = target.copy(month = it) },
                     onSave = {
                         sharePdf(
                             context,
                             SummaryPdf.write(
-                                SummaryDocument.forSpendingSummary(
-                                    store.spendingIn(StatementPeriod.Month(month)),
-                                    month,
-                                    state.settings,
-                                    strings
-                                ),
+                                foldedPage(target.side, target.month, store, state, strings),
                                 context,
                                 // Named for the month it folds, not for today: two
                                 // prints of August are the same page, and a folder
                                 // of these is read by their file names.
-                                strings.expenseSummaryFileName(Dates.fileMonth(month))
+                                foldedFileName(target.side, target.month, strings)
                             )
                         )
                     },
-                    onClose = { router.expenseSummaryFor = null }
+                    onClose = { router.summaryFor = null }
                 )
             }
         }

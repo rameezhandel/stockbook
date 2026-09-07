@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.stockbook.app.AppRouter
+import com.stockbook.app.SummaryTarget
 import com.stockbook.app.design.ChoicePill
 import com.stockbook.app.design.EmptyStateBox
 import com.stockbook.app.design.GhostButton
@@ -110,7 +111,7 @@ fun BookScreen(
      * rotation and, more usefully, a trip into a document and back — an owner who
      * came here for purchases should not be handed bills again on the way out.
      */
-    var side by rememberSaveable { mutableStateOf(Side.SALES) }
+    var side by rememberSaveable { mutableStateOf(BookSide.SALES) }
 
     // **The span, asked once for all four.** This month by default: the book is
     // a year of rows before long, and the reason to open it is almost always
@@ -138,32 +139,32 @@ fun BookScreen(
     // every recomposition would be three quarters of a walk over the whole book
     // for figures nobody is looking at.
     val bills = remember(state, side, period) {
-        if (side == Side.SALES) store.billsIn(period) else emptyList()
+        if (side == BookSide.SALES) store.billsIn(period) else emptyList()
     }
     val purchases = remember(state, side, period) {
-        if (side == Side.PURCHASES) store.purchasesIn(period) else emptyList()
+        if (side == BookSide.PURCHASES) store.purchasesIn(period) else emptyList()
     }
     val expenses = remember(state, side, period) {
-        if (side == Side.EXPENSES) store.expensesIn(period) else emptyList()
+        if (side == BookSide.EXPENSES) store.expensesIn(period) else emptyList()
     }
     // Both directions, merged and ordered in the store rather than here — see
     // `paymentBook`, which also settles what happens to two slips written in the
     // same second.
     val slips = remember(state, side, period) {
-        if (side == Side.PAYMENTS) store.paymentBook(period) else emptyList()
+        if (side == BookSide.PAYMENTS) store.paymentBook(period) else emptyList()
     }
     val total = remember(state, side, period) {
         when (side) {
-            Side.SALES -> store.soldIn(period)
-            Side.PURCHASES -> store.boughtIn(period)
-            Side.PAYMENTS -> store.receivedIn(period)
-            Side.EXPENSES -> store.spentIn(period)
+            BookSide.SALES -> store.soldIn(period)
+            BookSide.PURCHASES -> store.boughtIn(period)
+            BookSide.PAYMENTS -> store.receivedIn(period)
+            BookSide.EXPENSES -> store.spentIn(period)
         }
     }
     // The payments card's second figure. Read only on that chip, for the reason
     // the lists are.
     val paidOut = remember(state, side, period) {
-        if (side == Side.PAYMENTS) store.paidOutIn(period) else 0.0
+        if (side == BookSide.PAYMENTS) store.paidOutIn(period) else 0.0
     }
 
     // **What was typed, and whether anything was.** Not saved across a trip into
@@ -228,19 +229,19 @@ fun BookScreen(
             // No icons on this row. Four pills across a phone leaves each about
             // 77dp, and "Purchases" with a glyph beside it needs more than that —
             // the label is what the owner is reading anyway.
-            for (candidate in Side.entries) {
+            for (candidate in BookSide.entries) {
                 ChoicePill(
                     title = when (candidate) {
-                        Side.SALES -> strings.salesSide
-                        Side.PURCHASES -> strings.purchasesSide
-                        Side.PAYMENTS -> strings.paymentsSide
-                        Side.EXPENSES -> strings.expensesTitle
+                        BookSide.SALES -> strings.salesSide
+                        BookSide.PURCHASES -> strings.purchasesSide
+                        BookSide.PAYMENTS -> strings.paymentsSide
+                        BookSide.EXPENSES -> strings.expensesTitle
                     },
                     selected = side == candidate,
                     onClick = { side = candidate },
                     modifier = Modifier.weight(1f)
                 )
-                if (candidate != Side.entries.last()) Spacer(Modifier.width(6.dp))
+                if (candidate != BookSide.entries.last()) Spacer(Modifier.width(6.dp))
             }
         }
 
@@ -299,10 +300,10 @@ fun BookScreen(
 
                 TotalCard(
                     label = when (side) {
-                        Side.SALES -> strings.soldInPeriod
-                        Side.PURCHASES -> strings.boughtInPeriod
-                        Side.PAYMENTS -> strings.receivedInPeriod
-                        Side.EXPENSES -> strings.expenseInPeriod
+                        BookSide.SALES -> strings.soldInPeriod
+                        BookSide.PURCHASES -> strings.boughtInPeriod
+                        BookSide.PAYMENTS -> strings.receivedInPeriod
+                        BookSide.EXPENSES -> strings.expenseInPeriod
                     },
                     value = Money.text(total, currency),
                     // Two of the four have something to say under the figure.
@@ -315,8 +316,8 @@ fun BookScreen(
                     // number would give the owner a figure they cannot check
                     // against anything they are holding.
                     note = when (side) {
-                        Side.EXPENSES -> strings.expensesArePrivate
-                        Side.PAYMENTS -> strings.alsoPaidOut(Money.text(paidOut, currency))
+                        BookSide.EXPENSES -> strings.expensesArePrivate
+                        BookSide.PAYMENTS -> strings.alsoPaidOut(Money.text(paidOut, currency))
                         else -> null
                     },
                     // The span the total covers is the span the page covers, so
@@ -330,34 +331,35 @@ fun BookScreen(
                 )
 
                 // The other question about the same money, one tap from the
-                // figure that raises it. Expenses only for now; the same fold
-                // makes sense of sales and purchases and is not built yet.
+                // figure that raises it — on all four sides now. Sales fold by
+                // customer, purchases by supplier, payments by whoever paid, and
+                // expenses by what the money went on.
                 //
                 // It opens on the month the list is showing, so the sheet does
                 // not contradict the page it came from — but only where that span
                 // *is* a month. A year or a hand-picked stretch has no month to
                 // carry across, and this month is the honest place to start.
-                if (side == Side.EXPENSES) {
-                    Spacer(Modifier.height(10.dp))
-                    GhostButton(
-                        strings.summaryReport,
-                        onClick = {
-                            router.expenseSummaryFor =
-                                (period as? StatementPeriod.Month)?.inside ?: Timestamps.now()
-                        },
-                        fontSize = 12.0
-                    )
-                }
+                Spacer(Modifier.height(10.dp))
+                GhostButton(
+                    strings.summaryReport,
+                    onClick = {
+                        router.summaryFor = SummaryTarget(
+                            side,
+                            (period as? StatementPeriod.Month)?.inside ?: Timestamps.now()
+                        )
+                    },
+                    fontSize = 12.0
+                )
 
                 Spacer(Modifier.height(20.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Kicker(
                         when (side) {
-                            Side.SALES -> strings.billsTitle
-                            Side.PURCHASES -> strings.purchasesSide
-                            Side.PAYMENTS -> strings.paymentsSide
-                            Side.EXPENSES -> strings.expensesTitle
+                            BookSide.SALES -> strings.billsTitle
+                            BookSide.PURCHASES -> strings.purchasesSide
+                            BookSide.PAYMENTS -> strings.paymentsSide
+                            BookSide.EXPENSES -> strings.expensesTitle
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -365,7 +367,7 @@ fun BookScreen(
                     // starts on the Sell tab and a purchase from the shelf, but
                     // nothing else in the app writes down the owner's own
                     // spending, so the list carries its own pen.
-                    if (side == Side.EXPENSES) {
+                    if (side == BookSide.EXPENSES) {
                         GhostButton(
                             strings.addAnExpense,
                             onClick = { router.openNewExpense() },
@@ -386,7 +388,7 @@ fun BookScreen(
             // branch was last.
             item {
                 when (side) {
-                    Side.SALES -> if (bills.isEmpty()) {
+                    BookSide.SALES -> if (bills.isEmpty()) {
                         if (state.bills.isEmpty()) {
                             EmptyStateBox(
                                 icon = Icon.bills,
@@ -399,7 +401,7 @@ fun BookScreen(
                         }
                     }
 
-                    Side.PURCHASES -> if (purchases.isEmpty()) {
+                    BookSide.PURCHASES -> if (purchases.isEmpty()) {
                         if (state.purchases.isEmpty()) {
                             EmptyStateBox(
                                 icon = Icon.addStock,
@@ -415,7 +417,7 @@ fun BookScreen(
                     // No button on this one. A payment is taken against somebody's
                     // account, so it starts from the person — there is nothing
                     // sensible for a button here to open without asking who first.
-                    Side.PAYMENTS -> if (slips.isEmpty()) {
+                    BookSide.PAYMENTS -> if (slips.isEmpty()) {
                         EmptyStateBox(
                             icon = Icon.owed,
                             message = if (state.payments.isEmpty() && state.supplierPayments.isEmpty()) {
@@ -426,7 +428,7 @@ fun BookScreen(
                         )
                     }
 
-                    Side.EXPENSES -> if (expenses.isEmpty()) {
+                    BookSide.EXPENSES -> if (expenses.isEmpty()) {
                         if (state.expenses.isEmpty()) {
                             EmptyStateBox(
                                 icon = Icon.expenses,
@@ -445,7 +447,7 @@ fun BookScreen(
             // opened first, and edited or removed from inside the document — which
             // is the only place the owner can see what they are about to change.
             when (side) {
-                Side.SALES -> items(bills, key = { it.number }) { bill ->
+                BookSide.SALES -> items(bills, key = { it.number }) { bill ->
                     BillRow(
                         bill = bill,
                         currency = currency,
@@ -455,7 +457,7 @@ fun BookScreen(
                     )
                 }
 
-                Side.PURCHASES -> items(purchases, key = { it.id }) { purchase ->
+                BookSide.PURCHASES -> items(purchases, key = { it.id }) { purchase ->
                     PurchaseRow(
                         purchase = purchase,
                         supplierName = remember(state, purchase.supplierKey) {
@@ -468,7 +470,7 @@ fun BookScreen(
                     )
                 }
 
-                Side.PAYMENTS -> items(slips, key = { it.id }) { slip ->
+                BookSide.PAYMENTS -> items(slips, key = { it.id }) { slip ->
                     PaymentRow(
                         entry = slip,
                         currency = currency,
@@ -488,7 +490,7 @@ fun BookScreen(
                     )
                 }
 
-                Side.EXPENSES -> items(expenses, key = { it.id }) { expense ->
+                BookSide.EXPENSES -> items(expenses, key = { it.id }) { expense ->
                     ExpenseRow(
                         expense = expense,
                         currency = currency,
@@ -513,38 +515,38 @@ fun BookScreen(
  * quietly handing out the last one's.
  */
 private fun summaryPage(
-    side: Side,
+    side: BookSide,
     store: StockbookStore,
     period: StatementPeriod,
     state: ShopState,
     strings: Strings
 ): SummaryDocument = when (side) {
-    Side.SALES -> SummaryDocument.forSales(
+    BookSide.SALES -> SummaryDocument.forSales(
         store.salesRegisterIn(period, strings), period.range(), state.settings, strings
     )
-    Side.PURCHASES -> SummaryDocument.forPurchases(
+    BookSide.PURCHASES -> SummaryDocument.forPurchases(
         store.purchasesRegisterIn(period, strings), period.range(), state.settings, strings
     )
-    Side.PAYMENTS -> SummaryDocument.forPayments(
+    BookSide.PAYMENTS -> SummaryDocument.forPayments(
         store.receiptsRegisterIn(period, strings),
         store.paidOutIn(period),
         period.range(),
         state.settings,
         strings
     )
-    Side.EXPENSES -> SummaryDocument.forSpending(
+    BookSide.EXPENSES -> SummaryDocument.forSpending(
         store.expensesRegisterIn(period), period.range(), state.settings, strings
     )
 }
 
 /** Named for what is on it, and dated so two months' pages do not overwrite. */
-private fun summaryFileName(side: Side, strings: Strings): String {
+private fun summaryFileName(side: BookSide, strings: Strings): String {
     val date = Dates.fileDate(Timestamps.now())
     return when (side) {
-        Side.SALES -> strings.salesFileName(date)
-        Side.PURCHASES -> strings.purchasesFileName(date)
-        Side.PAYMENTS -> strings.paymentsFileName(date)
-        Side.EXPENSES -> strings.expenseFileName(date)
+        BookSide.SALES -> strings.salesFileName(date)
+        BookSide.PURCHASES -> strings.purchasesFileName(date)
+        BookSide.PAYMENTS -> strings.paymentsFileName(date)
+        BookSide.EXPENSES -> strings.expenseFileName(date)
     }
 }
 
@@ -640,8 +642,14 @@ private fun TotalCard(
 /**
  * Which kind of record is showing.
  *
- * Not `PeopleSide`, which `PeopleScreen` has in this package — a top-level
- * `private` in Kotlin hides the declaration from other *files* but still puts the
- * name in the package, so two of them collide.
+ * Not `Side`, and not `PeopleSide` either, which `PeopleScreen` has in this
+ * package — a top-level declaration in Kotlin is hidden from other *files* by
+ * `private` but still puts its name in the package, so two plain `Side`s would
+ * collide however private each of them was.
+ *
+ * `internal` rather than `private` because the summary sheet and the router both
+ * have to name it now: which of the four a folded page is for follows the chip
+ * the owner was reading, and a second enum saying the same four things is a
+ * second enum to forget about when a fifth arrives.
  */
-private enum class Side { SALES, PURCHASES, PAYMENTS, EXPENSES }
+internal enum class BookSide { SALES, PURCHASES, PAYMENTS, EXPENSES }
