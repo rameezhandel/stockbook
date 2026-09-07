@@ -272,7 +272,6 @@ struct BookScreen: View {
                     .nocturneText(.meta)
                     .padding(.top, 2)
             }
-        }
             // Both pages this figure can become, on one row inside the card that
             // states it.
             //
