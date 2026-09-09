@@ -83,7 +83,23 @@ class Cart {
      */
     var customerKey by mutableStateOf<String?>(null)
         private set
-    var payMode by mutableStateOf(PayMode.FULL)
+    /**
+     * **Part payment by default, and nothing typed into it.**
+     *
+     * A van selling hardware sells on credit. The ordinary bill is written, handed
+     * over, and settled on some later visit — so the form opens on the mode that
+     * says something is still owed, with the paid box empty, which reads as the
+     * whole bill outstanding. The owner who was paid in full says so in one tap;
+     * before this, the owner who was *not* had to notice a pill that was already
+     * right for the rarer case.
+     *
+     * Wrong the other way is worse than wrong this way. A credit sale saved as
+     * paid in full silently loses the debt: nothing on any screen says Ahmed owes
+     * anything, and the money is only missed when the shop counts its cash. A cash
+     * sale saved as unpaid shows up immediately, as a customer standing on Today's
+     * banner who does not owe anything.
+     */
+    var payMode by mutableStateOf(PayMode.PART)
     var paidText by mutableStateOf("")
 
     /**
@@ -413,7 +429,9 @@ class Cart {
         soldAt = Timestamps.now()
         customer = ""
         customerKey = null
-        payMode = PayMode.FULL
+        // Back to the default the form opens on, not to paid-in-full — see the
+        // declaration. A cart cleared after a sale is the next sale's blank form.
+        payMode = PayMode.PART
         paidText = ""
         _photoIds.clear()
     }
