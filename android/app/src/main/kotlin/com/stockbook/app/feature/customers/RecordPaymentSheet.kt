@@ -114,6 +114,13 @@ fun RecordPaymentSheet(
         numbered = !giving,
         sign = if (giving) 1 else -1,
         header = if (correcting) null else ({ DirectionPills(giving, strings) { giving = it } }),
+        title = when {
+            giving && correcting -> strings.correctALoan
+            giving -> strings.recordALoan
+            correcting -> strings.correctAPayment
+            else -> strings.recordAPayment
+        },
+        saveTitle = if (giving) strings.saveLoan else strings.savePayment,
         currency = currency,
         strings = strings,
         state = state,
@@ -217,6 +224,8 @@ fun PaySupplierSheet(
         // off that balance exactly as a customer's payment comes off theirs —
         // the default sign, and no direction to choose between.
         amountLabel = strings.amountPaid,
+        title = if (editing != null) strings.correctAPayment else strings.recordAPayment,
+        saveTitle = strings.savePayment,
         currency = currency,
         strings = strings,
         state = state,
@@ -282,6 +291,16 @@ private fun PaymentSheet(
     sign: Int = -1,
     /** A pair of pills above everything, where the sheet records both directions. */
     header: (@Composable () -> Unit)? = null,
+    /**
+     * What the sheet calls itself and what its button promises.
+     *
+     * Passed in rather than derived, because the sheet is shared and the words
+     * are not. A page headed "Record a payment" whose button says "Save payment"
+     * is lying about the record it is about to write, and the owner has no other
+     * way to tell which of the two they are making.
+     */
+    title: String,
+    saveTitle: String,
     clashDate: (String) -> Instant?,
     onSave: (amount: Double, at: Instant, note: String, paymentNo: String) -> Unit,
     /**
@@ -326,7 +345,7 @@ private fun PaymentSheet(
 
     Column(modifier = Modifier.fillMaxWidth()) {
         SheetHeader(
-            title = if (onDelete != null) strings.correctAPayment else strings.recordAPayment,
+            title = title,
             subtitle = name,
             onClose = onClose
         )
@@ -453,10 +472,14 @@ private fun PaymentSheet(
         PrimaryButton(
             title = when {
                 clash != null -> strings.changeThePaymentNo
-                paymentNo.isBlank() -> strings.enterPaymentNumber
+                // Gated on `numbered`, exactly as `canSave` is. Without that the
+                // button read "Enter a receipt number" on a loan and saved
+                // anyway when tapped — the label and the button disagreeing
+                // about the same condition.
+                numbered && paymentNo.isBlank() -> strings.enterPaymentNumber
                 typed <= 0 -> strings.enterAnAmount
                 onDelete != null -> strings.saveChanges
-                else -> strings.savePayment
+                else -> saveTitle
             },
             onClick = {
                 if (!canSave) return@PrimaryButton

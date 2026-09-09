@@ -596,6 +596,10 @@ final class StockbookStore {
         // the first loan to a new face.
         for loan in loans where book[loan.customerKey] == nil {
             book[loan.customerKey] = PartyTally(name: loan.customerKey)
+            // `order` is what the result is built from, not `book`. Seeding one
+            // without the other puts the customer in the ledger and leaves them
+            // off every screen — which is what the test caught.
+            order.append(loan.customerKey)
         }
         for loan in loans {
             if var entry = book[loan.customerKey] {
@@ -2938,6 +2942,7 @@ final class StockbookStore {
         purchases = state.purchases.sorted { $0.createdAt > $1.createdAt }
         supplierPayments = state.supplierPayments.sorted { $0.paidAt > $1.paidAt }
         creditNotes = state.creditNotes.sorted { $0.issuedAt > $1.issuedAt }
+        loans = state.loans.sorted { $0.lentAt > $1.lentAt }
         expenses = state.expenses.sorted { $0.spentAt > $1.spentAt }
         balanceTransfers = state.balanceTransfers.sorted { $0.movedAt > $1.movedAt }
         settings = restored

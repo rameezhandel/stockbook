@@ -1245,6 +1245,16 @@ struct Strings {
     /// What the sheet asks for when it is lending rather than taking.
     var amountLent: String { pick("Amount lent", "ಕೊಟ್ಟ ಮೊತ್ತ") }
 
+    /// What the sheet calls itself, and what its button promises, while the Given
+    /// pill is lit.
+    ///
+    /// Separate from the payment's wording because the sheet is shared and the
+    /// words are not: a page headed "Record a payment" whose button says "Save
+    /// payment" is lying about the record it is about to write.
+    var recordALoan: String { pick("Record a loan", "ಸಾಲ ದಾಖಲಿಸಿ") }
+    var correctALoan: String { pick("Correct a loan", "ಸಾಲ ಸರಿಪಡಿಸಿ") }
+    var saveLoan: String { pick("Save loan", "ಸಾಲ ಉಳಿಸಿ") }
+
     /// Said under the figure, because a loan is the one record that adds to a debt.
     var loanAddsToWhatTheyOwe: String {
         pick(

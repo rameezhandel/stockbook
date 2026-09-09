@@ -111,6 +111,7 @@ struct LocalizationTests {
         \.salesSummary, \.purchaseSummary, \.paymentsSummary,
         \.loanLabel, \.lentInPeriod, \.moneyReceived, \.moneyGiven,
         \.amountLent, \.loanAddsToWhatTheyOwe,
+        \.recordALoan, \.correctALoan, \.saveLoan,
         \.columnSupplier, \.columnHowMany,
         \.nothingSoldThatMonth, \.nothingBoughtThatMonth, \.nothingReceivedThatMonth,
         \.daySummary, \.purchasesTitle, \.paidToSuppliers,

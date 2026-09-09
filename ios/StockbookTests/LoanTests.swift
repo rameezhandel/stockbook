@@ -245,10 +245,18 @@ struct LoanTests {
     /// synthesised decoder tolerate a missing key — it throws. `loans` is read
     /// with `decodeIfPresent` by hand in both `ShopState` and `BackupDocument`,
     /// and this is what proves it.
+    ///
+    /// Every other array is present, and that is not padding. `BackupDocument`'s
+    /// decoder is strict on purpose about the keys that have always existed: a
+    /// file with no `customers` or `purchases` is not one this app wrote, and
+    /// refusing it is the right answer. Only the keys added after v1 are
+    /// tolerant. The first draft of this test left them out and was rejected —
+    /// correctly.
     @Test func aFileWrittenBeforeLoansExistedStillLoads() throws {
         let json = """
         {"version":4,"exportedAt":"2026-08-11T00:00:00Z","ownerName":"K",\
-        "currencyCode":"SAR","products":[],"bills":[]}
+        "currencyCode":"SAR","products":[],"bills":[],"customers":[],\
+        "payments":[],"suppliers":[],"purchases":[],"supplierPayments":[]}
         """
         let document = try BackupService.decode(Data(json.utf8))
 

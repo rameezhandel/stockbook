@@ -1263,6 +1263,18 @@ class Strings(val language: AppLanguage) {
     /** What the sheet asks for when it is lending rather than taking. */
     val amountLent: String get() = pick("Amount lent", "ಕೊಟ್ಟ ಮೊತ್ತ")
 
+    /**
+     * What the sheet calls itself, and what its button promises, while the Given
+     * pill is lit.
+     *
+     * Separate from the payment's wording because the sheet is shared and the
+     * words are not: a page headed "Record a payment" whose button says "Save
+     * payment" is lying about the record it is about to write.
+     */
+    val recordALoan: String get() = pick("Record a loan", "ಸಾಲ ದಾಖಲಿಸಿ")
+    val correctALoan: String get() = pick("Correct a loan", "ಸಾಲ ಸರಿಪಡಿಸಿ")
+    val saveLoan: String get() = pick("Save loan", "ಸಾಲ ಉಳಿಸಿ")
+
     /** Said under the figure, because a loan is the one record that adds to a debt. */
     val loanAddsToWhatTheyOwe: String
         get() = pick(

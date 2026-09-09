@@ -47,6 +47,11 @@ struct RecordPaymentSheet: View {
             numbered: !giving,
             sign: giving ? 1 : -1,
             header: correcting ? nil : AnyView(DirectionPills(giving: $giving)),
+            title: {
+                if giving { return correcting ? Loc.correctALoan : Loc.recordALoan }
+                return correcting ? Loc.correctAPayment : Loc.recordAPayment
+            }(),
+            saveWording: giving ? Loc.saveLoan : Loc.savePayment,
             existing: existing,
             // Never counting the one being corrected, or opening 008455 to fix
             // its amount would be told 008455 is taken — by itself.
@@ -166,6 +171,8 @@ struct PaySupplierSheet: View {
             // comes off that balance exactly as a customer's payment comes off
             // theirs — the default sign, and no direction to choose between.
             amountLabel: Loc.amountPaid,
+            title: editing == nil ? Loc.recordAPayment : Loc.correctAPayment,
+            saveWording: Loc.savePayment,
             existing: editing.map {
                 PaymentSheet.Existing(amount: $0.amount, note: $0.note, no: $0.paymentNo, date: $0.paidAt)
             },
@@ -227,6 +234,14 @@ private struct PaymentSheet: View {
     var sign = -1.0
     /// A pair of pills above everything, where the sheet records both directions.
     var header: AnyView?
+    /// What the sheet calls itself and what its button promises.
+    ///
+    /// Passed in rather than derived, because the sheet is shared and the words
+    /// are not. A page headed "Record a payment" whose button says "Save payment"
+    /// is lying about the record it is about to write, and the owner has no other
+    /// way to tell which of the two they are making.
+    let title: String
+    let saveWording: String
     /// What the sheet was opened on, when it was opened on something.
     struct Existing {
         let amount: Double
@@ -275,7 +290,7 @@ private struct PaymentSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SheetHeader(
-                title: onDelete == nil ? Loc.recordAPayment : Loc.correctAPayment,
+                title: title,
                 subtitle: name,
                 onClose: onClose
             )
@@ -413,9 +428,12 @@ private struct PaymentSheet: View {
 
     private var saveTitle: String {
         if clash != nil { return Loc.changeThePaymentNo }
-        if paymentNo.isBlank { return Loc.enterPaymentNumber }
+        // Gated on `numbered`, exactly as `canSave` is. Without that the button
+        // read "Enter a receipt number" on a loan and saved anyway when tapped —
+        // the label and the button disagreeing about the same condition.
+        if numbered, paymentNo.isBlank { return Loc.enterPaymentNumber }
         if typed <= 0 { return Loc.enterAnAmount }
-        return onDelete == nil ? Loc.savePayment : Loc.saveChanges
+        return onDelete == nil ? saveWording : Loc.saveChanges
     }
 
     private var remainingText: String {
