@@ -184,6 +184,9 @@ the other.
 - **Backup version bumps only when an older reader would _misinterpret_ the new
   shape**, not merely lose a label. Credit notes bumped it to **3**, because a
   reader dropping them shows every credited customer owing more than they do.
+  Balance transfers bumped it to **4** and loans to **5** — a reader dropping
+  loans shows every borrower owing *less* than they do, which is the credit-note
+  failure pointing the other way.
   Invoice numbers, receipt numbers, the shop address and photograph references
   did not.
 - `Customer.key` / `Supplier.key` are trimmed and lowercased. Identity is never
@@ -225,6 +228,17 @@ the other.
   record. `SearchHit.id` is the record's own id, except a bill's, which is its
   `number` as a string; `BookScreen.open` is the only place that turns one back
   into a record.
+- **A loan is money out that makes a debt.** `Loan` is cash the shop hands a
+  customer, and it is the exact mirror of `Payment`: lending 400 to somebody
+  owing 800 leaves them owing 1,200, on **one** balance with each line saying
+  which it was. Not a negative payment — money in and money out are two types —
+  and its own `Entry.Kind`, because folding it into `TRADE` would make a
+  statement say the customer was invoiced for money they were lent. It is not a
+  sale, not revenue and not the owner's spending; `LoanTests` asserts each
+  absence. Repayment is an ordinary `Payment` and needed nothing new. There is
+  **no number**: an invoice, a receipt and a credit note each come out of a
+  numbered book the shop keeps, and a hand of cash across a counter comes out of
+  no book at all.
 - **A credit note is not a payment.** Both reduce what somebody owes; only one is
   money. `paymentsIn` and `receivedIn` leave credits out, and a list that swept
   them in would say the shop took money it never saw.

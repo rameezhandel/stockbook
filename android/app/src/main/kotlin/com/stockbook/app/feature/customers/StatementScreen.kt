@@ -374,6 +374,19 @@ private fun EntryRow(
                             Text(it, style = NocturneType.meta, color = Nocturne.neutral500)
                         }
                     }
+                    is Statement.Entry.ForLoan -> {
+                        // Named rather than numbered — see `reference`. The note
+                        // is drawn under it for the reason a credit note's reason
+                        // is: this is a figure on a document the customer reads,
+                        // and "for the school fees" is the difference between one
+                        // they recognise and one they come and ask about.
+                        Text(
+                            reference(entry, strings),
+                            style = NocturneType.inter(13.0),
+                            color = Nocturne.text
+                        )
+                        Detail(entry.loan.note)
+                    }
                     is Statement.Entry.ForTransfer -> {
                         // Named by the account at the other end — see
                         // `reference` — because there is no number to show. The
@@ -399,7 +412,9 @@ private fun EntryRow(
                     style = NocturneType.inter(13.0),
                     color = when (entry) {
                         is Statement.Entry.ForBill,
-                        is Statement.Entry.ForPurchase -> Nocturne.text
+                        is Statement.Entry.ForPurchase,
+                        // A loan charges the account, so it reads like one.
+                        is Statement.Entry.ForLoan -> Nocturne.text
                         is Statement.Entry.ForPayment,
                         is Statement.Entry.ForSupplierPayment,
                         is Statement.Entry.ForCreditNote -> Nocturne.accent400
@@ -450,6 +465,9 @@ private fun reference(entry: Statement.Entry, strings: Strings): String =
 private fun amountText(entry: Statement.Entry, currency: Currency): String = when (entry) {
     is Statement.Entry.ForBill -> Money.text(entry.bill.total, currency)
     is Statement.Entry.ForPurchase -> Money.text(entry.purchase.total, currency)
+    // Unsigned, because it adds to what is owed. The one record here that is
+    // money leaving the shop and still a charge on the account.
+    is Statement.Entry.ForLoan -> Money.text(entry.loan.amount, currency)
     // A minus sign on both kinds of payment: it is what the account moves by, and
     // on a supplier's statement that is money leaving rather than arriving.
     is Statement.Entry.ForCreditNote -> "− ${Money.text(entry.note.total, currency)}"

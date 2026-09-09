@@ -236,6 +236,16 @@ struct BookScreen: View {
             if let expense = store.expenses.first(where: { $0.id == hit.id }) {
                 router.openExpense(expense)
             }
+        // Back to the sheet it was written on, on the customer it was written
+        // for. Both are needed: the sheet is the customer's, and the loan is
+        // which record on it is being corrected.
+        case .loan:
+            if let id = UUID(uuidString: hit.id),
+               let loan = store.loans.first(where: { $0.id == id }),
+               let customer = store.customer(key: loan.customerKey) {
+                router.editingLoan = loan
+                router.paymentFor = customer
+            }
         }
     }
 

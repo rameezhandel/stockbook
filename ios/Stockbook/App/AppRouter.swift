@@ -63,6 +63,12 @@ final class AppRouter {
     /// shows what will still be owed once the correction is saved.
     var editingPayment: Payment?
 
+    /// The loan being corrected, if one is. Beside `editingPayment` rather than
+    /// inside it, because the two are different records and one may never become
+    /// the other — the sheet that shows both directions still writes to whichever
+    /// store the record came from.
+    var editingLoan: Loan?
+
     /// The slip for one payment, shown full-screen over everything.
     ///
     /// The derived receipt rather than the payment's id, and it holds for both
@@ -282,6 +288,7 @@ final class AppRouter {
         customerEditor = nil
         paymentFor = nil
         editingPayment = nil
+        editingLoan = nil
         paymentReceipt = nil
         creditNoteFor = nil
         statementFor = nil

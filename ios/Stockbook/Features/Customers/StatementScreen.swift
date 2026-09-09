@@ -206,6 +206,13 @@ struct StatementScreen: View {
                 // correcting it means removing it and moving the right figure —
                 // which the account screen it came from already offers.
                 break
+            case .loan(let loan):
+                // The same shape a payment takes: the customer comes with it,
+                // because the sheet shows what will still be owed once the
+                // correction is saved and that needs the whole account.
+                guard let customer = store.customer(key: loan.customerKey) else { return }
+                router.editingLoan = loan
+                router.paymentFor = customer
             case .bill, .purchase:
                 // Not corrected from here. Removing one puts stock back on the
                 // shelf, and offering that from a row on a document somebody is
@@ -234,6 +241,18 @@ struct StatementScreen: View {
                             .foregroundStyle(Nocturne.accent400)
                     }
                     if let note = payment.note {
+                        Text(note).nocturneText(.meta)
+                    }
+                case .loan(let loan):
+                    // Named rather than numbered — see `reference`. The note is
+                    // drawn under it for the reason a credit note's reason is:
+                    // this is a figure on a document the customer reads, and "for
+                    // the school fees" is the difference between one they
+                    // recognise and one they come and ask about.
+                    Text(reference(entry))
+                        .font(NocturneType.inter(13))
+                        .foregroundStyle(Nocturne.text)
+                    if let note = loan.note {
                         Text(note).nocturneText(.meta)
                     }
                 case .creditNote(let note):
@@ -310,6 +329,9 @@ struct StatementScreen: View {
         case .purchase(let purchase): Money.text(purchase.total, in: currency)
         // A minus sign on both kinds of payment: it is what the account moves by,
         // and on a supplier's statement that is money leaving rather than arriving.
+        // Unsigned, because it adds to what is owed. The one record here that is
+        // money leaving the shop and still a charge on the account.
+        case .loan(let loan): Money.text(loan.amount, in: currency)
         case .creditNote(let note): "− \(Money.text(note.total, in: currency))"
         case .payment(let payment): "− \(Money.text(payment.amount, in: currency))"
         case .supplierPayment(let payment): "− \(Money.text(payment.amount, in: currency))"
@@ -325,7 +347,8 @@ struct StatementScreen: View {
 
     private func amountTint(_ entry: Statement.Entry) -> Color {
         switch entry {
-        case .bill, .purchase: Nocturne.text
+        // A loan charges the account, so it reads like one.
+        case .bill, .purchase, .loan: Nocturne.text
         case .payment, .supplierPayment, .creditNote: Nocturne.accent400
         // Whichever way this one moves the account, so it reads like the charge
         // or the settlement it is.

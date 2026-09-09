@@ -12,6 +12,8 @@ struct RecordPaymentSheet: View {
     let customer: Customer
     /// The payment being corrected, or nil to take a new one.
     var editing: Payment?
+    /// The loan being corrected, where the sheet was opened on one.
+    var editingLoan: Loan?
     /// Hands back the slip for the payment, and whether it was **just taken**.
     ///
     /// That flag cannot be worked out from the router afterwards: both ways in
@@ -20,49 +22,123 @@ struct RecordPaymentSheet: View {
     let onReceipt: (PaymentReceipt, Bool) -> Void
     let onClose: () -> Void
 
+    /// Which way the money is going.
+    ///
+    /// Money in is where the sheet opens, because taking money is what a shop
+    /// does fifty times for every once it lends any. A sheet opened to correct an
+    /// existing record starts on that record's own direction and stays there —
+    /// the two are different types, and a payment cannot become a loan by tapping
+    /// a pill any more than it can by having a sign put on it.
+    @State private var giving = false
+
+    private var correcting: Bool { editing != nil || editingLoan != nil }
+
     var body: some View {
         PaymentSheet(
             name: customer.name,
-            key: editing?.id.uuidString ?? customer.key,
+            key: editing?.id.uuidString ?? editingLoan?.id.uuidString ?? "\(customer.key)-\(giving)",
             owed: customer.owed,
             dateLabel: Loc.receivedOn,
-            footnote: Loc.paymentNotAgainstOneBill,
-            existing: editing.map {
-                PaymentSheet.Existing(amount: $0.amount, note: $0.note, no: $0.paymentNo, date: $0.receivedAt)
-            },
+            footnote: giving ? Loc.loanAddsToWhatTheyOwe : Loc.paymentNotAgainstOneBill,
+            amountLabel: giving ? Loc.amountLent : Loc.amountReceived,
+            // A loan comes out of no numbered book, and money handed over adds to
+            // what is owed rather than taking off it. Those two are the whole of
+            // the difference on this sheet.
+            numbered: !giving,
+            sign: giving ? 1 : -1,
+            header: correcting ? nil : AnyView(DirectionPills(giving: $giving)),
+            existing: existing,
             // Never counting the one being corrected, or opening 008455 to fix
             // its amount would be told 008455 is taken — by itself.
             clashDate: { store.paymentWithNo($0, exceptId: editing?.id)?.receivedAt },
             onSave: { amount, at, note, no in
-                let saved: Payment?
-                if let editing {
-                    saved = store.updatePayment(
-                        id: editing.id, amount: amount, receivedAt: at, note: note, paymentNo: no
+                if let editingLoan {
+                    _ = store.updateLoan(id: editingLoan.id, amount: amount, lentAt: at, note: note)
+                } else if giving {
+                    _ = store.recordLoan(
+                        customerKey: customer.key, amount: amount, lentAt: at, note: note
                     )
                 } else {
-                    saved = store.recordPayment(
-                        customerKey: customer.key,
-                        amount: amount,
-                        receivedAt: at,
-                        note: note,
-                        paymentNo: no
-                    )
-                }
-                // Read back through the store rather than built from what was
-                // typed: the balance on the slip has to be the balance the
-                // statement will show, and only the store knows what that is.
-                if let saved, let slip = store.receipt(forPayment: saved.id) {
-                    onReceipt(slip, true)
+                    let saved: Payment?
+                    if let editing {
+                        saved = store.updatePayment(
+                            id: editing.id, amount: amount, receivedAt: at, note: note, paymentNo: no
+                        )
+                    } else {
+                        saved = store.recordPayment(
+                            customerKey: customer.key,
+                            amount: amount,
+                            receivedAt: at,
+                            note: note,
+                            paymentNo: no
+                        )
+                    }
+                    // Read back through the store rather than built from what was
+                    // typed: the balance on the slip has to be the balance the
+                    // statement will show, and only the store knows what that is.
+                    if let saved, let slip = store.receipt(forPayment: saved.id) {
+                        onReceipt(slip, true)
+                    }
                 }
             },
+            // A loan has no slip. There is no numbered receipt behind it to
+            // reprint, and inventing one would be the app claiming paperwork the
+            // shop has not got.
             onViewReceipt: editing.map { payment in
                 {
                     if let slip = store.receipt(forPayment: payment.id) { onReceipt(slip, false) }
                 }
             },
-            onDelete: editing.map { payment in { store.deletePayment(id: payment.id) } },
+            onDelete: onDelete,
             onClose: onClose
         )
+        // The sheet is built once per customer, so the direction has to be put
+        // back where a correction opens it — otherwise a loan corrected after a
+        // payment would open on the payment's pills.
+        .onAppear { giving = editingLoan != nil }
+    }
+
+    private var existing: PaymentSheet.Existing? {
+        if let editingLoan {
+            return PaymentSheet.Existing(
+                amount: editingLoan.amount, note: editingLoan.note, no: nil, date: editingLoan.lentAt
+            )
+        }
+        return editing.map {
+            PaymentSheet.Existing(
+                amount: $0.amount, note: $0.note, no: $0.paymentNo, date: $0.receivedAt
+            )
+        }
+    }
+
+    private var onDelete: (() -> Void)? {
+        if let editingLoan { return { store.deleteLoan(id: editingLoan.id) } }
+        return editing.map { payment in { store.deletePayment(id: payment.id) } }
+    }
+}
+
+/// Received or given, above everything else on the sheet.
+///
+/// At the top because it changes what every field below it means — the amount's
+/// label, whether a receipt number is asked for, and which way the balance line
+/// moves. A control that rewrites the form under it belongs before the form.
+///
+/// Only when writing something new. Correcting a record cannot change which of
+/// the two it is: money in and money out are separate types, and turning one into
+/// the other would be a delete and a write, not an edit.
+private struct DirectionPills: View {
+    @Binding var giving: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ChoicePill(title: Loc.moneyReceived, icon: Icon.confirm, selected: !giving) {
+                giving = false
+            }
+            ChoicePill(title: Loc.moneyGiven, icon: Icon.expenses, selected: giving) {
+                giving = true
+            }
+        }
+        .padding(.bottom, 14)
     }
 }
 
@@ -86,6 +162,10 @@ struct PaySupplierSheet: View {
             owed: supplier.owed,
             dateLabel: Loc.paidOn,
             footnote: Loc.paymentNotAgainstOnePurchase,
+            // Money the shop hands a supplier settles what it owes them, so it
+            // comes off that balance exactly as a customer's payment comes off
+            // theirs — the default sign, and no direction to choose between.
+            amountLabel: Loc.amountPaid,
             existing: editing.map {
                 PaymentSheet.Existing(amount: $0.amount, note: $0.note, no: $0.paymentNo, date: $0.paidAt)
             },
@@ -128,6 +208,25 @@ private struct PaymentSheet: View {
     let owed: Double
     let dateLabel: String
     let footnote: String
+    /// What the amount box asks for, which is the one word that differs between
+    /// taking money and handing it over.
+    let amountLabel: String
+    /// Whether a number is asked for and required.
+    ///
+    /// False for a loan, and it is not a detail: an invoice, a receipt and a
+    /// credit note each come out of a numbered book the shop keeps, and a hand of
+    /// cash across a counter comes out of no book at all. Asking for a number
+    /// there would be the app inventing paperwork the shop does not have — and
+    /// `canSave` would then never let the owner past it.
+    var numbered = true
+    /// Which way the money moves: −1 takes it off what is owed, +1 puts it on.
+    ///
+    /// The whole of what a loan changes in the arithmetic here. Everything else
+    /// on this sheet — the balance line, the clamp, the correction that takes the
+    /// old figure back out before applying the new — reads the same either way.
+    var sign = -1.0
+    /// A pair of pills above everything, where the sheet records both directions.
+    var header: AnyView?
     /// What the sheet was opened on, when it was opened on something.
     struct Existing {
         let amount: Double
@@ -160,15 +259,18 @@ private struct PaymentSheet: View {
 
     private var typed: Double { Money.parse(amount) ?? 0 }
     private var clash: Date? { clashDate(paymentNo) }
-    private var canSave: Bool { typed > 0 && !paymentNo.isBlank && clash == nil }
+    private var canSave: Bool { typed > 0 && (!numbered || !paymentNo.isBlank) && clash == nil }
 
     /// What will still be owed once this is saved. Shown live, because it is the
     /// number the owner is actually trying to reach — usually zero.
     ///
     /// A payment being corrected is already inside `owed`, so its old amount is
-    /// added back before the new one comes off — otherwise correcting 300 to 350
-    /// would read as though 650 had been paid.
-    private var remaining: Double { owed + (existing?.amount ?? 0) - typed }
+    /// taken back out before the new one is applied — otherwise correcting 300 to
+    /// 350 would read as though 650 had been paid.
+    ///
+    /// `sign` is what makes this serve a loan too: money handed over adds to the
+    /// balance rather than taking off it, and every other line here is unchanged.
+    private var remaining: Double { owed - sign * (existing?.amount ?? 0) + sign * typed }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -177,6 +279,8 @@ private struct PaymentSheet: View {
                 subtitle: name,
                 onClose: onClose
             )
+
+            header
 
             paperRow
                 .padding(.bottom, clash == nil ? 12 : 6)
@@ -189,7 +293,7 @@ private struct PaymentSheet: View {
             }
 
             NocturneField.number(
-                label: Loc.amountReceived,
+                label: amountLabel,
                 text: $amount,
                 height: Metrics.tallInputHeight,
                 isRequiredAndEmpty: amount.isBlank,
@@ -280,20 +384,25 @@ private struct PaymentSheet: View {
     /// rather than the money.
     private var paperRow: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            NocturneField(
-                label: Loc.paymentNoField,
-                placeholder: Loc.paymentNoHint,
-                text: $paymentNo,
-                height: 40,
-                // Opens on digits, with letters a tap away. A receipt book is
-                // numbered "1024" far more often than "A-1024", so a full
-                // alphabetic keyboard makes the common case the slow one —
-                // and a pure number pad would make the other case impossible.
-                keyboard: .numbersAndPunctuation,
-                isRequiredAndEmpty: paymentNo.isBlank,
-                fontSize: 13.5,
-                identifier: "payment.no"
-            )
+            // A loan has no paper, so the date stands alone across the full width
+            // rather than beside an empty half — a gap where a field was reads as
+            // a field that failed to draw.
+            if numbered {
+                NocturneField(
+                    label: Loc.paymentNoField,
+                    placeholder: Loc.paymentNoHint,
+                    text: $paymentNo,
+                    height: 40,
+                    // Opens on digits, with letters a tap away. A receipt book is
+                    // numbered "1024" far more often than "A-1024", so a full
+                    // alphabetic keyboard makes the common case the slow one —
+                    // and a pure number pad would make the other case impossible.
+                    keyboard: .numbersAndPunctuation,
+                    isRequiredAndEmpty: paymentNo.isBlank,
+                    fontSize: 13.5,
+                    identifier: "payment.no"
+                )
+            }
             NocturneDateField(
                 label: dateLabel,
                 date: $receivedAt,

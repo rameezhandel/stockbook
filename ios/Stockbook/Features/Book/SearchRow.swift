@@ -58,6 +58,7 @@ struct SearchRow: View {
         case .purchase: Loc.purchaseLabel
         case .supplierPayment: Loc.voucherLabel
         case .expense: Loc.expenseLabel
+        case .loan: Loc.loanLabel
         }
     }
 }

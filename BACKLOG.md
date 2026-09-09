@@ -47,6 +47,21 @@ Play will grant production access at all.
 
 ## Parked, not blocking
 
+- **Cash lent to a customer — done.** A van serving the same builders ends up
+  lending to them, and the book had nowhere to put it: a payment is money in, a
+  credit note moves an account with no money at all, and an expense is joined to
+  nobody. `Loan` is money out that makes a debt, on one balance with the goods.
+
+  **What it is not** is half of `LoanTests`: not a sale, not revenue, not the
+  owner's spending, and not a negative `Payment`. Its own `Entry.Kind` too, so
+  `billed` still says what was billed.
+
+  Two things it does not have yet and may never need: it prints no slip — there
+  is no numbered receipt behind it to reprint — and it has no line of its own on
+  the Payments chip in the book, which lists money that changed hands with people
+  and could reasonably carry it. Both are deliberate omissions rather than
+  oversights; raise them if the owner asks.
+
 - **Photographs on deliveries.** `Purchase` would take `photoIDs` exactly as
   `Bill` did — a supplier's invoice is arguably the more valuable of the two,
   since it is paper the shop cannot reprint.

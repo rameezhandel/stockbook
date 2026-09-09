@@ -240,10 +240,12 @@ private struct AppShell: View {
             RecordPaymentSheet(
                 customer: customer,
                 editing: router.editingPayment,
+                editingLoan: router.editingLoan,
                 onReceipt: { slip, justSaved in router.showReceipt(slip, justSaved: justSaved) }
             ) {
                 router.paymentFor = nil
                 router.editingPayment = nil
+                router.editingLoan = nil
             }
         }
         // The payment sheet's sibling: the same act with no money in it. The
