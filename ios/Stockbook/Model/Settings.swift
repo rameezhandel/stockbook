@@ -124,6 +124,10 @@ struct ShopState: Codable, Equatable {
     /// What has been credited back to customers, newest first.
     var creditNotes: [CreditNote] = []
 
+    /// Cash lent to customers, newest first. Money out that makes a debt — the
+    /// mirror of `payments`, and never one of them with a sign on it. See `Loan`.
+    var loans: [Loan] = []
+
     /// The owner's own spending, newest first. Joined to nothing else here —
     /// see `Expense`, where that separation is the whole point.
     var expenses: [Expense] = []
@@ -146,6 +150,7 @@ struct ShopState: Codable, Equatable {
         purchases: [Purchase] = [],
         supplierPayments: [SupplierPayment] = [],
         creditNotes: [CreditNote] = [],
+        loans: [Loan] = [],
         expenses: [Expense] = [],
         balanceTransfers: [BalanceTransfer] = [],
         settings: Settings = Settings()
@@ -158,6 +163,7 @@ struct ShopState: Codable, Equatable {
         self.purchases = purchases
         self.supplierPayments = supplierPayments
         self.creditNotes = creditNotes
+        self.loans = loans
         self.expenses = expenses
         self.balanceTransfers = balanceTransfers
         self.settings = settings
@@ -181,6 +187,7 @@ struct ShopState: Codable, Equatable {
         purchases = try container.decodeIfPresent([Purchase].self, forKey: .purchases) ?? []
         supplierPayments = try container.decodeIfPresent([SupplierPayment].self, forKey: .supplierPayments) ?? []
         creditNotes = try container.decodeIfPresent([CreditNote].self, forKey: .creditNotes) ?? []
+        loans = try container.decodeIfPresent([Loan].self, forKey: .loans) ?? []
         expenses = try container.decodeIfPresent([Expense].self, forKey: .expenses) ?? []
         balanceTransfers = try container
             .decodeIfPresent([BalanceTransfer].self, forKey: .balanceTransfers) ?? []

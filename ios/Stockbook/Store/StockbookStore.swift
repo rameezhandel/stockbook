@@ -37,6 +37,9 @@ final class StockbookStore {
     /// What has been credited back to customers, newest first.
     private(set) var creditNotes: [CreditNote] = []
 
+    /// Cash lent to customers, newest first.
+    private(set) var loans: [Loan] = []
+
     /// The owner's own spending, newest first.
     private(set) var expenses: [Expense] = []
 
@@ -66,6 +69,7 @@ final class StockbookStore {
             purchases = state.purchases.sorted { $0.createdAt > $1.createdAt }
             supplierPayments = state.supplierPayments.sorted { $0.paidAt > $1.paidAt }
             creditNotes = state.creditNotes.sorted { $0.issuedAt > $1.issuedAt }
+            loans = state.loans.sorted { $0.lentAt > $1.lentAt }
             expenses = state.expenses.sorted { $0.spentAt > $1.spentAt }
             settings = state.settings
             L10n.use(settings.language)
@@ -580,6 +584,26 @@ final class StockbookStore {
             }
         }
 
+        // Cash lent goes **on** to what is owed, the one thing here that adds
+        // rather than subtracts. Goods owed and cash lent are one debt: lending
+        // 400 to somebody owing 800 leaves them owing 1,200, and there is no
+        // second balance anywhere in this app to put it in.
+        //
+        // Seeded before it is applied, for the reason the transfers below are:
+        // the lookup skips a customer who is not already in the book without a
+        // sound, and somebody the owner has only ever lent money to has no bill
+        // and may have no roster entry either. That is not a rare case — it is
+        // the first loan to a new face.
+        for loan in loans where book[loan.customerKey] == nil {
+            book[loan.customerKey] = PartyTally(name: loan.customerKey)
+        }
+        for loan in loans {
+            if var entry = book[loan.customerKey] {
+                entry.owed += loan.amount
+                book[loan.customerKey] = entry
+            }
+        }
+
         // Both ends of every transfer, before either is asked for.
         //
         // The lookups below skip a key that is not already in the book **without
@@ -780,6 +804,12 @@ final class StockbookStore {
         for (index, note) in creditNotes.enumerated() where note.customerKey == key {
             creditNotes[index].customerKey = newKey
         }
+        // Loans for the same reason, and it is the same failure: a stranded loan
+        // stops adding to what the customer owes, so a renamed borrower's debt
+        // silently falls by whatever they were lent.
+        for (index, loan) in loans.enumerated() where loan.customerKey == key {
+            loans[index].customerKey = newKey
+        }
         moveTransfers(from: key, to: newKey, isSupplier: false)
         persistEverything()
         return true
@@ -885,6 +915,67 @@ final class StockbookStore {
 
     func payments(forCustomer key: String) -> [Payment] {
         self.payments.filter { $0.customerKey == key }
+    }
+
+    // MARK: - Cash lent to customers
+
+    /// Lends `amount` to a customer, which adds to what they owe.
+    ///
+    /// Refused rather than clamped where the figure is not money or the customer
+    /// is nobody — the same two guards `recordPayment` applies, in the same
+    /// order.
+    @discardableResult
+    func recordLoan(
+        customerKey: String,
+        amount: Double,
+        lentAt: Date = .now,
+        note: String? = nil
+    ) -> Loan? {
+        guard amount > 0, !customerKey.isEmpty else { return nil }
+        let loan = Loan(customerKey: customerKey, amount: amount, lentAt: lentAt, note: note)
+        loans.append(loan)
+        loans.sort { $0.lentAt > $1.lentAt }
+        persistEverything()
+        return loan
+    }
+
+    /// Corrects one that was written down wrong: the figure, the day, the note.
+    @discardableResult
+    func updateLoan(id: UUID, amount: Double, lentAt: Date, note: String? = nil) -> Loan? {
+        guard amount > 0, let index = loans.firstIndex(where: { $0.id == id }) else { return nil }
+        var updated = loans[index]
+        updated.amount = amount
+        updated.lentAt = lentAt
+        updated.note = CustomerRecord.tidied(note)
+        loans[index] = updated
+        loans.sort { $0.lentAt > $1.lentAt }
+        persistEverything()
+        return updated
+    }
+
+    /// Removes it, and the debt it made with it. A mistake is removed, not voided.
+    func deleteLoan(id: UUID) {
+        loans.removeAll { $0.id == id }
+        persistEverything()
+    }
+
+    func loans(forCustomer key: String) -> [Loan] {
+        loans.filter { $0.customerKey == key }
+    }
+
+    /// Every loan made in `period`, newest first.
+    func loansIn(_ period: StatementPeriod) -> [Loan] {
+        let range = period.range()
+        return loans.filter { range.contains($0.lentAt) }
+    }
+
+    /// What the shop lent out over `period`.
+    ///
+    /// Money out, and **not** an expense: an expense is gone and this is expected
+    /// back. It stands beside `spentIn` rather than inside it, exactly as the
+    /// owner's spending stands beside the shop's takings.
+    func lentIn(_ period: StatementPeriod) -> Double {
+        loansIn(period).reduce(0) { $0 + $1.amount }
     }
 
     // MARK: - Credit notes
@@ -1478,6 +1569,22 @@ final class StockbookStore {
             }
         }
 
+        for loan in loans {
+            let who = customer(key: loan.customerKey)?.name ?? loan.customerKey
+            // No number of its own — a loan comes out of no book — so the name
+            // and the figure are what there is to match.
+            if matches(nil, who, loan.amount) {
+                hits.append(SearchHit(
+                    kind: .loan,
+                    id: loan.id.uuidString,
+                    who: who,
+                    reference: nil,
+                    amount: loan.amount,
+                    at: loan.lentAt
+                ))
+            }
+        }
+
         func exact(_ hit: SearchHit) -> Bool {
             InvoiceNo.key(hit.reference) == needle || hit.id.lowercased() == needle
         }
@@ -1768,6 +1875,21 @@ final class StockbookStore {
                 )
             )
         }
+        for loan in loans where range.contains(loan.lentAt) {
+            entries.append(
+                DayEntry(
+                    kind: .loan,
+                    who: customerName[loan.customerKey] ?? loan.customerKey,
+                    amount: loan.amount,
+                    // Settled in full the moment it is handed over: the cash left
+                    // the box that day. What is owed back is the customer's
+                    // balance, not this day's arithmetic.
+                    settled: loan.amount,
+                    closingBalance: closingFor(loan.customerKey, isSupplier: false),
+                    at: loan.lentAt
+                )
+            )
+        }
         for expense in expenses where range.contains(expense.spentAt) {
             entries.append(
                 DayEntry(
@@ -1819,6 +1941,7 @@ final class StockbookStore {
         let billsByKey = Dictionary(grouping: bills.filter { !$0.who.isBlank }) { Customer.key(for: $0.who) }
         let paymentsByKey = Dictionary(grouping: payments, by: \.customerKey)
         let notesByKey = Dictionary(grouping: creditNotes, by: \.customerKey)
+        let loansByKey = Dictionary(grouping: loans, by: \.customerKey)
         let transfers = balanceTransfers.filter { !$0.isSupplier }
 
         return everyone.map { customer in
@@ -1828,6 +1951,7 @@ final class StockbookStore {
                 bills: billsByKey[customer.key] ?? [],
                 payments: paymentsByKey[customer.key] ?? [],
                 creditNotes: notesByKey[customer.key] ?? [],
+                loans: loansByKey[customer.key] ?? [],
                 transfers: theirs.map { transfer in
                     let outgoing = transfer.fromKey == customer.key
                     let other = outgoing ? transfer.intoKey : transfer.fromKey
@@ -1866,6 +1990,7 @@ final class StockbookStore {
             bills: bills(forCustomer: key),
             payments: payments(forCustomer: key),
             creditNotes: creditNotes(forCustomer: key),
+            loans: loans(forCustomer: key),
             transfers: transferEntries(for: key, isSupplier: false),
             period: period
         )
@@ -2783,6 +2908,10 @@ final class StockbookStore {
                     issuedAt: row.issuedAt
                 )
             },
+            loans: document.loans.map {
+                Loan(id: $0.id, customerKey: $0.customerKey, amount: $0.amount,
+                     lentAt: $0.lentAt, note: $0.note)
+            },
             expenses: document.expenses.map {
                 Expense(id: $0.id, amount: $0.amount, note: $0.note, spentAt: $0.spentAt)
             },
@@ -2831,6 +2960,7 @@ final class StockbookStore {
             purchases: purchases,
             supplierPayments: supplierPayments,
             creditNotes: creditNotes,
+            loans: loans,
             expenses: expenses,
             balanceTransfers: balanceTransfers,
             settings: settings
@@ -2943,6 +3073,15 @@ final class StockbookStore {
                     lines: note.lines.map {
                         BackupDocument.LineRecord(productUID: $0.productUID, name: $0.name, qty: $0.qty, price: $0.price, cost: $0.cost)
                     }
+                )
+            },
+            loans: loans.map {
+                BackupDocument.LoanRow(
+                    id: $0.id,
+                    customerKey: $0.customerKey,
+                    amount: $0.amount,
+                    lentAt: $0.lentAt,
+                    note: $0.note
                 )
             },
             expenses: expenses.map {
@@ -3252,21 +3391,25 @@ struct PaymentEntry: Identifiable, Equatable {
 /// of them out would be a day the owner reconciles against the cash box and
 /// cannot make balance.
 enum DayEntryKind: CaseIterable {
-    case bill, payment, creditNote, purchase, supplierPayment, expense
+    case bill, payment, creditNote, purchase, supplierPayment, expense, loan
 
     /// Which way this kind points: into the cash box, out of it, or neither.
     ///
-    /// A `switch` with no `default` on purpose. Add a seventh kind and this
+    /// A `switch` with no `default` on purpose. Add an eighth kind and this
     /// stops compiling, which is the only reliable way to be asked whether it
     /// is money.
     ///
     /// **A credit note is neither.** It reduces what somebody owes without a
     /// coin moving, and counting it as cash taken would overstate the day's
     /// takings by exactly the amount the shop *gave back*.
+    ///
+    /// **A loan is money out**, and counts as such however certain the owner is
+    /// of getting it back. The day's net is what the cash box did, not what it
+    /// is owed.
     var direction: Int {
         switch self {
         case .bill, .payment: 1
-        case .purchase, .supplierPayment, .expense: -1
+        case .purchase, .supplierPayment, .expense, .loan: -1
         case .creditNote: 0
         }
     }

@@ -155,6 +155,7 @@ struct DaySummaryDocument: Equatable {
         case .purchase: strings.purchasesTitle
         case .supplierPayment: strings.paidToSuppliers
         case .expense: strings.expensesTitle
+        case .loan: strings.moneyGiven
         }
     }
 
@@ -205,6 +206,10 @@ struct DaySummaryDocument: Equatable {
             // Joined to nobody and numbered by nobody. The row's name is already
             // what it went on, and there is nothing else to say.
             return nil
+        case .loan:
+            // Named but not numbered: the row already carries who took it, and a
+            // loan comes out of no numbered book.
+            return strings.loanLabel
         }
     }
 }
@@ -217,7 +222,9 @@ private extension DayEntryKind {
     var carriesCredit: Bool {
         switch self {
         case .bill, .purchase: true
-        case .payment, .supplierPayment, .creditNote, .expense: false
+        // A loan is handed over whole. What is owed back is the customer's
+        // balance, not something still unpaid on the loan.
+        case .payment, .supplierPayment, .creditNote, .expense, .loan: false
         }
     }
 }

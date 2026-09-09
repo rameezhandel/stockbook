@@ -1169,11 +1169,12 @@ class StockbookStore(private val repository: StockbookRepository) {
             creditNotes = creditNotes.map {
                 if (it.customerKey == key) it.copy(customerKey = newKey) else it
             },
+            loans = loans.map { if (it.customerKey == key) it.copy(customerKey = newKey) else it },
             balanceTransfers = balanceTransfers.map { moveTransfer(it, key, newKey, isSupplier = false) },
             customers = customerRecords.filterNot { it.key == key || it.key == newKey } + record
         )
 
-        // Written whole rather than record by record. A rename now touches four
+        // Written whole rather than record by record. A rename now touches five
         // kinds at once and is rare and deliberate; half of one on disk is the
         // outcome worth spending a full rewrite to avoid.
         attempt { repository.replaceAll(_state.value) }

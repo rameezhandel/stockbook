@@ -85,6 +85,24 @@ class LoanTests {
         assertEquals(250.0, khalid.owed)
     }
 
+    /**
+     * A renamed borrower keeps their debt.
+     *
+     * The failure this prevents is silent and one-directional: a loan left under
+     * the old key stops adding to what the customer owes, so the balance falls by
+     * whatever they were lent and nothing anywhere says why. Credit notes were
+     * stranded exactly this way for months.
+     */
+    @Test
+    fun `renaming a borrower carries their loans`() {
+        val store = shop()
+        store.recordLoan("ahmed", 400.0, lentAt = day)
+
+        store.updateCustomer(key = "ahmed", name = "Ahmed Al Faisal", phone = null, place = null)
+
+        assertEquals(400.0, store.customer("ahmed al faisal")?.owed)
+    }
+
     // --- What it is not
 
     /**

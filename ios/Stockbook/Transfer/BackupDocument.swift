@@ -38,7 +38,11 @@ struct BackupDocument: Codable, Equatable {
     /// parties owing the wrong amount and the shop's total receivable
     /// unbalanced — the same class of misreading the credit notes were, and the
     /// same answer.
-    static let currentVersion = 4
+    ///
+    /// **5** since loans. A reader that dropped them shows every borrower owing
+    /// less than they do, so the owner collects for the goods and writes off the
+    /// cash without ever seeing it go.
+    static let currentVersion = 5
 
     var version: Int = BackupDocument.currentVersion
     var exportedAt: Date
@@ -83,6 +87,15 @@ struct BackupDocument: Codable, Equatable {
     /// older than this build rather than newer, so it is accepted on import.
     var creditNotes: [CreditNoteRow] = []
 
+    /// Cash lent to customers.
+    ///
+    /// **Bumps `currentVersion` to 5.** A reader built before loans existed drops
+    /// them and then shows every borrower owing less than they do — the owner
+    /// would collect the goods and write off the cash without noticing. That is
+    /// the credit-note failure exactly, pointing the other way, and it gets the
+    /// same answer: the older build refuses the file and says why.
+    var loans: [LoanRow] = []
+
     /// The owner's own spending.
     ///
     /// **Does not bump `currentVersion`**, and the rule is worth restating
@@ -106,6 +119,18 @@ struct BackupDocument: Codable, Equatable {
         /// What it was for, in the owner's words. Never empty.
         var note: String
         var spentAt: Date
+    }
+
+    /// One hand of cash across the counter.
+    ///
+    /// No number, because a loan comes out of no numbered book — the one record
+    /// here without a reference of any kind, expenses aside.
+    struct LoanRow: Codable, Equatable {
+        var id: UUID
+        var customerKey: String
+        var amount: Double
+        var lentAt: Date
+        var note: String?
     }
 
     struct CreditNoteRow: Codable, Equatable {
@@ -406,6 +431,7 @@ extension BackupDocument {
         purchases = try container.decode([PurchaseRow].self, forKey: .purchases)
         supplierPayments = try container.decode([SupplierPaymentRow].self, forKey: .supplierPayments)
         creditNotes = try container.decodeIfPresent([CreditNoteRow].self, forKey: .creditNotes) ?? []
+        loans = try container.decodeIfPresent([LoanRow].self, forKey: .loans) ?? []
         expenses = try container.decodeIfPresent([ExpenseRow].self, forKey: .expenses) ?? []
         // Tolerant, like the two above it. This decoder is hand written, so the
         // property's default does nothing here — a missing key throws unless the

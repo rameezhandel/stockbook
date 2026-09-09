@@ -149,6 +149,9 @@ struct Statement: Equatable {
         case bill(Bill)
         case payment(Payment)
         case creditNote(CreditNote)
+        /// Cash lent: a charge that settles nothing, which is what a loan is —
+        /// the mirror of `payment`, which settles without charging.
+        case loan(Loan)
         case purchase(Purchase)
         case supplierPayment(SupplierPayment)
         /// A balance moved to or from another account, seen from one end of it.
@@ -166,6 +169,7 @@ struct Statement: Equatable {
             case .bill(let bill): bill.createdAt
             case .payment(let payment): payment.receivedAt
             case .creditNote(let note): note.issuedAt
+            case .loan(let loan): loan.lentAt
             case .purchase(let purchase): purchase.createdAt
             case .supplierPayment(let payment): payment.paidAt
             case .transfer(let transfer, _, _): transfer.movedAt
@@ -177,6 +181,7 @@ struct Statement: Equatable {
             case .bill(let bill): "bill-\(bill.number)"
             case .payment(let payment): "payment-\(payment.id.uuidString)"
             case .creditNote(let note): "credit-note-\(note.id.uuidString)"
+            case .loan(let loan): "loan-\(loan.id.uuidString)"
             case .purchase(let purchase): "purchase-\(purchase.id.uuidString)"
             case .supplierPayment(let payment): "supplier-payment-\(payment.id.uuidString)"
             case .transfer(let transfer, _, _): "transfer-\(transfer.id.uuidString)"
@@ -188,6 +193,7 @@ struct Statement: Equatable {
             switch self {
             case .bill(let bill): bill.total
             case .purchase(let purchase): purchase.total
+            case .loan(let loan): loan.amount
             case .payment, .supplierPayment, .creditNote: 0
             case .transfer(let transfer, let outgoing, _): outgoing ? 0 : transfer.amount
             }
@@ -202,6 +208,7 @@ struct Statement: Equatable {
             case .payment(let payment): payment.amount
             case .supplierPayment(let payment): payment.amount
             case .creditNote(let note): note.total
+            case .loan: 0
             case .transfer(let transfer, let outgoing, _): outgoing ? transfer.amount : 0
             }
         }
@@ -215,14 +222,19 @@ struct Statement: Equatable {
         /// with no money moving. `transfer` did not touch this shop's money at
         /// all; it moved a figure between two of its own accounts.
         ///
+        /// `loan` is cash the shop handed over, which adds to the balance without
+        /// anything having been sold. Folding it into `trade` would make `billed`
+        /// say the customer was invoiced for money they were lent.
+        ///
         /// An enum rather than the boolean this replaces: a third bucket cannot
         /// be expressed by one flag, and two flags could both be true.
-        enum Kind { case trade, creditNote, transfer }
+        enum Kind { case trade, creditNote, transfer, loan }
 
         var kind: Kind {
             switch self {
             case .creditNote: .creditNote
             case .transfer: .transfer
+            case .loan: .loan
             case .bill, .payment, .purchase, .supplierPayment: .trade
             }
         }
@@ -258,6 +270,14 @@ struct Statement: Equatable {
     /// given back as two facts, not as one net figure that hides both.
     let credited: Double
 
+    /// Cash lent over the period.
+    ///
+    /// Its own line for the reason `credited` has one: the owner needs to see
+    /// what was invoiced and what was handed over as two facts. A customer
+    /// reading `Billed 1,200` when eight hundred of it was goods and four
+    /// hundred was a loan would be right to query the bill they never got.
+    let lent: Double
+
     /// A balance that arrived from another account over the period, and one that
     /// left for another.
     ///
@@ -268,7 +288,7 @@ struct Statement: Equatable {
     let transferredIn: Double
     let transferredOut: Double
 
-    /// `openingBalance + billed + transferredIn − received − credited −
+    /// `openingBalance + billed + lent + transferredIn − received − credited −
     /// transferredOut`. What they owe at the end of it.
     let closingBalance: Double
 
@@ -285,6 +305,7 @@ struct Statement: Equatable {
         bills: [Bill],
         payments: [Payment],
         creditNotes: [CreditNote] = [],
+        loans: [Loan] = [],
         transfers: [Entry] = [],
         period: StatementPeriod,
         calendar: Calendar = .current
@@ -294,6 +315,7 @@ struct Statement: Equatable {
             entries: bills.map(Entry.bill)
                 + payments.map(Entry.payment)
                 + creditNotes.map(Entry.creditNote)
+                + loans.map(Entry.loan)
                 + transfers,
             period: period,
             calendar: calendar
@@ -347,6 +369,7 @@ struct Statement: Equatable {
         let billed = trade.reduce(0) { $0 + $1.charge }
         let received = trade.reduce(0) { $0 + $1.settledAtOnce }
         let credited = inRange.filter { $0.kind == .creditNote }.reduce(0) { $0 + $1.settledAtOnce }
+        let lent = inRange.filter { $0.kind == .loan }.reduce(0) { $0 + $1.charge }
         let transfers = inRange.filter { $0.kind == .transfer }
         let transferredIn = transfers.reduce(0) { $0 + $1.charge }
         let transferredOut = transfers.reduce(0) { $0 + $1.settledAtOnce }
@@ -367,9 +390,16 @@ struct Statement: Equatable {
             billed: billed,
             received: received,
             credited: credited,
+            lent: lent,
             transferredIn: transferredIn,
             transferredOut: transferredOut,
-            closingBalance: opening + billed + transferredIn - received - credited - transferredOut,
+            // Every bucket, and a new one has to be added here or the foot of
+            // the statement silently stops matching the rows above it. The
+            // running balances are computed from the entries and would have
+            // carried the loan on their own, which is how a page can disagree
+            // with itself.
+            closingBalance: opening + billed + lent + transferredIn
+                - received - credited - transferredOut,
             runningBalances: running
         )
     }
