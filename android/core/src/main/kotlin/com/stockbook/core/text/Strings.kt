@@ -1238,6 +1238,38 @@ class Strings(val language: AppLanguage) {
     // records one line each and can be checked against the paper book, a summary
     // folds them and cannot. The wording is the only warning the reader gets.
 
+    // --- Cash lent to a customer
+    //
+    // "Loan" rather than "advance" or "credit": it is the word the owner used for
+    // it, and it is what a customer reading their own statement will recognise.
+
+    /** The row on a statement, where a loan carries no number to name it by. */
+    val loanLabel: String get() = pick("Loan", "ಸಾಲ")
+
+    /** The figure on a statement: what was handed over across the period. */
+    val lentInPeriod: String get() = pick("Lent", "ಕೊಟ್ಟ ಸಾಲ")
+
+    /**
+     * The two directions money can go with a customer, on the one sheet that
+     * records both.
+     *
+     * Named for the direction rather than for the record — "Received" and "Given"
+     * — because the owner tapping one is answering "which way did the money go",
+     * and that is a question about the counter rather than about the file.
+     */
+    val moneyReceived: String get() = pick("Received", "ಬಂದದ್ದು")
+    val moneyGiven: String get() = pick("Given", "ಕೊಟ್ಟದ್ದು")
+
+    /** What the sheet asks for when it is lending rather than taking. */
+    val amountLent: String get() = pick("Amount lent", "ಕೊಟ್ಟ ಮೊತ್ತ")
+
+    /** Said under the figure, because a loan is the one record that adds to a debt. */
+    val loanAddsToWhatTheyOwe: String
+        get() = pick(
+            "This adds to what they owe. They repay it as an ordinary payment.",
+            "ಇದು ಅವರ ಬಾಕಿಗೆ ಸೇರುತ್ತದೆ. ಸಾಮಾನ್ಯ ಪಾವತಿಯಾಗಿ ಹಿಂತಿರುಗಿಸುತ್ತಾರೆ."
+        )
+
     val salesSummary: String get() = pick("Sales Summary", "ಮಾರಾಟದ ಸಾರಾಂಶ")
     val purchaseSummary: String get() = pick("Purchase Summary", "ಖರೀದಿಯ ಸಾರಾಂಶ")
     val paymentsSummary: String get() = pick("Payments Summary", "ಪಾವತಿಗಳ ಸಾರಾಂಶ")

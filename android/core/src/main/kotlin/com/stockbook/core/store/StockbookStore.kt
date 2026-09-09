@@ -10,6 +10,7 @@ import com.stockbook.core.model.Customer
 import com.stockbook.core.model.CustomerRecord
 import com.stockbook.core.model.Expense
 import com.stockbook.core.model.InvoiceNo
+import com.stockbook.core.model.Loan
 import com.stockbook.core.model.Payment
 import com.stockbook.core.model.PaymentReceipt
 import com.stockbook.core.model.Product
@@ -221,11 +222,13 @@ data class Earnings(
  * What kind of thing happened, and — through [direction] — which way the money
  * moved when it did.
  *
- * Six kinds because six records carry a date, and a day that quietly left one
- * of them out would be a day the owner reconciles against the cash box and
+ * Seven kinds because seven records carry a date, and a day that quietly left
+ * one of them out would be a day the owner reconciles against the cash box and
  * cannot make balance.
  */
-enum class DayEntryKind { BILL, PAYMENT, CREDIT_NOTE, PURCHASE, SUPPLIER_PAYMENT, EXPENSE }
+enum class DayEntryKind {
+    BILL, PAYMENT, CREDIT_NOTE, PURCHASE, SUPPLIER_PAYMENT, EXPENSE, LOAN
+}
 
 /**
  * One record the search turned up, whichever of the six kinds it came from.
@@ -301,11 +304,15 @@ data class PaymentEntry(
  * **A credit note is neither.** It reduces what somebody owes without a coin
  * moving, and counting it as cash taken would overstate the day's takings by
  * exactly the amount the shop *gave back*.
+ *
+ * **A loan is money out**, and counts as such however certain the owner is of
+ * getting it back. The day's net is what the cash box did, not what it is owed.
  */
 private val DayEntryKind.direction: Int
     get() = when (this) {
         DayEntryKind.BILL, DayEntryKind.PAYMENT -> 1
-        DayEntryKind.PURCHASE, DayEntryKind.SUPPLIER_PAYMENT, DayEntryKind.EXPENSE -> -1
+        DayEntryKind.PURCHASE, DayEntryKind.SUPPLIER_PAYMENT,
+        DayEntryKind.EXPENSE, DayEntryKind.LOAN -> -1
         DayEntryKind.CREDIT_NOTE -> 0
     }
 
@@ -443,6 +450,9 @@ class StockbookStore(private val repository: StockbookRepository) {
 
     /** What has been credited back to customers, newest first. */
     val creditNotes: List<CreditNote> get() = _state.value.creditNotes
+
+    /** Cash lent to customers, newest first. */
+    val loans: List<Loan> get() = _state.value.loans
 
     /** The owner's own spending, newest first. */
     val expenses: List<Expense> get() = _state.value.expenses
@@ -979,6 +989,23 @@ class StockbookStore(private val repository: StockbookRepository) {
             book[note.customerKey]?.let { it.owed -= note.total }
         }
 
+        // Cash lent goes **on** to what is owed, the one thing here that adds
+        // rather than subtracts. Goods owed and cash lent are one debt: lending
+        // 400 to somebody owing 800 leaves them owing 1,200, and there is no
+        // second balance anywhere in this app to put it in.
+        //
+        // Seeded before it is applied, for the reason the transfers above are:
+        // `book[key]?.let` drops a customer who is not already in it without a
+        // sound, and somebody the owner has only ever lent money to has no bill
+        // and may have no roster entry either. That is not a rare case — it is
+        // the first loan to a new face.
+        for (loan in loans) {
+            book.getOrPut(loan.customerKey) { Tally(loan.customerKey, 0, 0.0, 0.0) }
+        }
+        for (loan in loans) {
+            book[loan.customerKey]?.let { it.owed += loan.amount }
+        }
+
         return book.map { (key, tally) ->
             val record = roster[key]
             Customer(
@@ -1260,6 +1287,83 @@ class StockbookStore(private val repository: StockbookRepository) {
     }
 
     fun paymentsForCustomer(key: String): List<Payment> = payments.filter { it.customerKey == key }
+
+    // --- Cash lent to customers
+    //
+    // Written through `replaceAll` rather than an `append` of its own, as credit
+    // notes and expenses are: the repository grew a method per record while the
+    // file was small, and every record added since has taken the whole state
+    // instead. One more overload would be one more thing for a second
+    // implementation to forget.
+
+    /**
+     * Lends [amount] to a customer, which adds to what they owe.
+     *
+     * Refused rather than clamped where the figure is not money or the customer
+     * is nobody — the same two guards [recordPayment] applies, in the same order.
+     */
+    fun recordLoan(
+        customerKey: String,
+        amount: Double,
+        lentAt: Instant = Timestamps.now(),
+        note: String? = null
+    ): Loan? {
+        if (amount <= 0 || customerKey.isEmpty()) return null
+        val loan = Loan(
+            customerKey = customerKey,
+            amount = amount,
+            lentAt = lentAt,
+            note = CustomerRecord.tidied(note)
+        )
+        _state.value = _state.value.copy(loans = (loans + loan).sortedByDescending { it.lentAt })
+        attempt { repository.replaceAll(_state.value) }
+        return loan
+    }
+
+    /** Corrects one that was written down wrong: the figure, the day, the note. */
+    fun updateLoan(
+        id: String,
+        amount: Double,
+        lentAt: Instant,
+        note: String? = null
+    ): Loan? {
+        val existing = loans.firstOrNull { it.id == id } ?: return null
+        if (amount <= 0) return null
+
+        val updated = existing.copy(
+            amount = amount,
+            lentAt = lentAt,
+            note = CustomerRecord.tidied(note)
+        )
+        _state.value = _state.value.copy(
+            loans = loans.map { if (it.id == id) updated else it }.sortedByDescending { it.lentAt }
+        )
+        attempt { repository.replaceAll(_state.value) }
+        return updated
+    }
+
+    /** Removes it, and the debt it made with it. A mistake is removed, not voided. */
+    fun deleteLoan(id: String) {
+        _state.value = _state.value.copy(loans = loans.filterNot { it.id == id })
+        attempt { repository.replaceAll(_state.value) }
+    }
+
+    fun loansForCustomer(key: String): List<Loan> = loans.filter { it.customerKey == key }
+
+    /** Every loan made in [period], newest first. */
+    fun loansIn(period: StatementPeriod): List<Loan> {
+        val range = period.range()
+        return loans.filter { it.lentAt in range }
+    }
+
+    /**
+     * What the shop lent out over [period].
+     *
+     * Money out, and **not** an expense: an expense is gone and this is expected
+     * back. It stands beside `spentIn` rather than inside it, exactly as the
+     * owner's spending stands beside the shop's takings.
+     */
+    fun lentIn(period: StatementPeriod): Double = loansIn(period).sumOf { it.amount }
 
     /**
      * The receipt already carrying this number, if any.
@@ -1908,6 +2012,22 @@ class StockbookStore(private val repository: StockbookRepository) {
             }
         }
 
+        for (loan in loans) {
+            val who = customer(loan.customerKey)?.name ?: loan.customerKey
+            // No number of its own — a loan comes out of no book — so the name
+            // and the figure are what there is to match.
+            if (matches(null, who, loan.amount)) {
+                hits += SearchHit(
+                    kind = DayEntryKind.LOAN,
+                    id = loan.id,
+                    who = who,
+                    reference = null,
+                    amount = loan.amount,
+                    at = loan.lentAt
+                )
+            }
+        }
+
         for (expense in expenses) {
             // An expense is filed under what it was for rather than under
             // anybody, and it carries no number — so the note is the only thing
@@ -2211,6 +2331,21 @@ class StockbookStore(private val repository: StockbookRepository) {
                     )
                 )
             }
+            for (loan in loans.filter { it.lentAt in range }) {
+                add(
+                    DayEntry(
+                        kind = DayEntryKind.LOAN,
+                        who = customerName[loan.customerKey] ?: loan.customerKey,
+                        amount = loan.amount,
+                        // Settled in full the moment it is handed over: the cash
+                        // left the box that day. What is owed back is the
+                        // customer's balance, not this day's arithmetic.
+                        settled = loan.amount,
+                        closingBalance = closingFor(loan.customerKey, isSupplier = false),
+                        at = loan.lentAt
+                    )
+                )
+            }
             for (expense in expenses.filter { it.spentAt in range }) {
                 add(
                     DayEntry(
@@ -2267,6 +2402,7 @@ class StockbookStore(private val repository: StockbookRepository) {
         val billsByKey = bills.filterNot { it.who.isBlank() }.groupBy { Customer.key(it.who) }
         val paymentsByKey = payments.groupBy { it.customerKey }
         val notesByKey = creditNotes.groupBy { it.customerKey }
+        val loansByKey = loans.groupBy { it.customerKey }
         val transfers = balanceTransfers.filterNot { it.isSupplier }
 
         return everyone.map { customer ->
@@ -2276,6 +2412,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 bills = billsByKey[customer.key].orEmpty(),
                 payments = paymentsByKey[customer.key].orEmpty(),
                 creditNotes = notesByKey[customer.key].orEmpty(),
+                loans = loansByKey[customer.key].orEmpty(),
                 transfers = theirs.map { transfer ->
                     val outgoing = transfer.fromKey == customer.key
                     val other = if (outgoing) transfer.intoKey else transfer.fromKey
@@ -2315,6 +2452,7 @@ class StockbookStore(private val repository: StockbookRepository) {
             bills = billsForCustomer(key),
             payments = paymentsForCustomer(key),
             creditNotes = creditNotesForCustomer(key),
+            loans = loansForCustomer(key),
             transfers = transferEntriesFor(key, isSupplier = false),
             period = period
         )
@@ -3270,6 +3408,10 @@ class StockbookStore(private val repository: StockbookRepository) {
                     issuedAt = row.issuedAt
                 )
             }.sortedByDescending { it.issuedAt },
+            loans = document.loans.map {
+                Loan(id = it.id, customerKey = it.customerKey, amount = it.amount,
+                     lentAt = it.lentAt, note = it.note)
+            }.sortedByDescending { it.lentAt },
             expenses = document.expenses.map {
                 Expense(id = it.id, amount = it.amount, note = it.note, spentAt = it.spentAt)
             }.sortedByDescending { it.spentAt },
@@ -3328,6 +3470,15 @@ class StockbookStore(private val repository: StockbookRepository) {
                 lines = note.lines.map {
                     BackupDocument.LineRecord(it.productUid, it.name, it.qty, it.price, it.cost)
                 }
+            )
+        },
+        loans = loans.map {
+            BackupDocument.LoanRow(
+                id = it.id,
+                customerKey = it.customerKey,
+                amount = it.amount,
+                lentAt = it.lentAt,
+                note = it.note
             )
         },
         currencyCode = settings.currencyCode,

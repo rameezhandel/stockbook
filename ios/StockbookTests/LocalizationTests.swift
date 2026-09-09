@@ -109,6 +109,8 @@ struct LocalizationTests {
         \.expenseSummary, \.columnHowOften, \.reportButton, \.summaryButton, \.nothingSpentThatMonth,
         \.previousMonth, \.nextMonth,
         \.salesSummary, \.purchaseSummary, \.paymentsSummary,
+        \.loanLabel, \.lentInPeriod, \.moneyReceived, \.moneyGiven,
+        \.amountLent, \.loanAddsToWhatTheyOwe,
         \.columnSupplier, \.columnHowMany,
         \.nothingSoldThatMonth, \.nothingBoughtThatMonth, \.nothingReceivedThatMonth,
         \.daySummary, \.purchasesTitle, \.paidToSuppliers,

@@ -59,6 +59,16 @@ data class BackupDocument(
     /** What has been credited back to customers. */
     val creditNotes: List<CreditNoteRow> = emptyList(),
     /**
+     * Cash lent to customers.
+     *
+     * **Bumps [currentVersion] to 5.** A reader built before loans existed drops
+     * them and then shows every borrower owing less than they do — the owner
+     * would collect the goods and write off the cash without noticing. That is
+     * the credit-note failure exactly, pointing the other way, and it gets the
+     * same answer: the older build refuses the file and says why.
+     */
+    val loans: List<LoanRow> = emptyList(),
+    /**
      * The owner's own spending.
      *
      * **Does not bump [currentVersion]**, and the rule is worth restating because
@@ -81,6 +91,22 @@ data class BackupDocument(
         val note: String,
         @Serializable(with = InstantSerializer::class)
         val spentAt: Instant
+    )
+
+    /**
+     * One hand of cash across the counter.
+     *
+     * No number, because a loan comes out of no numbered book — the one record
+     * here without a reference of any kind, expenses aside.
+     */
+    @Serializable
+    data class LoanRow(
+        val id: String,
+        val customerKey: String,
+        val amount: Double,
+        @Serializable(with = InstantSerializer::class)
+        val lentAt: Instant,
+        val note: String? = null
     )
 
     @Serializable
@@ -339,8 +365,12 @@ data class BackupDocument(
          * parties owing the wrong amount and the shop's total receivable
          * unbalanced — the same class of misreading the credit notes were, and
          * the same answer.
+         *
+         * **5** since loans. A reader that dropped them shows every borrower
+         * owing less than they do, so the owner collects for the goods and
+         * writes off the cash without ever seeing it go.
          */
-        const val currentVersion = 4
+        const val currentVersion = 5
 
         // The invoice numbers added after 2 do **not** bump it. A reader that
         // ignores them shows "Bill #7" where the owner wrote "1024" on the paper:

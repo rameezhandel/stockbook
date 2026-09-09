@@ -236,6 +236,10 @@ data class StatementDocument(
                 entry.payment.paymentNo?.takeIf { it.isNotBlank() }
                     ?.let { strings.paymentRef(it) }
                     ?: strings.paymentLabel
+            // No number either, and none to invent: an invoice, a receipt and a
+            // credit note each come out of a book the shop keeps, and a hand of
+            // cash across a counter comes out of no book at all.
+            is Statement.Entry.ForLoan -> strings.loanLabel
             // No number to show — nothing was written for it — so the row names
             // the account at the other end instead. "Transferred" alone would
             // leave the customer holding a figure they cannot place.

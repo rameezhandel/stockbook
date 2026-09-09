@@ -114,6 +114,11 @@ data class ShopState(
     /** What has been credited back to customers, newest first. */
     val creditNotes: List<CreditNote> = emptyList(),
     /**
+     * Cash lent to customers, newest first. Money out that makes a debt — the
+     * mirror of [payments], and never one of them with a sign on it. See [Loan].
+     */
+    val loans: List<Loan> = emptyList(),
+    /**
      * The owner's own spending, newest first. Joined to nothing else here —
      * see [Expense], where that separation is the whole point.
      */

@@ -161,6 +161,15 @@ data class Statement(
      */
     val credited: Double,
     /**
+     * Cash lent over the period.
+     *
+     * Its own line for the reason [credited] has one: the owner needs to see what
+     * was invoiced and what was handed over as two facts. A customer reading
+     * `Billed 1,200` when eight hundred of it was goods and four hundred was a
+     * loan would be right to query the bill they never got.
+     */
+    val lent: Double,
+    /**
      * A balance that arrived from another account over the period, and one that
      * left for another.
      *
@@ -209,10 +218,14 @@ data class Statement(
          * balance with no money moving. [TRANSFER] did not touch this shop's
          * money at all; it moved a figure between two of its own accounts.
          *
+         * [LOAN] is cash the shop handed over, which adds to the balance without
+         * anything having been sold. Folding it into [TRADE] would make `billed`
+         * say the customer was invoiced for money they were lent.
+         *
          * An enum rather than the boolean this replaces: a third bucket cannot
          * be expressed by one flag, and two flags could both be true.
          */
-        enum class Kind { TRADE, CREDIT_NOTE, TRANSFER }
+        enum class Kind { TRADE, CREDIT_NOTE, TRANSFER, LOAN }
 
         val kind: Kind get() = Kind.TRADE
 
@@ -236,6 +249,21 @@ data class Statement(
             override val charge: Double get() = 0.0
             override val settledAtOnce: Double get() = note.total
             override val kind: Kind get() = Kind.CREDIT_NOTE
+        }
+
+        /**
+         * Cash lent: a charge that settles nothing, which is what a loan is.
+         *
+         * The mirror of [ForPayment], which settles without charging. The running
+         * balance needs no special case for either — `charge − settledAtOnce`
+         * already says what each one does to an account.
+         */
+        data class ForLoan(val loan: Loan) : Entry {
+            override val date: Instant get() = loan.lentAt
+            override val id: String get() = "loan-${loan.id}"
+            override val charge: Double get() = loan.amount
+            override val settledAtOnce: Double get() = 0.0
+            override val kind: Kind get() = Kind.LOAN
         }
 
         data class ForPurchase(val purchase: Purchase) : Entry {
@@ -287,13 +315,15 @@ data class Statement(
 
         /**
          * One customer's account: bills charge it, payments settle it, credit
-         * notes reduce it without settling anything.
+         * notes reduce it without settling anything, and loans charge it without
+         * anything having been sold.
          */
         fun make(
             customer: Customer,
             bills: List<Bill>,
             payments: List<Payment>,
             creditNotes: List<CreditNote> = emptyList(),
+            loans: List<Loan> = emptyList(),
             transfers: List<Entry.ForTransfer> = emptyList(),
             period: StatementPeriod,
             zone: ZoneId = ZoneId.systemDefault()
@@ -302,6 +332,7 @@ data class Statement(
             entries = bills.map { Entry.ForBill(it) } +
                 payments.map { Entry.ForPayment(it) } +
                 creditNotes.map { Entry.ForCreditNote(it) } +
+                loans.map { Entry.ForLoan(it) } +
                 transfers,
             period = period,
             zone = zone
@@ -357,6 +388,7 @@ data class Statement(
             val billed = trade.sumOf { it.charge }
             val received = trade.sumOf { it.settledAtOnce }
             val credited = inRange.filter { it.kind == Entry.Kind.CREDIT_NOTE }.sumOf { it.settledAtOnce }
+            val lent = inRange.filter { it.kind == Entry.Kind.LOAN }.sumOf { it.charge }
             val transfers = inRange.filter { it.kind == Entry.Kind.TRANSFER }
             val transferredIn = transfers.sumOf { it.charge }
             val transferredOut = transfers.sumOf { it.settledAtOnce }
@@ -377,9 +409,16 @@ data class Statement(
                 billed = billed,
                 received = received,
                 credited = credited,
+                lent = lent,
                 transferredIn = transferredIn,
                 transferredOut = transferredOut,
-                closingBalance = opening + billed + transferredIn - received - credited - transferredOut,
+                // Every bucket, and a new one has to be added here or the foot
+                // of the statement silently stops matching the rows above it.
+                // The running balance beside each row is computed from the
+                // entries and would have carried the loan on its own, which is
+                // how a page can disagree with itself.
+                closingBalance = opening + billed + lent + transferredIn -
+                    received - credited - transferredOut,
                 runningBalances = running
             )
         }

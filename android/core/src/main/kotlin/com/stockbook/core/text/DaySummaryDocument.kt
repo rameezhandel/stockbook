@@ -170,6 +170,7 @@ data class DaySummaryDocument(
             DayEntryKind.PURCHASE -> strings.purchasesTitle
             DayEntryKind.SUPPLIER_PAYMENT -> strings.paidToSuppliers
             DayEntryKind.EXPENSE -> strings.expensesTitle
+            DayEntryKind.LOAN -> strings.moneyGiven
         }
 
         private fun row(entry: DayEntry, strings: Strings, currency: Currency): Row {
@@ -212,8 +213,10 @@ data class DaySummaryDocument(
         private val DayEntryKind.carriesCredit: Boolean
             get() = when (this) {
                 DayEntryKind.BILL, DayEntryKind.PURCHASE -> true
+                // A loan is handed over whole. What is owed back is the
+                // customer's balance, not something still unpaid on the loan.
                 DayEntryKind.PAYMENT, DayEntryKind.SUPPLIER_PAYMENT,
-                DayEntryKind.CREDIT_NOTE, DayEntryKind.EXPENSE -> false
+                DayEntryKind.CREDIT_NOTE, DayEntryKind.EXPENSE, DayEntryKind.LOAN -> false
             }
 
         /**
@@ -237,6 +240,9 @@ data class DaySummaryDocument(
                 // Joined to nobody and numbered by nobody. The row's name is
                 // already what it went on, and there is nothing else to say.
                 DayEntryKind.EXPENSE -> null
+                // Named but not numbered: the row already carries who took it,
+                // and a loan comes out of no numbered book.
+                DayEntryKind.LOAN -> strings.loanLabel
             }
         }
     }
