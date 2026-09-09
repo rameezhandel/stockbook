@@ -85,13 +85,20 @@ class Cart {
         private set
     /**
      * **Part payment is the tab that opens**, because a van selling hardware sells
-     * on credit and the paid box is what the ordinary bill needs a figure in.
+     * on credit and the ordinary bill is settled on some later visit.
      *
-     * It changes which pill is lit and nothing else. A bill saved without the box
-     * being touched is still **paid in full** — see [paidForStorage]. Making the
-     * open tab also mean "nothing has been paid" would have quietly turned every
-     * untouched bill into a debt, which is a different feature and not one that
-     * was asked for.
+     * The pill means what it says: an empty paid box is nothing paid, and the
+     * whole bill is owed. That is a real change from when Paid in full opened —
+     * a bill saved without a thought used to be settled and is now a debt — and
+     * it was chosen deliberately over the alternatives.
+     *
+     * **It is not silent.** The form shows `Balance SAR 450` under the box before
+     * anything is saved, so the bill about to be written says what it is. The
+     * mistake it invites announces itself too: a name on Today's banner who does
+     * not owe anything. The old default's mistake was the quiet one — a credit
+     * sale filed as settled, missed until the shop counted its cash.
+     *
+     * A bill loaded for editing still takes its mode from what that bill says.
      */
     var payMode by mutableStateOf(PayMode.PART)
     var paidText by mutableStateOf("")
@@ -176,36 +183,20 @@ class Cart {
     /**
      * What is left once the part payment is taken off what will be charged.
      *
-     * Zero while the box is untouched, because that bill will be stored as
-     * settled — a screen showing 450 still owed on a bill about to be saved as
-     * paid is the disagreement the owner would trust least.
+     * The whole total while the box is empty, which is the point: the form states
+     * what the bill about to be saved will say, before it is saved.
      */
     fun balance(currency: Currency): Double =
-        if (payMode == PayMode.FULL || paidBoxUntouched) 0.0
-        else (total(currency) - paidValue).coerceAtLeast(0.0)
+        if (payMode == PayMode.FULL) 0.0 else (total(currency) - paidValue).coerceAtLeast(0.0)
 
     /** The figure in the amount box, or null when there is nothing readable in it. */
     val typedAmount: Double? get() = Money.parse(amountText)
 
+    /** An empty box is nothing paid, which is what the Part payment pill says. */
     val paidValue: Double get() = Money.parse(paidText) ?: 0.0
 
-    /**
-     * Nothing has been typed into the paid box.
-     *
-     * Part payment is the tab the form opens on, so an empty box is the state of
-     * every bill nobody has said anything about — and that has to keep meaning
-     * what it meant when Paid in full was the open tab: settled. Reading it as
-     * "zero paid" instead would file every bill the owner did not think about as
-     * a debt, which is the one mistake that hides money rather than announcing
-     * itself.
-     *
-     * A typed `0` is not this. Somebody who types a zero has said something.
-     */
-    private val paidBoxUntouched: Boolean get() = paidText.isBlank()
-
     /** What gets stored: null for paid in full. */
-    val paidForStorage: Double? get() =
-        if (payMode == PayMode.FULL || paidBoxUntouched) null else paidValue
+    val paidForStorage: Double? get() = if (payMode == PayMode.FULL) null else paidValue
 
     /**
      * A bill needs a figure, somebody **chosen** to give it to, and a number.
