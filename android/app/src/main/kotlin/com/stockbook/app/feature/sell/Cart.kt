@@ -84,20 +84,14 @@ class Cart {
     var customerKey by mutableStateOf<String?>(null)
         private set
     /**
-     * **Part payment by default, and nothing typed into it.**
+     * **Part payment is the tab that opens**, because a van selling hardware sells
+     * on credit and the paid box is what the ordinary bill needs a figure in.
      *
-     * A van selling hardware sells on credit. The ordinary bill is written, handed
-     * over, and settled on some later visit — so the form opens on the mode that
-     * says something is still owed, with the paid box empty, which reads as the
-     * whole bill outstanding. The owner who was paid in full says so in one tap;
-     * before this, the owner who was *not* had to notice a pill that was already
-     * right for the rarer case.
-     *
-     * Wrong the other way is worse than wrong this way. A credit sale saved as
-     * paid in full silently loses the debt: nothing on any screen says Ahmed owes
-     * anything, and the money is only missed when the shop counts its cash. A cash
-     * sale saved as unpaid shows up immediately, as a customer standing on Today's
-     * banner who does not owe anything.
+     * It changes which pill is lit and nothing else. A bill saved without the box
+     * being touched is still **paid in full** — see [paidForStorage]. Making the
+     * open tab also mean "nothing has been paid" would have quietly turned every
+     * untouched bill into a debt, which is a different feature and not one that
+     * was asked for.
      */
     var payMode by mutableStateOf(PayMode.PART)
     var paidText by mutableStateOf("")
@@ -179,19 +173,39 @@ class Cart {
 
     fun total(currency: Currency): Double = subtotal - discountValue(currency)
 
-    /** What is left once the part payment is taken off what will be charged. */
+    /**
+     * What is left once the part payment is taken off what will be charged.
+     *
+     * Zero while the box is untouched, because that bill will be stored as
+     * settled — a screen showing 450 still owed on a bill about to be saved as
+     * paid is the disagreement the owner would trust least.
+     */
     fun balance(currency: Currency): Double =
-        if (payMode == PayMode.FULL) 0.0 else (total(currency) - paidValue).coerceAtLeast(0.0)
+        if (payMode == PayMode.FULL || paidBoxUntouched) 0.0
+        else (total(currency) - paidValue).coerceAtLeast(0.0)
 
     /** The figure in the amount box, or null when there is nothing readable in it. */
     val typedAmount: Double? get() = Money.parse(amountText)
 
     val paidValue: Double get() = Money.parse(paidText) ?: 0.0
 
-
+    /**
+     * Nothing has been typed into the paid box.
+     *
+     * Part payment is the tab the form opens on, so an empty box is the state of
+     * every bill nobody has said anything about — and that has to keep meaning
+     * what it meant when Paid in full was the open tab: settled. Reading it as
+     * "zero paid" instead would file every bill the owner did not think about as
+     * a debt, which is the one mistake that hides money rather than announcing
+     * itself.
+     *
+     * A typed `0` is not this. Somebody who types a zero has said something.
+     */
+    private val paidBoxUntouched: Boolean get() = paidText.isBlank()
 
     /** What gets stored: null for paid in full. */
-    val paidForStorage: Double? get() = if (payMode == PayMode.FULL) null else paidValue
+    val paidForStorage: Double? get() =
+        if (payMode == PayMode.FULL || paidBoxUntouched) null else paidValue
 
     /**
      * A bill needs a figure, somebody **chosen** to give it to, and a number.
@@ -429,8 +443,8 @@ class Cart {
         soldAt = Timestamps.now()
         customer = ""
         customerKey = null
-        // Back to the default the form opens on, not to paid-in-full — see the
-        // declaration. A cart cleared after a sale is the next sale's blank form.
+        // Back to the tab the form opens on. A cart cleared after a sale is the
+        // next sale's blank form, and it must look like one.
         payMode = PayMode.PART
         paidText = ""
         _photoIds.clear()

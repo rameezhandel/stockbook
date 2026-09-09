@@ -48,20 +48,15 @@ final class Cart {
     /// three people with three balances — the thing the roster exists to stop.
     private(set) var customerKey: String?
 
-    /// **Part payment by default, and nothing typed into it.**
+    /// **Part payment is the tab that opens**, because a van selling hardware
+    /// sells on credit and the paid box is what the ordinary bill needs a figure
+    /// in.
     ///
-    /// A van selling hardware sells on credit. The ordinary bill is written,
-    /// handed over, and settled on some later visit — so the form opens on the
-    /// mode that says something is still owed, with the paid box empty, which
-    /// reads as the whole bill outstanding. The owner who was paid in full says
-    /// so in one tap; before this, the owner who was *not* had to notice a pill
-    /// that was already right for the rarer case.
-    ///
-    /// Wrong the other way is worse than wrong this way. A credit sale saved as
-    /// paid in full silently loses the debt: nothing on any screen says Ahmed
-    /// owes anything, and the money is only missed when the shop counts its cash.
-    /// A cash sale saved as unpaid shows up immediately, as a customer standing
-    /// on Today's banner who does not owe anything.
+    /// It changes which pill is lit and nothing else. A bill saved without the
+    /// box being touched is still **paid in full** — see `paidForStorage(in:)`.
+    /// Making the open tab also mean "nothing has been paid" would have quietly
+    /// turned every untouched bill into a debt, which is a different feature and
+    /// not one that was asked for.
     var payMode: PayMode = .part
     /// Held as text so a half-typed amount is representable.
     var paidText: String = ""
@@ -166,13 +161,23 @@ final class Cart {
     /// The figure in the amount box, or nil when there is nothing readable in it.
     var typedAmount: Double? { Money.parse(amountText) }
 
+    /// Nothing has been typed into the paid box.
+    ///
+    /// Part payment is the tab the form opens on, so an empty box is the state of
+    /// every bill nobody has said anything about — and that has to keep meaning
+    /// what it meant when Paid in full was the open tab: settled. Reading it as
+    /// "zero paid" instead would file every bill the owner did not think about as
+    /// a debt, which is the one mistake that hides money rather than announcing
+    /// itself.
+    ///
+    /// A typed `0` is not this. Somebody who types a zero has said something.
+    private var paidBoxUntouched: Bool { paidText.isBlank }
+
     /// The amount taken now: the full total, or the clamped part payment.
     func paidNow(in currency: Currency) -> Double {
         let charged = total(in: currency)
-        switch payMode {
-        case .full: return charged
-        case .part: return min(max(0, Money.parse(paidText) ?? 0), charged)
-        }
+        if payMode == .full || paidBoxUntouched { return charged }
+        return min(max(0, Money.parse(paidText) ?? 0), charged)
     }
 
     func balance(in currency: Currency) -> Double {
@@ -181,7 +186,7 @@ final class Cart {
 
     /// What gets stored on the bill: `nil` for paid in full.
     func paidForStorage(in currency: Currency) -> Double? {
-        payMode == .full ? nil : paidNow(in: currency)
+        payMode == .full || paidBoxUntouched ? nil : paidNow(in: currency)
     }
 
     /// The gate on this screen: a bill needs a figure, somebody **chosen** to
@@ -381,8 +386,8 @@ final class Cart {
         amountText = ""
         customer = ""
         customerKey = nil
-        // Back to the default the form opens on, not to paid-in-full — see the
-        // declaration. A cart cleared after a sale is the next sale's blank form.
+        // Back to the tab the form opens on. A cart cleared after a sale is the
+        // next sale's blank form, and it must look like one.
         payMode = .part
         paidText = ""
         invoiceNo = ""
