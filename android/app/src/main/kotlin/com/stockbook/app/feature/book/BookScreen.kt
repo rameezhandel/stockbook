@@ -575,6 +575,17 @@ private fun open(hit: SearchHit, store: StockbookStore, router: AppRouter) {
 
         DayEntryKind.EXPENSE ->
             store.expenses.firstOrNull { it.id == hit.id }?.let { router.openExpense(it) }
+
+        // Back to the sheet it was written on, on the customer it was written
+        // for. Both are needed: the sheet is the customer's, and the loan is
+        // which record on it is being corrected.
+        DayEntryKind.LOAN ->
+            store.loans.firstOrNull { it.id == hit.id }?.let { loan ->
+                store.customer(loan.customerKey)?.let { customer ->
+                    router.editingLoan = loan
+                    router.paymentFor = customer
+                }
+            }
     }
 }
 

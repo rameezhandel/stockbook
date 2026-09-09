@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import com.stockbook.app.feature.book.BookSide
 import com.stockbook.core.model.Bill
 import com.stockbook.core.model.CreditNote
+import com.stockbook.core.model.Loan
 import com.stockbook.core.model.Payment
 import com.stockbook.core.model.PaymentReceipt
 import com.stockbook.core.model.Customer
@@ -178,6 +179,14 @@ class AppRouter {
      * shows what will still be owed once the correction is saved.
      */
     var editingPayment by mutableStateOf<Payment?>(null)
+
+    /**
+     * The loan being corrected, if one is. Beside [editingPayment] rather than
+     * inside it, because the two are different records and one may never become
+     * the other — the sheet that shows both directions still writes to whichever
+     * store the record came from.
+     */
+    var editingLoan by mutableStateOf<Loan?>(null)
 
     /**
      * The slip for one payment, shown full-screen over everything.
@@ -414,6 +423,7 @@ class AppRouter {
         creatingCustomer = false
         paymentFor = null
         editingPayment = null
+        editingLoan = null
         paymentReceipt = null
         creditNoteFor = null
         editingCreditNote = null

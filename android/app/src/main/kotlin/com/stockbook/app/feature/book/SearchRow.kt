@@ -103,4 +103,5 @@ private fun label(kind: DayEntryKind, strings: Strings): String = when (kind) {
     DayEntryKind.PURCHASE -> strings.purchaseLabel
     DayEntryKind.SUPPLIER_PAYMENT -> strings.voucherLabel
     DayEntryKind.EXPENSE -> strings.expenseLabel
+    DayEntryKind.LOAN -> strings.loanLabel
 }

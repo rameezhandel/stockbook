@@ -649,7 +649,11 @@ private fun Shell(store: StockbookStore) {
 
         BottomSheet(
             visible = router.paymentFor != null,
-            onDismiss = { router.paymentFor = null; router.editingPayment = null }
+            onDismiss = {
+                router.paymentFor = null
+                router.editingPayment = null
+                router.editingLoan = null
+            }
         ) {
             router.paymentFor?.let { customer ->
                 RecordPaymentSheet(
@@ -661,8 +665,13 @@ private fun Shell(store: StockbookStore) {
                     currency = state.settings.currency,
                     strings = strings,
                     editing = router.editingPayment,
+                    editingLoan = router.editingLoan,
                     onReceipt = { slip, justSaved -> router.showReceipt(slip, justSaved) },
-                    onClose = { router.paymentFor = null; router.editingPayment = null }
+                    onClose = {
+                        router.paymentFor = null
+                        router.editingPayment = null
+                        router.editingLoan = null
+                    }
                 )
             }
         }
