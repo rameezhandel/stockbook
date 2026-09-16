@@ -41,6 +41,27 @@ struct Expense: Codable, Identifiable, Equatable, Hashable {
     /// number nobody can account for a month later.
     var note: String
 
+    /// Anything more the owner wants to remember about it — "Jeddah trip", "paid
+    /// Abu Salem cash", "the one with the cracked casing".
+    ///
+    /// **Separate from `note`, and that separation is the point.** `note` is the
+    /// short name the money went under, and `spendingIn` folds a month by it:
+    /// typing "Petrol for the Jeddah trip on Tuesday" there would give that one
+    /// tank a line of its own on the summary and hide it from the Petrol total.
+    /// So the name stays short and groupable, and everything else goes here.
+    ///
+    /// Optional, and absent rather than empty when skipped — the same shape
+    /// `Payment.note` and `CreditNote.reason` already have. Its absence changes
+    /// no figure, which is why it does not bump the backup version.
+    ///
+    /// Declared **between `note` and `spentAt`** to match the Kotlin twin, and
+    /// because the memberwise initialiser takes its arguments in declaration
+    /// order — a field added at the end here would compile and then be filled
+    /// from the wrong call sites. Being optional is also what lets the
+    /// synthesised decoder read a shop file written before it existed; a
+    /// defaulted *non*-optional would throw.
+    var detail: String?
+
     /// The day the money went, which is not always the day it was written down.
     var spentAt: Date = .now
 }

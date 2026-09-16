@@ -73,6 +73,7 @@ fun ExpenseSheet(
         mutableStateOf(editing?.let { Money.amount(it.amount, currency) } ?: "")
     }
     var note by remember(editing) { mutableStateOf(editing?.note ?: "") }
+    var detail by remember(editing) { mutableStateOf(editing?.detail ?: "") }
     var spentAt by remember(editing) { mutableStateOf(editing?.spentAt ?: Timestamps.now()) }
     var pickingDate by remember { mutableStateOf(false) }
 
@@ -192,6 +193,20 @@ fun ExpenseSheet(
             }
         }
 
+        // Optional, and last of the three, because it is the one the owner can
+        // skip. Most expenses are a word and a figure; this is for the tank of
+        // petrol that needs a sentence beside it.
+        Spacer(Modifier.height(10.dp))
+        NocturneField(
+            value = detail,
+            onValueChange = { detail = it },
+            label = strings.expenseNote,
+            placeholder = strings.expenseNoteHint,
+            height = 40.dp,
+            fontSize = 13.5,
+            modifier = Modifier.fillMaxWidth()
+        )
+
         Spacer(Modifier.height(8.dp))
         Text(
             strings.expensesArePrivate,
@@ -211,9 +226,9 @@ fun ExpenseSheet(
             },
             onClick = {
                 if (editing == null) {
-                    store.addExpense(typed, note, spentAt)
+                    store.addExpense(typed, note, spentAt, detail)
                 } else {
-                    store.updateExpense(editing.id, typed, note, spentAt)
+                    store.updateExpense(editing.id, typed, note, spentAt, detail)
                 }
                 onClose()
             },

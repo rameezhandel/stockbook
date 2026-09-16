@@ -1080,11 +1080,21 @@ final class StockbookStore {
     /// month later. Both are refused here rather than in the sheet, so the rule
     /// holds however the store is reached.
     @discardableResult
-    func addExpense(amount: Double, note: String, spentAt: Date = .now) -> Expense? {
+    func addExpense(
+        amount: Double,
+        note: String,
+        spentAt: Date = .now,
+        detail: String? = nil
+    ) -> Expense? {
         let what = note.trimmed
         guard amount > 0, !what.isEmpty else { return nil }
 
-        let expense = Expense(amount: amount, note: what, spentAt: spentAt)
+        let expense = Expense(
+            amount: amount,
+            note: what,
+            detail: CustomerRecord.tidied(detail),
+            spentAt: spentAt
+        )
         expenses.insert(expense, at: 0)
         persistEverything()
         return expense
@@ -1233,13 +1243,20 @@ final class StockbookStore {
 
     /// Corrects one. Same rules as writing it: a correction cannot make it invalid.
     @discardableResult
-    func updateExpense(id: String, amount: Double, note: String, spentAt: Date) -> Expense? {
+    func updateExpense(
+        id: String,
+        amount: Double,
+        note: String,
+        spentAt: Date,
+        detail: String? = nil
+    ) -> Expense? {
         guard let index = expenses.firstIndex(where: { $0.id == id }) else { return nil }
         let what = note.trimmed
         guard amount > 0, !what.isEmpty else { return nil }
 
         expenses[index].amount = amount
         expenses[index].note = what
+        expenses[index].detail = CustomerRecord.tidied(detail)
         expenses[index].spentAt = spentAt
         persistEverything()
         return expenses[index]
@@ -2917,7 +2934,10 @@ final class StockbookStore {
                      lentAt: $0.lentAt, note: $0.note)
             },
             expenses: document.expenses.map {
-                Expense(id: $0.id, amount: $0.amount, note: $0.note, spentAt: $0.spentAt)
+                Expense(
+                    id: $0.id, amount: $0.amount, note: $0.note,
+                    detail: $0.detail, spentAt: $0.spentAt
+                )
             },
             balanceTransfers: document.balanceTransfers.map {
                 BalanceTransfer(
@@ -3090,7 +3110,10 @@ final class StockbookStore {
                 )
             },
             expenses: expenses.map {
-                BackupDocument.ExpenseRow(id: $0.id, amount: $0.amount, note: $0.note, spentAt: $0.spentAt)
+                BackupDocument.ExpenseRow(
+                    id: $0.id, amount: $0.amount, note: $0.note,
+                    detail: $0.detail, spentAt: $0.spentAt
+                )
             },
             balanceTransfers: balanceTransfers.map {
                 BackupDocument.BalanceTransferRow(

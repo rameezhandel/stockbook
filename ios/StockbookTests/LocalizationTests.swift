@@ -28,7 +28,7 @@ struct LocalizationTests {
         \.expensesTitle, \.addAnExpense, \.newExpense, \.editExpense, \.expenseWhatFor,
         \.expenseWhatForHint, \.expenseSpentOn, \.noExpensesYet, \.expenseInPeriod,
         \.saveExpense, \.enterWhatItWasFor, \.removeExpense, \.removeExpenseNote,
-        \.expensesArePrivate,
+        \.expensesArePrivate, \.expenseNote, \.expenseNoteHint,
         \.customersTitle, \.addACustomer, \.noCustomersYet, \.noSuppliersYet, \.nobodyMatches,
         \.newCustomer, \.editCustomer,
         \.customerPhone, \.customerPlace, \.optionalField, \.saveCustomer,

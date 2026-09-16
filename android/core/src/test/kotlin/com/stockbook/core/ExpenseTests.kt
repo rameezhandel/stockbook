@@ -3,6 +3,7 @@ package com.stockbook.core
 import com.stockbook.core.model.StatementPeriod
 import com.stockbook.core.store.InMemoryRepository
 import com.stockbook.core.store.StockbookStore
+import com.stockbook.core.transfer.BackupService
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -297,5 +298,69 @@ class ExpenseTests {
         for (index in 1..12) store.addExpense(10.0, "Thing $index", at(index.toLong()))
 
         assertEquals(6, store.expenseNotes().size)
+    }
+
+    // --- The notes box beside the name
+
+    /**
+     * Two fields, and the short one is still the short one.
+     *
+     * The whole reason `detail` exists rather than being typed into `note`: the
+     * month folds by `note`, so a sentence in that box would give one tank of
+     * petrol a line of its own on the summary and hide it from the Petrol total.
+     */
+    @Test
+    fun `a note beside the name does not split the fold`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", at(1), detail = "Jeddah trip, there and back")
+        store.addExpense(65.0, "Petrol", at(2), detail = "Abu Salem, cash")
+
+        val lines = store.spendingIn(StatementPeriod.thisYear())
+
+        assertEquals(1, lines.size, "one line for Petrol, whatever was written beside it")
+        assertEquals(125.0, lines.single().total)
+    }
+
+    /** Optional, and absent rather than empty when the owner skips it. */
+    @Test
+    fun `an expense with nothing in the notes box carries no note`() {
+        val store = store()
+
+        assertNull(store.addExpense(60.0, "Petrol", at(1))?.detail)
+        assertNull(store.addExpense(60.0, "Tea", at(2), detail = "   ")?.detail)
+    }
+
+    /** It is the owner's own memory, so correcting it is the ordinary edit. */
+    @Test
+    fun `the note can be corrected and removed`() {
+        val store = store()
+        val expense = store.addExpense(60.0, "Petrol", at(1), detail = "Jeddah")!!
+
+        store.updateExpense(expense.id, 60.0, "Petrol", at(1), detail = "Jeddah and Rabigh")
+        assertEquals("Jeddah and Rabigh", store.expenses.single().detail)
+
+        store.updateExpense(expense.id, 60.0, "Petrol", at(1), detail = null)
+        assertNull(store.expenses.single().detail)
+    }
+
+    /**
+     * It travels, and the file stays at the version it was.
+     *
+     * A reader built before this drops the line and misreads nothing — no
+     * balance, no total and no month's figure depends on it. That is the "label
+     * lost" side of the rule, so the version does not move.
+     */
+    @Test
+    fun `the note travels in the backup without moving the version`() {
+        val store = store()
+        store.addExpense(60.0, "Petrol", at(1), detail = "Jeddah trip")
+
+        val document = store.makeBackupDocument(august)
+        assertEquals(5, document.version, "loans took it to 5; a note beside an expense does not move it")
+
+        val restored = StockbookStore(InMemoryRepository())
+        restored.replaceEverything(BackupService.decode(BackupService.encode(document)))
+
+        assertEquals("Jeddah trip", restored.expenses.single().detail)
     }
 }

@@ -1489,11 +1489,21 @@ class StockbookStore(private val repository: StockbookRepository) {
      * Newest first, like every other list in this store, so the screen never
      * has to sort.
      */
-    fun addExpense(amount: Double, note: String, spentAt: Instant = Timestamps.now()): Expense? {
+    fun addExpense(
+        amount: Double,
+        note: String,
+        spentAt: Instant = Timestamps.now(),
+        detail: String? = null
+    ): Expense? {
         val what = note.trim()
         if (amount <= 0 || what.isEmpty()) return null
 
-        val expense = Expense(amount = amount, note = what, spentAt = spentAt)
+        val expense = Expense(
+            amount = amount,
+            note = what,
+            detail = CustomerRecord.tidied(detail),
+            spentAt = spentAt
+        )
         _state.value = _state.value.copy(expenses = listOf(expense) + expenses)
         attempt { repository.replaceAll(_state.value) }
         return expense
@@ -1541,12 +1551,23 @@ class StockbookStore(private val repository: StockbookRepository) {
     }
 
     /** Corrects one. Same rules as writing it: a correction cannot make it invalid. */
-    fun updateExpense(id: String, amount: Double, note: String, spentAt: Instant): Expense? {
+    fun updateExpense(
+        id: String,
+        amount: Double,
+        note: String,
+        spentAt: Instant,
+        detail: String? = null
+    ): Expense? {
         val existing = expenses.firstOrNull { it.id == id } ?: return null
         val what = note.trim()
         if (amount <= 0 || what.isEmpty()) return null
 
-        val updated = existing.copy(amount = amount, note = what, spentAt = spentAt)
+        val updated = existing.copy(
+            amount = amount,
+            note = what,
+            detail = CustomerRecord.tidied(detail),
+            spentAt = spentAt
+        )
         _state.value = _state.value.copy(
             expenses = expenses.map { if (it.id == id) updated else it }
         )
@@ -3414,7 +3435,13 @@ class StockbookStore(private val repository: StockbookRepository) {
                      lentAt = it.lentAt, note = it.note)
             }.sortedByDescending { it.lentAt },
             expenses = document.expenses.map {
-                Expense(id = it.id, amount = it.amount, note = it.note, spentAt = it.spentAt)
+                Expense(
+                    id = it.id,
+                    amount = it.amount,
+                    note = it.note,
+                    detail = it.detail,
+                    spentAt = it.spentAt
+                )
             }.sortedByDescending { it.spentAt },
             balanceTransfers = document.balanceTransfers.map {
                 BalanceTransfer(
@@ -3446,6 +3473,7 @@ class StockbookStore(private val repository: StockbookRepository) {
                 id = it.id,
                 amount = it.amount,
                 note = it.note,
+                detail = it.detail,
                 spentAt = it.spentAt
             )
         },

@@ -50,6 +50,21 @@ data class Expense(
      * number nobody can account for a month later.
      */
     val note: String,
+    /**
+     * Anything more the owner wants to remember about it — "Jeddah trip", "paid
+     * Abu Salem cash", "the one with the cracked casing".
+     *
+     * **Separate from [note], and that separation is the point.** `note` is the
+     * short name the money went under, and `spendingIn` folds a month by it:
+     * typing "Petrol for the Jeddah trip on Tuesday" there would give that one
+     * tank a line of its own on the summary and hide it from the Petrol total.
+     * So the name stays short and groupable, and everything else goes here.
+     *
+     * Optional, and absent rather than empty when skipped — the same shape
+     * `Payment.note` and `CreditNote.reason` already have. Its absence changes no
+     * figure, which is why it does not bump the backup version.
+     */
+    val detail: String? = null,
     /** The day the money went, which is not always the day it was written down. */
     @Serializable(with = InstantSerializer::class)
     val spentAt: Instant = Timestamps.now()

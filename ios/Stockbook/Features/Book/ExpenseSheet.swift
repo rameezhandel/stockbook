@@ -21,6 +21,7 @@ struct ExpenseSheet: View {
 
     @State private var amount = ""
     @State private var note = ""
+    @State private var detail = ""
     @State private var spentAt = Date.now
 
     private var typed: Double { Money.parse(amount) ?? 0 }
@@ -112,6 +113,19 @@ struct ExpenseSheet: View {
                 )
             }
 
+            // Optional, and last of the three, because it is the one the owner
+            // can skip. Most expenses are a word and a figure; this is for the
+            // tank of petrol that needs a sentence beside it.
+            NocturneField(
+                label: Loc.expenseNote,
+                placeholder: Loc.expenseNoteHint,
+                text: $detail,
+                height: 40,
+                fontSize: 13.5,
+                identifier: "expense.detail"
+            )
+            .padding(.top, 10)
+
             Text(Loc.expensesArePrivate)
                 .nocturneText(.meta)
                 .padding(.top, 8)
@@ -153,15 +167,18 @@ struct ExpenseSheet: View {
         guard let editing else { return }
         amount = Money.amount(editing.amount, in: currency)
         note = editing.note
+        detail = editing.detail ?? ""
         spentAt = editing.spentAt
     }
 
     private func save() {
         guard canSave else { return }
         if let editing {
-            store.updateExpense(id: editing.id, amount: typed, note: note, spentAt: spentAt)
+            store.updateExpense(
+                id: editing.id, amount: typed, note: note, spentAt: spentAt, detail: detail
+            )
         } else {
-            store.addExpense(amount: typed, note: note, spentAt: spentAt)
+            store.addExpense(amount: typed, note: note, spentAt: spentAt, detail: detail)
         }
         onClose()
     }

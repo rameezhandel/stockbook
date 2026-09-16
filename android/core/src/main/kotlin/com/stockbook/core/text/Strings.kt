@@ -1624,6 +1624,18 @@ class Strings(val language: AppLanguage) {
     /**
      * The line under the total, said once on the screen so nobody has to wonder.
      */
+    /**
+     * The optional second box on the expense sheet.
+     *
+     * Deliberately not called "note": the field above it already is one in the
+     * code, and on screen that one asks **what it was for**. This is everything
+     * the short name has no room for, and it is optional because most expenses
+     * are a word and a figure.
+     */
+    val expenseNote: String get() = pick("Notes", "ಟಿಪ್ಪಣಿ")
+    val expenseNoteHint: String
+        get() = pick("Anything worth remembering", "ನೆನಪಿಡಬೇಕಾದದ್ದು")
+
     val expensesArePrivate: String
         get() = pick(
             "Yours alone — never on a bill or a statement.",

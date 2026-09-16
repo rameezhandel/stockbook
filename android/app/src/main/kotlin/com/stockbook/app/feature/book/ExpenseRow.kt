@@ -50,10 +50,19 @@ internal fun ExpenseRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            // The date, and whatever the owner wrote beside the name, on one
+            // meta line. Joined rather than stacked: a third line would make an
+            // expense row taller than a bill's for the sake of an optional
+            // afterthought, and most expenses have nothing here at all.
             Text(
-                strings.pickedDate(expense.spentAt),
+                listOfNotNull(
+                    strings.pickedDate(expense.spentAt),
+                    expense.detail?.takeIf { it.isNotBlank() }
+                ).joinToString(" · "),
                 style = NocturneType.meta,
-                color = Nocturne.neutral500
+                color = Nocturne.neutral500,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         Spacer(Modifier.width(10.dp))

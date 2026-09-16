@@ -89,6 +89,15 @@ data class BackupDocument(
         val amount: Double,
         /** What it was for, in the owner's words. Never empty. */
         val note: String,
+        /**
+         * Anything more the owner wrote about it. Absent rather than empty.
+         *
+         * **Does not bump `currentVersion`.** A reader built before this drops
+         * the line and misreads nothing: no balance, no total and no month's
+         * figure depends on it. A label lost, not a figure misread — the same
+         * side of the rule the shop address and the invoice number fall on.
+         */
+        val detail: String? = null,
         @Serializable(with = InstantSerializer::class)
         val spentAt: Instant
     )

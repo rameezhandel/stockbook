@@ -118,6 +118,17 @@ struct BackupDocument: Codable, Equatable {
         var amount: Double
         /// What it was for, in the owner's words. Never empty.
         var note: String
+        /// Anything more the owner wrote about it. Absent rather than empty.
+        ///
+        /// **Does not bump `currentVersion`.** A reader built before this drops
+        /// the line and misreads nothing: no balance, no total and no month's
+        /// figure depends on it. A label lost, not a figure misread — the same
+        /// side of the rule the shop address and the invoice number fall on.
+        ///
+        /// Optional, so the synthesised decoder reads a file without the key.
+        /// A defaulted non-optional would throw, which is the trap that made
+        /// every older backup unreadable once already.
+        var detail: String?
         var spentAt: Date
     }
 
